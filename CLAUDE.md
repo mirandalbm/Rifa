@@ -119,7 +119,7 @@ arquitetura.
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
 | Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
-| pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts` |
+| pedido de reembolso (chamado) | `shared/chamados.ts`, `server/services/chamados.ts`, `client/src/pages/adminAtendimento.tsx`, `scripts/chamados-test.ts`; a devolução a conferir no provedor: `situacaoDoChamado()`/`validarConferencia()` em `shared/chamados.ts`, `resolverConferencia()`/`aConferirSql()` em `server/services/chamados.ts`, `POST /chamados/:id/conferencia`, `ConferenciaDaDevolucao` em `adminAtendimento.tsx`, tipo `estorno_a_conferir` em `shared/caixa.ts`, `scripts/pagarme-test.ts` |
 | disputa de reembolso (palavra final da plataforma) | `bloqueioDaDisputa()` em `shared/chamados.ts`, `abrirDisputa()`/`decidirDisputa()` em `server/services/chamados.ts`, `scripts/disputa-test.ts` |
 | cobrança da plataforma (percentual ou por cota escolhido por rifa, taxa Pix em faixas pelo volume do mês, tabela do master, a tabela agendada com o aviso de 30 dias, a taxa Pix no estorno, a notificação de falta de pagamento que bloqueia rifa nova) | `shared/cobranca.ts` (regras; `tabelaVigente`/`problemaNaVigencia`, `motivoDoEstorno`/`taxaPixFicaNoEstorno`), `shared/inadimplencia.ts` e `server/services/inadimplencia.ts` (a falta de pagamento, X.13 (a)), `tabelaDeCobrancaAgora()` em `server/services/settings.ts`, `refundOrder()` em `server/services/orders.ts` e a caixa "Falha da plataforma" em `client/src/pages/adminAtendimento.tsx` (o estorno), o aviso no sino (`rotuloDoSino()`, `PanelShell`), `campaigns.cobranca_modo`/`cobranca` e `orders.taxa_*` em `shared/schema.ts`, `pix_volume_mensal`, `publishCampaign()` em `server/services/campaigns.ts` (a fotografia), `prepararPedido`/`settleOrderAsPaid` em `server/services/orders.ts`, `shared/billing.ts` e `server/services/billing.ts` (o lançamento), `/cobranca/tabela` em `server/routes/admin.ts`, `client/src/pages/adminCobranca.tsx`, `client/src/components/CobrancaDaRifa.tsx` (na aba "A rifa"), `scripts/cobranca-test.ts`, `tests/cobranca.test.ts` |
 | exportações | `shared/exports.ts` (formato) e `server/services/exports.ts` (consultas) |
@@ -791,7 +791,8 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   403 para organizador, no `npm run isolation`). `caixaDeEntrada()` junta as
   filas (chamados e disputas, pedidos de mudança de rifa, denúncias, conversas
   e grupos denunciados, comentários do sorteio oficial denunciados,
-  verificações, cadastros fiscais, banner pago, entidades beneficiadas, Pix a devolver, saldo retido) e os telefones
+  verificações, cadastros fiscais, banner pago, entidades beneficiadas, Pix a devolver, saldo retido, devolução
+  a conferir no provedor, contestação parcial do Pix) e os telefones
   por aprovar; a ordem e o
   destino de cada tipo moram em `shared/caixa.ts` (`tests/caixa.test.ts`).
   **Sem dado pessoal na lista**: organização, código do afiliado ou apelido —
@@ -1799,10 +1800,13 @@ permite cobrar dela depois, e o aceite é a prova.
     estornada inteira — `refunded`/`canceled` **com** `canceled_amount`
     cobrindo o pago; sem o valor, na dúvida, nada. **A contestação (MED,
     chargeback) é registrada sempre** (`charge.chargedback`, só com a API
-    dizendo `chargedback` **e** o contestado cobrindo o pago — a parcial vai
-    ao log `[pagarme]` e é ignorada): vira estorno, como no Asaas. **A
-    consulta fora do ar** (rede, prazo, 5xx de lá) também responde 503 com
-    `Retry-After`, nunca 400. `charge.partial_canceled`
+    dizendo `chargedback` **e** o contestado cobrindo o pago): vira estorno,
+    como no Asaas. A parcial (ou sem o valor) não desfaz nada e **vai para a
+    Caixa de entrada** (tipo `contestacao`): o provedor devolve um `aviso`
+    no `WebhookResult` e o roteador grava `pagamento.contestacao.a_conferir`
+    no `audit_log`, que a Caixa lista (uma por cobrança, 30 dias; não há
+    botão de resolver — some sozinha). **A consulta fora do ar** (rede,
+    prazo, 5xx ou 429 de lá) também responde 503 com `Retry-After`, nunca 400. `charge.partial_canceled`
     e o resto são ignorados (a devolução parcial é sempre nossa, pelo
     chamado). A chave é o id do evento (`hook_…`). **Do corpo, só o id, o
     tipo e a cobrança ficam em `webhook_events`** (`payloadParaGuardar()`):
@@ -1814,8 +1818,10 @@ permite cobrar dela depois, e o aceite é a prova.
     **anota antes** (`cobrancas_pagas_a_conferir` em `app_settings`) e chama
     `markOrderPaid`, que leva o pedido vencido à fila do Pix tardio — mesmo
     que o webhook nunca chegue; a anotação só sai depois de o Pix entrar na
-    fila, então o banco que falhar no meio tem a volta seguinte (se nem a
-    anotação gravar, ela fica na memória do processo). O estorno manda o valor em centavos quando é
+    fila, então o banco que falhar no meio tem a volta seguinte. Se nem a
+    anotação gravar, ela fica na memória do processo (`naMemoria`) — **só
+    naquele processo, e some no deploy**: aí o caso depende do webhook do
+    provedor (o reenvio dele) para chegar à fila. O estorno manda o valor em centavos quando é
     parcial e a chave de idempotência derivada da chave do caso e do valor; o
     **parcial é conferido** (o cancelado antes e o da resposta,
     `problemaNoEstornoParcial()`): o Pagar.me que devolvesse outro valor (ou
@@ -1823,14 +1829,19 @@ permite cobrar dela depois, e o aceite é a prova.
     (sem resposta, 5xx de lá, ou o valor que não confere) leva a marca
     `depoisDeChamar`: o dinheiro pode ter voltado, então `executarEstorno`
     **não** volta o chamado a aprovado — ele fica estornado, com
-    `formaDevolucao = conferir_no_provedor` (`FORMA_A_CONFERIR`), sem nova
+    `formaDevolucao = conferir_no_provedor` (`FORMA_A_CONFERIR`, a marca e o
+    `audit_log` `chamado.estorno.conferir` na mesma transação), sem nova
     devolução e sem nada desfeito, e responde 409 pedindo a conferência no
     painel do provedor (como o Pix tardio que fica em `devolvendo`). A
-    recusa de verdade (4xx de lá) segue voltando a aprovado. **O par
-    consulta → `DELETE`** do estorno e do `cancelCharge` corre com a
-    cobrança travada (`pg_advisory_lock` de `pagarme:<cobrança>` numa
-    conexão do `poolDasTravas`, solta no `finally`): dois estornos da mesma
-    cobrança do carrinho não leem o mesmo "antes".
+    recusa de verdade (4xx de lá) segue voltando a aprovado. A saída é da
+    plataforma (seção "Reembolso por chamado"). **O par consulta →
+    `DELETE`** do estorno e do `cancelCharge` corre com a cobrança travada:
+    `pg_advisory_lock(<classe>, hashtext(<cobrança>))` — **duas chaves**, a
+    classe `TRAVA_DA_COBRANCA_CLASSE` (811901), para nunca colidir com as
+    travas de uma chave dos relógios — numa conexão do `poolDasTravas`, com
+    `lock_timeout` de 15 s, solta no `finally` (o `unlock` que falha devolve
+    a conexão com `release(err)`): dois estornos da mesma cobrança do
+    carrinho não leem o mesmo "antes".
   - **E-mail obrigatório quando o provedor exige** (`EXIGE_EMAIL`, como o
     `EXIGE_CPF`), e no Pagar.me **o e-mail até 64 letras e o telefone com
     DDD no formato dele** (`problemaNoPagador()` do provedor — e-mail maior é
@@ -2149,7 +2160,7 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   `refund(chargeId, amountCents)`; sem valor é devolução total. A chave de
   idempotência do Mercado Pago leva o valor, para a repetição não dobrar.
 - **Um chamado em andamento por pedido** — quem decide é o índice único
-  parcial `uq_chamados_pedido_em_andamento`, não um `SELECT` antes.
+  parcial `uq_chamados_pedido_aberto`, não um `SELECT` antes.
 - **Limite do dia conta a tentativa, e conta o CPF errado.** Erro de
   preenchimento (arquivo que não é imagem) sai **antes** do `hit()`, senão quem erra o
   formulário fica 24 h sem pedir; o CPF é conferido **depois**, senão dá para
@@ -2170,6 +2181,29 @@ botão, é **chamado** — com dono, prova, conversa e protocolo.
   chamado já aprovado com taxa encurta o prazo dele na mesma transação.
 - **Estornar toma o chamado** (`aprovado` → `estornado`) antes de chamar o
   provedor: dois cliques simultâneos dão um estorno e um 409.
+- **A devolução que o provedor não confirmou fica "a conferir"**, nunca
+  "devolvido" nem de volta a aprovado. Estornar marca o chamado
+  `devolvendo_no_provedor` enquanto o provedor responde; o erro de depois
+  de chamar (`depoisDeChamar`) o deixa `conferir_no_provedor` (a devolução
+  parada no meio há mais de 10 min conta igual: `aConferirSql()`). Enquanto
+  isso: a situação em texto é "Devolução a conferir no provedor" (painel) e
+  "devolução em conferência" (comprador) — `situacaoDoChamado()` em
+  `shared/chamados.ts`; o pedido **não aceita outro chamado** (o índice
+  parcial passou a se chamar `uq_chamados_pedido_aberto` e inclui as duas
+  marcas — índice com filtro novo, nome novo); a **comissão do pedido não é
+  liberada** (`comissaoSemDevolucaoAConferirSql()` no relógio e em
+  `/finance/release`); e o caso entra no contador da plataforma e na Caixa
+  de entrada (tipo `estorno_a_conferir`). **Só a plataforma resolve**
+  (`POST /chamados/:id/conferencia`, `resolverConferencia()`, 403 para
+  organizador no `npm run isolation`), com a observação do que conferiu:
+  **devolveu** → `refundOrder` (cota, contador, comissão, taxa) com a marca
+  saindo **na mesma transação** (`refundOrder(…, { naTransacao })`, o
+  chamado travado, `UPDATE` condicional à marca: dois cliques, um 200 e um
+  409), a forma passa ao provedor do pedido; **não devolveu** → volta a
+  aprovado e se devolve de novo pelo caminho de sempre. Auditoria
+  (`chamado.estorno.conferido.devolveu`/`.nao_devolveu`) na mesma transação.
+  A ação do assistente não resolve: diz que só a plataforma confere.
+  `npm run pagarme` prova.
 - **O comprador nunca vê o nome de quem atendeu** — só "Atendimento".
 - **Chamado novo avisa a organização** pelo WhatsApp (`chamado_novo`), depois
   da transação: para `organizations.aviso_telefone` se houver, senão para os
@@ -2196,7 +2230,7 @@ final.
   dinheiro de volta juntos, nunca.
 - **Uma por chamado**, pelo `UPDATE` condicional (`disputa IS NULL`, e o
   status que a régua conferiu). O recusado em disputa conta como em
-  andamento no índice único parcial (`uq_chamados_pedido_em_andamento`):
+  andamento no índice único parcial (`uq_chamados_pedido_aberto`):
   não abre outro chamado do mesmo pedido enquanto a plataforma decide.
 - **Com a disputa aberta, a organização não decide** (`concluirChamado`
   exige `disputa IS NULL`) — mas a conversa segue dos dois lados, para ela

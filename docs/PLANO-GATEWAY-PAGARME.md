@@ -129,8 +129,9 @@ No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
   estornada inteira (com `canceled_amount` cobrindo o pago — sem o valor,
   nada); `charge.chargedback` com a API dizendo `chargedback` e o
   contestado cobrindo o pago vira estorno (MED e contestação são
-  registrados sempre; a parcial vai ao log e é ignorada); a consulta fora do
-  ar (rede, prazo, 5xx) também é 503 com `Retry-After`; o resto (inclusive
+  registrados sempre; a parcial, ou sem o valor, não desfaz nada e vai para
+  a Caixa de entrada, tipo `contestacao`, pelo `audit_log`); a consulta fora
+  do ar (rede, prazo, 5xx, 429) também é 503 com `Retry-After`; o resto (inclusive
   `charge.partial_canceled`) é ignorado. A chave da idempotência é o id do
   evento (`hook_…`), e `webhook_events` guarda só `{ id, type, data: { id } }`
   — o `data` de lá traz o cliente.
@@ -140,15 +141,19 @@ No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
   valor (ou tudo), é erro e nada é desfeito aqui. O erro de depois de
   chamar (sem resposta, 5xx, valor que não confere) não volta o chamado a
   aprovado: ele fica estornado, marcado `conferir_no_provedor`, sem nova
-  devolução, até alguém conferir no painel do Pagar.me. O par consulta →
-  `DELETE` corre com a cobrança travada (trava de sessão no
-  `poolDasTravas`).
+  devolução, sem outro chamado do mesmo pedido e com a comissão segura, até
+  a plataforma conferir no painel do Pagar.me e decidir no Atendimento
+  (`POST /chamados/:id/conferencia`: devolveu → desfaz o pedido; não
+  devolveu → volta a aprovado). O par consulta → `DELETE` corre com a
+  cobrança travada (trava de sessão de duas chaves no `poolDasTravas`, com
+  `lock_timeout` de 15 s).
 - **Cancelamento da reserva vencida**: consulta a cobrança e só cancela a
   `pending`; a paga fica como está e volta `"paga"` — o relógio
   (`expirarReservas()`) a anota (`cobrancas_pagas_a_conferir` em
   `app_settings`) e leva o pedido vencido à fila do Pix tardio, mesmo sem o
   webhook; a anotação só sai com o Pix na fila (o banco que falhar no meio
-  tem a volta seguinte).
+  tem a volta seguinte). Se nem a anotação gravar, ela fica só na memória
+  daquele processo e some no deploy (aí vale o reenvio do webhook).
 - **Quem paga, antes de reservar**: o e-mail (até 64 letras, nunca cortado)
   e o telefone no formato do Pagar.me, no pedido, no carrinho, na recarga e
   no Pix do assistente (sem WhatsApp no acesso, o telefone aprovado da

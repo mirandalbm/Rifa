@@ -132,12 +132,15 @@ senha); **[código]** é trabalho no repositório.
   como a documentação mostra (UTC); se o Pagar.me o ler como Brasília, o QR
   vive 3 h a mais que a reserva. Se a documentação aceitar o `Z`, passe a
   mandar com ele (`venceEmDoPagarme()` em `server/payments/pagarme.ts`).
-- [ ] **[código]** Concluir o chamado **estornado a conferir no provedor**
-  (`formaDevolucao = conferir_no_provedor`: o pedido de devolução saiu e o
-  Pagar.me não confirmou o valor). Hoje ele fica parado, sem nova devolução
-  e sem nada desfeito: falta o botão da plataforma para, depois de conferir
-  no painel do Pagar.me, desfazer no sistema (`refundOrder`) ou registrar a
-  devolução à mão. Até lá, o caso se resolve pelo banco, com a auditoria.
+- [x] **[código]** A devolução **a conferir no provedor** tem saída: a
+  plataforma confere no painel do Pagar.me e decide no Atendimento
+  (`POST /chamados/:id/conferencia`; devolveu → desfaz o pedido, não
+  devolveu → volta a aprovado), com a Caixa de entrada, o contador, o
+  índice que barra outro chamado do mesmo pedido e a comissão segura.
+- [ ] **[código]** A **contestação parcial** do Pix (MED, chargeback que não
+  cobre o pago) só aparece na Caixa de entrada (30 dias, tipo
+  `contestacao`): não há botão de resolver nem de dispensar. Decidir o que
+  fazer com ela (estornar o pedido, registrar a perda) é trabalho à parte.
 - [ ] **[código]** Repasse à promotora (a fase que substitui o split): espera
   a resposta do advogado (item acima). Asaas e Mercado Pago (abaixo) ficam no
   código até o Pagar.me estar em produção. Pela busca, o Asaas põe loterias

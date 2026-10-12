@@ -1799,7 +1799,10 @@ permite cobrar dela depois, e o aceite é a prova.
     estornada inteira — `refunded`/`canceled` **com** `canceled_amount`
     cobrindo o pago; sem o valor, na dúvida, nada. **A contestação (MED,
     chargeback) é registrada sempre** (`charge.chargedback`, só com a API
-    dizendo `chargedback`): vira estorno, como no Asaas. `charge.partial_canceled`
+    dizendo `chargedback` **e** o contestado cobrindo o pago — a parcial vai
+    ao log `[pagarme]` e é ignorada): vira estorno, como no Asaas. **A
+    consulta fora do ar** (rede, prazo, 5xx de lá) também responde 503 com
+    `Retry-After`, nunca 400. `charge.partial_canceled`
     e o resto são ignorados (a devolução parcial é sempre nossa, pelo
     chamado). A chave é o id do evento (`hook_…`). **Do corpo, só o id, o
     tipo e a cobrança ficam em `webhook_events`** (`payloadParaGuardar()`):
@@ -1807,13 +1810,27 @@ permite cobrar dela depois, e o aceite é a prova.
   - **Cancelar é a mesma rota do estorno** (`DELETE /charges/{id}`): por isso
     `cancelCharge` consulta antes e **só cancela a cobrança pendente**. A paga
     fica e volta `"paga"`: o relógio da reserva vencida
-    (`expirarReservas()` em `server/services/reservasVencidas.ts`) chama
+    (`expirarReservas()` em `server/services/reservasVencidas.ts`) a
+    **anota antes** (`cobrancas_pagas_a_conferir` em `app_settings`) e chama
     `markOrderPaid`, que leva o pedido vencido à fila do Pix tardio — mesmo
-    que o webhook nunca chegue. O estorno manda o valor em centavos quando é
+    que o webhook nunca chegue; a anotação só sai depois de o Pix entrar na
+    fila, então o banco que falhar no meio tem a volta seguinte (se nem a
+    anotação gravar, ela fica na memória do processo). O estorno manda o valor em centavos quando é
     parcial e a chave de idempotência derivada da chave do caso e do valor; o
     **parcial é conferido** (o cancelado antes e o da resposta,
     `problemaNoEstornoParcial()`): o Pagar.me que devolvesse outro valor (ou
-    tudo, ignorando o `amount`) vira erro, e o chamado volta a aprovado.
+    tudo, ignorando o `amount`) vira erro. **O erro de depois de chamar**
+    (sem resposta, 5xx de lá, ou o valor que não confere) leva a marca
+    `depoisDeChamar`: o dinheiro pode ter voltado, então `executarEstorno`
+    **não** volta o chamado a aprovado — ele fica estornado, com
+    `formaDevolucao = conferir_no_provedor` (`FORMA_A_CONFERIR`), sem nova
+    devolução e sem nada desfeito, e responde 409 pedindo a conferência no
+    painel do provedor (como o Pix tardio que fica em `devolvendo`). A
+    recusa de verdade (4xx de lá) segue voltando a aprovado. **O par
+    consulta → `DELETE`** do estorno e do `cancelCharge` corre com a
+    cobrança travada (`pg_advisory_lock` de `pagarme:<cobrança>` numa
+    conexão do `poolDasTravas`, solta no `finally`): dois estornos da mesma
+    cobrança do carrinho não leem o mesmo "antes".
   - **E-mail obrigatório quando o provedor exige** (`EXIGE_EMAIL`, como o
     `EXIGE_CPF`), e no Pagar.me **o e-mail até 64 letras e o telefone com
     DDD no formato dele** (`problemaNoPagador()` do provedor — e-mail maior é

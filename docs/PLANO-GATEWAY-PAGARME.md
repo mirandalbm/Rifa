@@ -127,19 +127,28 @@ No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
   `Retry-After`**, para o Pagar.me tentar de novo — nada pago); `underpaid`
   vai ao log e é ignorado; `charge.refunded` só estorna com a cobrança
   estornada inteira (com `canceled_amount` cobrindo o pago — sem o valor,
-  nada); `charge.chargedback` com a API dizendo `chargedback` vira estorno
-  (MED e contestação são registrados sempre); o resto (inclusive
+  nada); `charge.chargedback` com a API dizendo `chargedback` e o
+  contestado cobrindo o pago vira estorno (MED e contestação são
+  registrados sempre; a parcial vai ao log e é ignorada); a consulta fora do
+  ar (rede, prazo, 5xx) também é 503 com `Retry-After`; o resto (inclusive
   `charge.partial_canceled`) é ignorado. A chave da idempotência é o id do
   evento (`hook_…`), e `webhook_events` guarda só `{ id, type, data: { id } }`
   — o `data` de lá traz o cliente.
 - **Estorno**: `DELETE /charges/{id}`, total sem corpo e parcial com
   `{ amount }` em centavos, com a chave `estorno-<cobrança>-<quem>-<valor>`.
   O parcial lê o `canceled_amount` antes e o da resposta: devolveu outro
-  valor (ou tudo), é erro e nada é desfeito aqui.
+  valor (ou tudo), é erro e nada é desfeito aqui. O erro de depois de
+  chamar (sem resposta, 5xx, valor que não confere) não volta o chamado a
+  aprovado: ele fica estornado, marcado `conferir_no_provedor`, sem nova
+  devolução, até alguém conferir no painel do Pagar.me. O par consulta →
+  `DELETE` corre com a cobrança travada (trava de sessão no
+  `poolDasTravas`).
 - **Cancelamento da reserva vencida**: consulta a cobrança e só cancela a
   `pending`; a paga fica como está e volta `"paga"` — o relógio
-  (`expirarReservas()`) leva o pedido vencido à fila do Pix tardio, mesmo
-  sem o webhook.
+  (`expirarReservas()`) a anota (`cobrancas_pagas_a_conferir` em
+  `app_settings`) e leva o pedido vencido à fila do Pix tardio, mesmo sem o
+  webhook; a anotação só sai com o Pix na fila (o banco que falhar no meio
+  tem a volta seguinte).
 - **Quem paga, antes de reservar**: o e-mail (até 64 letras, nunca cortado)
   e o telefone no formato do Pagar.me, no pedido, no carrinho, na recarga e
   no Pix do assistente (sem WhatsApp no acesso, o telefone aprovado da
@@ -184,7 +193,9 @@ provedor no painel):
    entra junto com o segredo do endereço.
 10. A contestação: o nome do evento (`charge.chargedback`, que a
     documentação diz dar lugar a `chargeback.received`, cujo corpo traz a
-    contestação e não a cobrança) e o status `chargedback` da cobrança.
+    contestação e não a cobrança), o status `chargedback` da cobrança e em
+    que campo vem o valor contestado (usamos `canceled_amount`; sem ele, a
+    contestação é ignorada e vai ao log).
 11. `overpaid` e `underpaid` numa cobrança Pix (o valor é fixo no QR): o
     `overpaid` paga, o `underpaid` vai ao log (`[pagarme]`) e espera a
     devolução à mão.

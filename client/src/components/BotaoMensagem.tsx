@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { MessageCircle } from "lucide-react";
 
 /**
  * "Mensagem" no perfil: leva à caixa já com o destino preenchido (o `para`
@@ -8,14 +9,30 @@ import { useQuery } from "@tanstack/react-query";
  * própria tela de mensagens. A pergunta é a mesma do resto do app
  * (`/api/public/app`), sem depender do console.
  */
-export function BotaoMensagem({ para, compacto = false }: { para: string; compacto?: boolean }) {
+export function BotaoMensagem({
+  para,
+  compacto = false,
+  classe,
+  icone = false,
+}: {
+  para: string;
+  compacto?: boolean;
+  /** Troca a aparência (o perfil usa a medida do cartão dele); sem ela, a de sempre. */
+  classe?: string;
+  /** O balão à esquerda do texto, como no perfil do apostador. */
+  icone?: boolean;
+}) {
   const { data } = useQuery<{ mensagensLigado?: boolean }>({ queryKey: ["/api/public/app"], staleTime: 60_000 });
   if (!data?.mensagensLigado) return null;
   return (
     <Link
       href={`/mensagens?para=${encodeURIComponent(para)}`}
-      className={`rounded-md border border-line-2 font-semibold text-ink hover:bg-mist ${compacto ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm"}`}
+      className={
+        classe ??
+        `rounded-md border border-line-2 font-semibold text-ink hover:bg-mist ${compacto ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm"}`
+      }
     >
+      {icone ? <MessageCircle size={16} aria-hidden /> : null}
       Mensagem
     </Link>
   );

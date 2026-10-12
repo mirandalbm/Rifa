@@ -67,6 +67,7 @@ export function FotoComStory({
   tamanho,
   onAbrir,
   aoVivo = null,
+  circulo,
 }: {
   slug: string;
   nome: string;
@@ -76,11 +77,17 @@ export function FotoComStory({
   onAbrir: () => void;
   /** Transmissão no ar: o anel ganha o selo "AO VIVO" (texto, não só cor). */
   aoVivo?: AoVivoDaOrg | null;
+  /**
+   * O círculo inteiro, com o anel, em px (o perfil da organização usa 96, a
+   * medida da fileira de stories do Instagram). Sem ele, o anel abraça a foto.
+   */
+  circulo?: number;
 }) {
   useVistos();
   if (!ultimoStory && !aoVivo) return <FotoDoPerfil nome={nome} foto={foto} tamanho={tamanho} />;
   const novo = temStoryNovo(ultimoStory, vistoAte(slug));
-  const anel = `block w-fit shrink-0 rounded-full p-[2px] ${aoVivo || novo ? "border-[3px] border-marca" : "border border-line-2"}`;
+  const anel = `${circulo ? "flex items-center justify-center" : "block w-fit p-[2px]"} shrink-0 rounded-full ${aoVivo || novo ? "border-[3px] border-marca" : "border border-line-2"}`;
+  const medida = circulo ? { width: circulo, height: circulo } : undefined;
   const miolo = (
     <>
       <span className="block rounded-full bg-white p-[2px]">
@@ -97,6 +104,7 @@ export function FotoComStory({
         onClick={() => marcarOrigem("story")}
         aria-label={`Assistir ao vivo: sorteio de ${nome}`}
         className={`relative ${anel}`}
+        style={medida}
       >
         {miolo}
       </Link>
@@ -108,6 +116,7 @@ export function FotoComStory({
       onClick={onAbrir}
       aria-label={`Ver stories de ${nome}${aoVivo ? " (ao vivo agora)" : ""}${novo ? " (novo)" : ""}`}
       className={`relative ${anel}`}
+      style={medida}
     >
       {miolo}
     </button>

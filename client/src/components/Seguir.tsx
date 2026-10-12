@@ -54,7 +54,8 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
   // Botão na cor de marca (a do perfil, dentro de `DestaqueOrg`). O texto é
   // a cor da superfície (`text-white`): a marca tem contraste ≥ 3:1 com ela
   // nos dois temas, conferido quando a cor é salva.
-  const tamanho = compacto ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm";
+  // 36 px de altura e cantos de 10, como no cartão do perfil (Figma, 03).
+  const tamanho = compacto ? "rounded-md px-3 py-1 text-xs" : "h-9 rounded-[10px] px-[18px] text-sm";
 
   return (
     <div className="flex items-center gap-2">
@@ -66,7 +67,7 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
           alternar.mutate();
         }}
         aria-pressed={seguindo}
-        className={`rounded-md font-semibold ${tamanho} ${
+        className={`flex items-center font-semibold ${tamanho} ${
           seguindo
             ? "border border-line-2 bg-mist text-ink hover:bg-mist-2"
             : "bg-marca text-white hover:brightness-95"
@@ -74,7 +75,15 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
       >
         {seguindo ? "Seguindo" : "Seguir"}
       </button>
-      <BotaoMensagem para={slug} compacto={compacto} />
+      <BotaoMensagem
+        para={slug}
+        compacto={compacto}
+        classe={
+          compacto
+            ? undefined
+            : "flex h-9 items-center rounded-[10px] border border-line-2 px-[18px] text-sm font-semibold text-ink hover:bg-mist"
+        }
+      />
       {seguindo ? (
         <button
           type="button"
@@ -83,8 +92,8 @@ export function SeguirBotoes({ slug, compacto = false }: { slug: string; compact
           aria-pressed={data?.sino}
           aria-label={data?.sino ? "Sino ligado: desligar avisos" : "Sino desligado: ligar avisos"}
           title={data?.sino ? "Avisos ligados" : "Avisos desligados"}
-          className={`flex items-center justify-center rounded-md border border-line-2 ${
-            compacto ? "h-7 w-8" : "h-8 w-9"
+          className={`flex items-center justify-center border border-line-2 ${
+            compacto ? "h-7 w-8 rounded-md" : "h-9 w-9 rounded-[10px]"
           } ${data?.sino ? "text-marca" : "text-muted"} hover:bg-mist`}
         >
           {data?.sino ? <Bell size={16} aria-hidden /> : <BellOff size={16} aria-hidden />}

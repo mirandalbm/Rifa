@@ -92,7 +92,7 @@ export default function CriarConta() {
 
   const campo = (
     id: Exclude<keyof Campos, "senha">,
-    rotulo: string,
+    rotulo: React.ReactNode,
     extra: React.InputHTMLAttributes<HTMLInputElement> = {},
     dica?: string,
   ) => (
@@ -144,7 +144,8 @@ export default function CriarConta() {
           {campo("nome", "Nome completo", { autoComplete: "name" })}
           {campo(
             "apelido",
-            "Apelido (seu nome de usuário, único na plataforma)",
+            // Rótulo de duas linhas no celular: a altura da linha do rótulo, não a da página.
+            <span className="block leading-4">Apelido (seu nome de usuário, único na plataforma)</span>,
             { autoCapitalize: "none", autoCorrect: "off", placeholder: "ex.: ana.souza", maxLength: 30 },
             "É como você aparece nos comentários e no seu perfil (letras, números, ponto e sublinhado).",
           )}

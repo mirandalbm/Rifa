@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BadgeCheck, Bell, CalendarClock, Gift, MessageCircle, PartyPopper, ReceiptText, Trophy, Megaphone } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { Empty } from "@/components/bits";
+import { TONS_DO_BOTAO } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 
@@ -81,13 +81,18 @@ export default function Notificacoes() {
         <button
           type="button"
           onClick={() => (window.history.length > 1 ? window.history.back() : navegar("/"))}
-          className="rounded-md p-1 hover:bg-mist"
+          className="inline-flex min-h-6 items-center rounded-md p-1 hover:bg-mist"
           aria-label="Voltar"
         >
           <ArrowLeft size={22} aria-hidden />
         </button>
         <h1 className="flex-1 font-display text-xl font-extrabold">Notificações</h1>
-        <Link href="/minhas-compras" className="rounded-md p-1 hover:bg-mist" aria-label="Ligar avisos no celular">
+        <Link
+          href="/minhas-compras?aba=conta"
+          className="inline-flex min-h-6 items-center rounded-md p-1 hover:bg-mist"
+          aria-label="Ligar avisos no celular"
+          title="Ligar avisos no celular"
+        >
           <Bell size={20} aria-hidden />
         </Link>
       </div>
@@ -96,8 +101,8 @@ export default function Notificacoes() {
         <div className="space-y-3 rounded-xl border border-line p-4 text-sm">
           <p>Entre para ver seus avisos: rifas novas de quem você segue, sorteios e resultados.</p>
           <Link
-            href="/entrar"
-            className="inline-block rounded-md bg-green px-4 py-2 text-sm font-semibold text-on-green hover:brightness-95"
+            href="/entrar?volta=%2Fnotificacoes"
+            className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.primario}`}
           >
             Entrar
           </Link>
@@ -105,12 +110,25 @@ export default function Notificacoes() {
       ) : isLoading ? (
         <p className="text-sm text-muted">Carregando…</p>
       ) : !data?.lista.length ? (
-        <Empty>
-          <span className="flex flex-col items-center gap-2">
-            <PartyPopper size={28} aria-hidden />
-            Nenhum aviso ainda. Siga um perfil e ligue o sino para saber das rifas novas.
-          </span>
-        </Empty>
+        // Vazio com o próximo passo: seguir uma organização (na vitrine) e ligar os avisos neste aparelho.
+        <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-sm text-muted">
+          <PartyPopper size={28} aria-hidden />
+          <p>Nenhum aviso ainda. Siga um perfil e ligue o sino para saber das rifas novas.</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link
+              href="/"
+              className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.claro}`}
+            >
+              Ver as rifas para seguir
+            </Link>
+            <Link
+              href="/minhas-compras?aba=conta"
+              className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.contorno}`}
+            >
+              Ligar os avisos
+            </Link>
+          </div>
+        </div>
       ) : (
         [...grupos.entries()].map(([nome, avisos]) => (
           <section key={nome} className="mb-4">

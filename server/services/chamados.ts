@@ -42,6 +42,8 @@ import {
   problemaNaDisputa,
   gerarProtocolo,
   prazoDoEstornoDoTipo,
+  somarDiasUteis,
+  DIAS_UTEIS_DEVOLUCAO_INTEGRAL,
   problemaNoPedido,
   type PedidoDeReembolso,
 } from "@shared/chamados";
@@ -763,7 +765,12 @@ export async function executarEstorno(req: Request, id: string, opcoes: { falhaD
       if (provider.refund) {
         // Sem valor, o provedor devolve a cobrança inteira. No carrinho num
         // Pix só a cobrança é de várias rifas: o valor vai sempre explícito.
-        await provider.refund(pedido.pspChargeId, devolver < pago || pedido.carrinhoId ? devolver : undefined, `pedido-${pedido.id}`);
+        // A chave da devolução: a de sempre na primeira tentativa (a repetição
+        // normal não dobra); depois de cada conferência "não devolveu", outra
+        // (`-t<n>`), senão o provedor repetiria a resposta da que falhou.
+        const tentativa = await tentativasNaoDevolvidas(c.id);
+        const chave = tentativa > 0 ? `pedido-${pedido.id}-t${tentativa}` : `pedido-${pedido.id}`;
+        await provider.refund(pedido.pspChargeId, devolver < pago || pedido.carrinhoId ? devolver : undefined, chave);
         forma = pedido.pspProvider;
       }
     }
@@ -886,9 +893,38 @@ export async function resolverConferencia(req: Request, id: string, entrada: { d
   };
 
   if (!entrada.devolveu) {
-    const feito = await db.transaction((tx) =>
-      decidir(tx, { status: "aprovado", estornadoEm: null, formaDevolucao: null, falhaPlataforma: false }),
-    );
+    const feito = await db.transaction(async (tx) => {
+      // Volta a aprovado com a regra de hoje: se o sorteio foi adiado depois da
+      // compra enquanto a devolução estava a conferir, o chamado com taxa
+      // passa a devolver tudo — a mesma conversão que a aprovação do
+      // adiamento faz nos chamados abertos e aprovados (`solicitacoes.ts`).
+      // Lido com o chamado travado: o adiamento aprovado no meio espera a
+      // linha e converte depois, já aprovado.
+      await tx.execute(sql`SELECT id FROM chamados WHERE id = ${c.id} FOR UPDATE`);
+      const [rifa] = pedido
+        ? await tx.select({ adiadoEm: adiadoEmSql }).from(campaigns).where(eq(campaigns.id, pedido.campaignId))
+        : [];
+      const compradoEm = pedido?.paidAt ?? pedido?.createdAt ?? null;
+      const viraIntegral =
+        c.tipoReembolso === "com_taxa" && rifa?.adiadoEm && compradoEm && compradoEm.getTime() < rifa.adiadoEm.getTime();
+      const prazoIntegral = somarDiasUteis(new Date(), DIAS_UTEIS_DEVOLUCAO_INTEGRAL);
+      return decidir(tx, {
+        status: "aprovado",
+        estornadoEm: null,
+        formaDevolucao: null,
+        falhaPlataforma: false,
+        ...(viraIntegral
+          ? {
+              tipoReembolso: "adiamento",
+              taxaPct: 0,
+              taxaCents: 0,
+              devolverCents: pedido!.amountCents,
+              prazoEstornoAte:
+                c.prazoEstornoAte && c.prazoEstornoAte.getTime() < prazoIntegral.getTime() ? c.prazoEstornoAte : prazoIntegral,
+            }
+          : {}),
+      });
+    });
     await novaMensagem({
       chamadoId: c.id,
       autor: "plataforma",
@@ -919,6 +955,18 @@ export async function resolverConferencia(req: Request, id: string, entrada: { d
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Quantas vezes a plataforma conferiu que a devolução deste chamado não
+ * saiu. Contado pela auditoria (gravada na mesma transação da decisão): é
+ * durável e dispensa coluna nova.
+ */
+async function tentativasNaoDevolvidas(chamadoId: string): Promise<number> {
+  const { rows } = await db.execute(
+    sql`SELECT count(*)::int AS n FROM audit_log WHERE action = 'chamado.estorno.conferido.nao_devolveu' AND entity = 'chamado' AND entity_id = ${chamadoId}`,
+  );
+  return Number((rows[0] as { n?: number } | undefined)?.n ?? 0);
+}
 
 /* ------------------------------------------------------------------ *
  * Disputa com a plataforma

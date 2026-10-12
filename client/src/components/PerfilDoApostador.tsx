@@ -14,8 +14,22 @@ interface MeuPerfil {
   verificado?: boolean;
 }
 
-/** A foto redonda do apostador (ou a inicial, sem foto). */
-export function FotoDoApostador({ nome, foto, tamanho = 36 }: { nome: string; foto: string | null; tamanho?: number }) {
+/**
+ * A foto redonda do apostador (ou a inicial, sem foto). `invertida`: sobre a
+ * faixa escura do perfil público (`.faixa-escura`), a inicial herda a cor da
+ * faixa sobre um círculo um pouco mais escuro — lê nos dois temas.
+ */
+export function FotoDoApostador({
+  nome,
+  foto,
+  tamanho = 36,
+  invertida = false,
+}: {
+  nome: string;
+  foto: string | null;
+  tamanho?: number;
+  invertida?: boolean;
+}) {
   return foto ? (
     <img
       src={foto}
@@ -28,7 +42,9 @@ export function FotoDoApostador({ nome, foto, tamanho = 36 }: { nome: string; fo
   ) : (
     <span
       aria-hidden
-      className="flex shrink-0 items-center justify-center rounded-full bg-mist-2 font-display font-extrabold text-ink"
+      className={`flex shrink-0 items-center justify-center rounded-full font-display font-extrabold ${
+        invertida ? "bg-black/25 text-current" : "bg-mist-2 text-ink"
+      }`}
       style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.42 }}
     >
       {nome.replace(/^@/, "").charAt(0).toUpperCase() || "?"}

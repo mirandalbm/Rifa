@@ -305,6 +305,28 @@
     --marca: var(--destaque-escuro);
   }
 
+  /*
+   * A faixa escura do perfil do apostador (`/u/<apelido>`, Figma 05): no
+   * claro, a superfície invertida (fundo `--ink`, texto `--white`); no
+   * escuro, continua escura — um degrau acima do fundo (`--mist`), com o
+   * texto do tema. Só variáveis: nenhum valor fixo. Dentro dela, o texto
+   * herda a cor (`text-current`, `opacity-*`, `border-current`).
+   */
+  .faixa-escura {
+    background-color: var(--ink);
+    color: var(--white);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="claro"]) .faixa-escura {
+      background-color: var(--mist);
+      color: var(--ink);
+    }
+  }
+  :root[data-tema="escuro"] .faixa-escura {
+    background-color: var(--mist);
+    color: var(--ink);
+  }
+
   * {
     @apply border-line;
   }

@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 804 |
+| Cartões (componentes usados pelas telas) | 813 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
-| Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 911 de 911 |
+| Testes de regra (`tests/`) | 129 arquivos |
+| Destinos decididos | 920 de 920 |
 
 ## 1. Telas
 
@@ -985,6 +985,8 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BotaoGoogle` | manter · na tela 24 Criar conta · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
+| `Campo` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
+| `CampoDeSenha` | manter · na tela 24 Criar conta · onda 5 |
 | `Marca` | manter · peça do kit (onda 1) · na tela 24 Criar conta |
 
 ### `/entrar` — Login
@@ -993,7 +995,11 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BotaoGoogle` | manter · na tela 23 Entrar · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 23 Entrar |
+| `Caixa` | manter · peça do kit (onda 1) · na tela 23 Entrar |
+| `Campo` | manter · peça do kit (onda 1) · na tela 23 Entrar |
+| `CampoDeSenha` | manter · na tela 23 Entrar · onda 5 |
 | `Marca` | manter · peça do kit (onda 1) · na tela 23 Entrar |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 23 Entrar |
 
 ### `/estado/:uf` — EstadoPage
 
@@ -1247,6 +1253,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
+| `Caixa` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
+| `Campo` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
+| `CampoDeSenha` | manter · na tela 25 Seja afiliado · onda 5 |
 | `Card` | manter · peça do kit (onda 1) · na tela 25 Seja afiliado |
 
 ### `/termos` — TermosDeUso

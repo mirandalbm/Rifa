@@ -119,8 +119,11 @@ export default function Vitrine() {
       <h1 className="sr-only">Rifas no ar</h1>
       {/* Tablet e computador: o feed no centro e, à direita, a coluna ao vivo
           (tela do sorteio, ganhadores, jogando agora). O celular é só o feed. */}
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="min-w-0 md:px-3 md:pb-8 md:pt-3">
+      {/* O feed tem no máximo 768 px, no meio da faixa dele; a coluna, 296 px
+          no tablet e 336 no computador (Figma "10 · Loja", 01 Vitrine). */}
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_296px] lg:grid-cols-[minmax(0,1fr)_336px]">
+      <div className="min-w-0 md:px-4 md:pb-8 md:pt-3">
+      <div className="mx-auto w-full min-w-0 max-w-[768px]">
       {blocos.map((b) => {
           switch (b.tipo) {
             case "regiao":
@@ -164,6 +167,7 @@ export default function Vitrine() {
               return null;
           }
         })}
+      </div>
       </div>
       <ColunaAoVivo />
       </div>

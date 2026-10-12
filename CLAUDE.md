@@ -410,7 +410,7 @@ arquitetura.
   qualquer endereço seria pôr página alheia dentro do site. **Flutuar**
   solta a tela da coluna (portal no `body`): arrasta pela barra, muda de
   tamanho pelo canto (livre, sempre 16:9), nunca sai da janela, e o Esc ou o
-  X a devolvem. Flutuando, "jogando agora" ocupa o espaço dela.
+  X a devolvem. Flutuando, "jogando agora" pode crescer no espaço dela (a seção é do tamanho da lista e rola quando não cabe — vazia, não estica).
   **Nenhuma rifa na tela do sorteio**: o sorteio pode ser de várias
   organizações, então o próximo sorteio (`proximo` de `/vitrine/ao-vivo`)
   traz só a hora, o vídeo e quem realiza (`realizadoPor`,
@@ -480,11 +480,11 @@ arquitetura.
     escuro, cantos arredondados como o carrossel de cima), tudo
     centralizado: "Próximo sorteio" (ou "Ao vivo agora") no alto, as quatro
     casas com o número grande (`text-2xl`) e a unidade escrita embaixo
-    (dias, horas, min, seg) e, por último, em negrito, quem realiza o
+    (dias, horas, min, seg), em negrito, quem realiza o
     sorteio (`quemRealizaOSorteio()` em `shared/sorteiosOficiais.ts`:
     "Sorteio realizado pela Loteria Federal"; o globo e as outras loterias
     do calendário com o nome delas; sem sorteio oficial, a Federal, que
-    apura as rifas). **Nunca o prêmio nem a rifa**: o sorteio é de várias
+    apura as rifas) e, por último, a data e a hora (onda 5, Figma 01). **Nunca o prêmio nem a rifa**: o sorteio é de várias
     organizações — nem na tela, nem no `aria-label`. É botão e abre a tela
     do sorteio. O tempo vai no `aria-label`; sem nenhum sorteio marcado
     (nem oficial nem de rifa), "Sorteios". **É só do celular**:

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { MapPin, ShieldCheck } from "lucide-react";
+import { CircleCheck, MapPin } from "lucide-react";
 import { BarraDeAcoes, CabecalhoDaPublicacao, Carrossel, Legenda, type Interacoes, type Peca } from "@/components/Publicacao";
 import { quandoPublicou } from "@shared/publicacao";
 import { PainelDeComentarios } from "@/components/Comentarios";
-import { Money, Progress } from "@/components/bits";
+import { Money, Pill, Progress } from "@/components/bits";
 import { marcarOrigem } from "@/lib/origem";
 import type { Origem } from "@shared/resultados";
-import { groupNumber, percent } from "@shared/format";
+import { groupNumber } from "@shared/format";
 
 export interface RifaDoFeed {
   id: string;
@@ -51,8 +51,6 @@ const PERTO = ["na sua cidade", "no seu estado"] as const;
  * prêmio, selo da autorização, preço, progresso e sorteio.
  */
 export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed; origem?: Origem }) {
-  const pct = percent(c.soldCount, c.totalQuotas);
-  const retaFinal = pct >= 85;
   const href = c.organizacao ? `/o/${c.organizacao.slug}/r/${c.slug}` : `/r/${c.slug}`;
   // Comentários sobem por cima do feed, como no Instagram — sem sair da vitrine.
   const [comentando, setComentando] = useState(false);
@@ -106,34 +104,38 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
       />
 
       {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações. */}
-      <Link href={href} onClick={() => marcarOrigem(origem)} className="mx-3 mt-3 block rounded-xl border border-line p-3 hover:bg-mist">
+      <Link href={href} onClick={() => marcarOrigem(origem)} className="mx-3 mt-3 block rounded-xl border border-line px-3.5 py-3 hover:bg-mist">
         <div className="space-y-2">
-          <h3 className="font-display text-base font-extrabold leading-tight">{c.prizeTitle}</h3>
+          <h3 className="font-display text-base font-bold leading-tight">{c.prizeTitle}</h3>
           {c.demonstracao ? (
-            <p className="text-[11px] font-semibold text-yellow-deep">
-              <span className="rounded bg-yellow-soft px-1.5 py-[1px]">Demonstração</span> · exemplo, não está à venda
+            <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-2">
+              <Pill status="pending">Demonstração</Pill> exemplo, não está à venda
             </p>
           ) : c.autorizacao ? (
-            <p className="flex items-center gap-1 text-[11px] font-semibold text-ink-2">
-              <ShieldCheck size={13} aria-hidden className="text-marca" />
-              Autorizada SPA/MF <span className="tnum font-semibold text-ink-2">· {c.autorizacao}</span>
+            <p className="flex min-w-0 items-center gap-1 text-[11px]">
+              <CircleCheck size={14} aria-hidden className="shrink-0 text-green-deep" />
+              <span className="shrink-0 font-semibold text-green-deep">Autorizada SPA/MF</span>
+              <span className="tnum truncate text-muted">· {c.autorizacao}</span>
             </p>
           ) : null}
-          <div className="flex items-baseline justify-between text-xs font-semibold text-ink-2">
+          <div className="flex items-baseline justify-between gap-2 text-xs text-ink-2">
             <span>
-              cota <Money cents={c.priceCents} className="text-sm font-bold text-green-deep" />
-              <span className="font-normal text-muted"> · Pix</span>
+              cota <Money cents={c.priceCents} className="text-sm font-medium text-green-deep" />
+              <span className="text-muted"> · Pix</span>
             </span>
-            <span className="tnum">
-              {c.status && c.status !== "published"
-                ? "vendas encerradas"
-                : c.drawAt
-                  ? `sorteio ${new Date(c.drawAt).toLocaleDateString("pt-BR")}`
-                  : "sorteio quando completar"}
-            </span>
+            {c.status && c.status !== "published" ? (
+              <span>vendas encerradas</span>
+            ) : c.drawAt ? (
+              <span>
+                sorteio <span className="tnum font-medium text-ink">{new Date(c.drawAt).toLocaleDateString("pt-BR")}</span>
+              </span>
+            ) : (
+              <span>sorteio quando completar</span>
+            )}
           </div>
-          <Progress value={c.soldCount} total={c.totalQuotas} tone={retaFinal ? "yellow" : "green"} />
-          <p className="label-xs font-semibold text-ink-2">
+          {/* Cotas que saem até o sorteio: espera e prêmio, por isso o azul. */}
+          <Progress value={c.soldCount} total={c.totalQuotas} tone="yellow" />
+          <p className="label-xs text-ink-2">
             {groupNumber(c.soldCount)} de {groupNumber(c.totalQuotas)} cotas
           </p>
         </div>

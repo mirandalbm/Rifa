@@ -310,7 +310,7 @@ function ConteudoDoSorteio({
         <div className="mx-auto w-full [@media(orientation:landscape)_and_(max-height:500px)]:max-w-[calc(60dvh*16/9)]">
         {comResultado && s?.resultado ? (
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-[#0B1F14] p-4 text-branco">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-green-bright">
               Resultado oficial · {s.loteriaNome}
             </p>
             <p className="tnum flex flex-wrap justify-center gap-1.5" aria-label={`Números: ${s.resultado.join(", ")}`}>
@@ -483,31 +483,37 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
       : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos. ${proximo.nome}. Abrir a tela do sorteio`;
 
   // Um banner pequeno de ponta a ponta: o título em cima, as casas no meio
-  // (como a tela do sorteio) e, embaixo, quem realiza o sorteio — nunca o
-  // prêmio. Tudo centralizado.
+  // (como a tela do sorteio), quem realiza o sorteio — nunca o prêmio — e,
+  // embaixo, a hora. Tudo centralizado.
+  const hora = proximo
+    ? new Date(proximo.drawAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : null;
   return (
     <button
       type="button"
       onClick={onAbrir}
       aria-label={rotulo}
-      className="flex w-full min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-line-2 bg-[#0B1F14] px-4 py-3 text-center text-branco md:hidden"
+      className="flex w-full min-w-0 flex-col items-center justify-center gap-3 rounded-xl border border-line-2 bg-[#0B1F14] p-4 text-center text-branco md:hidden"
     >
-      <span aria-hidden className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
+      <span aria-hidden className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-green-bright">
         <Radio size={14} className="shrink-0" />
         {!proximo ? (oficial ? "Resultado do sorteio" : "Sorteios") : falta?.aoVivo ? "Ao vivo agora" : "Próximo sorteio"}
       </span>
       {proximo && !falta?.aoVivo ? (
         <span aria-hidden className="flex items-stretch justify-center gap-2">
           {casas.map(([n, u]) => (
-            <span key={u} className="flex min-w-[3.5rem] flex-col items-center rounded-lg bg-branco/10 px-2 py-1.5">
-              <span className="tnum text-2xl font-bold leading-none">{String(n).padStart(2, "0")}</span>
-              <span className="mt-1 text-[11px] leading-none text-branco/70">{u}</span>
+            <span key={u} className="flex w-16 flex-col items-center rounded-[10px] bg-branco/10 py-2">
+              <span className="tnum text-2xl font-medium leading-none">{String(n).padStart(2, "0")}</span>
+              <span className="mt-1.5 text-[11px] leading-none text-branco/70">{u}</span>
             </span>
           ))}
         </span>
       ) : null}
-      <span aria-hidden className={`max-w-full truncate text-xs ${proximo ? "font-semibold text-branco" : "text-branco/80"}`}>
-        {proximo ? proximo.nome : oficial ? oficial.nome : "Toque para ver os últimos sorteios"}
+      <span aria-hidden className="flex max-w-full flex-col items-center gap-2">
+        <span className={`max-w-full truncate text-[13px] ${proximo ? "font-bold text-branco" : "text-branco/80"}`}>
+          {proximo ? proximo.nome : oficial ? oficial.nome : "Toque para ver os últimos sorteios"}
+        </span>
+        {hora ? <span className="tnum text-[11px] text-branco/70">{hora}</span> : null}
       </span>
     </button>
   );

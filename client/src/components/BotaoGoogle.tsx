@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { TONS_DO_BOTAO } from "@/components/bits";
 
 /**
  * "Continuar com o Google": só aparece se a plataforma tiver o acesso
@@ -10,10 +11,10 @@ export function BotaoGoogle({ volta = "/" }: { volta?: string }) {
   const { data } = useQuery<{ ligado: boolean }>({ queryKey: ["/api/public/conta/google/disponivel"] });
   if (!data?.ligado) return null;
   return (
-    <div className="mt-4">
+    <div>
       <a
         href={`/api/public/conta/google/entrar?volta=${encodeURIComponent(volta)}`}
-        className="flex w-full items-center justify-center gap-3 rounded-md border-2 border-line-2 bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-mist"
+        className={`flex h-10 w-full items-center justify-center gap-3 rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.cinza}`}
       >
         {/* Marca oficial do Google: as cores são dela, não da paleta do sistema. */}
         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -24,7 +25,12 @@ export function BotaoGoogle({ volta = "/" }: { volta?: string }) {
         </svg>
         Continuar com o Google
       </a>
-      <p className="mt-3 text-center text-xs text-muted">ou</p>
+      {/* O "ou" entre as duas portas, com o traço dos dois lados (só desenho). */}
+      <p className="mt-3.5 flex items-center gap-3 text-xs text-muted">
+        <span aria-hidden className="h-px flex-1 bg-line" />
+        ou
+        <span aria-hidden className="h-px flex-1 bg-line" />
+      </p>
     </div>
   );
 }

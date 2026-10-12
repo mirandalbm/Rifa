@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { BotaoGoogle } from "@/components/BotaoGoogle";
+import { CampoDeSenha } from "@/components/CampoDeSenha";
 import { Marca } from "@/components/Marca";
 import { Link, useLocation } from "wouter";
-import { Button } from "@/components/bits";
+import { Button, Caixa, Campo, TONS_DO_BOTAO } from "@/components/bits";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLogin } from "@/lib/session";
 import { ApiError, apiRequest } from "@/lib/queryClient";
+import { abaDoTeclado } from "@shared/abas";
 
 const CHAVE_EMAIL = "rifa.login.email";
 
@@ -40,6 +41,20 @@ async function oferecerSalvarSenha(email: string, senha: string) {
   }
 }
 
+/** O texto pequeno do pé do cartão (13 px, centralizado, como no Figma). */
+const PE = "text-center text-[13px] leading-[18px] text-ink-2";
+const LINK = "text-green-deep underline";
+const INTRO = "text-[15px] leading-[21px] text-ink-2";
+
+/** O erro do servidor, em texto: o mesmo para conta inexistente e senha errada. */
+function ErroDoLogin({ texto }: { texto: string | null }) {
+  return texto ? (
+    <p role="alert" className="rounded-lg bg-red-soft px-3 py-2 text-sm text-red">
+      {texto}
+    </p>
+  ) : null;
+}
+
 /**
  * Painel: o papel gravado no banco decide onde a pessoa cai — afiliado no
  * painel de afiliado, administrador no painel geral.
@@ -49,152 +64,110 @@ function PainelForm() {
   const [form, setForm] = useState({ email: emailLembrado(), password: "", token: "" });
   // Marcado por padrão: o caso comum é o celular da própria pessoa.
   const [lembrar, setLembrar] = useState(true);
-  const [verSenha, setVerSenha] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // O campo do segundo fator só aparece quando o servidor pede.
   const [needsToken, setNeedsToken] = useState(false);
   const login = useLogin();
 
   return (
-    <>
-      <p className="mt-4 text-sm text-muted">
-        Acesso de administrador, organizador, afiliado e cambista.
-      </p>
+    <form
+      className="space-y-3.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setError(null);
+        login.mutate({ ...form, lembrar }, {
+          onSuccess: async (session) => {
+            try {
+              if (lembrar) localStorage.setItem(CHAVE_EMAIL, form.email.trim());
+              else localStorage.removeItem(CHAVE_EMAIL);
+            } catch {
+              // armazenamento bloqueado: só não lembra o e-mail
+            }
+            if (lembrar) await oferecerSalvarSenha(form.email.trim(), form.password);
+            navigate(session.home);
+          },
+          onError: (err: Error) => {
+            const code = err instanceof ApiError ? err.code : undefined;
+            if (code === "totp_required" || code === "totp_invalid") {
+              setNeedsToken(true);
+            }
+            setError(err.message);
+          },
+        });
+      }}
+    >
+      <p className={INTRO}>Acesso de administrador, organizador, afiliado e cambista.</p>
 
-      <form
-        className="mt-4 space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setError(null);
-          login.mutate({ ...form, lembrar }, {
-            onSuccess: async (session) => {
-              try {
-                if (lembrar) localStorage.setItem(CHAVE_EMAIL, form.email.trim());
-                else localStorage.removeItem(CHAVE_EMAIL);
-              } catch {
-                // armazenamento bloqueado: só não lembra o e-mail
-              }
-              if (lembrar) await oferecerSalvarSenha(form.email.trim(), form.password);
-              navigate(session.home);
-            },
-            onError: (err: Error) => {
-              const code = err instanceof ApiError ? err.code : undefined;
-              if (code === "totp_required" || code === "totp_invalid") {
-                setNeedsToken(true);
-              }
-              setError(err.message);
-            },
-          });
-        }}
+      <Campo rotulo="E-mail">
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="username"
+          inputMode="email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
+      </Campo>
+      <CampoDeSenha
+        id="senha"
+        name="password"
+        rotulo="Senha"
+        autoComplete="current-password"
+        valor={form.password}
+        aoMudar={(password) => setForm({ ...form, password })}
+      />
+
+      {needsToken ? (
+        <Campo rotulo="Código do autenticador">
+          <input
+            id="token"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={form.token}
+            onChange={(e) => setForm({ ...form, token: e.target.value.replace(/\D/g, "") })}
+            className="campo tnum text-lg tracking-[0.3em]"
+          />
+        </Campo>
+      ) : (
+        <button type="button" onClick={() => setNeedsToken(true)} className={`min-h-6 text-[13px] ${LINK}`}>
+          Tenho código do autenticador
+        </button>
+      )}
+
+      <Caixa
+        marcada={lembrar}
+        aoMudar={setLembrar}
+        sub="Fica conectado por 30 dias e oferece salvar a senha no celular. Não marque em aparelho de outra pessoa."
       >
-        <div>
-          <label htmlFor="email" className="label-xs">
-            E-mail
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="username"
-            inputMode="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="campo text-sm"
-          />
-        </div>
-        <div>
-          <label htmlFor="senha" className="label-xs">
-            Senha
-          </label>
-          <div className="relative mt-1">
-            <input
-              id="senha"
-              name="password"
-              type={verSenha ? "text" : "password"}
-              autoComplete="current-password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full rounded-md border border-line-2 px-3 py-2 pr-10 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => setVerSenha(!verSenha)}
-              aria-label={verSenha ? "Esconder senha" : "Mostrar senha"}
-              title={verSenha ? "Esconder senha" : "Mostrar senha"}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-ink"
-            >
-              {verSenha ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-        </div>
+        Lembrar de mim neste aparelho
+      </Caixa>
 
-        {needsToken ? (
-          <div>
-            <label htmlFor="token" className="label-xs">
-              Código do autenticador
-            </label>
-            <input
-              id="token"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={form.token}
-              onChange={(e) =>
-                setForm({ ...form, token: e.target.value.replace(/\D/g, "") })
-              }
-              className="campo tnum text-lg tracking-[0.3em]"
-            />
-          </div>
-        ) : null}
+      <ErroDoLogin texto={error} />
 
-        {!needsToken ? (
-          <button
-            type="button"
-            onClick={() => setNeedsToken(true)}
-            className="text-xs text-ink-2 underline"
-          >
-            Tenho código do autenticador
-          </button>
-        ) : null}
+      <Button type="submit" className="w-full" disabled={login.isPending}>
+        {login.isPending ? "Entrando…" : "Entrar"}
+      </Button>
 
-        <label className="flex items-start gap-2 text-sm text-ink-2">
-          <input
-            type="checkbox"
-            checked={lembrar}
-            onChange={(e) => setLembrar(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-[var(--green)]"
-          />
-          <span>
-            Lembrar de mim neste aparelho
-            <span className="block text-xs text-muted">
-              Fica conectado por 30 dias e oferece salvar a senha no celular. Não marque em
-              aparelho de outra pessoa.
-            </span>
-          </span>
-        </label>
-
-        {error ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
-        ) : null}
-
-        <Button type="submit" className="w-full" disabled={login.isPending}>
-          {login.isPending ? "Entrando…" : "Entrar"}
-        </Button>
-
-        <p className="text-center text-xs text-muted">
-          Quer divulgar as rifas?{" "}
-          <Link href="/seja-afiliado" className="text-green-deep underline">
-            seja afiliado
-          </Link>
-        </p>
-      </form>
-    </>
+      <p className={PE}>
+        Quer divulgar as rifas?{" "}
+        <Link href="/seja-afiliado" className={LINK}>
+          seja afiliado
+        </Link>
+      </p>
+    </form>
   );
 }
 
 const CHAVE_ABA = "rifa.login.aba";
+const ABAS = [
+  ["apostador", "Sou apostador"],
+  ["painel", "Painel"],
+] as const;
+type Aba = (typeof ABAS)[number][0];
 
-function abaLembrada(): "apostador" | "painel" {
+function abaLembrada(): Aba {
   try {
     return localStorage.getItem(CHAVE_ABA) === "painel" ? "painel" : "apostador";
   } catch {
@@ -204,11 +177,12 @@ function abaLembrada(): "apostador" | "painel" {
 
 /**
  * A porta de entrada. Duas abas porque são duas contas diferentes: o
- * apostador joga em qualquer rifa; o painel é de quem trabalha nelas.
+ * apostador joga em qualquer rifa; o painel é de quem trabalha nelas. Sem
+ * casca: o cartão de 384 px no centro, nas três larguras.
  */
 export default function Login() {
   const [aba, setAba] = useState(abaLembrada);
-  const escolher = (a: "apostador" | "painel") => {
+  const escolher = (a: Aba) => {
     setAba(a);
     try {
       localStorage.setItem(CHAVE_ABA, a);
@@ -218,37 +192,46 @@ export default function Login() {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-8">
-      <Link href="/" className="text-2xl">
-        <Marca />
-      </Link>
-      {/* O título da página, para leitor de tela: a tela já diz "entrar" pelas abas. */}
-      <h1 className="sr-only">Entrar</h1>
+    <main className="mx-auto flex min-h-screen w-full max-w-[416px] flex-col justify-center px-4 py-8">
+      <div className="space-y-3.5">
+        <Link href="/" className="inline-block text-[30px] leading-9">
+          <Marca />
+        </Link>
+        {/* O título da página, para leitor de tela: a tela já diz "entrar" pelas abas. */}
+        <h1 className="sr-only">Entrar</h1>
 
-      <div className="mt-5 grid grid-cols-2 gap-1 rounded-lg bg-mist-2 p-1" role="tablist">
-        {(
-          [
-            ["apostador", "Sou apostador"],
-            ["painel", "Painel"],
-          ] as const
-        ).map(([v, rotulo]) => (
-          <button
-            key={v}
-            type="button"
-            role="tab"
-            aria-selected={aba === v}
-            onClick={() => escolher(v)}
-            className={`rounded-md px-3 py-2 text-sm font-semibold ${
-              aba === v ? "bg-white text-ink shadow-sm" : "text-muted"
-            }`}
-          >
-            {rotulo}
-          </button>
-        ))}
+        <div role="tablist" aria-label="Como você quer entrar" className="grid grid-cols-2 gap-1 rounded-xl bg-mist-2 p-1">
+          {ABAS.map(([v, rotulo], i) => (
+            <button
+              key={v}
+              id={`aba-${v}`}
+              type="button"
+              role="tab"
+              aria-selected={aba === v}
+              aria-controls={aba === v ? `painel-${v}` : undefined}
+              tabIndex={aba === v ? 0 : -1}
+              onClick={() => escolher(v)}
+              onKeyDown={(e) => {
+                const proxima = abaDoTeclado(e.key, i, ABAS.length);
+                if (proxima === null) return;
+                e.preventDefault();
+                escolher(ABAS[proxima][0]);
+                document.getElementById(`aba-${ABAS[proxima][0]}`)?.focus();
+              }}
+              className={`rounded-[9px] px-3 py-[9px] text-[15px] font-bold ${
+                aba === v ? "bg-white text-ink shadow-sm" : "text-ink-2 hover:text-ink"
+              }`}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
+
+        <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`}>
+          {aba === "apostador" ? <ApostadorForm /> : <PainelForm />}
+        </div>
       </div>
-
-      {aba === "apostador" ? <ApostadorForm /> : <PainelForm />}
-    </div>
+    </main>
   );
 }
 
@@ -264,7 +247,6 @@ function ApostadorForm() {
   const [identificador, setIdentificador] = useState("");
   const [senha, setSenha] = useState("");
   const [lembrar, setLembrar] = useState(true);
-  const [verSenha, setVerSenha] = useState(false);
   // A volta do Google traz o motivo da recusa em ?erro= (e-mail que já tem conta, por exemplo).
   const [erro, setErro] = useState<string | null>(() => new URLSearchParams(window.location.search).get("erro"));
 
@@ -282,67 +264,39 @@ function ApostadorForm() {
   });
 
   return (
-    <>
-      <p className="mt-4 text-sm text-muted">
-        Entre para jogar em qualquer rifa e acompanhar suas cotas.
-      </p>
+    <div className="space-y-3.5">
+      <p className={INTRO}>Entre para jogar em qualquer rifa e acompanhar suas cotas.</p>
       <BotaoGoogle volta={voltaSegura(new URLSearchParams(window.location.search).get("volta"))} />
       <form
-        className="mt-4 space-y-3"
+        className="space-y-3.5"
         onSubmit={(e) => {
           e.preventDefault();
           setErro(null);
           entrar.mutate();
         }}
       >
-        <div>
-          <label htmlFor="identificador" className="label-xs">
-            WhatsApp, CPF ou e-mail
-          </label>
+        <Campo rotulo="WhatsApp, CPF ou e-mail">
           <input
             id="identificador"
             name="username"
             autoComplete="username"
             value={identificador}
             onChange={(e) => setIdentificador(e.target.value)}
-            className="campo text-sm"
           />
-        </div>
-        <div>
-          <label htmlFor="senha-apostador" className="label-xs">
-            Senha
-          </label>
-          <div className="relative mt-1">
-            <input
-              id="senha-apostador"
-              name="password"
-              type={verSenha ? "text" : "password"}
-              autoComplete="current-password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full rounded-md border border-line-2 px-3 py-2 pr-10 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => setVerSenha(!verSenha)}
-              aria-label={verSenha ? "Esconder senha" : "Mostrar senha"}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-ink"
-            >
-              {verSenha ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-ink-2">
-          <input
-            type="checkbox"
-            checked={lembrar}
-            onChange={(e) => setLembrar(e.target.checked)}
-            className="h-4 w-4 accent-[var(--green)]"
-          />
+        </Campo>
+        <CampoDeSenha
+          id="senha-apostador"
+          name="password"
+          rotulo="Senha"
+          autoComplete="current-password"
+          valor={senha}
+          aoMudar={setSenha}
+        />
+        <Caixa marcada={lembrar} aoMudar={setLembrar}>
           Lembrar de mim neste aparelho
-        </label>
+        </Caixa>
 
-        {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
+        <ErroDoLogin texto={erro} />
 
         <Button type="submit" className="w-full" disabled={entrar.isPending || !identificador || !senha}>
           {entrar.isPending ? "Entrando…" : "Entrar"}
@@ -350,26 +304,24 @@ function ApostadorForm() {
 
         <Link
           href="/criar-conta"
-          className="block w-full rounded-md border-2 border-green px-3 py-2 text-center text-sm font-semibold text-green-deep hover:bg-green-soft"
+          className={`flex h-10 w-full items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.contorno}`}
         >
           Criar conta
         </Link>
 
-        <div className="space-y-1 pt-2 text-center text-xs text-muted">
-          <p>
-            Esqueceu a senha ou comprou sem conta?{" "}
-            <Link href="/minhas-cotas" className="text-green-deep underline">
-              entre com o código do WhatsApp
-            </Link>
-          </p>
-          <p>
-            Quer ganhar divulgando rifas?{" "}
-            <Link href="/seja-afiliado" className="text-green-deep underline">
-              seja afiliado
-            </Link>
-          </p>
-        </div>
+        <p className={PE}>
+          Esqueceu a senha ou comprou sem conta?{" "}
+          <Link href="/minhas-cotas" className={LINK}>
+            entre com o código do WhatsApp
+          </Link>
+        </p>
+        <p className={PE}>
+          Quer ganhar divulgando rifas?{" "}
+          <Link href="/seja-afiliado" className={LINK}>
+            seja afiliado
+          </Link>
+        </p>
       </form>
-    </>
+    </div>
   );
 }

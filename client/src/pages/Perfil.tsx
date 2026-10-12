@@ -193,7 +193,7 @@ export default function PerfilPage() {
           esquerda, fixo na rolagem, e as rifas em grade à direita. No
           celular, a mesma ordem de sempre. */}
       <div className="mt-4 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <div className="lg:sticky lg:top-[68px]">
+      <div className="lg:sticky lg:top-4">
       {/* O cartão do perfil, logo abaixo da capa (sem subir sobre ela): foto à
           esquerda; à direita, o nome e, embaixo dele, os contadores. */}
       <div className="flex items-center gap-4">

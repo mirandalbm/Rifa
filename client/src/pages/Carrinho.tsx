@@ -137,7 +137,7 @@ export default function Carrinho() {
             })}
           </div>
           </div>
-          <aside aria-label="Pagar o carrinho" className="lg:sticky lg:top-[68px] lg:mt-1 lg:rounded-xl lg:border lg:border-line lg:p-4">
+          <aside aria-label="Pagar o carrinho" className="lg:sticky lg:top-4 lg:mt-1 lg:rounded-xl lg:border lg:border-line lg:p-4">
           <div className="mt-5 flex items-baseline justify-between border-t border-line pt-3 lg:mt-0 lg:border-t-0 lg:pt-0">
             <span className="text-sm">
               Total de <span className="tnum">{aVenda.length}</span> rifa{aVenda.length === 1 ? "" : "s"} ·{" "}

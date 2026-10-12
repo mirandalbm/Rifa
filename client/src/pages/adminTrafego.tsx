@@ -3,7 +3,8 @@ import { useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Campo, Card, Empty, Money, Pill, Progress } from "@/components/bits";
+import { Button, Caixa, Campo, Empty, Money, Pill, Progress } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
@@ -194,9 +195,9 @@ export function AdminTrafego() {
       ) : !painel ? (
         <p className="text-sm text-muted">Carregando…</p>
       ) : plataforma ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-            <div className="min-w-0 space-y-3">
+        <div className="space-y-4 md:space-y-6">
+          <div className="grid grid-cols-1 items-start gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+            <div className="min-w-0 space-y-4 md:space-y-6">
               <ConfigDoTrafego config={painel.config} faltamNoMeta={painel.criacaoPelaApi?.meta.faltam ?? []} />
               <ImportacaoDoGasto />
               <Margem meses={painel.margem ?? []} />
@@ -207,17 +208,18 @@ export function AdminTrafego() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          <div className="min-w-0 space-y-3">
+        // O pedido à esquerda, com largura para os pacotes numa linha só; as campanhas à direita.
+        <div className="grid grid-cols-1 items-start gap-4 md:gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-4 md:space-y-6">
             {painel.config.ligado ? (
               <NovaCampanha painel={painel} />
             ) : (
-              <Card title="Anunciar uma rifa">
-                <p className="px-4 py-3 text-sm text-ink-2">
+              <CartaoDoPainel titulo="Anunciar uma rifa">
+                <p className="px-5 pb-5 text-sm text-ink-2">
                   A plataforma não está aceitando pedidos novos agora. As suas campanhas seguem aqui: dá para cancelar o pedido em análise e
                   encerrar a que está no ar, e o que não foi gasto volta ao saldo.
                 </p>
-              </Card>
+              </CartaoDoPainel>
             )}
           </div>
           <div className="min-w-0">
@@ -232,23 +234,23 @@ export function AdminTrafego() {
 /** O que a organização vê enquanto a plataforma não liga o produto. */
 function ComoFunciona() {
   return (
-    <div className="space-y-3">
-      <Card
-        title="Anúncios da sua rifa no Google, no Instagram e no TikTok"
-        right={
-          <span className="shrink-0 whitespace-nowrap">
+    <div className="space-y-4 md:space-y-6">
+      <CartaoDoPainel
+        titulo="Anúncios da sua rifa no Google, no Instagram e no TikTok"
+        acao={
+          <span className="whitespace-nowrap">
             <Pill status="pending">Em breve</Pill>
           </span>
         }
       >
-        <p className="px-4 py-3 text-sm text-ink-2">
+        <p className="px-5 pb-5 text-[13px] leading-[19px] text-ink-2">
           Você escolhe a rifa e quanto quer investir; a plataforma monta a campanha, acompanha todo dia e mostra quanto gastou e quantas
           vendas o anúncio trouxe. Você paga a mídia que for gasta e uma taxa de gestão, cobrada quando a plataforma aprova a campanha e
           não devolvida; a mídia que não for gasta volta ao saldo como crédito. Tudo sai do mesmo saldo da publicidade. Quando a
           plataforma liberar, o pedido aparece aqui.
         </p>
-      </Card>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      </CartaoDoPainel>
+      <ul className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <Passo icone={<ClipboardList size={18} />} titulo="Pedido">
           Rifa publicada, valor total e por dia, onde anunciar e para que região. O valor fica reservado no saldo.
         </Passo>
@@ -269,7 +271,7 @@ function ComoFunciona() {
 
 function Passo({ icone, titulo, children }: { icone: ReactNode; titulo: string; children: ReactNode }) {
   return (
-    <li className="cartao space-y-1 rounded-lg border border-line bg-white p-3">
+    <li className="cartao min-w-0 space-y-1.5 rounded-xl border border-line bg-white px-4 py-4">
       <span className="flex items-center gap-2 text-sm font-semibold text-ink">
         <span className="text-green-deep" aria-hidden>
           {icone}
@@ -308,6 +310,8 @@ function NovaCampanha({ painel }: { painel: Painel }) {
 
   const investimentoCents = centavos(investimento);
   const reserva = investimentoCents > 0 ? reservaDoPedido(investimentoCents, config.taxaPct) : 0;
+  // As três contas do resumo saem da mesma função dos pacotes (e do servidor): anúncios, taxa e total.
+  const contas = linhaDoPacote(Math.max(0, investimentoCents), config.taxaPct);
   const textoDaTaxa = textoDoAceiteDaTaxa(config.taxaPct, taxaSobre(investimentoCents, config.taxaPct));
   const aceitou = textoAceito === textoDaTaxa;
   const faltaSaldo = reserva > (saldoCents ?? 0);
@@ -345,9 +349,9 @@ function NovaCampanha({ painel }: { painel: Painel }) {
   });
 
   return (
-    <Card title="Anunciar uma rifa">
+    <CartaoDoPainel titulo="Anunciar uma rifa">
       <form
-        className="space-y-3 p-4 text-sm"
+        className="space-y-3 px-5 pb-5 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
@@ -371,25 +375,24 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           </select>
         </Campo>
 
-        <fieldset className="space-y-1">
-          <legend className="label-xs">Onde anunciar</legend>
+        <fieldset className="space-y-1.5">
+          <legend className="label-xs text-ink-2">Onde anunciar</legend>
           {config.redes.map((r) => (
-            <label key={r} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={redes.includes(r)}
-                onChange={(e) => setRedes((atual) => (e.target.checked ? [...atual, r] : atual.filter((x) => x !== r)))}
-              />
+            <Caixa
+              key={r}
+              marcada={redes.includes(r)}
+              aoMudar={(marcada) => setRedes((atual) => (marcada ? [...atual, r] : atual.filter((x) => x !== r)))}
+            >
               {REDES_DE_ANUNCIO[r]}
-            </label>
+            </Caixa>
           ))}
         </fieldset>
 
         {pacotes.length ? (
           <fieldset className="space-y-2">
-            <legend className="label-xs">Pacote de investimento</legend>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <legend className="label-xs text-ink-2">Pacote de investimento</legend>
+            {/* Um embaixo do outro no celular, dois no tablet e numa linha só no computador: cada pacote diz as três contas (anúncios, taxa, total) com a mesma `linhaDoPacote()` do pedido. */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
               {pacotes.map((p) => {
                 const l = linhaDoPacote(p, config.taxaPct);
                 const escolhido = investimentoCents === p;
@@ -399,13 +402,15 @@ function NovaCampanha({ painel }: { painel: Painel }) {
                     type="button"
                     aria-pressed={escolhido}
                     onClick={() => setInvestimento(reais(p))}
-                    className={`rounded-md border px-3 py-2 text-left ${escolhido ? "border-marca bg-mist font-semibold" : "border-line"}`}
+                    className={`min-w-0 rounded-lg border px-3 py-2 text-left ${escolhido ? "border-green bg-green-soft" : "border-line-2 hover:bg-mist"}`}
                   >
-                    <span className="tnum block text-base">{formatBRL(l.midiaCents)} em anúncios</span>
-                    <span className="tnum block text-xs text-muted">
-                      + {formatBRL(l.taxaCents)} de taxa ({config.taxaPct}%) = {formatBRL(l.totalCents)}
-                      {escolhido ? " · escolhido" : ""}
+                    <span className="tnum block text-base font-semibold">{formatBRL(l.midiaCents)}</span>
+                    <span className="block text-xs text-ink-2">em anúncios</span>
+                    <span className="tnum block text-[11px] text-muted">
+                      + {formatBRL(l.taxaCents)} de taxa
                     </span>
+                    <span className="tnum block text-[11px] font-semibold text-ink-2">= {formatBRL(l.totalCents)}</span>
+                    {escolhido ? <span className="block text-[11px] font-semibold text-green-deep">✓ escolhido</span> : null}
                   </button>
                 );
               })}
@@ -461,20 +466,20 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           <textarea rows={3} maxLength={OBSERVACAO_MAX} value={observacao} onChange={(e) => setObservacao(e.target.value)} />
         </Campo>
 
-        <dl className="space-y-1 rounded-md bg-mist px-3 py-2">
-          <div className="flex items-center justify-between">
-            <dt className="text-muted">Mídia</dt>
-            <dd className="tnum">{formatBRL(investimentoCents)}</dd>
+        <dl className="space-y-1 rounded-lg bg-mist px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-muted">Anúncios</dt>
+            <dd className="tnum">{formatBRL(contas.midiaCents)}</dd>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <dt className="text-muted">
               Taxa de gestão (<span className="tnum">{config.taxaPct}%</span>)
             </dt>
-            <dd className="tnum">{formatBRL(reserva - investimentoCents)}</dd>
+            <dd className="tnum">{formatBRL(contas.taxaCents)}</dd>
           </div>
-          <div className="flex items-center justify-between font-semibold">
-            <dt>Fica reservado</dt>
-            <dd className="tnum">{formatBRL(reserva)}</dd>
+          <div className="flex items-center justify-between gap-2 border-t border-line pt-1 font-semibold">
+            <dt>Total reservado no saldo</dt>
+            <dd className="tnum">{formatBRL(contas.totalCents)}</dd>
           </div>
         </dl>
         <p className={`text-xs ${faltaSaldo ? "text-red" : "text-muted"}`}>
@@ -494,21 +499,14 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           que a rede cobrou e fecha a conta; aí a mídia que não foi gasta volta como crédito. Acabou a verba, não há o que voltar.
         </p>
 
-        <fieldset className="space-y-2 rounded-md border border-line px-3 py-2">
-          <legend className="label-xs px-1">Taxa de gestão</legend>
+        <fieldset className="space-y-2 rounded-lg border border-line px-3 py-2">
+          <legend className="label-xs px-1 text-ink-2">Taxa de gestão</legend>
           <p id="texto-da-taxa" className="text-sm">
             {textoDaTaxa}
           </p>
-          <label className="flex items-center gap-2 font-semibold">
-            <input
-              type="checkbox"
-              className="h-4 w-4"
-              aria-describedby="texto-da-taxa"
-              checked={aceitou}
-              onChange={(e) => setTextoAceito(e.target.checked ? textoDaTaxa : null)}
-            />
-            Li e concordo
-          </label>
+          <Caixa aria-describedby="texto-da-taxa" marcada={aceitou} aoMudar={(marcada) => setTextoAceito(marcada ? textoDaTaxa : null)}>
+            <span className="font-semibold">Li e concordo</span>
+          </Caixa>
         </fieldset>
 
         <Aviso msg={msg} />
@@ -516,7 +514,7 @@ function NovaCampanha({ painel }: { painel: Painel }) {
           {pedir.isPending ? "Enviando…" : "Pedir campanha"}
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -554,24 +552,22 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
   });
 
   return (
-    <Card title="Taxa e mínimos">
+    <CartaoDoPainel titulo="Taxa e mínimos">
       <form
-        className="space-y-3 p-4 text-sm"
+        className="space-y-3 px-5 pb-5 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
           salvar.mutate();
         }}
       >
-        <label className="flex items-start gap-2">
-          <input type="checkbox" checked={ligado} onChange={(e) => setLigado(e.target.checked)} className="mt-1 h-4 w-4" />
-          <span>
-            <span className="font-semibold">Oferecer tráfego pago às organizações</span>
-            <span className="block text-xs text-muted">
-              Desligado, elas só veem como vai funcionar e não pedem campanha nova. As que estão no ar seguem até alguém encerrar.
-            </span>
-          </span>
-        </label>
+        <Caixa
+          marcada={ligado}
+          aoMudar={setLigado}
+          sub="Desligado, elas só veem como vai funcionar e não pedem campanha nova. As que estão no ar seguem até alguém encerrar."
+        >
+          <span className="font-semibold">Oferecer tráfego pago às organizações</span>
+        </Caixa>
         {/* Rótulo que quebra em duas linhas não desce o campo dele: cada um encosta no pé da linha. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Campo rotulo="Taxa de gestão (%)" className={NO_PE}>
@@ -590,35 +586,33 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
         >
           <input inputMode="decimal" value={pacotes} onChange={(e) => setPacotes(e.target.value)} placeholder="50; 100; 250; 500" />
         </Campo>
-        <fieldset className="space-y-1">
-          <legend className="label-xs">Redes com conta pronta</legend>
+        <fieldset className="space-y-1.5">
+          <legend className="label-xs text-ink-2">Redes com conta pronta</legend>
           {LISTA_DE_REDES.map((r) => (
-            <label key={r} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={redes.includes(r)}
-                onChange={(e) => setRedes((atual) => (e.target.checked ? [...atual, r] : atual.filter((x) => x !== r)))}
-              />
+            <Caixa
+              key={r}
+              marcada={redes.includes(r)}
+              aoMudar={(marcada) => setRedes((atual) => (marcada ? [...atual, r] : atual.filter((x) => x !== r)))}
+            >
               {REDES_DE_ANUNCIO[r]}
-            </label>
+            </Caixa>
           ))}
         </fieldset>
-        <label className="flex items-start gap-2">
-          <input type="checkbox" checked={criarPelaApi} onChange={(e) => setCriarPelaApi(e.target.checked)} className="mt-1 h-4 w-4" />
-          <span>
-            <span className="font-semibold">Criar campanhas no Meta pela API</span>
-            <span className="block text-xs text-muted">
+        <Caixa
+          marcada={criarPelaApi}
+          aoMudar={setCriarPelaApi}
+          sub={
+            <>
               Aparece o botão "Criar no Meta" na campanha no ar que pediu Instagram e Facebook. Campanha, conjunto e anúncio nascem
               pausados: ligar é no gerenciador do Meta, onde o anúncio passa pela revisão.
-            </span>
-            {faltamNoMeta.length ? (
-              <span className="mt-1 block text-xs text-red">
-                Falta no servidor: {faltamNoMeta.join(", ")}. Sem isso, nada é chamado.
-              </span>
-            ) : null}
-          </span>
-        </label>
+              {faltamNoMeta.length ? (
+                <span className="mt-1 block text-red">Falta no servidor: {faltamNoMeta.join(", ")}. Sem isso, nada é chamado.</span>
+              ) : null}
+            </>
+          }
+        >
+          <span className="font-semibold">Criar campanhas no Meta pela API</span>
+        </Caixa>
         <p className="text-xs text-muted">
           A taxa de gestão incide sobre o investimento em mídia do pedido, é cobrada inteira quando você aprova a campanha e
           não volta; ela é fotografada em cada pedido: mudar aqui não mexe nas campanhas já pedidas. Ligue só as redes em que a conta de anúncios da plataforma aceita rifa autorizada.
@@ -628,7 +622,7 @@ function ConfigDoTrafego({ config: c, faltamNoMeta }: { config: ConfigTrafegoPag
           {salvar.isPending ? "Salvando…" : "Salvar"}
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -660,8 +654,8 @@ function ImportacaoDoGasto() {
   const u = data?.ultima ?? null;
   const ignoradas = u ? Object.entries(u.ignoradas).filter(([, n]) => (n ?? 0) > 0) : [];
   return (
-    <Card title="Gasto importado das redes">
-      <div className="space-y-2 px-4 py-3 text-sm">
+    <CartaoDoPainel titulo="Gasto importado das redes">
+      <div className="space-y-2 px-5 pb-5 text-sm">
         {!data ? (
           <p className="text-muted">Carregando…</p>
         ) : !data.ligada ? (
@@ -718,13 +712,13 @@ function ImportacaoDoGasto() {
           </>
         )}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
 function Margem({ meses }: { meses: MesDaMargem[] }) {
   return (
-    <Card title="Margem por mês">
+    <CartaoDoPainel titulo="Margem por mês">
       {meses.length === 0 ? (
         <Empty>Nenhuma taxa cobrada nem gasto lançado nos últimos 12 meses.</Empty>
       ) : (
@@ -734,7 +728,7 @@ function Margem({ meses }: { meses: MesDaMargem[] }) {
               Gasto em mídia, taxa de gestão (no mês em que foi cobrada, na aprovação) e excedente (não cobrado) por mês e por organização
             </caption>
             <thead>
-              <tr className="border-b border-line text-left text-xs text-muted">
+              <tr className="bg-mist text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
                 <th scope="col" className="px-4 py-2 font-medium">
                   Mês
                 </th>
@@ -757,7 +751,7 @@ function Margem({ meses }: { meses: MesDaMargem[] }) {
           </table>
         </div>
       )}
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -818,16 +812,16 @@ function Campanhas({ painel, plataforma }: { painel: Painel; plataforma: boolean
     : [{ titulo: "Minhas campanhas", lista: campanhas }];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 md:space-y-6">
       {grupos.map((g) => (
-        <Card key={g.titulo} title={g.titulo} right={<span className="tnum text-xs text-muted">{g.lista.length}</span>}>
+        <CartaoDoPainel key={g.titulo} titulo={g.titulo} acao={<span className="tnum text-xs text-muted">{g.lista.length}</span>}>
           {g.lista.length === 0 ? <Empty>Nenhuma campanha aqui.</Empty> : null}
           <ul className="divide-y divide-line">
             {g.lista.map((c) => (
               <CartaoDaCampanha key={c.id} c={c} plataforma={plataforma} painelLigaMeta={Boolean(painel.criacaoPelaApi?.ligado)} />
             ))}
           </ul>
-        </Card>
+        </CartaoDoPainel>
       ))}
       <p className="px-1 text-xs text-muted">
         Vendas pelo anúncio: as compras pagas que chegaram pelo link da campanha. É estimativa — quem viu o anúncio e voltou depois por
@@ -875,7 +869,7 @@ function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: Campan
   const taxaAPagar = c.status === "em_analise" && c.taxaAceiteEm ? taxaSobre(c.investimentoCents, c.taxaPct) : null;
 
   return (
-    <li className="space-y-2 p-4 text-sm">
+    <li className="space-y-2 px-5 py-4 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <Pill status={TOM[c.status]}>{SITUACOES_DA_CAMPANHA[c.status]}</Pill>
         <span className="tnum text-xs text-muted">{data(c.createdAt)}</span>
@@ -969,7 +963,11 @@ function CartaoDaCampanha({ c, plataforma, painelLigaMeta = false }: { c: Campan
         </p>
       ) : null}
 
-      {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">{erro}</p> : null}
+      {erro ? (
+        <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-xs text-red">
+          {erro}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {c.status === "em_analise" && !plataforma ? (

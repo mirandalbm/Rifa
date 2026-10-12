@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Button, Pill, Empty } from "@/components/bits";
+import { Button, Pill, Empty } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { EscolherCapa } from "@/components/EscolherCapa";
 import { CortarVideo } from "@/components/CortarVideo";
@@ -128,9 +129,10 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
   const byRole = (role: MediaItem["role"]) => media?.filter((m) => m.role === role) ?? [];
 
   return (
-    <Card
-      title="Mídia da campanha"
-      right={
+    <CartaoDoPainel
+      titulo="Mídia da campanha"
+      subtitulo="O banner, as fotos e os vídeos do carrossel: até 10 peças, contando o banner."
+      acao={
         blockers ? (
           <Pill status={blockers.blockers.length === 0 ? "paid" : "pending"}>
             {blockers.blockers.length === 0
@@ -140,7 +142,7 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
         ) : null
       }
     >
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 px-5 pb-5">
         {error ? (
           <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
         ) : null}
@@ -258,6 +260,6 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
           aoCortar={() => void qc.invalidateQueries()}
         />
       ) : null}
-    </Card>
+    </CartaoDoPainel>
   );
 }

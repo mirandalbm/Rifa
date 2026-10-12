@@ -5,7 +5,8 @@ import { PanelShell } from "@/components/AppShell";
 import { Comentarios } from "@/components/Comentarios";
 import { Janela } from "@/components/Janela";
 import { CamposDoSegundoFator, SEGUNDO_FATOR_VAZIO, segundoFatorCompleto, type SegundoFatorNaHora } from "@/components/SegundoFatorNaHora";
-import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
+import { Button, Campo, Empty, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { ANTECEDENCIA_DA_TRANSMISSAO_MS, leituraDoLink } from "@shared/aoVivo";
@@ -78,6 +79,15 @@ const diaChave = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: FUSO });
 const dataHora = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: FUSO });
 /** `datetime-local` do aparelho para ISO (o painel é usado no Brasil). */
+/** "14/10 · 19h" (ou "19h30"), no fuso de São Paulo: a coluna Data da lista. */
+const dataCurta = (iso: string) => {
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: FUSO });
+  const [h, m] = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: FUSO }).split(":");
+  return `${dia} · ${Number(h)}h${m === "00" ? "" : m}`;
+};
+/** As colunas da linha do sorteio a partir de `xl` (sorteio, data, rifas, ação), as mesmas do cabeçalho. */
+const COLUNAS_DA_LINHA = "xl:grid-cols-[minmax(0,1fr)_7.5rem_6rem_8.5rem]";
 const paraIso = (v: string) => (v ? new Date(v).toISOString() : "");
 const paraCampo = (iso: string) => {
   const d = new Date(iso);
@@ -121,11 +131,11 @@ export function AdminSorteiosOficiais() {
   return (
     <PanelShell title="Sorteios oficiais">
       {/* O calendário ocupa a largura toda: é a peça principal da tela. */}
-      <Card title="Calendário dos sorteios oficiais">
+      <CartaoDoPainel titulo="Calendário dos sorteios oficiais">
         <Calendario mes={mes} setMes={setMes} porDia={porDia} escolhido={diaEscolhido} escolher={setDiaEscolhido} />
-      </Card>
-      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-3">
+      </CartaoDoPainel>
+      <div className="mt-4 grid grid-cols-1 gap-4 md:mt-6 md:gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)] xl:items-start">
+        <div className="min-w-0 space-y-4 md:space-y-6">
           {plataforma ? (
             <>
               <NovoSorteio />
@@ -133,37 +143,52 @@ export function AdminSorteiosOficiais() {
               <CanaisDasLoterias />
             </>
           ) : (
-            <p className="px-1 text-xs text-muted">
-              Escolha o sorteio da rifa em rascunho: a data da rifa passa a ser a do concurso e trava ao publicar. Depois de
-              publicada, mudar só com a plataforma.
-            </p>
+            <div className="space-y-2 px-1 text-xs text-muted">
+              <p>
+                Escolha o sorteio da rifa em rascunho: a data da rifa passa a ser a do concurso e trava ao publicar. Depois de
+                publicada, mudar só com a plataforma.
+              </p>
+              <p>Só a Loteria Federal e o globo da plataforma recebem rifa; cada rifa só o do método dela.</p>
+            </div>
           )}
         </div>
-        <div className="min-w-0 space-y-3">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <h2 className="text-sm font-bold">
-              {diaEscolhido
-                ? `Sorteios de ${new Date(`${diaEscolhido}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}`
-                : plataforma
-                  ? "Todos os sorteios"
-                  : "Sorteios que aceitam rifa e os seus"}
-            </h2>
-            {diaEscolhido ? (
-              <button type="button" className="text-xs font-semibold text-marca" onClick={() => setDiaEscolhido(null)}>
+        <CartaoDoPainel
+          titulo={
+            diaEscolhido
+              ? `Sorteios de ${new Date(`${diaEscolhido}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}`
+              : plataforma
+                ? "Todos os sorteios"
+                : "Sorteios que aceitam rifa e os seus"
+          }
+          acao={
+            diaEscolhido ? (
+              <button type="button" className="inline-flex min-h-6 items-center text-xs font-semibold text-marca" onClick={() => setDiaEscolhido(null)}>
                 Ver todos
               </button>
-            ) : null}
-          </div>
-          {isLoading ? <p className="px-1 text-sm text-muted">Carregando…</p> : null}
+            ) : null
+          }
+        >
+          {isLoading ? <p className="px-5 pb-5 text-sm text-muted">Carregando…</p> : null}
           {!isLoading && visiveis.length === 0 ? (
-            <Card>
-              <Empty>{plataforma ? "Nenhum sorteio oficial cadastrado." : "Nenhum sorteio oficial disponível agora."}</Empty>
-            </Card>
+            <Empty>{plataforma ? "Nenhum sorteio oficial cadastrado." : "Nenhum sorteio oficial disponível agora."}</Empty>
           ) : null}
-          {visiveis.map((s) => (
-            <CartaoDoSorteio key={s.id} s={s} plataforma={plataforma} />
-          ))}
-        </div>
+          {visiveis.length ? (
+            <>
+              {/* O cabeçalho das colunas só existe com as colunas (a partir de `xl`); abaixo disso cada linha diz "data:" e "rifas:". */}
+              <div aria-hidden className={`hidden bg-mist px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted xl:grid xl:gap-3 ${COLUNAS_DA_LINHA}`}>
+                <span>Sorteio</span>
+                <span>Data</span>
+                <span>Rifas</span>
+                <span />
+              </div>
+              <ul className="divide-y divide-line border-t border-line xl:border-t-0">
+                {visiveis.map((s) => (
+                  <LinhaDoSorteio key={s.id} s={s} plataforma={plataforma} />
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </CartaoDoPainel>
       </div>
     </PanelShell>
   );
@@ -189,7 +214,7 @@ function Calendario({
   const t = mes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   const titulo = t.charAt(0).toUpperCase() + t.slice(1);
   return (
-    <div className="p-3">
+    <div className="px-3 pb-4 sm:px-5 sm:pb-5">
       <div className="mb-2 flex items-center justify-between">
         <button
           type="button"
@@ -368,23 +393,29 @@ function NovoSorteio() {
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
   return (
-    <Card title="Novo sorteio oficial">
+    <CartaoDoPainel titulo="Novo sorteio oficial">
       <FormularioDoSorteio key={chave} aoSalvar={(c) => criar.mutate(c)} pendente={criar.isPending} rotulo="Pôr no calendário" />
       {msg ? (
         <p role="status" className={`px-4 pb-4 text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
           {msg.texto}
         </p>
       ) : null}
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
-function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma: boolean }) {
+/**
+ * Uma linha da lista: o sorteio, a data, as rifas e a ação (integrar, ou a
+ * pílula "integrada"); embaixo, as rifas dele e, para a plataforma, editar,
+ * lançar o resultado e cancelar.
+ */
+function LinhaDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma: boolean }) {
   const qc = useQueryClient();
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [editando, setEditando] = useState(false);
   const [lancando, setLancando] = useState(false);
   const [moderando, setModerando] = useState(false);
+  const [integrando, setIntegrando] = useState(false);
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ["/api/admin/sorteios-oficiais"] });
     qc.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
@@ -409,17 +440,45 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
   });
   const passou = new Date(s.sorteioEm).getTime() <= Date.now();
 
+  const suas = s.rifas.length;
+  const rifasTexto = plataforma ? String(suas) : suas ? `${suas} sua${suas > 1 ? "s" : ""}` : "0";
+  const podeIntegrar = !plataforma && s.situacao === "agendado";
+  const acao = !plataforma ? (
+    suas ? (
+      <Pill status="paid">integrada</Pill>
+    ) : podeIntegrar && !s.problemaParaIntegrar ? (
+      <Button variant="contorno" aria-expanded={integrando} onClick={() => setIntegrando((v) => !v)}>
+        {integrando ? "Fechar" : "Integrar"}
+      </Button>
+    ) : null
+  ) : null;
+
   return (
-    <Card
-      title={s.nome}
-      right={<Pill status={PILL_DA_SITUACAO[s.situacao]}>{ROTULO_DA_SITUACAO[s.situacao]}</Pill>}
-    >
-      <div className="space-y-3 p-4 text-sm">
-        <p className="flex flex-wrap items-center gap-x-1.5 text-ink-2">
-          <span aria-hidden className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: LOTERIAS[s.loteria]?.cor }} />
-          {s.loteriaNome} · {s.loteria === "globo" ? "sessão" : "concurso"} <span className="tnum">{s.concurso}</span> ·{" "}
-          <span className="tnum">{dataHora(s.sorteioEm)}</span>
+    <li className="space-y-3 px-5 py-4 text-sm">
+      <div className={`grid grid-cols-1 gap-1 xl:items-center xl:gap-3 ${COLUNAS_DA_LINHA}`}>
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
+            {/* A cor da loteria sempre com o nome junto. */}
+            <span aria-hidden className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: LOTERIAS[s.loteria]?.cor }} />
+            <span>
+              {s.loteriaNome} · <span className="tnum">{s.concurso}</span>
+            </span>
+            {plataforma || s.situacao !== "agendado" ? (
+              <Pill status={PILL_DA_SITUACAO[s.situacao]}>{ROTULO_DA_SITUACAO[s.situacao]}</Pill>
+            ) : null}
+          </p>
+          {s.titulo ? <p className="text-xs text-muted">{s.titulo}</p> : null}
+        </div>
+        <p title={dataHora(s.sorteioEm)}>
+          <span className="label-xs normal-case xl:sr-only">data: </span>
+          <span className="tnum">{dataCurta(s.sorteioEm)}</span>
         </p>
+        <p>
+          <span className="label-xs normal-case xl:sr-only">rifas: </span>
+          <span className="tnum">{rifasTexto}</span>
+        </p>
+        <div className="pt-1 xl:pt-0">{acao}</div>
+      </div>
         {s.loteria === "globo" && s.resultado ? <AtaDaSessao s={s} plataforma={plataforma} aoMudar={recarregar} /> : null}
         {s.resultado ? (
           <p>
@@ -458,11 +517,23 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
           </div>
         ) : null}
 
-        {!plataforma && s.situacao === "agendado" ? (
-          <Integrar s={s} aoMudar={(t) => {
-            setMsg({ ok: true, texto: t });
-            recarregar();
-          }} aoErro={erro} />
+        {/* Integrar abre pelo botão da linha; já integrada, ainda dá para pôr outra rifa por aqui. */}
+        {podeIntegrar && s.problemaParaIntegrar && !suas ? <p className="text-xs text-muted">{s.problemaParaIntegrar}</p> : null}
+        {podeIntegrar && suas && !integrando && !s.problemaParaIntegrar ? (
+          <button type="button" className="inline-flex min-h-6 items-center text-xs font-semibold text-marca hover:underline" aria-expanded={false} onClick={() => setIntegrando(true)}>
+            Integrar outra rifa
+          </button>
+        ) : null}
+        {podeIntegrar && integrando ? (
+          <Integrar
+            s={s}
+            aoMudar={(t) => {
+              setIntegrando(false);
+              setMsg({ ok: true, texto: t });
+              recarregar();
+            }}
+            aoErro={erro}
+          />
         ) : null}
 
         {plataforma && s.situacao === "agendado" ? (
@@ -510,13 +581,12 @@ function CartaoDoSorteio({ s, plataforma }: { s: SorteioNoCalendario; plataforma
             }}
           />
         ) : null}
-        {msg ? (
-          <p role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
-            {msg.texto}
-          </p>
-        ) : null}
-      </div>
-    </Card>
+      {msg ? (
+        <p role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
+          {msg.texto}
+        </p>
+      ) : null}
+    </li>
   );
 }
 
@@ -1066,9 +1136,9 @@ function MetodosDeApuracao() {
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
   return (
-    <Card title="Métodos de apuração">
+    <CartaoDoPainel titulo="Métodos de apuração">
       <form
-        className="space-y-3 p-4"
+        className="space-y-3 px-5 pb-5"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
@@ -1119,7 +1189,7 @@ function MetodosDeApuracao() {
           </p>
         ) : null}
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -1141,9 +1211,9 @@ function CanaisDasLoterias() {
   });
   const minutos = Math.round(ANTECEDENCIA_DA_TRANSMISSAO_MS / 60_000);
   return (
-    <Card title="Canal oficial de cada loteria">
+    <CartaoDoPainel titulo="Canal oficial de cada loteria">
       <form
-        className="space-y-3 p-4"
+        className="space-y-3 px-5 pb-5"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
@@ -1193,6 +1263,6 @@ function CanaisDasLoterias() {
           </p>
         ) : null}
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }

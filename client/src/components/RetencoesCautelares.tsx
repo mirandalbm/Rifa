@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Money, Pill } from "@/components/bits";
+import { Button, Money, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import {
   FUNDAMENTOS_DO_ABATE,
@@ -101,9 +102,9 @@ export function RetencoesCautelares({ organizacoes }: { organizacoes: { id: stri
   const comAtiva = new Set(ativas.map((r) => r.organizationId));
 
   return (
-    <section id="retencoes" className="mb-4">
-      <Card title="Saldo suspenso">
-        <div className="space-y-3 p-4 text-sm">
+    <section id="retencoes" className="mb-4 md:mb-6">
+      <CartaoDoPainel titulo="Saldo suspenso">
+        <div className="space-y-3 px-5 pb-5 text-sm">
           <p className="text-xs text-muted">
             Suspensão cautelar: o que está na conta da plataforma em nome da organização fica parado até a apuração —{" "}
             {O_QUE_FICA_RETIDO.join("; ")}. O Pix das vendas cai direto na carteira da promotora pelo split e não é suspenso.
@@ -279,7 +280,7 @@ export function RetencoesCautelares({ organizacoes }: { organizacoes: { id: stri
             </details>
           ) : null}
         </div>
-      </Card>
+      </CartaoDoPainel>
     </section>
   );
 }

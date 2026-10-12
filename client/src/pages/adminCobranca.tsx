@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Button, Pill, Empty, Money, Kpi, Campo } from "@/components/bits";
-import { TabelaOuCartoes, VerMais } from "@/components/painel";
+import { Button, Pill, Empty, Money, Kpi, Campo } from "@/components/bits";
+import { CartaoDoPainel, TabelaOuCartoes, VerMais } from "@/components/painel";
 import { RetencoesCautelares } from "@/components/RetencoesCautelares";
 import { useListaPaginada } from "@/lib/paginada";
 import { apiRequest } from "@/lib/queryClient";
@@ -91,11 +91,12 @@ function DeOndeVeio({ l }: { l: LinhaDoExtrato }) {
       {l.campanha ? <span className="block text-[11px] text-muted">{l.campanha}</span> : null}
       {l.pedidoStatus === "refunded" && c.status !== "cancelada" ? (
         <span className="block text-[11px] text-muted">pedido estornado: fica só a taxa Pix</span>
-      ) : c.pixCents > 0 ? (
+      ) : (
+        // Venda e Pix sempre separados, mesmo com o Pix zerado (dinheiro, maquininha): é de onde veio cada centavo.
         <span className="block text-[11px] text-muted">
           venda <Money cents={c.vendaCents} /> + Pix <Money cents={c.pixCents} />
         </span>
-      ) : null}
+      )}
     </>
   );
 }
@@ -126,7 +127,7 @@ export function AdminCobranca() {
 /** A tabela em texto, para quem lê (organizador) e para conferir (plataforma). */
 function ResumoDaTabela({ tabela }: { tabela: ConfigCobranca }) {
   return (
-    <div className="space-y-3 px-4 py-3 text-sm">
+    <div className="space-y-3 px-5 pb-5 text-sm">
       <p>
         Cada rifa escolhe, antes de publicar, como a plataforma cobra por ela:{" "}
         <b>{NOME_DO_MODO.percentual.toLowerCase()}</b> (<span className="tnum">{textoPct(tabela.percentualPct)}</span> de
@@ -268,7 +269,7 @@ function Carteira() {
         </p>
       ) : null}
 
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mb-6 md:gap-6">
         <Kpi label="A receber" value={formatBRL(total)} hint="somando todas" highlight={total > 0} />
         <Kpi label="Retida no split" value={formatBRL(retida)} hint="o Pix já dividiu: nada a cobrar" />
       </div>
@@ -277,7 +278,7 @@ function Carteira() {
 
       <RetencoesCautelares organizacoes={data?.carteira.map((o) => ({ id: o.organizationId, nome: o.name })) ?? []} />
 
-      <Card title="Carteira">
+      <CartaoDoPainel titulo="Carteira" className="mt-4 md:mt-6">
         {data?.carteira.length ? (
           <TabelaOuCartoes
             aria="Carteira de cobrança"
@@ -299,7 +300,7 @@ function Carteira() {
                 ),
               },
               {
-                titulo: "Em aberto",
+                titulo: "Em\u00a0aberto",
                 direita: true,
                 celula: (o) => (
                   <>
@@ -313,7 +314,7 @@ function Carteira() {
                 ),
               },
               {
-                titulo: "Já pago",
+                titulo: "Já\u00a0pago",
                 direita: true,
                 celula: (o) => (
                   <span className="text-muted">
@@ -328,8 +329,9 @@ function Carteira() {
               },
               {
                 titulo: "",
+                // Sem quebrar o botão ("cancelar / notificação" em 1440): a coluna das ações não cede largura à da organização.
                 celula: (o) => (
-                  <div className="flex flex-col items-start gap-1">
+                  <div className="flex flex-col items-start gap-1 whitespace-nowrap">
                     {o.abertoCents > 0 || o.creditoCents > 0 ? (
                       <Button variant="ghost" onClick={() => baixar.mutate(o.organizationId)}>
                         dar baixa
@@ -368,7 +370,7 @@ function Carteira() {
         ) : (
           <Empty>Nenhuma organização ainda.</Empty>
         )}
-      </Card>
+      </CartaoDoPainel>
     </PanelShell>
   );
 }
@@ -438,128 +440,133 @@ function TabelaDeCobranca() {
   });
 
   return (
-    <Card title="Tabela de cobrança">
-      <form
-        className="space-y-4 px-4 py-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setMsg(null);
-          salvar.mutate();
-        }}
-      >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo rotulo="Percentual sobre a venda (%)" dica={`De 0 a ${PERCENTUAL_MAX}%, até duas casas.`}>
-            <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="campo tnum" />
-          </Campo>
-          <Campo rotulo="Valor por cota vendida (R$)" dica={`Até ${formatBRL(POR_COTA_MAX_CENTS)}. Nunca maior que o preço da cota.`}>
-            <input inputMode="decimal" value={porCota} onChange={(e) => setPorCota(e.target.value)} className="campo tnum" />
-          </Campo>
-        </div>
-
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Taxa Pix por volume do mês</legend>
-          <p className="text-xs text-muted">
-            De {1} a {FAIXAS_PIX_MAX} faixas, até {PIX_PCT_MAX}%. Os tetos sobem e a taxa nunca sobe; a última não tem
-            teto.
-          </p>
-          {faixas.map((f, i) => {
-            const ultima = i === faixas.length - 1;
-            return (
-              <div key={i} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                <Campo rotulo={`Faixa ${i + 1}: até quantas transações`}>
-                  <input
-                    inputMode="numeric"
-                    value={ultima ? "" : f.ate}
-                    placeholder={ultima ? "sem teto" : undefined}
-                    disabled={ultima}
-                    onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, ate: e.target.value } : x)))}
-                    className="campo tnum"
-                  />
-                </Campo>
-                <Campo rotulo={`Faixa ${i + 1}: taxa (%)`}>
-                  <input
-                    inputMode="decimal"
-                    value={f.pct}
-                    onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, pct: e.target.value } : x)))}
-                    className="campo tnum"
-                  />
-                </Campo>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  disabled={faixas.length === 1}
-                  onClick={() => setFaixas(faixas.filter((_, j) => j !== i))}
-                  aria-label={`Tirar a faixa ${i + 1}`}
-                >
-                  tirar
-                </Button>
-              </div>
-            );
-          })}
-          <Button
-            variant="ghost"
-            type="button"
-            disabled={faixas.length >= FAIXAS_PIX_MAX}
-            onClick={() => {
-              // A nova entra antes da última (a sem teto).
-              const ultima = faixas[faixas.length - 1];
-              setFaixas([...faixas.slice(0, -1), { ate: "", pct: ultima.pct }, ultima]);
-            }}
-          >
-            + faixa
-          </Button>
-        </fieldset>
-
-        <Campo
-          rotulo="Vale a partir de (opcional)"
-          dica={
-            data
-              ? `Vazio: vale agora. Reduzir pode valer na hora; aumentar qualquer taxa exige ${data.avisoDias} dias de aviso às organizações — a partir de ${dataDaVigencia(data.primeiroDiaComAviso)}.`
-              : undefined
-          }
+    <CartaoDoPainel titulo="Tabela de cobrança" className="mb-4 md:mb-6">
+      {/* No computador o formulário fica à esquerda e o que está em vigor (e a agendada) à direita: os campos, sozinhos na largura toda, ficavam com 1.100 px para três algarismos. */}
+      <div className="lg:grid lg:grid-cols-2 lg:divide-x lg:divide-line">
+        <form
+          className="min-w-0 space-y-4 px-5 pb-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setMsg(null);
+            salvar.mutate();
+          }}
         >
-          <input type="date" value={vigenteEm} onChange={(e) => setVigenteEm(e.target.value)} className="campo tnum" />
-        </Campo>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={salvar.isPending}>
-            {vigenteEm ? "Agendar tabela" : "Salvar tabela"}
-          </Button>
-          {data?.proxima ? (
-            <span className="text-xs text-muted">
-              {vigenteEm ? "Agendar de novo troca a agendada." : "Salvar sem data descarta a tabela agendada."}
-            </span>
-          ) : null}
-          {msg ? (
-            <span role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
-              {msg.texto}
-            </span>
-          ) : null}
-        </div>
-      </form>
-      {data ? (
-        <>
-          <p className="px-4 pt-2 text-sm font-medium">Em vigor</p>
-          <ResumoDaTabela tabela={data.vigente} />
-        </>
-      ) : null}
-      {data?.proxima ? (
-        <div className="border-t border-line">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
-            <p className="text-sm font-medium">
-              <Pill status="reserved">agendada</Pill>{" "}
-              <span className="ml-1">
-                A partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>
-              </span>
-            </p>
-            <Button variant="ghost" onClick={() => cancelar.mutate()} disabled={cancelar.isPending}>
-              Cancelar agendamento
-            </Button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo rotulo="Percentual sobre a venda (%)" dica={`De 0 a ${PERCENTUAL_MAX}%, até duas casas.`}>
+              <input inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} className="campo tnum" />
+            </Campo>
+            <Campo rotulo="Valor por cota vendida (R$)" dica={`Até ${formatBRL(POR_COTA_MAX_CENTS)}. Nunca maior que o preço da cota.`}>
+              <input inputMode="decimal" value={porCota} onChange={(e) => setPorCota(e.target.value)} className="campo tnum" />
+            </Campo>
           </div>
-          <ResumoDaTabela tabela={data.proxima.tabela} />
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Taxa Pix por volume do mês</legend>
+            <p className="text-xs text-muted">
+              De {1} a {FAIXAS_PIX_MAX} faixas, até {PIX_PCT_MAX}%. Os tetos sobem e a taxa nunca sobe; a última não tem
+              teto.
+            </p>
+            {faixas.map((f, i) => {
+              const ultima = i === faixas.length - 1;
+              return (
+                <div key={i} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <Campo rotulo={`Faixa ${i + 1}: até quantas transações`}>
+                    <input
+                      inputMode="numeric"
+                      value={ultima ? "" : f.ate}
+                      placeholder={ultima ? "sem teto" : undefined}
+                      disabled={ultima}
+                      onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, ate: e.target.value } : x)))}
+                      className="campo tnum"
+                    />
+                  </Campo>
+                  <Campo rotulo={`Faixa ${i + 1}: taxa (%)`}>
+                    <input
+                      inputMode="decimal"
+                      value={f.pct}
+                      onChange={(e) => setFaixas(faixas.map((x, j) => (j === i ? { ...x, pct: e.target.value } : x)))}
+                      className="campo tnum"
+                    />
+                  </Campo>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    disabled={faixas.length === 1}
+                    onClick={() => setFaixas(faixas.filter((_, j) => j !== i))}
+                    aria-label={`Tirar a faixa ${i + 1}`}
+                  >
+                    tirar
+                  </Button>
+                </div>
+              );
+            })}
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={faixas.length >= FAIXAS_PIX_MAX}
+              onClick={() => {
+                // A nova entra antes da última (a sem teto).
+                const ultima = faixas[faixas.length - 1];
+                setFaixas([...faixas.slice(0, -1), { ate: "", pct: ultima.pct }, ultima]);
+              }}
+            >
+              + faixa
+            </Button>
+          </fieldset>
+
+          <Campo
+            rotulo="Vale a partir de (opcional)"
+            dica={
+              data
+                ? `Vazio: vale agora. Reduzir pode valer na hora; aumentar qualquer taxa exige ${data.avisoDias} dias de aviso às organizações — a partir de ${dataDaVigencia(data.primeiroDiaComAviso)}.`
+                : undefined
+            }
+          >
+            <input type="date" value={vigenteEm} onChange={(e) => setVigenteEm(e.target.value)} className="campo tnum" />
+          </Campo>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={salvar.isPending}>
+              {vigenteEm ? "Agendar tabela" : "Salvar tabela"}
+            </Button>
+            {data?.proxima ? (
+              <span className="text-xs text-muted">
+                {vigenteEm ? "Agendar de novo troca a agendada." : "Salvar sem data descarta a tabela agendada."}
+              </span>
+            ) : null}
+            {msg ? (
+              <span role="status" className={`text-sm ${msg.ok ? "text-green-deep" : "text-red"}`}>
+                {msg.texto}
+              </span>
+            ) : null}
+          </div>
+        </form>
+        <div className="min-w-0">
+        {data ? (
+          <>
+            <p className="px-5 pb-2 pt-3 text-sm font-medium lg:pt-0">Em vigor</p>
+            <ResumoDaTabela tabela={data.vigente} />
+          </>
+        ) : null}
+        {data?.proxima ? (
+          <div className="border-t border-line">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 pb-2 pt-3">
+              <p className="text-sm font-medium">
+                <Pill status="reserved">agendada</Pill>{" "}
+                <span className="ml-1">
+                  A partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>
+                </span>
+              </p>
+              <Button variant="ghost" onClick={() => cancelar.mutate()} disabled={cancelar.isPending}>
+                Cancelar agendamento
+              </Button>
+            </div>
+            <ResumoDaTabela tabela={data.proxima.tabela} />
+          </div>
+        ) : null}
         </div>
-      ) : null}
-    </Card>
+      </div>
+    </CartaoDoPainel>
   );
 }
 
@@ -579,7 +586,8 @@ function MinhaConta() {
     <PanelShell title="Cobrança">
       {daNotificacao?.notificacao ? <FaltaDePagamento n={daNotificacao.notificacao} /> : null}
 
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Duas ou três estatísticas numa linha: a terceira ("A receber da plataforma") só existe com crédito. */}
+      <div className={`mb-4 grid grid-cols-1 gap-4 md:mb-6 md:gap-6 ${data?.creditos.devidoCents ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Kpi label="Em aberto" value={formatBRL(data?.totais.abertoCents ?? 0)} />
         <Kpi
           label="Já pago"
@@ -596,22 +604,25 @@ function MinhaConta() {
       </div>
 
       {data?.proxima ? (
-        <Card title={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} right={<Pill status="reserved">aviso</Pill>}>
-          <p className="px-4 pt-3 text-sm">
+        <CartaoDoPainel titulo={`Tabela nova a partir de ${dataDaVigencia(data.proxima.vigenteEm)}`} acao={<Pill status="reserved">aviso</Pill>} className="mb-4 md:mb-6">
+          <p className="px-5 pb-3 text-sm">
             Vale para as rifas publicadas a partir de <span className="tnum">{dataDaVigencia(data.proxima.vigenteEm)}</span>. As
             rifas já publicadas seguem com a tabela que gravaram na publicação.
           </p>
           <ResumoDaTabela tabela={data.proxima.tabela} />
-        </Card>
+        </CartaoDoPainel>
       ) : null}
 
       {data ? (
-        <Card title="Como a plataforma cobra">
+        <CartaoDoPainel titulo="Como a plataforma cobra" className="mb-4 md:mb-6">
           <ResumoDaTabela tabela={data.tabela} />
-        </Card>
+        </CartaoDoPainel>
       ) : null}
 
-      <Card title="Lançamentos">
+      <CartaoDoPainel
+        titulo="Lançamentos"
+        subtitulo="Cada venda com a parte da venda e a do Pix separadas; o estorno cancela a da venda e a do Pix pelo motivo."
+      >
         {lancamentos.length ? (
           <>
             <TabelaOuCartoes
@@ -644,7 +655,7 @@ function MinhaConta() {
         ) : (
           <Empty>Nenhuma cobrança até agora.</Empty>
         )}
-      </Card>
+      </CartaoDoPainel>
     </PanelShell>
   );
 }
@@ -659,12 +670,12 @@ function FaltaDePagamento({ n }: { n: NotificacaoDeCobranca }) {
   if (situacao === "regularizada") return null;
   const bloqueando = situacao === "bloqueando";
   return (
-    <div className="mb-3">
-      <Card
-        title="Falta de pagamento"
-        right={bloqueando ? <Pill status="expired">publicação bloqueada</Pill> : <Pill status="reserved">no prazo</Pill>}
+    <div className="mb-4 md:mb-6">
+      <CartaoDoPainel
+        titulo="Falta de pagamento"
+        acao={bloqueando ? <Pill status="expired">publicação bloqueada</Pill> : <Pill status="reserved">no prazo</Pill>}
       >
-        <div className="space-y-2 px-4 py-3 text-sm" role={bloqueando ? "alert" : undefined}>
+        <div className="space-y-2 px-5 pb-5 text-sm" role={bloqueando ? "alert" : undefined}>
           <p>
             A plataforma notificou em <span className="tnum">{diaEmBrasilia(n.notificadaEm)}</span> a falta de pagamento de{" "}
             <Money cents={n.valorCents} /> em taxas. Ainda em aberto: <Money cents={n.abertoCents} />.
@@ -685,7 +696,7 @@ function FaltaDePagamento({ n }: { n: NotificacaoDeCobranca }) {
             plataforma registrar o pagamento (contrato da promotora, cláusula de remuneração, X.13).
           </p>
         </div>
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }

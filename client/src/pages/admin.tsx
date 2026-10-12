@@ -35,6 +35,10 @@ import { TelefoneDoOrganizadorCard } from "@/components/Seguranca";
 import { ContratoPromotoraCard } from "@/components/ContratoPromotoraCard";
 import { VerificacaoCard } from "@/components/Verificacao";
 import { CoresDoSeloCard } from "@/components/CoresDoSelo";
+import { Caixa, Campo } from "@/components/bits";
+import { CheckCircle2 } from "lucide-react";
+import { regraDoNumeroSemDono } from "@shared/sorteio";
+import { senhaInvalida } from "@shared/senha";
 import { podeExcluir } from "@shared/solicitacoes";
 import type { CorDeDestaque, LinkDoPerfil } from "@shared/perfil";
 import type { Endereco } from "@shared/endereco";
@@ -46,7 +50,22 @@ import {
   type PaymentMethodSettings,
 } from "@shared/payments";
 
+// O link com a forma do botão do kit e o nome da loteria do próximo sorteio (Painel).
+// Nome local em minúsculas: é um valor (as classes dos tons), não uma peça de tela — a matriz da reformulação conta como cartão todo nome maiúsculo importado de `@/components`.
+import { TONS_DO_BOTAO as tonsDoBotao } from "@/components/bits";
+import { BarChart3, ExternalLink } from "lucide-react";
+import { loteriaDoMetodo } from "@shared/apuracao";
+import { LOTERIAS } from "@shared/sorteiosOficiais";
+import { useLocation } from "wouter";
+
 /* ------------------------------- painel ------------------------------- */
+
+/**
+ * Link que se parece com o botão do kit (mesma forma e os mesmos tons): ir a
+ * outra tela é link, não botão. O kit ainda não tem a peça; a forma é a do
+ * `Button` de `bits.tsx` e o tom vem de `TONS_DO_BOTAO`.
+ */
+const FORMA_DO_BOTAO = "inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[13px] font-semibold transition";
 
 interface AdminOverview {
   revenueCents: number;
@@ -106,6 +125,9 @@ export function AdminPainel() {
       ].filter((x): x is { texto: string; apoio: string; href: string; tom: "yellow" | "red" } => Boolean(x))
     : [];
   const prox = data?.proximoSorteio;
+  // Quem apura o próximo sorteio, pelo método da rifa (a rifa de antes, sem método, não diz).
+  const metodoDoProximo = prox ? rifas?.find((r) => r.campaign.slug === prox.slug)?.campaign.metodoApuracao : null;
+  const loteriaDoProximo = metodoDoProximo ? LOTERIAS[loteriaDoMetodo(metodoDoProximo)].nome : null;
   const faltam = prox ? Math.max(0, Math.ceil((new Date(prox.drawAt).getTime() - Date.now()) / 86_400_000)) : 0;
   const TOM_DA_PENDENCIA = { yellow: "bg-yellow-soft text-yellow-deep", red: "bg-red-soft text-red" };
 
@@ -134,7 +156,7 @@ export function AdminPainel() {
       ) : (
         // Os widgets dos painéis prontos do kit (eCommerce e Analytics),
         // cada um ligado a um dado nosso. Grade de 4 colunas no computador.
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
           {/* Boas-vindas: o resumo do dia. */}
           <section aria-label="Resumo de hoje" className="cartao flex items-center justify-between gap-4 rounded-xl border border-line bg-white p-5 md:col-span-2">
             <div className="min-w-0">
@@ -145,7 +167,8 @@ export function AdminPainel() {
                 Hoje entraram <span className="tnum font-medium text-green-deep">{formatBRL(data.hoje?.cents ?? 0)}</span> em{" "}
                 <span className="tnum">{groupNumber(data.hoje?.cotas ?? 0)}</span> cotas pagas.
               </p>
-              <Link href="/admin/resultados" className="mt-4 inline-flex rounded-md bg-green px-4 py-2 text-xs font-semibold uppercase tracking-wide text-on-green shadow-aceso hover:brightness-95">
+              <Link href="/admin/resultados" className={`mt-4 whitespace-nowrap ${FORMA_DO_BOTAO} ${tonsDoBotao.primario}`}>
+                <BarChart3 size={16} aria-hidden />
                 Ver resultados
               </Link>
             </div>
@@ -155,7 +178,8 @@ export function AdminPainel() {
           <Estatistica icone={Percent} tom="yellow" valor={formatBRL(data.commissionToPayCents)} rotulo="Comissão a pagar" dica={<><span className="tnum">{data.commissionAffiliates}</span> afiliado(s)</>} href="/admin/financeiro" />
 
           {/* O próximo sorteio em destaque (o cartão colorido do kit), com a capa. */}
-          <section aria-label="Próximo sorteio" className="cartao relative flex min-h-[200px] overflow-hidden rounded-xl border border-line bg-green text-branco md:col-span-2">
+          {/* Azul: é espera (o sorteio que vem), não dinheiro. O texto é branco sobre o azul cheio nos dois temas (`--yellow`/`--on-yellow` são o azul de hoje). */}
+          <section aria-label="Próximo sorteio" className="cartao relative flex min-h-[200px] overflow-hidden rounded-xl border border-line bg-yellow text-on-yellow md:col-span-2">
             {prox?.capa ? (
               <img src={prox.capa} alt="" className="absolute inset-y-0 right-0 w-1/2 object-cover opacity-60 [mask-image:linear-gradient(to_right,transparent,black_40%)]" />
             ) : null}
@@ -165,7 +189,10 @@ export function AdminPainel() {
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide opacity-80">Próximo sorteio · {faltam <= 1 ? "amanhã ou hoje" : `em ${faltam} dias`}</p>
                     <h2 className="mt-1 truncate text-lg font-semibold">{prox.prizeTitle}</h2>
-                    <p className="tnum text-sm opacity-90">{new Date(prox.drawAt).toLocaleDateString("pt-BR")}</p>
+                    <p className="tnum text-sm opacity-90">
+                      {new Date(prox.drawAt).toLocaleDateString("pt-BR")}
+                      {loteriaDoProximo ? ` · ${loteriaDoProximo}` : ""}
+                    </p>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2 text-xs">
                     {[
@@ -178,7 +205,8 @@ export function AdminPainel() {
                       </span>
                     ))}
                   </div>
-                  <Link href={`/r/${prox.slug}`} className="mt-3 inline-flex w-fit rounded-md bg-branco px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-green-deep hover:brightness-95">
+                  {/* O tom "branco" do kit, com o texto no azul do próprio cartão: o verde-texto clareia no escuro e sumiria no branco. */}
+                  <Link href={`/r/${prox.slug}`} className={`mt-4 w-fit ${FORMA_DO_BOTAO} bg-branco text-yellow hover:brightness-95`}>
                     Ver a rifa
                   </Link>
                 </>
@@ -190,7 +218,7 @@ export function AdminPainel() {
           {/* Canais: site ou cambista (o "Mobile vs Desktop" do kit). */}
           <CartaoDoPainel titulo="Canais" subtitulo="Vendas pagas, 30 dias">
             <div className="px-5 pb-5">
-              <div className="flex items-end justify-between text-sm">
+              <div className="flex items-end justify-between gap-4 text-sm">
                 <span>
                   <span className="block text-xs text-muted">Site</span>
                   <span className="tnum text-lg font-medium">{pctSite}%</span>
@@ -204,7 +232,6 @@ export function AdminPainel() {
               </div>
               <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-mist-2" role="img" aria-label={`Site ${pctSite}%, cambista ${totalCanais ? 100 - pctSite : 0}%`}>
                 <span className="bg-green" style={{ width: `${pctSite}%` }} />
-                <span className="bg-yellow" style={{ width: `${totalCanais ? 100 - pctSite : 0}%` }} />
               </div>
             </div>
           </CartaoDoPainel>
@@ -225,18 +252,18 @@ export function AdminPainel() {
             {!data.ultimasVendas?.length ? (
               <Empty>Nenhuma venda paga ainda.</Empty>
             ) : (
-              <ol className="relative mx-5 mb-5 border-l border-line pl-5">
+              <ol className="mx-5 mb-3 divide-y divide-line">
                 {data.ultimasVendas.map((v) => (
-                  <li key={v.code} className="relative pb-4 text-sm last:pb-0">
-                    <span aria-hidden className={`absolute -left-[26px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${v.cambista ? "bg-yellow" : "bg-green"}`} />
+                  <li key={v.code} className="relative py-3 pl-5 text-sm">
+                    <span aria-hidden className="absolute left-0 top-[18px] h-2 w-2 rounded-full bg-green" />
                     <p className="flex items-baseline justify-between gap-3">
                       <span className="truncate font-medium">
                         <span className="tnum text-green-deep">#{v.code}</span> · {v.prizeTitle}
                       </span>
-                      <span className="shrink-0 text-xs text-muted">{quandoFoi(v.paidAt)}</span>
+                      <span className="tnum shrink-0 text-xs text-muted">{quandoFoi(v.paidAt)}</span>
                     </p>
-                    <p className="text-xs text-muted">
-                      <span className="tnum">{v.quantity}</span> cota(s) · <Money cents={v.amountCents} /> · {v.cambista ? "cambista" : "site"}
+                    <p className="tnum text-xs text-muted">
+                      {v.quantity} cota(s) · <Money cents={v.amountCents} /> · {v.cambista ? "cambista" : "site"}
                     </p>
                   </li>
                 ))}
@@ -248,20 +275,20 @@ export function AdminPainel() {
             {noAr.length === 0 ? (
               <Empty>Nenhuma rifa no ar.</Empty>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-sm">
-                  <CabecalhoDaTabela colunas={["Rifa", "Vendidas", "Receita", "Sorteio"]} />
+              <div className="px-5 pb-3">
+                {/* No celular a linha é a rifa e o progresso (o Figma, nó 32:180): o cabeçalho e a receita
+                    aparecem do `sm` em diante. A data do sorteio está no cartão do próximo sorteio e na Rifas. */}
+                <table className="w-full text-sm [&_thead]:hidden sm:[&_thead]:table-header-group">
+                  <CabecalhoDaTabela colunas={["Rifa", "Vendidas", "Receita"]} />
                   <tbody>
                     {noAr.map(({ campaign, stats, capa }) => {
                       const pct = Math.round(((stats?.soldCount ?? 0) / campaign.totalQuotas) * 100);
                       return (
                         <tr key={campaign.id} className="border-t border-line">
                           {/* `w-full max-w-0`: a célula fica com o que sobra e o prêmio corta com
-                              reticências; sem isso a tabela crescia até o título inteiro e a
-                              coluna do sorteio saía do cartão em 1440 px. O `min-w` segura a capa
-                              e o preço quando a tabela rola no cartão (celular e tablet); em
-                              `xl` o cartão tem ~550 px e a tabela cabe inteira com 150. */}
-                          <td className="w-full min-w-[200px] max-w-0 px-4 py-2.5 xl:min-w-[150px]">
+                              reticências; sem isso a tabela crescia até o título inteiro e saía do
+                              cartão. Sem a coluna do sorteio, a tabela cabe no cartão em toda largura. */}
+                          <td className="w-full max-w-0 py-2.5 pr-3 sm:px-4">
                             <span className="flex items-center gap-3">
                               <span className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-mist-2">
                                 {capa ? <img src={capa} alt="" className="h-full w-full object-cover" loading="lazy" /> : null}
@@ -272,12 +299,11 @@ export function AdminPainel() {
                               </span>
                             </span>
                           </td>
-                          <td className="min-w-[120px] px-4 py-2.5">
+                          <td className="w-28 py-2.5 sm:px-4">
                             <Progress value={stats?.soldCount ?? 0} total={campaign.totalQuotas} />
-                            <span className="tnum text-xs text-muted">{pct}% · {groupNumber(stats?.soldCount ?? 0)}</span>
+                            <span className="tnum whitespace-nowrap text-xs text-muted">{pct}% · {groupNumber(stats?.soldCount ?? 0)}</span>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-2.5"><Money cents={stats?.revenueCents ?? 0} className="font-medium" /></td>
-                          <td className="tnum whitespace-nowrap px-4 py-2.5 text-muted">{campaign.drawAt ? new Date(campaign.drawAt).toLocaleDateString("pt-BR") : "—"}</td>
+                          <td className="hidden whitespace-nowrap px-4 py-2.5 sm:table-cell"><Money cents={stats?.revenueCents ?? 0} className="font-medium" /></td>
                         </tr>
                       );
                     })}
@@ -326,7 +352,7 @@ export function AdminPainel() {
                         <ChevronRight size={18} />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{a.texto}</span>
+                        <span className="block font-medium">{a.texto}</span>
                         <span className="block text-xs text-muted">{a.apoio}</span>
                       </span>
                     </Link>
@@ -373,6 +399,7 @@ interface CampaignRow {
     travadaMotivo?: string | null;
     publicarEm?: string | null;
     publicacaoAgendadaFalha?: string | null;
+    publishedAt?: string | null;
     /** O método de apuração (`shared/apuracao.ts`); nulo é a rifa de antes, apurada pela semente. */
     metodoApuracao?: string | null;
     /** Como a plataforma cobra por ela, e a tabela fotografada na publicação (`shared/cobranca.ts`). */
@@ -408,6 +435,142 @@ function situacaoDaRifa(c: CampaignRow["campaign"], emAnalise?: string[] | null)
   return selos;
 }
 
+/**
+ * Para onde levar cada bloqueio de publicação (`publishBlockers`): a aba da
+ * edição que tem o cartão, ou a tela do painel. Só apresentação — o texto é o
+ * do servidor; o que não reconhece fica sem link.
+ */
+function ondeResolver(bloqueio: string): { aba: string; ancora?: string } | { href: string; rotulo: string } | null {
+  const t = bloqueio.toLowerCase();
+  if (t.includes("telefone")) return { href: "/admin/configuracoes", rotulo: "Configurações" };
+  if (/contrato|anexo|sócio|socio|diretor/.test(t)) return { href: "/admin/configuracoes?aba=organizacao", rotulo: "Configurações" };
+  if (/notifica|falta de pagamento|em aberto/.test(t)) return { href: "/admin/cobranca", rotulo: "Cobrança" };
+  if (/cota premiada/.test(t)) return { aba: "vendas", ancora: "cotas-premiadas" };
+  if (/banner|foto|carrossel|vídeo|video/.test(t)) return { aba: "publicacao", ancora: "midia" };
+  if (/cobran|pacote|taxa/.test(t)) return { aba: "rifa" };
+  if (/autoriza|certificado|sorteio|apura|bônus|bonus|vale-brinde|data/.test(t)) return { aba: "autorizacao", ancora: "dados-legais" };
+  if (/prêmio|premio/.test(t)) return { aba: "rifa" };
+  return null;
+}
+
+const NOME_DA_ABA: Record<string, string> = {
+  rifa: "A rifa",
+  autorizacao: "Autorização e sorteio",
+  publicacao: "Publicação",
+  vendas: "Pacotes e cotas premiadas",
+};
+
+/**
+ * A situação da rifa ao lado dos dados (o Figma, nó 54:4503): no ar, o que
+ * vendeu, a data e quem apura, a autorização e os links públicos; no
+ * rascunho, o que falta para publicar, cada item com o link do cartão.
+ */
+function SituacaoDaRifaCard({
+  linha,
+  aoIrPara,
+  aoPublicar,
+  publicando,
+}: {
+  linha: CampaignRow;
+  aoIrPara: (aba: string, ancora?: string) => void;
+  aoPublicar: () => void;
+  publicando: boolean;
+}) {
+  const { campaign: c, stats, emAnalise } = linha;
+  const rascunho = c.status === "draft";
+  const { data: pendencias } = useQuery<{ blockers: string[] }>({
+    queryKey: [`/api/admin/campaigns/${c.id}/blockers`],
+    enabled: rascunho,
+  });
+  const loteria = c.metodoApuracao ? LOTERIAS[loteriaDoMetodo(c.metodoApuracao)].curto : null;
+  const linhas: [string, React.ReactNode][] = [
+    ["Vendidas", `${groupNumber(stats?.soldCount ?? 0)} de ${groupNumber(c.totalQuotas)}`],
+    ["Receita paga", formatBRL(stats?.revenueCents ?? 0)],
+    ["Sorteio", c.drawAt ? `${new Date(c.drawAt).toLocaleDateString("pt-BR")}${loteria ? ` · ${loteria}` : ""}` : "sem data"],
+    ["Autorização", c.authorizationCode ?? "falta"],
+  ];
+  return (
+    <CartaoDoPainel titulo="Situação">
+      <div className="space-y-3 px-5 pb-5 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-ink-2">{rascunho ? "Rascunho" : "Publicada"}</span>
+          <span className="flex flex-wrap justify-end gap-1">
+            {situacaoDaRifa(c, emAnalise).map((sel) => (
+              <Pill key={sel.texto} status={sel.status}>
+                {sel.texto}
+              </Pill>
+            ))}
+          </span>
+        </div>
+        <dl className="space-y-2">
+          {linhas.map(([rotulo, valor]) => (
+            <div key={rotulo} className="flex items-baseline justify-between gap-3">
+              <dt className="shrink-0 text-ink-2">{rotulo}</dt>
+              <dd className="tnum min-w-0 truncate text-right font-medium" title={typeof valor === "string" ? valor : undefined}>
+                {valor}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {rascunho ? (
+          pendencias ? (
+            pendencias.blockers.length ? (
+              <div>
+                <p className="label-xs">O que falta para publicar</p>
+                <ul className="mt-1 space-y-1.5 text-xs text-ink-2">
+                  {pendencias.blockers.map((b) => {
+                    const onde = ondeResolver(b);
+                    return (
+                      <li key={b} className="flex flex-col">
+                        <span>{b}</span>
+                        {onde && "href" in onde ? (
+                          <Link href={onde.href} className="inline-flex min-h-6 w-fit items-center font-medium text-green-deep hover:underline">
+                            Resolver em {onde.rotulo}
+                          </Link>
+                        ) : onde ? (
+                          <button
+                            type="button"
+                            onClick={() => aoIrPara(onde.aba, onde.ancora)}
+                            className="inline-flex min-h-6 w-fit items-center font-medium text-green-deep hover:underline"
+                          >
+                            Resolver na aba {NOME_DA_ABA[onde.aba]}
+                          </button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-green-deep">Nada falta: a rifa pode ser publicada.</p>
+            )
+          ) : null
+        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          {rascunho ? (
+            <Button onClick={aoPublicar} disabled={publicando || !pendencias || pendencias.blockers.length > 0}>
+              Publicar
+            </Button>
+          ) : (
+            <>
+              <a href={`/r/${c.slug}`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${tonsDoBotao.contorno}`}>
+                <ExternalLink size={16} aria-hidden />
+                Ver a rifa
+                <span className="sr-only">(abre em outra aba)</span>
+              </a>
+              <a href={`/r/${c.slug}/regulamento`} target="_blank" rel="noreferrer" className={`relative h-9 ${FORMA_DO_BOTAO} ${tonsDoBotao.contorno}`}>
+                Regulamento
+                <span className="sr-only">(abre em outra aba)</span>
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+    </CartaoDoPainel>
+  );
+}
 
 export function AdminCampanhas() {
   const qc = useQueryClient();
@@ -423,7 +586,20 @@ export function AdminCampanhas() {
     enabled: daPlataforma,
   });
   const [open, setOpen] = useState(false);
-  const [mediaFor, setMediaFor] = useState<string | null>(null);
+  // A rifa aberta vem do endereço (`?rifa=`, com a aba em `?aba=`): recarregar ou mandar o link abre a
+  // mesma edição. Id que não está na lista do recorte (o do vizinho, a apagada) cai na grade.
+  const mediaFor = new URLSearchParams(useSearch()).get("rifa");
+  const [, navegar] = useLocation();
+  const setMediaFor = (id: string | null) => navegar(id ? `/admin/campanhas?rifa=${encodeURIComponent(id)}` : "/admin/campanhas");
+  // "Pedir adiamento" e os links dos bloqueios trocam de aba: a URL leva a aba (e a âncora do cartão) e as abas remontam.
+  const [remontar, setRemontar] = useState(0);
+  const irParaAba = (aba: string, ancora?: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("aba", aba);
+    url.hash = ancora ?? "";
+    window.history.replaceState(null, "", url);
+    setRemontar((n) => n + 1);
+  };
   // Grade de capas ou lista, lembrado no aparelho.
   const [visao, setVisao] = useState<VisaoDasRifas>(visaoInicial);
   const [form, setForm] = useState({
@@ -489,20 +665,41 @@ export function AdminCampanhas() {
 
   const digits = quotaDigits(form.totalQuotas, true);
 
+  const aberta = mediaFor ? data?.find((r) => r.campaign.id === mediaFor) : undefined;
+
   return (
     <PanelShell title="Rifas">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-muted">
+      {error ? (
+        <p role="alert" className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+      ) : null}
+
+      {!aberta ? (
+      <>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="min-w-0 text-sm text-muted">
           <span className="tnum">{data?.length ?? 0}</span> rifa(s)
         </p>
-        <Button onClick={() => setOpen((v) => !v)}>
-          {open ? "Fechar" : "Nova rifa"}
-        </Button>
+        <div className="flex shrink-0 items-center gap-3">
+          <AlternarVisao
+            visao={visao}
+            aoMudar={(v) => {
+              setVisao(v as VisaoDasRifas);
+              try {
+                localStorage.setItem(CHAVE_VISAO, v);
+              } catch {
+                // armazenamento bloqueado: vale só nesta visita
+              }
+            }}
+            opcoes={[
+              { valor: "grade", rotulo: "Grade de capas", icone: LayoutGrid },
+              { valor: "lista", rotulo: "Lista", icone: List },
+            ]}
+          />
+          <Button onClick={() => setOpen((v) => !v)}>
+            {open ? "Fechar" : "Nova rifa"}
+          </Button>
+        </div>
       </div>
-
-      {error ? (
-        <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
-      ) : null}
 
       {open ? (
         <Card title="Nova campanha" right={<Pill status="draft" />}>
@@ -654,46 +851,74 @@ export function AdminCampanhas() {
         </Card>
       ) : null}
 
-      {mediaFor ? (
-        <div className="mt-3">
-          {(() => {
-            const linha = data?.find((r) => r.campaign.id === mediaFor);
-            const c = linha?.campaign;
-            const vendidas = linha?.stats?.soldCount ?? 0;
-            if (!c) return null;
-            // Uma aba por assunto da rifa; trocar de rifa volta à primeira
-            // (a `key` remonta). A aba vai na URL (`?aba=`).
-            return (
+      </>
+      ) : null}
+
+      {aberta ? (
+        (() => {
+          const linha = aberta;
+          const c = linha.campaign;
+          const vendidas = linha.stats?.soldCount ?? 0;
+          const podeAdiar = c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas;
+          // O cabeçalho e as quatro abas da rifa (o Figma, nó 54:4503); a grade volta pelo "Todas as rifas".
+          return (
+            <div className="space-y-4">
+              <header className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="truncate text-lg font-semibold">{c.title}</h2>
+                  <p className="tnum text-xs text-muted">
+                    <Link href="/admin/campanhas" className="inline-flex min-h-6 items-center font-medium text-green-deep hover:underline">
+                      Todas as rifas
+                    </Link>
+                    {" · "}
+                    {c.status === "draft"
+                      ? "rascunho"
+                      : c.publishedAt
+                        ? `publicada em ${new Date(c.publishedAt).toLocaleDateString("pt-BR")}`
+                        : "publicada"}
+                  </p>
+                </div>
+                <span className="flex flex-wrap gap-1">
+                  {situacaoDaRifa(c, linha.emAnalise).map((sel) => (
+                    <Pill key={sel.texto} status={sel.status}>
+                      {sel.texto}
+                    </Pill>
+                  ))}
+                </span>
+              </header>
               <Abas
-                key={c.id}
-                naUrl={false}
+                key={`${c.id}-${remontar}`}
                 rotulo={`Edição de ${c.title}`}
+                ancoras={{ adiar: "autorizacao", "dados-legais": "autorizacao", midia: "publicacao", "cotas-premiadas": "vendas" }}
                 abas={[
                   {
                     id: "rifa",
                     titulo: "A rifa",
                     conteudo: (
-                      <div className="space-y-3">
-                        <EditarRifaCard
-                          rifa={c}
-                          daPlataforma={daPlataforma}
-                          edicaoEmAnalise={Boolean(linha?.emAnalise?.includes("edicao"))}
+                      // Computador: os dados da rifa em duas colunas e a situação na terceira; o resto embaixo.
+                      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-3">
+                        <div className="min-w-0 lg:col-span-2">
+                          <EditarRifaCard
+                            rifa={c}
+                            daPlataforma={daPlataforma}
+                            edicaoEmAnalise={Boolean(linha.emAnalise?.includes("edicao"))}
+                            aoPedirAdiamento={podeAdiar ? () => irParaAba("autorizacao", "adiar") : undefined}
+                          />
+                        </div>
+                        <SituacaoDaRifaCard
+                          linha={linha}
+                          aoIrPara={irParaAba}
+                          aoPublicar={() => publish.mutate(c.id)}
+                          publicando={publish.isPending}
                         />
                         <CobrancaDaRifaCard rifa={c} />
                         <AgendarPublicacaoCard rifa={c} />
-                        {c.status === "published" && !c.demonstracao && vendidas < c.totalQuotas ? (
-                          <AdiarSorteioCard
-                            rifa={c}
-                            vendidas={vendidas}
-                            adiamentoEmAnalise={Boolean(linha?.emAnalise?.includes("adiamento"))}
-                          />
-                        ) : null}
                         {c.status !== "draft" ? (
-                          <Card title="Divulgação">
-                            <div className="p-4">
+                          <CartaoDoPainel titulo="Endereço curto" subtitulo="Para divulgar a rifa com um link pequeno.">
+                            <div className="px-5 pb-5">
                               <EnderecoCurto alvo={{ tipo: "rifa", id: c.id }} rotulo="Endereço curto da rifa" />
                             </div>
-                          </Card>
+                          </CartaoDoPainel>
                         ) : null}
                       </div>
                     ),
@@ -702,9 +927,22 @@ export function AdminCampanhas() {
                     id: "autorizacao",
                     titulo: "Autorização e sorteio",
                     conteudo: (
-                      <div className="space-y-3">
-                        <DadosLegaisCard campanha={c} />
-                        <TransmissaoCard campanha={c} />
+                      <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-2">
+                        <div id="dados-legais" className="min-w-0">
+                          <DadosLegaisCard campanha={c} />
+                        </div>
+                        <div className="grid min-w-0 grid-cols-1 gap-4 md:gap-6">
+                          <TransmissaoCard campanha={c} />
+                          {podeAdiar ? (
+                            <div id="adiar" className="min-w-0 scroll-mt-20">
+                              <AdiarSorteioCard
+                                rifa={c}
+                                vendidas={vendidas}
+                                adiamentoEmAnalise={Boolean(linha.emAnalise?.includes("adiamento"))}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ),
                   },
@@ -712,25 +950,34 @@ export function AdminCampanhas() {
                     id: "publicacao",
                     titulo: "Publicação",
                     conteudo: (
-                      <div className="space-y-3">
-                        <BannerDivulgacaoCard campaignId={c.id} />
-                        <MediaManager campaignId={c.id} />
-                        <LegendaCard campanha={c} />
-                        <ReelsDaRifa campaignId={c.id} />
-                        <Card title="Artes para divulgar">
-                          <div className="space-y-4 p-4">
-                            <AbrirEditorDeImagem
-                              portas={{
-                                dados: `/api/admin/campaigns/${c.id}/editor`,
-                                conferir: `/api/admin/campaigns/${c.id}/editor/conferir`,
-                                sugerir: `/api/admin/campaigns/${c.id}/sugerir`,
-                                artes: `/api/admin/campaigns/${c.id}/artes`,
-                                carrossel: `/api/admin/campaigns/${c.id}/media`,
-                              }}
-                            />
-                            <ArtesParaDivulgar base={`/api/admin/campaigns/${c.id}/artes`} />
-                          </div>
-                        </Card>
+                      <div className="space-y-4 md:space-y-6">
+                        <div id="midia" className="min-w-0">
+                          <MediaManager campaignId={c.id} />
+                        </div>
+                        {/*
+                          No computador, duas colunas que fluem (`columns`), como as rifas do perfil:
+                          na grade, a legenda (curta) ficava ao lado do Reels (alto) e deixava um
+                          buraco embaixo dela. O DOM segue a ordem do celular.
+                        */}
+                        <div className="lg:columns-2 lg:gap-6 [&>*]:mb-4 [&>*]:break-inside-avoid md:[&>*]:mb-6 [&>*:last-child]:mb-0">
+                          <LegendaCard campanha={c} />
+                          <ReelsDaRifa campaignId={c.id} />
+                          <CartaoDoPainel titulo="Artes para divulgar" subtitulo="Prontas nos três formatos, ou monte a sua no editor.">
+                            <div className="space-y-4 px-5 pb-5">
+                              <AbrirEditorDeImagem
+                                portas={{
+                                  dados: `/api/admin/campaigns/${c.id}/editor`,
+                                  conferir: `/api/admin/campaigns/${c.id}/editor/conferir`,
+                                  sugerir: `/api/admin/campaigns/${c.id}/sugerir`,
+                                  artes: `/api/admin/campaigns/${c.id}/artes`,
+                                  carrossel: `/api/admin/campaigns/${c.id}/media`,
+                                }}
+                              />
+                              <ArtesParaDivulgar base={`/api/admin/campaigns/${c.id}/artes`} />
+                            </div>
+                          </CartaoDoPainel>
+                          <BannerDivulgacaoCard campaignId={c.id} />
+                        </div>
                       </div>
                     ),
                   },
@@ -741,16 +988,16 @@ export function AdminCampanhas() {
                   },
                 ]}
               />
-            );
-          })()}
-        </div>
+            </div>
+          );
+        })()
       ) : null}
 
       {/* As ações de cada rifa, as mesmas na grade e na lista. */}
-      {(() => {
+      {!aberta ? (() => {
         const acoesDa = ({ campaign, stats }: CampaignRow) => {
           const lista: { rotulo: string; aoClicar: () => void; primario?: boolean; perigo?: boolean; ocupado?: boolean }[] = [
-            { rotulo: mediaFor === campaign.id ? "Fechar edição" : "Editar", aoClicar: () => setMediaFor(mediaFor === campaign.id ? null : campaign.id) },
+            { rotulo: "Editar", aoClicar: () => setMediaFor(campaign.id) },
           ];
           if (campaign.status === "draft") lista.push({ rotulo: "Publicar", primario: true, aoClicar: () => publish.mutate(campaign.id) });
           if (daPlataforma && campaign.travadaEm)
@@ -796,7 +1043,7 @@ export function AdminCampanhas() {
           <Button
             key={a.rotulo}
             variant={a.primario ? "primary" : "ghost"}
-            className={`whitespace-nowrap px-2 py-1 text-xs ${a.perigo ? "text-red" : ""}`}
+            className={`h-9 whitespace-nowrap ${a.perigo ? "border-red text-red hover:bg-red-soft" : ""}`}
             disabled={a.ocupado}
             onClick={a.aoClicar}
           >
@@ -805,42 +1052,24 @@ export function AdminCampanhas() {
         );
         return (
           <div className="mt-3 space-y-3">
-            <div className="flex items-center justify-end">
-              <AlternarVisao
-                visao={visao}
-                aoMudar={(v) => {
-                  setVisao(v as VisaoDasRifas);
-                  try {
-                    localStorage.setItem(CHAVE_VISAO, v);
-                  } catch {
-                    // armazenamento bloqueado: vale só nesta visita
-                  }
-                }}
-                opcoes={[
-                  { valor: "grade", rotulo: "Grade de capas", icone: LayoutGrid },
-                  { valor: "lista", rotulo: "Lista", icone: List },
-                ]}
-              />
-            </div>
-
             {data?.length === 0 ? (
               <Card>
                 <Empty>Nenhuma campanha criada.</Empty>
               </Card>
             ) : visao === "grade" ? (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Rifas em grade">
+              <ul className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 xl:grid-cols-3" aria-label="Rifas em grade">
                 {data?.map((linha) => {
                   const { campaign, stats, emAnalise, capa } = linha;
                   const acoes = acoesDa(linha);
                   const [principal, segunda, ...resto] = acoes;
                   const vendidas = stats?.soldCount ?? 0;
                   return (
-                    <li key={campaign.id} className={`cartao min-w-0 overflow-hidden rounded-xl border border-line bg-white ${mediaFor === campaign.id ? "ring-2 ring-green" : ""}`}>
+                    <li key={campaign.id} className="cartao min-w-0 overflow-hidden rounded-xl border border-line bg-white">
                       <div className="relative aspect-[16/9] bg-mist-2">
                         {capa ? (
                           <img src={capa} alt="" className="h-full w-full object-cover" loading="lazy" />
                         ) : (
-                          <span className="flex h-full w-full items-center justify-center text-muted" aria-hidden>
+                          <span className="flex h-full w-full items-center justify-center bg-mist text-muted" aria-hidden>
                             <ImagemIcone size={28} />
                           </span>
                         )}
@@ -853,9 +1082,9 @@ export function AdminCampanhas() {
                         </span>
                       </div>
                       <div className="space-y-2 p-4">
-                        <p className="truncate font-medium" title={campaign.prizeTitle}>{campaign.prizeTitle}</p>
-                        <p className="text-xs text-muted">
-                          <Money cents={campaign.priceCents} /> a cota · <span className="tnum">{groupNumber(campaign.totalQuotas)}</span> cotas
+                        <p className="truncate text-base font-semibold" title={campaign.prizeTitle}>{campaign.prizeTitle}</p>
+                        <p className="tnum text-xs text-muted">
+                          <Money cents={campaign.priceCents} /> a cota · {groupNumber(campaign.totalQuotas)} cotas
                         </p>
                         <Progress value={vendidas} total={campaign.totalQuotas} />
                         <p className="tnum text-xs text-muted">
@@ -871,7 +1100,7 @@ export function AdminCampanhas() {
                             <span className="text-muted">Sem data de sorteio</span>
                           )}
                         </p>
-                        <div className="flex flex-wrap items-center gap-1 pt-1">
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
                           {botao(principal)}
                           {segunda ? botao(segunda) : null}
                           {resto.length ? (
@@ -947,7 +1176,7 @@ export function AdminCampanhas() {
             )}
           </div>
         );
-      })()}
+      })() : null}
     </PanelShell>
   );
 }
@@ -972,13 +1201,24 @@ function Comprador({ r }: { r: LinhaDePedido }) {
   );
 }
 
+/**
+ * A situação do pedido em pílula: pendente azul (espera), pago verde (dinheiro
+ * que entrou), vencido e estornado neutros — não são erro, só o fim do pedido.
+ * O kit pinta `expired`/`refunded` de vermelho para outros usos; aqui o tom é
+ * o neutro e o texto continua dizendo qual é.
+ */
+const PEDIDO_NEUTRO: Record<string, string> = { expired: "expirado", refunded: "estornado" };
+function SituacaoDoPedido({ status }: { status: string }) {
+  return PEDIDO_NEUTRO[status] ? <Pill status="closed">{PEDIDO_NEUTRO[status]}</Pill> : <Pill status={status} />;
+}
+
 function BilheteDoPedido({ codigo }: { codigo: number }) {
   return (
     <a
       href={`/bilhete/${codigo}`}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex min-h-6 items-center text-xs text-green-deep underline"
+      className="inline-flex min-h-6 items-center text-xs font-medium text-green-deep hover:underline"
     >
       bilhete
     </a>
@@ -1025,17 +1265,17 @@ export function AdminPedidos() {
             { titulo: "Comprador", celula: (r) => <Comprador r={r} /> },
             { titulo: "Cotas", celula: (r) => <span className="tnum">{r.order.quantity}</span> },
             { titulo: "Valor", celula: (r) => <Money cents={r.order.amountCents} /> },
-            { titulo: "Status", celula: (r) => <Pill status={r.order.status} /> },
+            { titulo: "Status", celula: (r) => <SituacaoDoPedido status={r.order.status} /> },
             { titulo: "", celula: (r) => <BilheteDoPedido codigo={r.order.code} /> },
           ]}
           cartao={(r) => (
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-3">
                 <span className="tnum font-medium">#{r.order.code}</span>
-                <Pill status={r.order.status} />
+                <SituacaoDoPedido status={r.order.status} />
               </div>
               <p className="min-w-0 truncate">{r.campaign.title}</p>
-              <p className="text-sm">
+              <p className="text-sm text-muted">
                 <Comprador r={r} />
               </p>
               <div className="flex items-center justify-between gap-3 text-sm">
@@ -1059,7 +1299,7 @@ export function AdminPedidos() {
 
 const PILL_DO_VINCULO: Record<string, string> = {
   pendente: "pending",
-  aprovado: "active",
+  aprovado: "published",
   recusado: "blocked",
   desfeito: "expired",
 };
@@ -1105,155 +1345,143 @@ export function AdminAfiliados() {
   });
 
   const pending = data?.filter((r) => statusDe(r) === "pendente") ?? [];
+  // A régua de senha do afiliado (a mesma do servidor), embaixo do campo antes de enviar.
+  const problemaSenha = form.password ? senhaInvalida(form.password, "affiliate") : null;
 
   return (
     <PanelShell title="Afiliados">
-      {daOrganizacao ? (
-        <div className="mb-3">
-          <TermoAfiliadoCard />
+      {/*
+        Duas colunas a partir de `xl`: o termo e o modo das divulgações à
+        esquerda; a fila de adesão, os cupons e os vínculos à direita. O DOM
+        segue a ordem do celular (esquerda, depois direita).
+      */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2 xl:items-start">
+        <div className="min-w-0 space-y-4 md:space-y-6">
+          {daOrganizacao ? <TermoAfiliadoCard /> : null}
+          <DivulgacoesDaOrganizacao daOrganizacao={daOrganizacao} />
         </div>
-      ) : null}
-      <div className="mb-3">
-        <DivulgacoesDaOrganizacao daOrganizacao={daOrganizacao} />
-      </div>
-      {pending.length > 0 ? (
-        <div className="mb-3">
-          <Card
-            title="Pedidos de adesão"
-            right={<Pill status="pending">{`${pending.length} na fila`}</Pill>}
-          >
-            <ul className="divide-y divide-line">
-              {pending.map((row) => (
-                <li
-                  key={row.affiliate.id}
-                  className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
-                >
-                  <span className="flex-1">
-                    {row.user.name}
-                    {row.affiliate.verificadoEm ? (
-                      <span className="ml-1 inline-block">
-                        <SeloVerificado sujeito="afiliado" tamanho={14} />
-                      </span>
-                    ) : null}{" "}
-                    · <span className="tnum text-muted">{row.user.email}</span>
-                  </span>
-                  <span className="tnum text-xs text-muted">
-                    código {row.affiliate.code}
-                  </span>
-                  <Button
-                    className="px-3 py-1 text-xs"
-                    onClick={() => update.mutate({ id: row.affiliate.id, status: "active" })}
-                  >
-                    Aprovar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="px-3 py-1 text-xs"
-                    onClick={() => update.mutate({ id: row.affiliate.id, status: "blocked" })}
-                  >
-                    Recusar
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </div>
-      ) : null}
 
-      <div className="mb-3">
-        <CouponsCard affiliates={data ?? []} />
-      </div>
+        <div className="min-w-0 space-y-4 md:space-y-6">
+          {pending.length > 0 ? (
+            <CartaoDoPainel titulo="Pedidos de adesão" acao={<Pill status="pending">{`${pending.length} na fila`}</Pill>}>
+              <ul aria-label="Pedidos de adesão" className="divide-y divide-line">
+                {pending.map((row) => (
+                  <li key={row.affiliate.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+                    <span className="min-w-0 flex-1 basis-full sm:basis-auto">
+                      {row.user.name}
+                      {row.affiliate.verificadoEm ? (
+                        <span className="ml-1 inline-block">
+                          <SeloVerificado sujeito="afiliado" tamanho={14} />
+                        </span>
+                      ) : null}{" "}
+                      · <span className="tnum break-all text-muted">{row.user.email}</span>
+                    </span>
+                    <span className="tnum text-xs text-muted">código {row.affiliate.code}</span>
+                    <Button onClick={() => update.mutate({ id: row.affiliate.id, status: "active" })}>Aprovar</Button>
+                    <Button variant="contorno" onClick={() => update.mutate({ id: row.affiliate.id, status: "blocked" })}>
+                      Recusar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </CartaoDoPainel>
+          ) : null}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1.6fr]">
-        <Card title="Novo afiliado">
-          <div className="space-y-3 p-4">
-            {(["name", "email", "password", "code"] as const).map((field) => (
-              <div key={field}>
-                <label htmlFor={field} className="label-xs">
-                  {{ name: "Nome", email: "E-mail", password: "Senha", code: "Código" }[field]}
-                </label>
-                <input
-                  id={field}
-                  type={field === "password" ? "password" : "text"}
-                  value={form[field]}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      [field]: field === "code" ? e.target.value.toUpperCase() : e.target.value,
-                    })
-                  }
-                  className="campo text-sm"
-                />
-              </div>
-            ))}
-            {error ? (
-              <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+          <CouponsCard affiliates={data ?? []} />
+
+          <CartaoDoPainel titulo={daOrganizacao ? "Afiliados desta organização" : "Afiliados da plataforma"}>
+            {filtro ? (
+              <p className="flex flex-wrap items-center gap-2 border-b border-line px-5 pb-3 text-sm">
+                <span>
+                  Mostrando <span className="tnum font-medium">{filtro}</span>.
+                </span>
+                <Link href="/admin/afiliados" className="inline-flex min-h-6 items-center text-green-deep underline">
+                  Ver todos
+                </Link>
+              </p>
             ) : null}
-            <Button
-              className="w-full"
-              disabled={create.isPending}
-              onClick={() => {
+            <ul aria-label="Afiliados" className="divide-y divide-line">
+              {data?.filter(doFiltro).map((row) => {
+                const st = statusDe(row);
+                const semAceite =
+                  row.vinculo?.termoVersaoAtual && (row.vinculo.aceiteVersao ?? 0) < row.vinculo.termoVersaoAtual;
+                return (
+                  <li key={row.affiliate.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm">
+                    <span className="min-w-0 flex-1 basis-full sm:basis-auto">
+                      {row.user.name}
+                      {row.affiliate.verificadoEm ? (
+                        <span className="ml-1 inline-block">
+                          <SeloVerificado sujeito="afiliado" tamanho={14} />
+                        </span>
+                      ) : null}{" "}
+                      · <span className="tnum text-muted">{row.affiliate.code}</span>
+                      {semAceite ? (
+                        <span className="block text-[11px] text-yellow-deep">
+                          ainda não aceitou a versão <span className="tnum">{row.vinculo!.termoVersaoAtual}</span> do termo
+                        </span>
+                      ) : null}
+                    </span>
+                    <Money cents={row.salesCents} className="text-muted" />
+                    <Pill status={PILL_DO_VINCULO[st]}>{{ pendente: "pendente", aprovado: "aprovado", recusado: "recusado", desfeito: "saiu" }[st]}</Pill>
+                    {st !== "desfeito" ? (
+                      <Button
+                        variant="contorno"
+                        onClick={() =>
+                          update.mutate({ id: row.affiliate.id, status: st === "aprovado" ? "blocked" : "active" })
+                        }
+                      >
+                        {st === "aprovado" ? (daOrganizacao ? "desligar" : "bloquear") : daOrganizacao ? "aprovar" : "ativar"}
+                      </Button>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            {data?.length === 0 ? <Empty>Nenhum afiliado cadastrado.</Empty> : null}
+            {data?.length && !data.filter(doFiltro).length ? <Empty>Nenhum afiliado com esse código, nome ou e-mail.</Empty> : null}
+          </CartaoDoPainel>
+
+          <CartaoDoPainel titulo="Novo afiliado">
+            <form
+              className="space-y-3 px-5 pb-5"
+              onSubmit={(e) => {
+                e.preventDefault();
                 setError(null);
                 create.mutate();
               }}
             >
-              Cadastrar e aprovar
-            </Button>
-          </div>
-        </Card>
-
-        <Card title={daOrganizacao ? "Afiliados desta organização" : "Afiliados da plataforma"}>
-          {filtro ? (
-            <p className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-sm">
-              <span>
-                Mostrando <span className="tnum font-medium">{filtro}</span>.
-              </span>
-              <Link href="/admin/afiliados" className="inline-flex min-h-6 items-center text-green-deep underline">
-                Ver todos
-              </Link>
-            </p>
-          ) : null}
-          <ul className="divide-y divide-line">
-            {data?.filter(doFiltro).map((row) => {
-              const st = statusDe(row);
-              const semAceite =
-                row.vinculo?.termoVersaoAtual && (row.vinculo.aceiteVersao ?? 0) < row.vinculo.termoVersaoAtual;
-              return (
-                <li key={row.affiliate.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                  <span className="min-w-0 flex-1">
-                    {row.user.name}
-                    {row.affiliate.verificadoEm ? (
-                      <span className="ml-1 inline-block">
-                        <SeloVerificado sujeito="afiliado" tamanho={14} />
-                      </span>
-                    ) : null}{" "}
-                    · <span className="tnum text-muted">{row.affiliate.code}</span>
-                    {semAceite ? (
-                      <span className="block text-[11px] text-yellow-deep">
-                        ainda não aceitou a versão {row.vinculo!.termoVersaoAtual} do termo
-                      </span>
-                    ) : null}
-                  </span>
-                  <Money cents={row.salesCents} className="text-muted" />
-                  <Pill status={PILL_DO_VINCULO[st]}>{{ pendente: "pendente", aprovado: "aprovado", recusado: "recusado", desfeito: "saiu" }[st]}</Pill>
-                  {st !== "desfeito" ? (
-                    <Button
-                      variant="ghost"
-                      className="px-2 py-1 text-xs"
-                      onClick={() =>
-                        update.mutate({ id: row.affiliate.id, status: st === "aprovado" ? "blocked" : "active" })
-                      }
-                    >
-                      {st === "aprovado" ? (daOrganizacao ? "desligar" : "bloquear") : daOrganizacao ? "aprovar" : "ativar"}
-                    </Button>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          {data?.length === 0 ? <Empty>Nenhum afiliado cadastrado.</Empty> : null}
-          {data?.length && !data.filter(doFiltro).length ? <Empty>Nenhum afiliado com esse código, nome ou e-mail.</Empty> : null}
-        </Card>
+              {(["name", "email", "password", "code"] as const).map((field) => (
+                <Campo
+                  key={field}
+                  rotulo={{ name: "Nome", email: "E-mail", password: "Senha", code: "Código" }[field]}
+                  erro={field === "password" ? problemaSenha : null}
+                >
+                  <input
+                    id={field}
+                    type={field === "password" ? "password" : field === "email" ? "email" : "text"}
+                    autoComplete={field === "password" ? "new-password" : "off"}
+                    value={form[field]}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        [field]: field === "code" ? e.target.value.toUpperCase() : e.target.value,
+                      })
+                    }
+                    className={field === "code" ? "tnum" : ""}
+                  />
+                </Campo>
+              ))}
+              {error ? (
+                <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+                  {error}
+                </p>
+              ) : null}
+              <Button type="submit" className="w-full" disabled={create.isPending || Boolean(problemaSenha)}>
+                Cadastrar e aprovar
+              </Button>
+            </form>
+          </CartaoDoPainel>
+        </div>
       </div>
     </PanelShell>
   );
@@ -1277,7 +1505,6 @@ function TermoAfiliadoCard() {
   const [pct, setPct] = useState<number | null>(null);
   const [extra, setExtra] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-  const [ver, setVer] = useState(false);
   const valorPct = pct ?? atual?.comissaoPct ?? 10;
   const valorExtra = extra ?? atual?.textoExtra ?? "";
   const publicar = useMutation({
@@ -1295,9 +1522,9 @@ function TermoAfiliadoCard() {
   const mudou = !atual || desatualizado || valorPct !== atual.comissaoPct || valorExtra.trim() !== atual.textoExtra;
 
   return (
-    <Card
-      title="Termo de adesão de afiliado"
-      right={
+    <CartaoDoPainel
+      titulo="Termo de adesão de afiliado"
+      acao={
         atual ? (
           <span className="tnum text-xs text-muted">
             versão {atual.versao} · {new Date(atual.createdAt).toLocaleDateString("pt-BR")}
@@ -1307,28 +1534,33 @@ function TermoAfiliadoCard() {
         )
       }
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-muted">
           O afiliado lê e aceita antes de divulgar suas rifas. Quem paga, quando, estorno, autoindicação, regras de
           divulgação, dados pessoais e tributos o sistema escreve; aqui entram o percentual e as regras da organização.
         </p>
-        <label className="flex items-center gap-2">
-          <span className="label-xs">Comissão</span>
-          <input
-            type="number"
-            min={0}
-            max={50}
-            value={valorPct}
-            onChange={(e) => {
-              setMsg(null);
-              setPct(Number(e.target.value));
-            }}
-            className="tnum w-20 rounded-md border border-line-2 px-2 py-1.5"
-          />
-          <span className="tnum text-muted">% sobre o pago, depois das taxas da plataforma</span>
-        </label>
         <div>
-          <label htmlFor="termo-extra" className="label-xs">Regras da organização (opcional)</label>
+          <label htmlFor="termo-pct" className="label-xs text-ink-2">
+            Comissão
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="termo-pct"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={50}
+              value={valorPct}
+              onChange={(e) => {
+                setMsg(null);
+                setPct(Number(e.target.value));
+              }}
+              className="campo tnum w-20 text-sm"
+            />
+            <span className="text-xs text-muted">% sobre o pago, depois das taxas da plataforma</span>
+          </div>
+        </div>
+        <Campo rotulo="Regras da organização (opcional)">
           <textarea
             id="termo-extra"
             rows={4}
@@ -1338,16 +1570,13 @@ function TermoAfiliadoCard() {
               setMsg(null);
               setExtra(e.target.value);
             }}
-            className="campo"
           />
-        </div>
+        </Campo>
         {atual ? (
-          <button type="button" onClick={() => setVer(!ver)} className="block text-xs text-ink-2 underline">
-            {ver ? "Esconder" : "Ver"} o termo em vigor
-          </button>
-        ) : null}
-        {ver && atual ? (
-          <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-3 font-sans text-xs text-ink-2">{atual.texto}</pre>
+          <details className="text-xs">
+            <summary className="inline-flex min-h-6 cursor-pointer items-center text-ink-2 underline">Ver o termo em vigor</summary>
+            <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-3 font-sans text-xs text-ink-2">{atual.texto}</pre>
+          </details>
         ) : null}
         {desatualizado ? (
           <p role="note" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
@@ -1356,13 +1585,15 @@ function TermoAfiliadoCard() {
           </p>
         ) : null}
         {msg ? (
-          <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
+          <p role={msg.ok ? "status" : "alert"} className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
+            {msg.texto}
+          </p>
         ) : null}
         <Button disabled={!mudou || publicar.isPending} onClick={() => publicar.mutate()}>
           {atual ? `Publicar versão ${atual.versao + 1}` : "Publicar o termo"}
         </Button>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -1409,38 +1640,38 @@ function CouponsCard({
   });
 
   return (
-    <Card title="Cupons">
-      <div className="space-y-3 p-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <div>
-            <label htmlFor="coupon-code" className="label-xs">Código</label>
+    <CartaoDoPainel titulo="Cupons">
+      <div className="space-y-3 px-5 pb-5">
+        {/* No celular os campos ficam um embaixo do outro (antes o formulário saía do cartão em 390); do `sm` em diante, numa linha. */}
+        <form
+          className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.3fr)_auto] sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create.mutate();
+          }}
+        >
+          <Campo rotulo="Código">
             <input
               id="coupon-code"
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-              className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="tnum"
             />
-          </div>
-          <div>
-            <label htmlFor="coupon-pct" className="label-xs">Desconto %</label>
+          </Campo>
+          <Campo rotulo="Desconto %">
             <input
               id="coupon-pct"
               type="number"
+              inputMode="numeric"
               min={1}
               max={50}
               value={form.discountPct}
               onChange={(e) => setForm({ ...form, discountPct: Number(e.target.value) })}
-              className="tnum mt-1 w-24 rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="tnum"
             />
-          </div>
-          <div>
-            <label htmlFor="coupon-aff" className="label-xs">Afiliado</label>
-            <select
-              id="coupon-aff"
-              value={form.affiliateId}
-              onChange={(e) => setForm({ ...form, affiliateId: e.target.value })}
-              className="mt-1 rounded-md border border-line-2 px-3 py-2 text-sm"
-            >
+          </Campo>
+          <Campo rotulo="Afiliado">
+            <select id="coupon-aff" value={form.affiliateId} onChange={(e) => setForm({ ...form, affiliateId: e.target.value })}>
               <option value="">sem afiliado</option>
               {affiliates.map((a) => (
                 <option key={a.affiliate.id} value={a.affiliate.id}>
@@ -1448,36 +1679,41 @@ function CouponsCard({
                 </option>
               ))}
             </select>
-          </div>
-          <Button onClick={() => create.mutate()} disabled={form.code.length < 3}>
+          </Campo>
+          <Button type="submit" disabled={form.code.length < 3 || create.isPending}>
             Criar cupom
           </Button>
-        </div>
+        </form>
 
         {error ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {error}
+          </p>
         ) : null}
 
         {data?.length === 0 ? (
           <Empty>Nenhum cupom criado.</Empty>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul aria-label="Cupons" className="divide-y divide-line">
             {data?.map((row) => (
-              <li key={row.coupon.id} className="flex items-center gap-3 py-2 text-sm">
+              <li key={row.coupon.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <span className="tnum font-medium">{row.coupon.code}</span>
-                <span className="text-muted">−{row.coupon.discountPct}%</span>
-                <span className="flex-1 text-xs text-muted">
-                  {row.affiliateCode ? `afiliado ${row.affiliateCode}` : "sem afiliado"} ·{" "}
+                <span className="tnum text-muted">−{row.coupon.discountPct}%</span>
+                <span className="min-w-0 flex-1 text-xs text-muted">
+                  {row.affiliateCode ? (
+                    <>
+                      afiliado <span className="tnum">{row.affiliateCode}</span>
+                    </>
+                  ) : (
+                    "sem afiliado"
+                  )}{" "}
+                  ·{" "}
                   <span className="tnum">
                     {row.coupon.uses}
                     {row.coupon.maxUses ? `/${row.coupon.maxUses}` : ""} uso(s)
                   </span>
                 </span>
-                <Button
-                  variant="ghost"
-                  className="px-2 py-1 text-xs"
-                  onClick={() => remove.mutate(row.coupon.id)}
-                >
+                <Button variant="cinza" onClick={() => remove.mutate(row.coupon.id)}>
                   remover
                 </Button>
               </li>
@@ -1485,14 +1721,48 @@ function CouponsCard({
           </ul>
         )}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
 /* ---------------------------- financeiro ---------------------------- */
 
+interface SaquePedido {
+  id: string;
+  amountCents: number;
+  irrfCents?: number;
+  pixKey: string;
+  requestedAt: string;
+  /** Nulo: a comissão guardada pela plataforma — quem paga é ela (só o master vê). */
+  organizationId?: string | null;
+}
+
+interface SaquePago {
+  id: string;
+  amountCents: number;
+  irrfCents?: number;
+  processedAt: string | null;
+  codigoAfiliado: string;
+  recibo: string | null;
+}
+
+/** O líquido que quem paga transfere: o bruto menos o IRRF (que vai no DARF). */
+const liquidoDo = (s: { amountCents: number; irrfCents?: number }) => s.amountCents - (s.irrfCents ?? 0);
+
+/**
+ * Financeiro: a comissão de cada afiliado e os saques.
+ *
+ * Cada saque mostra o bruto (o valor da nota), o IRRF retido (Lucro
+ * Presumido ou Real) e o líquido que quem paga transfere, sempre em `tnum`;
+ * a nota fiscal abre pela porta do painel (`/api/admin/payouts/:id/nota`,
+ * que confere o recorte e grava a auditoria). O saque da comissão guardada
+ * pela plataforma vai marcado "Plataforma" — só o master o vê e paga.
+ */
 export function AdminFinanceiro() {
   const qc = useQueryClient();
+  const { data: session } = useSession();
+  const plataforma = session?.role === "admin";
+  const [erro, setErro] = useState<string | null>(null);
   const { data } = useQuery<{
     perAffiliate: {
       affiliateId: string;
@@ -1502,121 +1772,208 @@ export function AdminFinanceiro() {
       pendingCents: number;
       availableCents: number;
     }[];
-    payoutsRequested: { id: string; amountCents: number; irrfCents?: number; pixKey: string; requestedAt: string }[];
+    payoutsRequested: SaquePedido[];
   }>({ queryKey: ["/api/admin/finance"] });
 
   const release = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/finance/release"),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      setErro(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setErro(err.message),
   });
 
   const pay = useMutation({
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/payouts/${id}/paid`),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      setErro(null);
+      qc.invalidateQueries();
+    },
+    onError: (err: Error) => setErro(err.message),
   });
-  const { data: pagos = [] } = useQuery<
-    { id: string; amountCents: number; irrfCents?: number; processedAt: string | null; codigoAfiliado: string; recibo: string | null }[]
-  >({ queryKey: ["/api/admin/saques-pagos"] });
+  const { data: pagos = [] } = useQuery<SaquePago[]>({ queryKey: ["/api/admin/saques-pagos"] });
+
+  const pedidos = data?.payoutsRequested ?? [];
+  const deQuem = (s: SaquePedido) =>
+    plataforma && !s.organizationId ? <Pill status="pending">Plataforma</Pill> : null;
+  const nota = (s: SaquePedido) => (
+    <a href={`/api/admin/payouts/${s.id}/nota`} className="inline-flex min-h-6 items-center whitespace-nowrap text-xs text-green-deep underline">
+      nota fiscal
+    </a>
+  );
+  const marcarPago = (s: SaquePedido) => (
+    <Button variant="contorno" className="whitespace-nowrap" disabled={pay.isPending} onClick={() => pay.mutate(s.id)}>
+      marcar pago
+    </Button>
+  );
+  const recibo = (p: SaquePago) =>
+    p.recibo ? (
+      <a
+        href={`/api/admin/recibos/${p.recibo}/pdf`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="tnum inline-flex min-h-6 items-center whitespace-nowrap text-xs text-green-deep underline"
+      >
+        recibo {p.recibo}
+      </a>
+    ) : (
+      <span className="whitespace-nowrap text-xs text-muted">sem recibo</span>
+    );
+  const dataDo = (p: SaquePago) => (
+    <span className="tnum">{p.processedAt ? new Date(p.processedAt).toLocaleDateString("pt-BR") : "—"}</span>
+  );
 
   return (
     <PanelShell title="Financeiro">
-      <div className="mb-3 flex justify-end">
-        <Button variant="ghost" onClick={() => release.mutate()}>
+      {erro ? (
+        <p role="alert" className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+          {erro}
+        </p>
+      ) : null}
+      <div className="mb-4 flex justify-end">
+        <Button variant="contorno" disabled={release.isPending} onClick={() => release.mutate()}>
           Liberar comissões vencidas
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <Card title="Comissão por afiliado">
-          <ul className="divide-y divide-line">
-            {data?.perAffiliate.map((a) => (
-              <li key={a.affiliateId} className="px-4 py-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span>
-                    {a.name} · <span className="tnum text-muted">{a.code}</span>
-                  </span>
-                  <Money cents={a.availableCents} className="text-green-deep" />
-                </div>
-                <p className="label-xs mt-1">
-                  {formatBRL(a.pendingCents)} pendentes · Pix{" "}
-                  {a.pixKey ?? "não cadastrado"}
-                </p>
-              </li>
-            ))}
-          </ul>
-          {data?.perAffiliate.length === 0 ? <Empty>Nada a pagar.</Empty> : null}
-        </Card>
-
-        <Card title="Saques solicitados">
-          <ul className="divide-y divide-line">
-            {data?.payoutsRequested.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                <span className="tnum min-w-0 flex-1 truncate text-muted">{p.pixKey}</span>
-                {/* Com retenção (Lucro Presumido ou Real), quem paga transfere o
-                    líquido e recolhe o IRRF no DARF; a nota é do bruto. */}
-                <span className="text-right">
-                  <Money cents={p.irrfCents ? p.amountCents - p.irrfCents : p.amountCents} />
-                  {p.irrfCents ? (
-                    <span className="tnum block text-xs text-muted">
-                      bruto {formatBRL(p.amountCents)} · IRRF a recolher {formatBRL(p.irrfCents)}
+      {/*
+        Tablet: duas colunas de cartões. Computador (`xl`): a comissão por
+        afiliado numa coluna estreita à esquerda e os saques, em tabela, na
+        larga à direita. O DOM segue a ordem do celular.
+      */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2 md:items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <CartaoDoPainel
+          className="xl:row-span-2"
+          titulo="Comissão por afiliado"
+          subtitulo={
+            plataforma
+              ? "Pendente vira disponível depois da carência; aqui entra também a comissão guardada pela plataforma."
+              : "Pendente vira disponível depois da carência; a guardada pela plataforma não aparece aqui."
+          }
+        >
+          {data?.perAffiliate.length === 0 ? (
+            <Empty>Nada a pagar.</Empty>
+          ) : (
+            <ul aria-label="Comissão por afiliado" className="divide-y divide-line">
+              {data?.perAffiliate.map((a) => (
+                <li key={a.affiliateId} className="px-5 py-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate">
+                      {a.name} · <span className="tnum text-muted">{a.code}</span>
                     </span>
-                  ) : null}
-                </span>
-                <a href={`/api/admin/payouts/${p.id}/nota`} className="text-xs text-green-deep underline">
-                  nota fiscal
-                </a>
-                <Button
-                  variant="ghost"
-                  className="px-2 py-1 text-xs"
-                  onClick={() => pay.mutate(p.id)}
-                >
-                  marcar pago
-                </Button>
-              </li>
-            ))}
-          </ul>
-          {data?.payoutsRequested.length === 0 ? <Empty>Nenhum saque pendente.</Empty> : null}
-        </Card>
+                    <Money cents={a.availableCents} className="shrink-0 font-medium text-green-deep" />
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    <span className="tnum">{formatBRL(a.pendingCents)}</span> pendentes · disponível{" "}
+                    <span className="tnum">{formatBRL(a.availableCents)}</span> · Pix{" "}
+                    <span className="tnum break-all">{a.pixKey ?? "não cadastrado"}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CartaoDoPainel>
 
-        <Card title="Saques pagos">
-          <ul className="divide-y divide-line">
-            {pagos.map((p) => (
-              // Quebra em duas linhas no celular: o código não pode ser espremido
-              // até sumir por baixo do valor.
-              <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
-                <span className="min-w-[8rem] flex-1">
-                  <span className="tnum block truncate">{p.codigoAfiliado}</span>
-                  <span className="tnum block text-xs text-muted">
-                    {p.processedAt ? new Date(p.processedAt).toLocaleDateString("pt-BR") : ""}
-                  </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <Money cents={p.amountCents} />
-                  {p.irrfCents ? <span className="tnum block text-xs text-muted">IRRF {formatBRL(p.irrfCents)}</span> : null}
-                </span>
-                {p.recibo ? (
-                  <a
-                    href={`/api/admin/recibos/${p.recibo}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="tnum text-xs underline"
-                  >
-                    recibo {p.recibo}
-                  </a>
-                ) : (
-                  <span className="text-xs text-muted">sem recibo</span>
-                )}
-              </li>
-            ))}
-          </ul>
-          {pagos.length === 0 ? <Empty>Nenhum saque pago ainda.</Empty> : null}
-        </Card>
+        <CartaoDoPainel
+          titulo="Saques solicitados"
+          subtitulo="Só MEI ou empresa, com a nota fiscal do bruto; IRRF de 1,5% no Lucro Presumido ou Real."
+        >
+          {pedidos.length === 0 ? (
+            <Empty>Nenhum saque pendente.</Empty>
+          ) : (
+            <TabelaOuCartoes
+              itens={pedidos}
+              chave={(s) => s.id}
+              aria="Saques solicitados"
+              colunas={[
+                {
+                  titulo: "Chave Pix",
+                  celula: (s) => (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="tnum min-w-0 [overflow-wrap:anywhere] text-ink-2">{s.pixKey}</span>
+                      {deQuem(s)}
+                    </span>
+                  ),
+                },
+                { titulo: "Bruto", celula: (s) => <Money cents={s.amountCents} />, direita: true },
+                { titulo: "IRRF", celula: (s) => <Money cents={s.irrfCents ?? 0} />, direita: true },
+                { titulo: "Líquido", celula: (s) => <Money cents={liquidoDo(s)} className="font-medium" />, direita: true },
+                { titulo: "Nota", celula: nota },
+                { titulo: "", celula: marcarPago, direita: true },
+              ]}
+              cartao={(s) => (
+                <div className="space-y-1.5 text-sm">
+                  <p className="flex flex-wrap items-center gap-1.5">
+                    <span className="tnum min-w-0 break-all text-ink-2">{s.pixKey}</span>
+                    {deQuem(s)}
+                  </p>
+                  {/* Com retenção, quem paga transfere o líquido e recolhe o IRRF no DARF; a nota é do bruto. */}
+                  <dl className="tnum flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                    <div>
+                      <dt className="text-muted">bruto</dt>
+                      <dd>{formatBRL(s.amountCents)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">IRRF (DARF)</dt>
+                      <dd>{formatBRL(s.irrfCents ?? 0)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">líquido</dt>
+                      <dd className="font-medium">{formatBRL(liquidoDo(s))}</dd>
+                    </div>
+                  </dl>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    {nota(s)}
+                    {marcarPago(s)}
+                  </div>
+                </div>
+              )}
+            />
+          )}
+        </CartaoDoPainel>
+
+        <CartaoDoPainel titulo="Saques pagos" subtitulo="Baixa e recibo na mesma transação.">
+          {pagos.length === 0 ? (
+            <Empty>Nenhum saque pago ainda.</Empty>
+          ) : (
+            <TabelaOuCartoes
+              itens={pagos}
+              chave={(p) => p.id}
+              aria="Saques pagos"
+              colunas={[
+                { titulo: "Pago em", celula: dataDo },
+                { titulo: "Afiliado", celula: (p) => <span className="tnum">{p.codigoAfiliado}</span> },
+                { titulo: "Bruto", celula: (p) => <Money cents={p.amountCents} />, direita: true },
+                { titulo: "IRRF", celula: (p) => <Money cents={p.irrfCents ?? 0} />, direita: true },
+                { titulo: "Líquido", celula: (p) => <Money cents={liquidoDo(p)} className="font-medium" />, direita: true },
+                { titulo: "Recibo", celula: recibo },
+              ]}
+              cartao={(p) => (
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="tnum min-w-0 truncate">{p.codigoAfiliado}</span>
+                    <span className="text-xs text-muted">pago em {dataDo(p)}</span>
+                  </div>
+                  <p className="tnum text-xs text-muted">
+                    bruto {formatBRL(p.amountCents)} · IRRF {formatBRL(p.irrfCents ?? 0)} · líquido{" "}
+                    <span className="font-medium text-ink">{formatBRL(liquidoDo(p))}</span>
+                  </p>
+                  {recibo(p)}
+                </div>
+              )}
+            />
+          )}
+        </CartaoDoPainel>
       </div>
     </PanelShell>
   );
 }
 
 /* ------------------------------ sorteios ----------------------------- */
+
+/** Os 5 prêmios da Federal têm 5 algarismos cada: fora disso o servidor recusa (400), e a tela avisa antes. */
+const PREMIO_DA_FEDERAL = /^\d{5}$/;
 
 export function AdminSorteios() {
   const qc = useQueryClient();
@@ -1643,105 +2000,227 @@ export function AdminSorteios() {
   });
 
   const live = data?.filter((c) => c.campaign.status === "published") ?? [];
+  const sorteadas = data?.filter((c) => c.campaign.status === "drawn") ?? [];
   // A rifa escolhida: a com método mostra o número a partir de zero e não tem semente.
   const escolhida = data?.find((c) => c.campaign.id === selected)?.campaign;
   const zero = numeracaoZero(escolhida?.metodoApuracao);
   const naTela = (n: number) => (escolhida ? formatQuota(n, escolhida.totalQuotas, zero) : groupNumber(n));
+  // Prêmio fora dos 5 algarismos é recusado antes de sortear (o servidor recusa de novo).
+  const premioErrado = prizes.findIndex((p) => p !== "" && !PREMIO_DA_FEDERAL.test(p));
+  const prontos = prizes.every((p) => PREMIO_DA_FEDERAL.test(p));
 
   return (
     <PanelShell title="Sorteios">
-      <Card title="Executar sorteio">
-        <div className="space-y-3 p-4">
-          <p className="text-sm text-muted">
-            {escolhida?.metodoApuracao === "globo"
-              ? "Esta rifa é apurada pelo globo da plataforma: ela sorteia sozinha quando a plataforma lançar o resultado da sessão do globo (com a ata) no calendário de Sorteios oficiais. O formulário abaixo não vale para ela."
-              : escolhida?.metodoApuracao === "federal_direta"
-              ? "O número sai da leitura direta dos 5 prêmios (as unidades do 1º ao 5º, de cima para baixo), como diz o regulamento — qualquer pessoa confere com papel e caneta."
-              : "O hash da semente foi publicado antes da primeira venda. O número sai de HMAC(semente, os 5 prêmios do concurso) — qualquer pessoa refaz a conta."}
-          </p>
-
-          <div>
-            <label htmlFor="campanha" className="label-xs">Campanha</label>
-            <select
-              id="campanha"
-              value={selected ?? ""}
-              onChange={(e) => setSelected(e.target.value)}
-              className="campo text-sm"
-            >
-              <option value="">selecione</option>
-              {live.map((c) => (
-                <option key={c.campaign.id} value={c.campaign.id}>
-                  {c.campaign.prizeTitle} ({groupNumber(c.campaign.totalQuotas)} cotas)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="concurso" className="label-xs">Concurso da Loteria Federal</label>
-            <input
-              id="concurso"
-              value={contest}
-              onChange={(e) => setContest(e.target.value.replace(/\D/g, ""))}
-              className="campo tnum text-sm"
-            />
-          </div>
-
-          <div>
-            <span className="label-xs">Os 5 prêmios, na ordem</span>
-            <div className="mt-1 grid grid-cols-5 gap-1">
-              {prizes.map((p, i) => (
-                <input
-                  key={i}
-                  id={`premio-${i + 1}`}
-                  aria-label={`Prêmio ${i + 1}`}
-                  value={p}
-                  maxLength={5}
-                  onChange={(e) => {
-                    const next = [...prizes];
-                    next[i] = e.target.value.replace(/\D/g, "");
-                    setPrizes(next);
-                  }}
-                  className="tnum rounded-md border border-line-2 px-2 py-2 text-center text-sm"
-                />
-              ))}
-            </div>
-          </div>
-
-          {error ? (
-            <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
-          ) : null}
-
-          <Button
-            disabled={!selected || prizes.some((p) => !p) || run.isPending}
-            onClick={() => {
-              setError(null);
-              run.mutate();
-            }}
-          >
-            Executar sorteio
-          </Button>
-
-          {result ? (
-            <div className="rounded-md bg-green-soft p-3 text-sm text-green-deep">
-              <p className="font-display text-lg font-bold">
-                Número sorteado: {naTela(result.resultNumber)}
+      {/* O DOM segue a ordem do celular (executar, como o número sai, feitos); o computador põe as regras à direita. */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[2fr_1fr] lg:items-start">
+        <CartaoDoPainel titulo="Executar sorteio">
+          <div className="space-y-3 px-5 pb-5">
+            <p className="text-sm text-muted">
+              A rifa integrada a um sorteio oficial usa o resultado lançado pela plataforma e ignora este
+              formulário. A rifa do globo nunca sorteia por aqui: sorteia sozinha quando a plataforma lança a
+              sessão.
+            </p>
+            {escolhida ? (
+              <p className="rounded-md bg-mist px-3 py-2 text-sm text-ink-2">
+                {escolhida.metodoApuracao === "globo"
+                  ? "Esta rifa é apurada pelo globo da plataforma: ela sorteia sozinha quando a plataforma lançar o resultado da sessão do globo (com a ata) no calendário de Sorteios oficiais. O formulário abaixo não vale para ela."
+                  : escolhida.metodoApuracao === "federal_direta"
+                  ? "O número sai da leitura direta dos 5 prêmios (as unidades do 1º ao 5º, de cima para baixo), como diz o regulamento — qualquer pessoa confere com papel e caneta."
+                  : "O hash da semente foi publicado antes da primeira venda. O número sai de HMAC(semente, os 5 prêmios do concurso) — qualquer pessoa refaz a conta."}
               </p>
-              {result.aproximacao && result.winnerNumber !== null ? (
-                <p className="tnum mt-1">
-                  Não foi vendido. Contemplado pela regra da aproximação: {naTela(result.winnerNumber)}
-                </p>
-              ) : result.winnerNumber === null ? (
-                <p className="mt-1">Nenhuma cota paga: o sorteio não tem contemplado.</p>
-              ) : null}
-              {result.seed ? <p className="tnum mt-1 break-all text-[11px]">semente: {result.seed}</p> : null}
-            </div>
-          ) : null}
-        </div>
-      </Card>
+            ) : null}
 
-      <FotoDoGanhadorCard sorteadas={data?.filter((c) => c.campaign.status === "drawn") ?? []} />
+            <Campo rotulo="Campanha">
+              <select id="campanha" value={selected ?? ""} onChange={(e) => setSelected(e.target.value)}>
+                <option value="">selecione</option>
+                {live.map((c) => (
+                  <option key={c.campaign.id} value={c.campaign.id}>
+                    {c.campaign.prizeTitle} ({groupNumber(c.campaign.totalQuotas)} cotas)
+                  </option>
+                ))}
+              </select>
+            </Campo>
+
+            <Campo rotulo="Concurso da Loteria Federal">
+              <input
+                id="concurso"
+                inputMode="numeric"
+                value={contest}
+                onChange={(e) => setContest(e.target.value.replace(/\D/g, ""))}
+                className="tnum"
+              />
+            </Campo>
+
+            <fieldset>
+              <legend className="label-xs text-ink-2">Os 5 prêmios, na ordem</legend>
+              <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {prizes.map((p, i) => (
+                  <input
+                    key={i}
+                    id={`premio-${i + 1}`}
+                    aria-label={`${i + 1}º prêmio`}
+                    placeholder={`${i + 1}º`}
+                    inputMode="numeric"
+                    value={p}
+                    maxLength={5}
+                    aria-invalid={premioErrado === i ? true : undefined}
+                    onChange={(e) => {
+                      const next = [...prizes];
+                      next[i] = e.target.value.replace(/\D/g, "");
+                      setPrizes(next);
+                    }}
+                    className="campo tnum mt-0 text-sm"
+                  />
+                ))}
+              </div>
+              {premioErrado >= 0 ? (
+                <p role="alert" className="mt-1 text-xs text-red">
+                  O {premioErrado + 1}º prêmio precisa ter 5 algarismos, como sai no resultado da Federal.
+                </p>
+              ) : null}
+            </fieldset>
+
+            {error ? (
+              <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+                {error}
+              </p>
+            ) : null}
+
+            <Button
+              disabled={!selected || !prontos || run.isPending}
+              onClick={() => {
+                setError(null);
+                run.mutate();
+              }}
+            >
+              Executar sorteio
+            </Button>
+
+            {result ? (
+              <div role="status" className="space-y-2 rounded-md bg-green-soft p-3 text-sm text-green-deep">
+                <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div>
+                    <dt className="label-xs">Número sorteado</dt>
+                    <dd className="tnum text-lg font-semibold">{naTela(result.resultNumber)}</dd>
+                  </div>
+                  <div>
+                    <dt className="label-xs">Contemplado</dt>
+                    <dd className="tnum text-lg font-semibold">
+                      {result.winnerNumber !== null ? naTela(result.winnerNumber) : "nenhum"}
+                    </dd>
+                  </div>
+                </dl>
+                {result.aproximacao && result.winnerNumber !== null ? (
+                  <p>
+                    O número sorteado não foi distribuído; o contemplado sai pela regra:{" "}
+                    {regraDoNumeroSemDono(escolhida?.metodoApuracao)}
+                  </p>
+                ) : result.winnerNumber === null ? (
+                  <p>Nenhuma cota paga: o sorteio não tem contemplado.</p>
+                ) : (
+                  <p>O número sorteado foi distribuído: é ele o contemplado.</p>
+                )}
+                {result.seed ? <p className="tnum break-all text-[11px]">semente: {result.seed}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        </CartaoDoPainel>
+
+        <CartaoDoPainel titulo="Como o número sai">
+          <ul className="space-y-2.5 px-5 pb-5 text-sm text-ink-2">
+            {[
+              "Loteria Federal: as unidades do 1º ao 5º prêmio formam o Número da Sorte; a rifa menor fica com os últimos algarismos; na de 1.000.000 a Série entra na frente.",
+              "Número sem dono: busca alternada e circular (+1, −1, +2, −2…) entre as cotas pagas.",
+              "Com cota reservada esperando Pix, o sorteio espera (409). Mínimo de vendidas abaixo do definido: adiamento.",
+            ].map((t) => (
+              <li key={t} className="flex gap-2">
+                <CheckCircle2 size={16} aria-hidden className="mt-0.5 shrink-0 text-green-deep" />
+                <span className="min-w-0">{t}</span>
+              </li>
+            ))}
+          </ul>
+        </CartaoDoPainel>
+      </div>
+
+      <div className="mt-4 md:mt-6">
+        <CartaoDoPainel
+          titulo="Sorteios feitos"
+          subtitulo="Resultado, número contemplado e a conferência pública de cada rifa."
+        >
+          {sorteadas.length === 0 ? (
+            <Empty>Nenhum sorteio feito ainda.</Empty>
+          ) : (
+            <ul aria-label="Sorteios feitos" className="divide-y divide-line">
+              {sorteadas.map((c) => (
+                <SorteioFeito key={c.campaign.id} rifa={c.campaign} />
+              ))}
+            </ul>
+          )}
+        </CartaoDoPainel>
+      </div>
+
+      <FotoDoGanhadorCard sorteadas={sorteadas} />
     </PanelShell>
+  );
+}
+
+/**
+ * Uma linha de "Sorteios feitos": o sorteado e o contemplado separados, com a
+ * regra aplicada em texto quando o sorteado não tinha dono. Lê a mesma
+ * conferência pública da página da rifa (`/campaigns/:slug/sorteio`), que só
+ * fala de rifa publicada ou sorteada — nada que o público já não veja.
+ */
+function SorteioFeito({ rifa }: { rifa: CampaignRow["campaign"] }) {
+  const { data: s } = useQuery<{
+    realizado: boolean;
+    numero?: string;
+    contemplado?: string | null;
+    aproximacao?: boolean;
+    semContemplado?: boolean;
+    ficouComPromotora?: boolean;
+    executedAt?: string | null;
+  }>({ queryKey: [`/api/public/campaigns/${rifa.slug}/sorteio`] });
+  return (
+    <li className="space-y-1.5 px-5 py-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="min-w-0 font-medium">{rifa.prizeTitle}</span>
+        <Pill status="drawn">sorteada</Pill>
+      </div>
+      {s?.realizado ? (
+        <>
+          <dl className="tnum flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
+            <div>
+              <dt className="inline">sorteado </dt>
+              <dd className="inline font-medium text-ink">{s.numero}</dd>
+            </div>
+            <div>
+              <dt className="inline">contemplado </dt>
+              <dd className="inline font-medium text-ink">
+                {s.semContemplado || s.ficouComPromotora ? "nenhum" : (s.contemplado ?? s.numero)}
+              </dd>
+            </div>
+            {s.executedAt ? (
+              <div>
+                <dt className="inline">em </dt>
+                <dd className="inline">{new Date(s.executedAt).toLocaleDateString("pt-BR")}</dd>
+              </div>
+            ) : null}
+          </dl>
+          {s.aproximacao ? (
+            <p className="text-xs text-muted">
+              O sorteado não foi distribuído; valeu a regra: {regraDoNumeroSemDono(rifa.metodoApuracao)}
+            </p>
+          ) : s.ficouComPromotora ? (
+            <p className="text-xs text-muted">O número sorteado não foi vendido: o prêmio ficou com a promotora.</p>
+          ) : s.semContemplado ? (
+            <p className="text-xs text-muted">Nenhuma cota paga: o sorteio não teve contemplado.</p>
+          ) : null}
+        </>
+      ) : null}
+      <Link href={`/r/${rifa.slug}`} className="inline-flex min-h-6 items-center text-xs text-green-deep underline">
+        Ver a conferência pública
+      </Link>
+    </li>
   );
 }
 
@@ -1772,37 +2251,36 @@ function FotoDoGanhadorCard({ sorteadas }: { sorteadas: CampaignRow[] }) {
   const mostrada = foto ?? sorteio?.fotoGanhador ?? null;
 
   return (
-    <div className="mt-3">
-      <Card title="Foto do ganhador">
-        <div className="space-y-3 p-4 text-sm">
-          <p className="text-muted">
-            Vira a capa da rifa nos destaques do perfil e aparece no resultado. Publique só com a autorização
-            do ganhador para usar a imagem dele.
-          </p>
-          <select
-            value={campanha}
-            aria-label="Rifa sorteada"
-            onChange={(e) => {
-              setCampanha(e.target.value);
-              setFoto(null);
-              setMsg(null);
-            }}
-            className="w-full rounded-md border border-line-2 px-3 py-2"
-          >
-            <option value="">Escolha a rifa sorteada</option>
-            {sorteadas.map((c) => (
-              <option key={c.campaign.id} value={c.campaign.id}>
-                {c.campaign.prizeTitle}
-              </option>
-            ))}
-          </select>
+    <div className="mt-4 md:mt-6">
+      <CartaoDoPainel
+        titulo="Foto do ganhador"
+        subtitulo="Vira a capa da rifa nos destaques do perfil e aparece no resultado. Publique só com a autorização do ganhador para usar a imagem dele."
+      >
+        <div className="space-y-3 px-5 pb-5 text-sm">
+          <Campo rotulo="Rifa sorteada">
+            <select
+              value={campanha}
+              onChange={(e) => {
+                setCampanha(e.target.value);
+                setFoto(null);
+                setMsg(null);
+              }}
+            >
+              <option value="">Escolha a rifa sorteada</option>
+              {sorteadas.map((c) => (
+                <option key={c.campaign.id} value={c.campaign.id}>
+                  {c.campaign.prizeTitle}
+                </option>
+              ))}
+            </select>
+          </Campo>
           {campanha ? (
             <div className="flex items-start gap-3">
               <div className="aspect-[4/5] w-28 shrink-0 overflow-hidden rounded-md border border-line bg-mist-2">
                 {mostrada ? <img src={mostrada} alt="" className="h-full w-full object-cover" /> : null}
               </div>
               <div className="space-y-2">
-                <label className="inline-block cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+                <label className="relative inline-flex h-10 cursor-pointer items-center rounded-lg border border-line-2 bg-white px-4 text-[13px] font-semibold text-ink hover:bg-mist">
                   {mostrada ? "Trocar foto" : "Escolher foto"}
                   <input
                     type="file"
@@ -1839,14 +2317,18 @@ function FotoDoGanhadorCard({ sorteadas }: { sorteadas: CampaignRow[] }) {
             <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
           ) : null}
         </div>
-      </Card>
+      </CartaoDoPainel>
     </div>
   );
 }
 
 /* --------------------------- configurações --------------------------- */
 
-/** Segundo fator: gera o segredo, confirma com um código e só então grava. */
+/**
+ * Segundo fator: gera o segredo, confirma com um código e só então grava.
+ * Desligar pede a senha e o código, e cada tentativa conta no servidor
+ * (`2fa-off:`, 30 em 10 min): estourou, 429 com a mensagem, que aparece aqui.
+ */
 function TwoFactorCard() {
   const qc = useQueryClient();
   const { data } = useQuery<{ enabled: boolean }>({ queryKey: ["/api/admin/2fa"] });
@@ -1883,19 +2365,23 @@ function TwoFactorCard() {
       setError(null);
       qc.invalidateQueries({ queryKey: ["/api/admin/2fa"] });
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => {
+      // A senha ou o código errado (ou o limite de tentativas): o código usado não serve de novo.
+      setCode("");
+      setError(err.message);
+    },
   });
 
   return (
-    <Card
-      title="Segundo fator"
-      right={<Pill status={data?.enabled ? "paid" : "pending"}>
-        {data?.enabled ? "ativo" : "desligado"}
-      </Pill>}
+    <CartaoDoPainel
+      titulo="Segundo fator"
+      acao={<Pill status={data?.enabled ? "paid" : "pending"}>{data?.enabled ? "ativo" : "desligado"}</Pill>}
     >
-      <div className="space-y-3 p-4">
+      <div className="space-y-3 px-5 pb-5">
         {error ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {error}
+          </p>
         ) : null}
 
         {!data?.enabled && !setup ? (
@@ -1904,12 +2390,20 @@ function TwoFactorCard() {
               A conta do administrador move dinheiro e publica campanha. Com o segundo fator,
               a senha sozinha deixa de ser suficiente para entrar.
             </p>
-            <Button onClick={() => start.mutate()}>Ativar segundo fator</Button>
+            <Button disabled={start.isPending} onClick={() => start.mutate()}>
+              Ativar segundo fator
+            </Button>
           </>
         ) : null}
 
         {setup ? (
-          <>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              enable.mutate();
+            }}
+          >
             <p className="text-sm text-ink-2">
               Cadastre no aplicativo autenticador e confirme com o código que aparecer.
             </p>
@@ -1926,60 +2420,71 @@ function TwoFactorCard() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                id="totp-confirm"
-                aria-label="Código do autenticador"
-                value={code}
-                inputMode="numeric"
-                maxLength={6}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                className="tnum w-32 rounded-md border border-line-2 px-3 py-2 tracking-[0.2em]"
-              />
-              <Button onClick={() => enable.mutate()} disabled={code.length !== 6}>
+            <div className="flex flex-wrap items-end gap-2">
+              <Campo rotulo="Código do autenticador">
+                <input
+                  id="totp-confirm"
+                  value={code}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  className="tnum w-36 tracking-[0.2em]"
+                />
+              </Campo>
+              <Button type="submit" disabled={code.length !== 6 || enable.isPending}>
                 Confirmar
               </Button>
             </div>
-          </>
+          </form>
         ) : null}
 
         {data?.enabled ? (
-          <>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setError(null);
+              disable.mutate();
+            }}
+          >
             <p className="text-sm text-ink-2">
               Para desligar, confirme com a senha e um código — sessão roubada não desarma
-              o segundo fator sozinha.
+              o segundo fator sozinha. Cada tentativa conta: errar muitas vezes bloqueia por alguns minutos.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <input
-                id="totp-password"
-                type="password"
-                aria-label="Senha"
-                placeholder="senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-40 rounded-md border border-line-2 px-3 py-2 text-sm"
-              />
-              <input
-                id="totp-disable"
-                aria-label="Código do autenticador"
-                value={code}
-                inputMode="numeric"
-                maxLength={6}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                className="tnum w-32 rounded-md border border-line-2 px-3 py-2 tracking-[0.2em]"
-              />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-end">
+              <Campo rotulo="Senha">
+                <input
+                  id="totp-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </Campo>
+              <Campo rotulo="Código do autenticador">
+                <input
+                  id="totp-disable"
+                  value={code}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  className="tnum tracking-[0.2em]"
+                />
+              </Campo>
               <Button
-                variant="ghost"
-                onClick={() => disable.mutate()}
-                disabled={code.length !== 6 || password.length < 4}
+                type="submit"
+                variant="contorno"
+                disabled={code.length !== 6 || password.length < 4 || disable.isPending}
               >
                 Desligar
               </Button>
             </div>
-          </>
+          </form>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2010,64 +2515,57 @@ function PaymentMethodsCard() {
   const ligados = data ? PAYMENT_METHODS.filter((m) => data[m.key]).length : 0;
 
   return (
-    <Card
-      title="Meios de pagamento"
-      right={<Pill status={ligados > 0 ? "paid" : "expired"}>{`${ligados} ligado(s)`}</Pill>}
+    <CartaoDoPainel
+      titulo="Meios de pagamento"
+      subtitulo="Vale para o app inteiro: a loja online e a tela do cambista só oferecem o que estiver ligado aqui."
+      acao={<Pill status={ligados > 0 ? "paid" : "expired"}>{`${ligados} ligado(s)`}</Pill>}
     >
-      <div className="space-y-3 p-4">
-        <p className="text-xs text-muted">
-          Vale para o app inteiro: a loja online e a tela do cambista só oferecem o que
-          estiver ligado aqui.
-        </p>
-
+      <div className="space-y-3 px-5 pb-5">
         {(["online", "fisico"] as const).map((scope) => (
-          <div key={scope} className="space-y-2">
-            <span className="label-xs">
+          <fieldset key={scope} className="space-y-2">
+            <legend className="label-xs text-ink-2">
               {scope === "online" ? "Loja online" : "Venda na mão (cambista)"}
-            </span>
+            </legend>
             {PAYMENT_METHODS.filter((m) => m.scope === scope).map((m) => {
               const ligado = data?.[m.key] ?? false;
               return (
-                <label
+                <div
                   key={m.key}
-                  htmlFor={`meio-${m.key}`}
-                  className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 ${
+                  className={`flex items-start gap-3 rounded-lg border px-3 py-2 ${
                     ligado ? "border-green bg-green-soft" : "border-line-2 bg-white"
                   }`}
                 >
-                  <input
+                  <Caixa
                     id={`meio-${m.key}`}
-                    type="checkbox"
-                    checked={ligado}
+                    marcada={ligado}
                     disabled={!data || salvar.isPending}
-                    onChange={() => alternar(m.key)}
-                    className="mt-1"
-                  />
-                  <span className="flex-1">
-                    <span className="block text-sm font-medium">{m.label}</span>
-                    <span className="block text-[11px] text-muted">{m.hint}</span>
-                  </span>
-                  <Pill status={ligado ? "paid" : "draft"}>
-                    {ligado ? "aceito" : "desligado"}
-                  </Pill>
-                </label>
+                    aoMudar={() => alternar(m.key)}
+                    sub={m.hint}
+                    className="min-w-0 flex-1"
+                  >
+                    <span className="font-medium">{m.label}</span>
+                  </Caixa>
+                  <Pill status={ligado ? "paid" : "draft"}>{ligado ? "aceito" : "desligado"}</Pill>
+                </div>
               );
             })}
-          </div>
+          </fieldset>
         ))}
 
         {data && !data.pix_online ? (
-          <p className="rounded-md bg-yellow-soft px-3 py-2 text-[11px] text-yellow-deep">
+          <p role="note" className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
             Com o Pix online desligado, a página da rifa deixa de vender sozinha e passa
             a orientar o comprador a procurar um cambista.
           </p>
         ) : null}
 
         {erro ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {erro}
+          </p>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2088,6 +2586,7 @@ function OrganizerCard() {
 
   const [form, setForm] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
+  const [salvo, setSalvo] = useState(false);
   const valor = (campo: string) => form[campo] ?? (data as never)?.[campo] ?? "";
 
   const salvar = useMutation({
@@ -2102,17 +2601,27 @@ function OrganizerCard() {
       }),
     onSuccess: () => {
       setErro(null);
+      setSalvo(true);
       qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] });
     },
-    onError: (err: Error) => setErro(err.message),
+    onError: (err: Error) => {
+      setSalvo(false);
+      setErro(err.message);
+    },
   });
 
   return (
-    <Card title="Administradora da rifa">
-      <div className="space-y-3 p-4">
-        <p className="text-xs text-muted">
-          Estes dados saem impressos em todo bilhete, junto da autorização da campanha.
-        </p>
+    <CartaoDoPainel
+      titulo="Administradora da rifa"
+      subtitulo="Estes dados saem impressos em todo bilhete, junto da autorização da campanha."
+    >
+      <form
+        className="space-y-3 px-5 pb-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          salvar.mutate();
+        }}
+      >
         {(
           [
             ["nome", "Nome"],
@@ -2124,22 +2633,33 @@ function OrganizerCard() {
         )
           .filter(([campo]) => !(daOrganizacao && campo === "cidade"))
           .map(([campo, rotulo]) => (
-          <div key={campo}>
-            <label htmlFor={`org-${campo}`} className="label-xs">{rotulo}</label>
-            <input
-              id={`org-${campo}`}
-              value={valor(campo)}
-              onChange={(e) => setForm({ ...form, [campo]: e.target.value })}
-              className="campo text-sm"
-            />
-          </div>
-        ))}
+            <Campo key={campo} rotulo={rotulo}>
+              <input
+                id={`org-${campo}`}
+                value={valor(campo)}
+                onChange={(e) => {
+                  setSalvo(false);
+                  setForm({ ...form, [campo]: e.target.value });
+                }}
+                className={campo === "cnpj" || campo === "contato" ? "tnum" : ""}
+              />
+            </Campo>
+          ))}
         {erro ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+          <p role="alert" className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+            {erro}
+          </p>
         ) : null}
-        <Button onClick={() => salvar.mutate()}>Salvar</Button>
-      </div>
-    </Card>
+        {salvo ? (
+          <p role="status" className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
+            Dados salvos. Saem nos próximos bilhetes.
+          </p>
+        ) : null}
+        <Button type="submit" disabled={salvar.isPending}>
+          Salvar
+        </Button>
+      </form>
+    </CartaoDoPainel>
   );
 }
 
@@ -2158,22 +2678,19 @@ function EnderecoDaOrganizacaoCard() {
   });
   if (!data?.organizacaoId) return null;
   return (
-    <Card
-      title="Endereço da organização"
-      right={data.endereco ? null : <Pill status="pending">falta cadastrar</Pill>}
+    <CartaoDoPainel
+      titulo="Endereço da organização"
+      subtitulo="A cidade sai no bilhete. Na vitrine, suas rifas aparecem primeiro para quem está na sua cidade, depois no seu estado — e continuam aparecendo para o Brasil inteiro."
+      acao={data.endereco ? null : <Pill status="pending">falta cadastrar</Pill>}
     >
-      <div className="space-y-3 p-4">
-        <p className="text-xs text-muted">
-          A cidade sai no bilhete. Na vitrine, suas rifas aparecem primeiro para quem está na sua
-          cidade, depois no seu estado — e continuam aparecendo para o Brasil inteiro.
-        </p>
+      <div className="space-y-3 px-5 pb-5">
         <EnderecoForm
           organizacaoId={data.organizacaoId}
           atual={data.endereco ?? data.enderecoParcial}
           onSalvo={() => qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] })}
         />
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2192,8 +2709,8 @@ function PerfilPublicoCard() {
   }>({ queryKey: ["/api/admin/organizer"] });
   if (!data?.organizacaoId || !data.slug) return null;
   return (
-    <Card title="Perfil público">
-      <div className="p-4">
+    <CartaoDoPainel titulo="Perfil público" subtitulo="O que o apostador vê no perfil da organização.">
+      <div className="px-5 pb-5">
         <PerfilPublicoForm
           organizacaoId={data.organizacaoId}
           slug={data.slug}
@@ -2206,7 +2723,7 @@ function PerfilPublicoCard() {
           onSalvo={() => qc.invalidateQueries({ queryKey: ["/api/admin/organizer"] })}
         />
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -2214,11 +2731,7 @@ function PerfilPublicoCard() {
 function VerificacaoDaOrganizacaoCard() {
   const { data } = useQuery<{ organizacaoId?: string }>({ queryKey: ["/api/admin/organizer"] });
   if (!data?.organizacaoId) return null;
-  return (
-    <div className="mb-3">
-      <VerificacaoCard base={`/api/admin/organizacoes/${data.organizacaoId}/verificacao`} sujeito="organizacao" />
-    </div>
-  );
+  return <VerificacaoCard base={`/api/admin/organizacoes/${data.organizacaoId}/verificacao`} sujeito="organizacao" />;
 }
 
 export function AdminConfiguracoes() {
@@ -2231,21 +2744,31 @@ export function AdminConfiguracoes() {
 
   return (
     <PanelShell title="Configurações">
-      {/* Uma aba por assunto, em vez de uma pilha de doze cartões. */}
+      {/*
+        Uma aba por assunto, em vez de uma pilha de doze cartões. Em cada aba,
+        cartões em coluna até o tablet e em duas colunas no computador (`lg`),
+        alinhados no topo; o cartão de leitura longa (contrato, perfil) ocupa
+        as duas.
+      */}
       <Abas
         rotulo="Assuntos das configurações"
-        ancoras={{ verificacao: "organizacao", contrato: "organizacao" }}
+        ancoras={{ verificacao: "conta", contrato: "organizacao" }}
         abas={[
           {
             id: "conta",
             titulo: "Conta e segurança",
             conteudo: (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <TwoFactorCard />
-                  <TrocarSenha />
+              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
+                <TwoFactorCard />
+                <TrocarSenha />
+                <div className="min-w-0 lg:col-span-2">
+                  <TelefoneDoOrganizadorCard />
                 </div>
-                <TelefoneDoOrganizadorCard />
+                {plataforma ? null : (
+                  <div className="min-w-0 lg:col-span-2">
+                    <VerificacaoDaOrganizacaoCard />
+                  </div>
+                )}
               </div>
             ),
           },
@@ -2253,15 +2776,18 @@ export function AdminConfiguracoes() {
             id: "organizacao",
             titulo: "Organização e perfil",
             conteudo: (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <OrganizerCard />
-                  <EnderecoDaOrganizacaoCard />
-                </div>
-                <ContratoPromotoraCard plataforma={plataforma} />
+              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
+                <OrganizerCard />
+                <EnderecoDaOrganizacaoCard />
                 {plataforma ? null : <SociosDaOrganizacaoCard />}
-                <PerfilPublicoCard />
-                {plataforma ? <CoresDoSeloCard /> : <VerificacaoDaOrganizacaoCard />}
+                {/* O contrato logo depois dos dados: o link antigo (#contrato) rola até ele sem esperar o perfil carregar. */}
+                <div className="min-w-0">
+                  <ContratoPromotoraCard plataforma={plataforma} />
+                </div>
+                {plataforma ? <CoresDoSeloCard /> : null}
+                <div className="min-w-0 lg:col-span-2">
+                  <PerfilPublicoCard />
+                </div>
               </div>
             ),
           },
@@ -2269,7 +2795,7 @@ export function AdminConfiguracoes() {
             id: "vendas",
             titulo: "Vendas e pagamentos",
             conteudo: (
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 lg:items-start">
                 <PaymentMethodsCard />
                 {plataforma ? (
                   <>

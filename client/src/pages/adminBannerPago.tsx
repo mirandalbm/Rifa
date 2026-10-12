@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Campo, Card, Empty, Money, Pill } from "@/components/bits";
+import { Button, Caixa, Campo, Empty, Money, Pill, TONS_DO_BOTAO } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
@@ -78,14 +79,14 @@ export function BannerNaVitrine() {
   return (
     <div>
       {isError ? (
-        <Card>
+        <CartaoDoPainel titulo="Banner na vitrine">
           <Empty>O banner pago ainda não está disponível. Quando a plataforma liberar, ele aparece aqui.</Empty>
-        </Card>
+        </CartaoDoPainel>
       ) : !painel ? (
         <p className="text-sm text-muted">Carregando…</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-          <div className="min-w-0 space-y-3">
+        <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+          <div className="min-w-0 space-y-4 md:space-y-6">
             {plataforma ? <ConfigDoBanner painel={painel} /> : <NovoPedido painel={painel} />}
           </div>
           <div className="min-w-0">
@@ -135,9 +136,9 @@ function NovoPedido({ painel }: { painel: Painel }) {
   });
 
   return (
-    <Card title="Pedir um banner">
+    <CartaoDoPainel titulo="Pedir um banner">
       <form
-        className="space-y-3 p-4 text-sm"
+        className="space-y-3 px-5 pb-5 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
@@ -161,13 +162,13 @@ function NovoPedido({ painel }: { painel: Painel }) {
         </Campo>
 
         <div>
-          <span className="label-xs">Arte</span>
+          <span className="label-xs text-ink-2">Arte</span>
           <div className="mt-1 flex items-start gap-3">
             <div className="aspect-[2/1] w-40 shrink-0 overflow-hidden rounded-md border border-line bg-mist-2">
               {imagem ? <img src={imagem} alt="Prévia do banner" className="h-full w-full object-cover" /> : null}
             </div>
             <div className="min-w-0 space-y-2">
-              <label className="inline-block cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+              <label className={`inline-flex h-10 cursor-pointer items-center rounded-lg px-4 text-[13px] font-semibold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-green ${TONS_DO_BOTAO.contorno}`}>
                 {imagem ? "Trocar imagem" : "Escolher imagem"}
                 <input
                   type="file"
@@ -212,7 +213,7 @@ function NovoPedido({ painel }: { painel: Painel }) {
           <input type="number" inputMode="numeric" min={config.diasMin} max={config.diasMax} value={dias} onChange={(e) => setDias(e.target.value)} />
         </Campo>
 
-        <div className="flex items-center justify-between rounded-md bg-mist px-3 py-2">
+        <div className="flex items-center justify-between rounded-lg bg-green-soft px-3 py-2">
           <span className="text-muted">Total</span>
           <span className="tnum font-semibold">{total === null ? "—" : formatBRL(total)}</span>
         </div>
@@ -239,7 +240,7 @@ function NovoPedido({ painel }: { painel: Painel }) {
           {pedir.isPending ? "Enviando…" : "Pedir banner"}
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -276,24 +277,22 @@ function ConfigDoBanner({ painel }: { painel: Painel }) {
   });
 
   return (
-    <Card title="Preço e vagas">
+    <CartaoDoPainel titulo="Preço e vagas">
       <form
-        className="space-y-3 p-4 text-sm"
+        className="space-y-3 px-5 pb-5 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
           salvar.mutate();
         }}
       >
-        <label className="flex items-start gap-2">
-          <input type="checkbox" checked={ligado} onChange={(e) => setLigado(e.target.checked)} className="mt-1 h-4 w-4" />
-          <span>
-            <span className="font-semibold">Vender banner na vitrine</span>
-            <span className="block text-xs text-muted">
-              Desligado, as organizações não veem o produto e os banners já pagos saem de cena (o que já foi pago fica guardado).
-            </span>
-          </span>
-        </label>
+        <Caixa
+          marcada={ligado}
+          aoMudar={setLigado}
+          sub="Desligado, as organizações não veem o produto e os banners já pagos saem de cena (o que já foi pago fica guardado)."
+        >
+          <span className="font-semibold">Vender banner na vitrine</span>
+        </Caixa>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo rotulo="Preço do dia (R$)">
             <input inputMode="decimal" value={preco} onChange={(e) => setPreco(e.target.value)} />
@@ -322,7 +321,7 @@ function ConfigDoBanner({ painel }: { painel: Painel }) {
           {salvar.isPending ? "Salvando…" : "Salvar"}
         </Button>
       </form>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -350,12 +349,12 @@ function Pedidos({ painel, plataforma }: { painel: Painel; plataforma: boolean }
 
   const { pedidos } = painel;
   return (
-    <Card title={plataforma ? "Pedidos" : "Meus pedidos"} right={<span className="tnum text-xs text-muted">{pedidos.length}</span>}>
-      {erro ? <p className="m-4 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
+    <CartaoDoPainel titulo={plataforma ? "Pedidos" : "Meus pedidos"} acao={<span className="tnum text-xs text-muted">{pedidos.length}</span>}>
+      {erro ? <p role="alert" className="mx-5 mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
       {pedidos.length === 0 ? <Empty>Nenhum pedido ainda.</Empty> : null}
       <ul className="divide-y divide-line">
         {pedidos.map((p) => (
-          <li key={p.id} className="space-y-2 p-4 text-sm">
+          <li key={p.id} className="space-y-2 px-5 py-4 text-sm">
             <div className="flex items-start gap-3">
               <img src={p.imagem} alt={p.titulo} className="aspect-[2/1] w-28 shrink-0 rounded-md border border-line object-cover sm:w-40" />
               <div className="min-w-0 flex-1 space-y-1">
@@ -405,7 +404,7 @@ function Pedidos({ painel, plataforma }: { painel: Painel; plataforma: boolean }
           </li>
         ))}
       </ul>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 

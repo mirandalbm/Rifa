@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, Button } from "@/components/bits";
+import { Button } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { LIBERACAO_COMISSAO, NOME_LIBERACAO, type LiberacaoComissao } from "@shared/plataforma";
 
@@ -42,8 +43,8 @@ export function ComissaoCard() {
   if (!data || data.porOrganizacao) return null;
 
   return (
-    <Card title="Comissão dos divulgadores">
-      <div className="space-y-3 p-4">
+    <CartaoDoPainel titulo="Comissão dos divulgadores">
+      <div className="space-y-3 px-5 pb-5">
         {erro ? <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p> : null}
         {ok ? (
           <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">
@@ -78,6 +79,6 @@ export function ComissaoCard() {
           Salvar
         </Button>
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

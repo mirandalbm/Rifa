@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Pill } from "@/components/bits";
+import { Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { CAMPOS_DO_CONTRATO, CONTRATO_MAX, CONTRATO_MIN, NOMES_DOS_CAMPOS } from "@shared/contratoPromotora";
 import { ANEXO_MIN, MODALIDADES, MODALIDADES_DE_ANEXO, TITULO_MAX, type ModalidadeDeAnexo } from "@shared/contratoAnexos";
@@ -98,11 +99,17 @@ function DaOrganizacaoCard() {
     },
   });
   const c = d?.contrato ?? null;
+  // Chegou pelo aviso de publicação (`#contrato`): rola até aqui quando o contrato carrega — a
+  // rolagem das abas corre antes, com a página ainda curta.
+  const carregou = Boolean(d);
+  useEffect(() => {
+    if (carregou && window.location.hash === "#contrato") document.getElementById("contrato")?.scrollIntoView({ block: "start" });
+  }, [carregou]);
 
   return (
-    <Card
-      title="Contrato da plataforma"
-      right={
+    <CartaoDoPainel
+      titulo="Contrato da plataforma"
+      acao={
         !c ? null : d?.pendente ? (
           <Pill status="pending">falta aceitar</Pill>
         ) : (
@@ -110,7 +117,7 @@ function DaOrganizacaoCard() {
         )
       }
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         {!c ? (
           <p className="text-muted">A plataforma ainda não publicou o contrato com as organizações.</p>
         ) : (
@@ -168,7 +175,7 @@ function DaOrganizacaoCard() {
         ) : null}
         {d?.anexos.length ? <AnexosDaOrganizacao anexos={d.anexos} /> : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -307,11 +314,11 @@ function DaPlataformaCard() {
   const atual = d?.versoes[0];
 
   return (
-    <Card
-      title="Contrato com as organizações"
-      right={c ? <span className="tnum text-xs text-muted">versão {c.versao}</span> : <Pill status="pending">sem contrato</Pill>}
+    <CartaoDoPainel
+      titulo="Contrato com as organizações"
+      acao={c ? <span className="tnum text-xs text-muted">versão {c.versao}</span> : <Pill status="pending">sem contrato</Pill>}
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-muted">
           Cole o texto do advogado. Cada publicação é uma versão nova: as organizações precisam aceitá-la antes de
           publicar a próxima rifa. As rifas que já estão no ar seguem como estão.
@@ -440,7 +447,7 @@ function DaPlataformaCard() {
         ) : null}
         {d ? <AnexosDaPlataforma anexos={d.anexos} /> : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 

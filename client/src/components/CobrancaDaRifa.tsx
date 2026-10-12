@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Button, Pill } from "@/components/bits";
+import { Button, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL } from "@shared/format";
 import {
@@ -63,11 +64,12 @@ export function CobrancaDaRifaCard({
   const semPublicacao = !rascunho && !rifa.cobranca;
 
   return (
-    <Card
-      title="Cobrança da plataforma"
-      right={!rascunho ? <Pill status="closed">travada na publicação</Pill> : undefined}
+    <CartaoDoPainel
+      titulo="Cobrança da plataforma"
+      subtitulo="Escolhida no rascunho e fotografada ao publicar."
+      acao={!rascunho ? <Pill status="closed">travada</Pill> : undefined}
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         {semPublicacao ? (
           <p className="text-muted">Esta rifa foi publicada antes da cobrança por rifa: a plataforma não cobra taxa dela.</p>
         ) : (
@@ -93,8 +95,9 @@ export function CobrancaDaRifaCard({
         )}
 
         {tabela ? (
-          <div className="text-xs text-muted">
-            <p>
+          <details className="text-xs text-muted">
+            <summary className="inline-flex min-h-6 cursor-pointer items-center font-medium text-ink-2">Como funciona a taxa do Pix</summary>
+            <p className="mt-1">
               Mais a taxa de transação Pix, sobre cada Pix pago pelo site e descontada da organização (nunca de quem
               compra) — quanto mais transações no mês, menor:
             </p>
@@ -103,8 +106,11 @@ export function CobrancaDaRifaCard({
                 <li key={i}>{textoDaFaixa(tabela.faixasPix, i)}</li>
               ))}
             </ul>
-            <p className="mt-1">As duas taxas saem antes da comissão do afiliado. A escolha trava ao publicar.</p>
-          </div>
+            <p className="mt-1">
+              As duas taxas saem antes da comissão do afiliado. A escolha trava ao publicar
+              {rascunho ? "" : ", e mudar a tabela não mexe nesta rifa"}.
+            </p>
+          </details>
         ) : null}
 
         {proxima ? (
@@ -131,6 +137,6 @@ export function CobrancaDaRifaCard({
           </div>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

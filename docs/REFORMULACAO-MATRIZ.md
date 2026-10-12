@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 717 |
+| Cartões (componentes usados pelas telas) | 751 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 824 de 824 |
+| Destinos decididos | 858 de 858 |
 
 ## 1. Telas
 
@@ -170,7 +170,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `Button` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `CampaignExtras` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `Campo` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `Card` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `CobrancaDaRifaCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
@@ -220,7 +222,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `Button` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `CampaignExtras` | manter · na tela P12 Afiliados · onda 2 |
+| `Campo` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `Card` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `CobrancaDaRifaCard` | manter · na tela P12 Afiliados · onda 2 |
@@ -287,12 +291,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `Abas` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
 | `Button` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
-| `Card` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
+| `Caixa` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
+| `Campo` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
+| `CartaoDoPainel` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
 | `Conversa` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
 | `DenunciasDaPlataforma` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
 | `EntidadesDaPlataforma` | manter · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) · onda 2 |
+| `Filtros` | manter · 11 · Painel · P20 Atendimento do organizador (node 51-3427) · onda 2 |
 | `MestreDetalhe` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
 | `Money` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P20 Atendimento do organizador + P23 da plataforma (abas, 51-4545) |
@@ -325,11 +333,13 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
-| `Card` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `Campo` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
 | `Empty` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
 | `Money` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
 | `Pill` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P13 Cambistas |
 
 ### `/admin/campanhas` — Campanhas
 
@@ -345,7 +355,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `Button` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `CampaignExtras` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `Campo` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `Card` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `CobrancaDaRifaCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
@@ -387,7 +399,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
 | `Campo` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
-| `Card` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
+| `CartaoDoPainel` | manter · 11 · Painel · P10 Cobrança (node 41-1633) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
 | `Kpi` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
 | `Money` | manter · peça do kit (onda 1) · na tela P10 Cobrança |
@@ -411,7 +423,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `Button` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `CampaignExtras` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `Campo` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `Card` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `CobrancaDaRifaCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
@@ -452,7 +466,8 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P11 Exportações |
-| `Card` | manter · peça do kit (onda 1) · na tela P11 Exportações |
+| `Campo` | manter · 11 · Painel · P11 Exportações (node 54-5610) · onda 2 |
+| `CartaoDoPainel` | manter · 11 · Painel · P11 Exportações (node 54-5610) · onda 2 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P11 Exportações |
 | `Pill` | manter · peça do kit (onda 1) · na tela P11 Exportações |
 
@@ -470,7 +485,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `Button` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `CampaignExtras` | manter · na tela P09 Financeiro · onda 2 |
+| `Campo` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `Card` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `CobrancaDaRifaCard` | manter · na tela P09 Financeiro · onda 2 |
@@ -521,10 +538,13 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
-| `Card` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `Campo` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 | `Empty` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `Filtros` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 | `Pill` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P19 Medição e campanhas |
 
 ### `/admin/marketing/ia` — Marketing AI
 
@@ -532,11 +552,14 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `AbrirEditorDeImagem` | manter · na tela P17 Marketing AI · onda 2 |
 | `ArtesParaDivulgar` | manter · na tela P17 Marketing AI · onda 2 |
-| `Card` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `Button` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `Campo` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `Empty` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `Pill` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 | `ReelsDaRifa` | manter · na tela P17 Marketing AI · onda 2 |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela P17 Marketing AI |
 
 ### `/admin/marketing/publicidade` — Publicidade
 
@@ -550,8 +573,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `Campo` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
-| `Card` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `Empty` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `Money` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P16 Tráfego pago |
@@ -585,7 +609,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `Button` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `CampaignExtras` | manter · na tela P04 Pedidos · onda 2 |
+| `Campo` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `Card` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `CobrancaDaRifaCard` | manter · na tela P04 Pedidos · onda 2 |
@@ -625,7 +651,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
-| `Card` | manter · peça do kit (onda 1) · na tela P05 Resultados |
+| `CartaoDoPainel` | manter · 11 · Painel · P05 Resultados (node 36-1198) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P05 Resultados |
 | `Filtros` | manter · peça do kit (onda 1) · na tela P05 Resultados |
 | `Kpi` | manter · peça do kit (onda 1) · na tela P05 Resultados |
@@ -645,7 +671,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `Button` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `CampaignExtras` | manter · na tela P07 Sorteios · onda 2 |
+| `Campo` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `Card` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `CobrancaDaRifaCard` | manter · na tela P07 Sorteios · onda 2 |
@@ -688,7 +716,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Button` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
 | `Campo` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
 | `CamposDoSegundoFator` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
-| `Card` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
+| `CartaoDoPainel` | manter · 11 · Painel · P08 Sorteios oficiais (node 39-1742) · onda 2 |
 | `Comentarios` | manter · na tela P08 Sorteios oficiais (calendário) · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
 | `Janela` | manter · peça do kit (onda 1) · na tela P08 Sorteios oficiais (calendário) |
@@ -701,22 +729,27 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P06 Stories |
-| `Card` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `Caixa` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
+| `Campo` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
+| `CartaoDoPainel` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
 | `EditorDeFigurinhas` | manter · na tela P06 Stories · onda 2 |
 | `Empty` | manter · peça do kit (onda 1) · na tela P06 Stories |
 | `NOME_DA_FIGURINHA` | manter · peça do kit (onda 1) · na tela P06 Stories |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P06 Stories |
 | `Pill` | manter · peça do kit (onda 1) · na tela P06 Stories |
+| `TONS_DO_BOTAO` | manter · 11 · Painel · P06 Stories (node 54-4984) · onda 2 |
 
 ### `/admin/usuarios` — Usuários
 
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P14 Usuários |
-| `Card` | manter · peça do kit (onda 1) · na tela P14 Usuários |
+| `Campo` | manter · peça do kit (onda 1) · na tela P14 Usuários |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P14 Usuários |
 | `Empty` | manter · peça do kit (onda 1) · na tela P14 Usuários |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela P14 Usuários |
 | `Pill` | manter · peça do kit (onda 1) · na tela P14 Usuários |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela P14 Usuários |
 
 ### `/afiliado` — Visão geral
 
@@ -892,7 +925,8 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela P21 Minha senha |
-| `Card` | manter · peça do kit (onda 1) · na tela P21 Minha senha |
+| `Campo` | manter · peça do kit (onda 1) · na tela P21 Minha senha |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P21 Minha senha |
 
 ### `/criar-conta` — CriarConta
 

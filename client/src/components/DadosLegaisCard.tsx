@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Pill } from "@/components/bits";
+import { Button, Caixa, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import {
   CERTIFICADO_MAX_BYTES,
@@ -157,19 +158,21 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
   const temCertificado = Boolean(campanha.authorizationFileKey);
 
   return (
-    <Card
-      title="Dados legais da rifa"
-      right={rascunho ? <Pill status="pending">editável até publicar</Pill> : <Pill status="paid">travado</Pill>}
+    <CartaoDoPainel
+      titulo="Dados legais da rifa"
+      subtitulo="O método de apuração, a data e as regras do sorteio travam ao publicar, junto com a autorização."
+      acao={rascunho ? <Pill status="pending">editável até publicar</Pill> : <Pill status="paid">travado</Pill>}
     >
-      <div className="space-y-4 p-4 text-sm">
+      <div className="space-y-4 px-5 pb-5 text-sm">
         <p className="text-xs text-muted">
           A autorização da SPA/MF é da campanha, não da plataforma. O número sai no bilhete e na
           página da rifa, e o certificado fica disponível para o apostador conferir.
         </p>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`aut-${campanha.id}`} className="label-xs">
+        {/* Rótulo, campo e dica em linhas comuns às duas colunas (subgrid): o rótulo do certificado quebra em duas linhas no computador, e o campo dele descia em relação ao da data. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-rows-[auto_auto_auto] sm:gap-y-0">
+          <div className="sm:row-span-3 sm:grid sm:grid-rows-subgrid">
+            <label htmlFor={`aut-${campanha.id}`} className="label-xs sm:self-end">
               Nº do certificado de autorização SPA/MF
             </label>
             <input
@@ -185,8 +188,8 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
               className="campo tnum disabled:bg-mist"
             />
           </div>
-          <div>
-            <label htmlFor={`sorteio-${campanha.id}`} className="label-xs">
+          <div className="sm:row-span-3 sm:grid sm:grid-rows-subgrid">
+            <label htmlFor={`sorteio-${campanha.id}`} className="label-xs sm:self-end">
               {dataMaxima ? "Data máxima do sorteio" : "Data e hora do sorteio"}
             </label>
             {antecipado ? (
@@ -388,25 +391,18 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
             }}
             className="campo disabled:bg-mist"
           />
-          <label className="mt-2 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={bonus}
-              disabled={!rascunho}
-              onChange={(e) => {
-                setMsg(null);
-                setBonus(e.target.checked);
-              }}
-              className="mt-1 h-4 w-4 accent-[var(--green)]"
-            />
-            <span>
-              Aceitar cotas de bônus do programa de indicação
-              <span className="block text-xs text-muted">
-                Só marque se o regulamento aprovado pela SPA/MF prevê cotas grátis: a cláusula entra no regulamento
-                desta rifa e trava ao publicar.
-              </span>
-            </span>
-          </label>
+          <Caixa
+            className="mt-2"
+            marcada={bonus}
+            disabled={!rascunho}
+            aoMudar={(v) => {
+              setMsg(null);
+              setBonus(v);
+            }}
+            sub="Só marque se o regulamento aprovado pela SPA/MF prevê cotas grátis: a cláusula entra no regulamento desta rifa e trava ao publicar."
+          >
+            Aceitar cotas de bônus do programa de indicação
+          </Caixa>
           {bonus ? (
             <div className="ml-6 mt-2">
               <label htmlFor={`bonus-max-${campanha.id}`} className="label-xs block">
@@ -433,25 +429,18 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
             </div>
           ) : null}
           {metodo ? (
-            <label className="mt-2 flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={valeBrinde}
-                disabled={!rascunho}
-                onChange={(e) => {
-                  setMsg(null);
-                  setValeBrinde(e.target.checked);
-                }}
-                className="mt-1 h-4 w-4 accent-[var(--green)]"
-              />
-              <span>
-                {DECLARACAO_VALE_BRINDE}
-                <span className="block text-xs text-muted">
-                  Obrigatória para publicar a rifa com cota premiada. Trava ao publicar: sem ela, a rifa no ar não ganha
-                  cota premiada depois.
-                </span>
-              </span>
-            </label>
+            <Caixa
+              className="mt-2"
+              marcada={valeBrinde}
+              disabled={!rascunho}
+              aoMudar={(v) => {
+                setMsg(null);
+                setValeBrinde(v);
+              }}
+              sub="Obrigatória para publicar a rifa com cota premiada. Trava ao publicar: sem ela, a rifa no ar não ganha cota premiada depois."
+            >
+              {DECLARACAO_VALE_BRINDE}
+            </Caixa>
           ) : null}
           <p className="text-[11px] text-muted">
             O resto do regulamento (promotora, autorização, prêmios, numeração, sorteio, entrega e
@@ -498,7 +487,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
           </div>
         ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -521,8 +510,8 @@ export function TransmissaoCard({ campanha }: { campanha: Campanha }) {
     onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
   });
   return (
-    <Card title="Transmissão do sorteio">
-      <div className="space-y-2 p-4 text-sm">
+    <CartaoDoPainel titulo="Transmissão do sorteio" subtitulo="O link da live do sorteio. Muda a qualquer hora.">
+      <div className="space-y-2 px-5 pb-5 text-sm">
         <label htmlFor={`live-${campanha.id}`} className="label-xs">
           Link da live ou do vídeo (YouTube, Instagram, Facebook…)
         </label>
@@ -544,6 +533,6 @@ export function TransmissaoCard({ campanha }: { campanha: Campanha }) {
         {invalido ? <p className="text-xs text-red">Use o endereço https da live ou do vídeo.</p> : null}
         {msg ? <p className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>{msg.texto}</p> : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

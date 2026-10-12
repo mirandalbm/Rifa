@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Button, Pill } from "@/components/bits";
+import { Button, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { formatBRL, groupNumber } from "@shared/format";
 import {
@@ -60,10 +61,13 @@ export function EditarRifaCard({
   rifa,
   daPlataforma,
   edicaoEmAnalise,
+  aoPedirAdiamento,
 }: {
   rifa: RifaEditavel;
   daPlataforma: boolean;
   edicaoEmAnalise: boolean;
+  /** Leva ao cartão do adiamento (aba "Autorização e sorteio"); só na rifa que pode pedir. */
+  aoPedirAdiamento?: () => void;
 }) {
   const qc = useQueryClient();
   const rascunho = rifa.status === "draft";
@@ -125,42 +129,28 @@ export function EditarRifaCard({
 
   const precisaAnalise = !rascunho && !daPlataforma;
 
+  const travado = (rotulo: string) => (rascunho ? rotulo : `${rotulo} (travado)`);
   return (
-    <Card
-      title="Editar rifa"
-      right={edicaoEmAnalise ? <Pill status="pending">edição em análise</Pill> : undefined}
+    <CartaoDoPainel
+      titulo="Dados da rifa"
+      subtitulo={
+        rascunho
+          ? "Rascunho: muda na hora. O prêmio, o preço e o total travam ao publicar."
+          : precisaAnalise
+            ? "Publicada: o prêmio, o preço, o total e a autorização travaram. Mudar o resto vira pedido para a plataforma, e só vale depois de aprovado."
+            : "Publicada: o prêmio, o preço, o total e a autorização travaram. A plataforma aplica o resto direto."
+      }
+      acao={edicaoEmAnalise ? <Pill status="pending">edição em análise</Pill> : undefined}
     >
-      <div className="space-y-3 p-4 text-sm">
-        {precisaAnalise ? (
-          <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
-            A rifa está no ar: a mudança vai para <b>análise da plataforma</b> e só vale depois de
-            aprovada. O prêmio, o preço e o total de cotas não mudam depois de publicar.
-          </p>
-        ) : null}
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo id={`ed-titulo-${rifa.id}`} rotulo="Título">
-            <input
-              id={`ed-titulo-${rifa.id}`}
-              value={f.title}
-              onChange={(e) => setF({ ...f, title: e.target.value })}
-              className={CAMPO}
-            />
-          </Campo>
-          <Campo
-            id={`ed-premio-${rifa.id}`}
-            rotulo="Prêmio"
-            dica={rascunho ? undefined : "Travado: quem comprou comprou este prêmio."}
-          >
-            <input
-              id={`ed-premio-${rifa.id}`}
-              value={f.prizeTitle}
-              disabled={!rascunho}
-              onChange={(e) => setF({ ...f, prizeTitle: e.target.value })}
-              className={`${CAMPO} disabled:bg-mist disabled:text-muted`}
-            />
-          </Campo>
-        </div>
+      <div className="space-y-3 px-5 pb-5 text-sm">
+        <Campo id={`ed-titulo-${rifa.id}`} rotulo="Título">
+          <input
+            id={`ed-titulo-${rifa.id}`}
+            value={f.title}
+            onChange={(e) => setF({ ...f, title: e.target.value })}
+            className={CAMPO}
+          />
+        </Campo>
 
         <Campo id={`ed-desc-${rifa.id}`} rotulo="Descrição">
           <textarea
@@ -172,49 +162,50 @@ export function EditarRifaCard({
           />
         </Campo>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Campo
-            id={`ed-total-${rifa.id}`}
-            rotulo="Total de cotas"
-            dica={rascunho ? undefined : "Travado ao publicar."}
-          >
-            <input
-              id={`ed-total-${rifa.id}`}
-              type="number"
-              value={f.totalQuotas}
-              disabled={!rascunho}
-              onChange={(e) => setF({ ...f, totalQuotas: Number(e.target.value) })}
-              className={`tnum ${CAMPO} disabled:bg-mist disabled:text-muted`}
-            />
-          </Campo>
-          <Campo
-            id={`ed-preco-${rifa.id}`}
-            rotulo="Preço da cota (centavos)"
-            dica={rascunho ? formatBRL(Number(f.priceCents) || 0) : `${formatBRL(rifa.priceCents)} — travado ao publicar.`}
-          >
-            <input
-              id={`ed-preco-${rifa.id}`}
-              type="number"
-              value={f.priceCents}
-              disabled={!rascunho}
-              onChange={(e) => setF({ ...f, priceCents: Number(e.target.value) })}
-              className={`tnum ${CAMPO} disabled:bg-mist disabled:text-muted`}
-            />
-          </Campo>
-          <Campo id={`ed-comissao-${rifa.id}`} rotulo="Comissão padrão (%)">
-            <input
-              id={`ed-comissao-${rifa.id}`}
-              type="number"
-              min={0}
-              max={50}
-              value={f.commissionPctDefault}
-              onChange={(e) => setF({ ...f, commissionPctDefault: Number(e.target.value) })}
-              className={`tnum ${CAMPO}`}
-            />
-          </Campo>
-        </div>
+        <Campo
+          id={`ed-premio-${rifa.id}`}
+          rotulo={travado("Prêmio")}
+          dica={rascunho ? "Bem ou serviço, nunca dinheiro. Trava ao publicar." : "Bem ou serviço, nunca dinheiro. Não muda depois de publicar: quem comprou comprou este prêmio."}
+        >
+          <input
+            id={`ed-premio-${rifa.id}`}
+            value={f.prizeTitle}
+            disabled={!rascunho}
+            onChange={(e) => setF({ ...f, prizeTitle: e.target.value })}
+            className={`${CAMPO} disabled:bg-mist disabled:text-muted`}
+          />
+        </Campo>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* Os seis números em duas colunas (o Figma, nó 54:4503): com o menu aberto no tablet, três quebravam os rótulos. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {rascunho ? (
+            <Campo id={`ed-preco-${rifa.id}`} rotulo="Preço da cota (centavos)" dica={formatBRL(Number(f.priceCents) || 0)}>
+              <input
+                id={`ed-preco-${rifa.id}`}
+                type="number"
+                value={f.priceCents}
+                onChange={(e) => setF({ ...f, priceCents: Number(e.target.value) })}
+                className={`tnum ${CAMPO}`}
+              />
+            </Campo>
+          ) : (
+            <Campo id={`ed-preco-${rifa.id}`} rotulo={travado("Preço da cota")}>
+              <input id={`ed-preco-${rifa.id}`} value={formatBRL(rifa.priceCents)} disabled className={`tnum ${CAMPO} disabled:bg-mist disabled:text-muted`} />
+            </Campo>
+          )}
+          <Campo id={`ed-total-${rifa.id}`} rotulo={travado("Total de cotas")}>
+            {rascunho ? (
+              <input
+                id={`ed-total-${rifa.id}`}
+                type="number"
+                value={f.totalQuotas}
+                onChange={(e) => setF({ ...f, totalQuotas: Number(e.target.value) })}
+                className={`tnum ${CAMPO}`}
+              />
+            ) : (
+              <input id={`ed-total-${rifa.id}`} value={groupNumber(rifa.totalQuotas)} disabled className={`tnum ${CAMPO} disabled:bg-mist disabled:text-muted`} />
+            )}
+          </Campo>
           <Campo id={`ed-min-${rifa.id}`} rotulo="Mínimo por pedido">
             <input
               id={`ed-min-${rifa.id}`}
@@ -235,7 +226,7 @@ export function EditarRifaCard({
               className={`tnum ${CAMPO}`}
             />
           </Campo>
-          <Campo id={`ed-reserva-${rifa.id}`} rotulo="Reserva (minutos)" dica={`De ${RESERVA_MIN} a ${RESERVA_MAX}.`}>
+          <Campo id={`ed-reserva-${rifa.id}`} rotulo="Tempo da reserva (min)" dica={`De ${RESERVA_MIN} a ${RESERVA_MAX}.`}>
             <input
               id={`ed-reserva-${rifa.id}`}
               type="number"
@@ -243,6 +234,17 @@ export function EditarRifaCard({
               max={RESERVA_MAX}
               value={f.reservationTtlMin}
               onChange={(e) => setF({ ...f, reservationTtlMin: Number(e.target.value) })}
+              className={`tnum ${CAMPO}`}
+            />
+          </Campo>
+          <Campo id={`ed-comissao-${rifa.id}`} rotulo="Comissão padrão do afiliado (%)">
+            <input
+              id={`ed-comissao-${rifa.id}`}
+              type="number"
+              min={0}
+              max={50}
+              value={f.commissionPctDefault}
+              onChange={(e) => setF({ ...f, commissionPctDefault: Number(e.target.value) })}
               className={`tnum ${CAMPO}`}
             />
           </Campo>
@@ -262,15 +264,24 @@ export function EditarRifaCard({
 
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => salvar.mutate()} disabled={salvar.isPending || edicaoEmAnalise}>
-            {precisaAnalise ? "Enviar para análise" : "Salvar"}
+            {precisaAnalise ? "Pedir edição à plataforma" : "Salvar"}
           </Button>
+          {aoPedirAdiamento ? (
+            <Button variant="contorno" onClick={aoPedirAdiamento}>
+              Pedir adiamento
+            </Button>
+          ) : null}
           {edicaoEmAnalise ? (
             <span className="text-xs text-muted">Já existe uma edição em análise. Veja em Atendimento › Rifas.</span>
           ) : null}
         </div>
-        {aviso ? <p className={`text-xs ${aviso.ok ? "text-green-deep" : "text-red"}`}>{aviso.texto}</p> : null}
+        {aviso ? (
+          <p role="status" className={`text-xs ${aviso.ok ? "text-green-deep" : "text-red"}`}>
+            {aviso.texto}
+          </p>
+        ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }
 
@@ -341,11 +352,12 @@ export function AdiarSorteioCard({
   });
 
   return (
-    <Card
-      title="Adiar sorteio (meta não atingida)"
-      right={adiamentoEmAnalise ? <Pill status="pending">adiamento em análise</Pill> : undefined}
+    <CartaoDoPainel
+      titulo="Adiar o sorteio"
+      subtitulo="Só quando a meta não foi atingida. É pedido: a data muda quando a plataforma aprovar."
+      acao={adiamentoEmAnalise ? <Pill status="pending">adiamento em análise</Pill> : undefined}
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-xs text-muted">
           Vendidas <span className="tnum">{groupNumber(vendidas)}</span> de{" "}
           <span className="tnum">{groupNumber(rifa.totalQuotas)}</span> (<span className="tnum">{pct}%</span>). Sorteio
@@ -414,8 +426,12 @@ export function AdiarSorteioCard({
         >
           Pedir adiamento
         </Button>
-        {aviso ? <p className={`text-xs ${aviso.ok ? "text-green-deep" : "text-red"}`}>{aviso.texto}</p> : null}
+        {aviso ? (
+          <p role="status" className={`text-xs ${aviso.ok ? "text-green-deep" : "text-red"}`}>
+            {aviso.texto}
+          </p>
+        ) : null}
       </div>
-    </Card>
+    </CartaoDoPainel>
   );
 }

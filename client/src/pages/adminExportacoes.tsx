@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Button, Pill } from "@/components/bits";
+import { Button, Campo, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { EXPORTS, exportFilename, type ExportInfo } from "@shared/exports";
 
 /** O painel devolve campanha e contadores juntos; aqui só a campanha importa. */
 interface LinhaCampanha {
   campaign: { id: string; slug: string; title: string; status: string };
 }
+
+/** "2026-10-01" → "01/10/2026", sem passar por Date (o campo já dá a data certa). */
+const diaBr = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 
 /**
  * Exportações.
@@ -37,6 +41,13 @@ export function AdminExportacoes() {
     const busca = q.toString();
     return `/api/admin/exportacoes/${info.key}${busca ? `?${busca}` : ""}`;
   };
+
+  // O recorte aplicado, em texto, ao lado de cada botão: a rifa (ou todas) e as datas.
+  const nomeDaCampanha = campanhas?.find((c) => c.id === campanha)?.title;
+  const recorte = [
+    campanha ? (nomeDaCampanha ?? "a rifa escolhida") : "todas as rifas",
+    de && ate ? `de ${diaBr(de)} a ${diaBr(ate)}` : de ? `a partir de ${diaBr(de)}` : ate ? `até ${diaBr(ate)}` : "sem recorte de data",
+  ].join(" · ");
 
   async function baixar(info: ExportInfo) {
     setErro(null);
@@ -85,21 +96,16 @@ export function AdminExportacoes() {
   return (
     <PanelShell title="Exportações">
       {erro ? (
-        <p className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">{erro}</p>
+        <p role="alert" className="mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+          {erro}
+        </p>
       ) : null}
 
-      <Card title="Recorte">
-        <div className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label htmlFor="exp-campanha" className="label-xs">
-              Campanha
-            </label>
-            <select
-              id="exp-campanha"
-              value={campanha}
-              onChange={(e) => setCampanha(e.target.value)}
-              className="campo text-sm"
-            >
+      <CartaoDoPainel titulo="Recorte">
+        {/* No celular a rifa ocupa a linha e as datas dividem a seguinte; do computador em diante, tudo numa linha. */}
+        <div className="grid grid-cols-2 items-end gap-3 px-5 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+          <Campo rotulo="Campanha" className="col-span-2 min-w-0 lg:col-span-1">
+            <select id="exp-campanha" value={campanha} onChange={(e) => setCampanha(e.target.value)}>
               <option value="">todas as rifas</option>
               {campanhas?.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -107,37 +113,17 @@ export function AdminExportacoes() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label htmlFor="exp-de" className="label-xs">
-              De
-            </label>
-            <input
-              id="exp-de"
-              type="date"
-              value={de}
-              onChange={(e) => setDe(e.target.value)}
-              className="tnum mt-1 rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="exp-ate" className="label-xs">
-              Até
-            </label>
-            <input
-              id="exp-ate"
-              type="date"
-              value={ate}
-              onChange={(e) => setAte(e.target.value)}
-              className="tnum mt-1 rounded-md border border-line-2 px-3 py-2 text-sm"
-            />
-          </div>
-
+          </Campo>
+          <Campo rotulo="De" className="min-w-0">
+            <input id="exp-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} className="campo tnum min-w-0" />
+          </Campo>
+          <Campo rotulo="Até" className="min-w-0">
+            <input id="exp-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} className="campo tnum min-w-0" />
+          </Campo>
           {de || ate || campanha ? (
             <Button
-              variant="ghost"
+              variant="cinza"
+              className="col-span-2 justify-self-start lg:col-span-1"
               onClick={() => {
                 setCampanha("");
                 setDe("");
@@ -149,69 +135,61 @@ export function AdminExportacoes() {
           ) : null}
         </div>
 
-        <p className="border-t border-line px-4 py-3 text-xs text-muted">
-          O recorte de data vale pelo momento do pedido, e o dia final entra
-          inteiro. Sem recorte, o relatório sai com tudo.
+        <p className="px-5 pb-5 pt-3 text-xs text-muted">
+          O recorte de data vale pelo momento do pedido, e o dia final entra inteiro. Sem recorte, o relatório sai com tudo.
         </p>
-      </Card>
+      </CartaoDoPainel>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+      {/* Um cartão por relatório: coluna única até o tablet, duas colunas no computador. */}
+      <div className="mt-4 grid grid-cols-1 gap-4 md:mt-6 md:gap-6 lg:grid-cols-2">
         {EXPORTS.map((info) => {
           const faltaCampanha = info.campanhaObrigatoria && !campanha;
 
           return (
-            <Card key={info.key} title={info.label}>
-              {/* Sem `h-full`: o Card é uma section com overflow-hidden e
-                  altura vinda do conteúdo — 100% de uma altura indefinida
-                  passa a contar o cabeçalho duas vezes e o botão some
-                  cortado na borda de baixo. */}
-              <div className="flex flex-col gap-3 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  {info.campanhaObrigatoria ? (
-                    <Pill status="reserved">exige campanha</Pill>
-                  ) : null}
-                  {info.dadoPessoal ? (
-                    <Pill status="blocked">leva dado pessoal</Pill>
-                  ) : null}
-                </div>
+            <CartaoDoPainel key={info.key} titulo={info.label}>
+              <div className="flex flex-col gap-3 px-5 pb-5">
+                {info.campanhaObrigatoria || info.dadoPessoal ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {info.campanhaObrigatoria ? <Pill status="reserved">exige campanha</Pill> : null}
+                    {info.dadoPessoal ? <Pill status="blocked">leva dado pessoal</Pill> : null}
+                  </div>
+                ) : null}
 
                 <p className="text-sm text-muted">{info.hint}</p>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Button
                     onClick={() => baixar(info)}
                     disabled={baixando !== null || faltaCampanha}
+                    title={`Arquivo CSV em português (pt-BR) · ${recorte}`}
                   >
                     {baixando === info.key ? "gerando…" : "Baixar CSV"}
                   </Button>
-                  {faltaCampanha ? (
-                    <span className="text-xs text-muted">escolha uma campanha acima</span>
-                  ) : null}
+                  {/* O formato e o recorte que vai no arquivo, em texto, ao lado do botão. */}
+                  <span className="min-w-0 text-xs text-muted">{faltaCampanha ? "escolha uma campanha acima" : `pt-BR · ${recorte}`}</span>
                 </div>
               </div>
-            </Card>
+            </CartaoDoPainel>
           );
         })}
       </div>
 
-      <Card title="Antes de baixar">
-        <ul className="space-y-2 p-4 text-sm text-muted">
+      <CartaoDoPainel titulo="Antes de baixar" className="mt-4 md:mt-6">
+        <ul className="space-y-2 px-5 pb-5 text-sm text-muted">
           <li>
-            Os relatórios marcados com <b>leva dado pessoal</b> carregam nome,
-            telefone e CPF de quem comprou. Todo download fica registrado na
-            trilha de auditoria, com quem baixou, quando e qual recorte.
+            Os relatórios marcados com <b>leva dado pessoal</b> carregam nome, telefone e CPF de quem comprou. Todo download fica
+            registrado na trilha de auditoria, com quem baixou, quando e qual recorte.
           </li>
           <li>
-            O arquivo abre direto no Excel e no LibreOffice em português:
-            separador ponto e vírgula, vírgula decimal e acento preservado. As
-            colunas de dinheiro somam.
+            O arquivo abre direto no Excel e no LibreOffice em português: separador ponto e vírgula, vírgula decimal e acento
+            preservado. As colunas de dinheiro somam.
           </li>
           <li>
-            A semente do sorteio só sai depois que o sorteio aconteceu. Antes
-            disso, quem a tivesse poderia calcular o número e comprar a cota.
+            A semente do sorteio só sai depois que o sorteio aconteceu. Antes disso, quem a tivesse poderia calcular o número e
+            comprar a cota.
           </li>
         </ul>
-      </Card>
+      </CartaoDoPainel>
     </PanelShell>
   );
 }

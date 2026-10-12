@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { aindaAgendado, quandoCurto } from "@/components/CampoDeAgenda";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Campo, Pill } from "@/components/bits";
+import { Button, Campo, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { VideoDaDivulgacao, type VideoDaPeca } from "@/components/VideoProprio";
 import { apiRequest } from "@/lib/queryClient";
 import { MODOS_DE_DIVULGACAO, STATUS_DA_DIVULGACAO, type AcaoDaDecisao, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
@@ -80,11 +81,11 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
   const lista = fila.data ?? [];
   const pendentes = config.data?.pendentes ?? 0;
   return (
-    <Card
-      title="Divulgações de influenciadores e apostadores"
-      right={pendentes ? <Pill status="pending">{`${pendentes} esperando`}</Pill> : undefined}
+    <CartaoDoPainel
+      titulo="Divulgações de influenciadores e apostadores"
+      acao={pendentes ? <Pill status="pending">{`${pendentes} esperando`}</Pill> : undefined}
     >
-      <div className="space-y-3 p-4 text-sm">
+      <div className="space-y-3 px-5 pb-5 text-sm">
         <p className="text-muted">
           Afiliados com vínculo aprovado publicam com as mídias das suas rifas e fotos ou um vídeo deles; apostadores publicam
           texto e fotos, sobre rifa em que compraram, quando a plataforma liga essa opção. Peça com foto ou vídeo de quem
@@ -117,18 +118,18 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
         {msg ? <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
       </div>
       {lista.length === 0 ? (
-        <p className="border-t border-line px-4 py-6 text-center text-sm text-muted">Nenhuma divulgação ainda.</p>
+        <p className="border-t border-line px-5 py-6 text-center text-sm text-muted">Nenhuma divulgação ainda.</p>
       ) : (
         <ul className="divide-y divide-line border-t border-line">
           {lista.map((l) => (
-            <li key={l.id} className="space-y-2 px-4 py-3 text-sm">
+            <li key={l.id} className="space-y-2 px-5 py-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <Pill status={PILL_DA_DIVULGACAO[l.status]}>{STATUS_DA_DIVULGACAO[l.status]}</Pill>
                 <span className="font-semibold">{l.quem}</span>
+                {l.editadaEm ? <Pill status="draft">editada</Pill> : null}
                 <span className="text-xs text-muted">
                   {l.autor === "afiliado" ? "influenciador" : "apostador"} · {l.rifa}
                   {daOrganizacao ? "" : ` · ${l.organizacao}`}
-                  {l.editadaEm ? " · editada" : ""}
                   {aindaAgendado(l.publicaEm) ? (
                     <>
                       {" · agendada para "}
@@ -154,15 +155,15 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
               {l.motivo ? <p className="text-xs text-muted">Motivo: {l.motivo}</p> : null}
               {l.status === "em_analise" ? (
                 <div className="flex flex-wrap gap-2">
-                  <Button className="px-3 py-1 text-xs" disabled={decidir.isPending} onClick={() => decidir.mutate({ id: l.id, versao: l.versao, acao: "aprovar" })}>
+                  <Button disabled={decidir.isPending} onClick={() => decidir.mutate({ id: l.id, versao: l.versao, acao: "aprovar" })}>
                     Aprovar
                   </Button>
-                  <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setAbrindo({ id: l.id, versao: l.versao, acao: "recusar" })}>
+                  <Button variant="contorno" onClick={() => setAbrindo({ id: l.id, versao: l.versao, acao: "recusar" })}>
                     Recusar
                   </Button>
                 </div>
               ) : l.status === "publicada" ? (
-                <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setAbrindo({ id: l.id, versao: l.versao, acao: "remover" })}>
+                <Button variant="contorno" onClick={() => setAbrindo({ id: l.id, versao: l.versao, acao: "remover" })}>
                   Retirar do ar
                 </Button>
               ) : null}
@@ -173,13 +174,12 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
                   </Campo>
                   <div className="flex gap-2">
                     <Button
-                      className="px-3 py-1 text-xs"
                       disabled={decidir.isPending || motivo.trim().length < 3}
                       onClick={() => decidir.mutate({ id: l.id, versao: abrindo.versao, acao: abrindo.acao, motivo })}
                     >
                       Confirmar
                     </Button>
-                    <Button variant="ghost" className="px-3 py-1 text-xs" onClick={() => setAbrindo(null)}>
+                    <Button variant="cinza" onClick={() => setAbrindo(null)}>
                       Cancelar
                     </Button>
                   </div>
@@ -189,6 +189,6 @@ export function DivulgacoesDaOrganizacao({ daOrganizacao }: { daOrganizacao: boo
           ))}
         </ul>
       )}
-    </Card>
+    </CartaoDoPainel>
   );
 }

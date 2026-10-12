@@ -39,6 +39,22 @@ class Cliente {
 const TEL_DONO = "11966660001";
 const TEL_NOVO = "11966660002";
 const TEL_CPF = "11966660004";
+/** Confirmar o telefone da própria conta: a conta, a que tenta trocar e o número de fora. */
+const TEL_CONFIRMA = "11966660005";
+const TEL_TROCA = "11966660007";
+const TEL_OUTRO = "11966660006";
+/** CPF válido sorteado: os fixos já aparecem em outras provas do mesmo banco. */
+function cpfSorteado() {
+  const base = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));
+  const dv = (n: number[]) => {
+    const r = (n.reduce((s, d, i) => s + d * (n.length + 1 - i), 0) * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  const d1 = dv(base);
+  return [...base, d1, dv([...base, d1])].join("");
+}
+const CPF_CONFIRMA = cpfSorteado();
+const CPF_TROCA = cpfSorteado();
 const PNG =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 const tem = (j: { orders?: { order: { code: number } }[] }, code: number) =>
@@ -54,8 +70,12 @@ let rifaId = "";
 
 async function limpar() {
   await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:comprador:%'`);
+  // Os pedidos de código desta prova não podem esgotar o limite da próxima rodada.
+  for (const tel of [TEL_CONFIRMA, TEL_TROCA, TEL_OUTRO]) {
+    await db.execute(sql`delete from rate_events where bucket in (${`otp:${tel}`}, ${`otp:verify:${tel}`})`);
+  }
   const rows = await db.execute(
-    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, ${TEL_CPF}, '11966660003', '11900001234')`,
+    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, ${TEL_CPF}, ${TEL_CONFIRMA}, ${TEL_TROCA}, ${TEL_OUTRO}, '11966660003', '11900001234')`,
   );
   for (const r of rows.rows as { id: string }[]) criados.add(r.id);
   for (const id of criados) {
@@ -313,6 +333,93 @@ async function main() {
     checa("não entra mais", r.status === 401);
     r = await new Cliente().req("POST", "/api/public/conta", { apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x", cep: CEP, nome: "Ana de Novo", telefone: TEL_NOVO, cpf: CPF_NOVO, senha: SENHA });
     checa("o mesmo telefone e CPF podem criar conta nova", r.status === 201, r.json?.message ?? "");
+
+    // ---- confirmar o telefone da própria conta, sem trocar a sessão ----
+    // `/conta/telefone/codigo` manda o código ao número gravado na conta (o
+    // corpo é ignorado) e `/confirmar` grava sem `regenerate`: o cookie é o
+    // mesmo, o "lembrar" fica e as outras sessões da conta saem.
+    console.log("\n  · confirmar o telefone da conta");
+    const sid = (cookie: string) => decodeURIComponent(cookie.split("=")[1] ?? "").replace(/^s:/, "").split(".")[0];
+    const lembrarDaSessao = async (cookie: string) => {
+      const rows = await db.execute(sql`select sess -> 'cookie' ->> 'originalMaxAge' as idade from sessions where sid = ${sid(cookie)}`);
+      return Number((rows.rows[0] as { idade?: string } | undefined)?.idade ?? 0);
+    };
+    const tc = new Cliente();
+    r = await tc.req("POST", "/api/public/conta", {
+      apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x",
+      cep: CEP,
+      nome: "Conta Que Confirma",
+      telefone: TEL_CONFIRMA,
+      cpf: CPF_CONFIRMA,
+      senha: SENHA,
+      lembrar: true,
+    });
+    checa("conta criada com senha, telefone não confirmado", r.status === 201 && r.json?.telefoneConfirmado === false, r.json?.message ?? "");
+    const cookieAntes = tc.cookie;
+    const lembrarAntes = await lembrarDaSessao(cookieAntes);
+    const outraSessao = new Cliente();
+    r = await outraSessao.req("POST", "/api/public/conta/entrar", { identificador: TEL_CONFIRMA, senha: SENHA });
+    checa("outra sessão da mesma conta aberta antes", r.status === 200, `HTTP ${r.status}`);
+
+    r = await tc.req("POST", "/api/public/conta/telefone/codigo", { telefone: TEL_OUTRO });
+    checa("pedir o código da conta", r.status === 200 && typeof r.json?.devCode === "string", r.json?.message ?? `HTTP ${r.status}`);
+    const codigoDaConta = String(r.json?.devCode ?? "");
+    const enviados = await db.execute(
+      sql`select "to" from notifications where template = 'codigo_acesso' and created_at > now() - interval '2 minutes' and params ->> 'codigo' = ${codigoDaConta}`,
+    );
+    const destinos = (enviados.rows as { to: string }[]).map((x) => x.to);
+    checa("o código vai ao telefone da conta, não ao do corpo", destinos.length === 1 && destinos[0] === TEL_CONFIRMA, destinos.join(","));
+
+    r = await tc.req("POST", "/api/public/conta/telefone/confirmar", { codigo: codigoDaConta === "000000" ? "111111" : "000000" });
+    checa("código errado: 401", r.status === 401, r.json?.message);
+    r = await tc.req("POST", "/api/public/conta/telefone/confirmar", { codigo: codigoDaConta });
+    checa("código certo confirma", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    const [confirmada] = await db.select().from(buyers).where(eq(buyers.phone, TEL_CONFIRMA));
+    if (confirmada) criados.add(confirmada.id);
+    checa("telefone_confirmado_em gravado, o número é o mesmo", Boolean(confirmada?.telefoneConfirmadoEm) && confirmada?.phone === TEL_CONFIRMA);
+    checa("a sessão é a mesma (mesmo rifa.sid)", sid(tc.cookie) === sid(cookieAntes) && sid(cookieAntes).length > 0);
+    r = await tc.req("GET", "/api/public/conta");
+    checa("e segue valendo, agora confirmada", r.status === 200 && r.json?.sessaoConfirmada === true, `HTTP ${r.status}`);
+    const lembrarDepois = await lembrarDaSessao(tc.cookie);
+    checa("o \"lembrar\" ficou", lembrarAntes > 0 && lembrarDepois === lembrarAntes, `${lembrarAntes} → ${lembrarDepois}`);
+    checa("a outra sessão da conta caiu", (await outraSessao.req("GET", "/api/public/conta")).status === 401);
+    r = await tc.req("POST", "/api/public/conta/telefone/codigo", {});
+    checa("pedir de novo com o telefone já confirmado: 409", r.status === 409, r.json?.message);
+
+    // Provar outro número pelo Minhas compras não troca o telefone da conta.
+    const tp = new Cliente();
+    r = await tp.req("POST", "/api/public/conta", {
+      apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x",
+      cep: CEP,
+      nome: "Conta Que Tenta Trocar",
+      telefone: TEL_TROCA,
+      cpf: CPF_TROCA,
+      senha: SENHA,
+    });
+    checa("segunda conta criada", r.status === 201, r.json?.message ?? "");
+    const cod2 = await tp.req("POST", "/api/public/my-quotas/request-code", { phone: TEL_OUTRO });
+    r = await tp.req("POST", "/api/public/conta/telefone/confirmar", { codigo: cod2.json?.devCode });
+    checa("número provado pelo Minhas compras não confirma a conta: 409", r.status === 409, r.json?.message);
+    const [semTroca] = await db.select().from(buyers).where(eq(buyers.phone, TEL_TROCA));
+    if (semTroca) criados.add(semTroca.id);
+    checa("o telefone da conta não mudou e segue sem confirmar", Boolean(semTroca) && !semTroca.telefoneConfirmadoEm);
+    checa("e a sessão segue de pé", (await tp.req("GET", "/api/public/conta")).status === 200);
+
+    // Dois cliques com o mesmo código: uma gravação, e nenhum dos dois é 500.
+    const cod3 = await tp.req("POST", "/api/public/conta/telefone/codigo", {});
+    const [c1, c2] = await Promise.all([
+      tp.req("POST", "/api/public/conta/telefone/confirmar", { codigo: cod3.json?.devCode }),
+      tp.req("POST", "/api/public/conta/telefone/confirmar", { codigo: cod3.json?.devCode }),
+    ]);
+    const [duplo] = await db.select().from(buyers).where(eq(buyers.phone, TEL_TROCA));
+    checa(
+      "dois cliques: um 200, o outro 200 (o mesmo sucesso) ou 400 (código já usado)",
+      [c1.status, c2.status].includes(200) && [c1.status, c2.status].every((s) => s === 200 || s === 400),
+      `${c1.status}/${c2.status}`,
+    );
+    checa("e a conta ficou confirmada, com o mesmo número", Boolean(duplo?.telefoneConfirmadoEm) && duplo?.phone === TEL_TROCA);
+    r = await tp.req("GET", "/api/public/conta");
+    checa("a sessão de quem clicou duas vezes ficou confirmada", r.status === 200 && r.json?.sessaoConfirmada === true, `HTTP ${r.status}`);
   } finally {
     await limpar();
   }

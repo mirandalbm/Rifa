@@ -134,6 +134,17 @@ export function problemaNoPagadorDoPagarme(p: { email?: string | null; phone?: s
 }
 
 export class ErroDoPagarme extends Error {
+  /** A chamada saiu e não houve resposta (rede caiu, prazo): o Pagar.me pode ter feito. */
+  semResposta = false;
+  /** O código HTTP da resposta de erro do Pagar.me, quando houve resposta. */
+  httpStatus?: number;
+  /**
+   * O pedido de devolução já tinha saído quando o erro aconteceu (sem
+   * resposta, erro 5xx de lá, ou a resposta não confere o valor): o dinheiro
+   * pode ter voltado. Quem chama **não** trata como recusa — não devolve de
+   * novo e pede conferência no painel do Pagar.me (`executarEstorno`).
+   */
+  depoisDeChamar = false;
   constructor(
     message: string,
     readonly status?: number,
@@ -141,6 +152,22 @@ export class ErroDoPagarme extends Error {
     super(message);
     this.name = "ErroDoPagarme";
   }
+}
+
+/** O erro com a marca de "depois de chamar" (ver `ErroDoPagarme.depoisDeChamar`). */
+function depoisDeChamar(err: ErroDoPagarme): ErroDoPagarme {
+  err.depoisDeChamar = true;
+  return err;
+}
+
+/**
+ * A consulta ao Pagar.me no webhook não respondeu (rede, prazo) ou respondeu
+ * erro do lado de lá (5xx): o webhook responde 503 com `Retry-After`, para o
+ * Pagar.me reenviar — um 400 ali podia encerrar os reenvios de um pagamento.
+ */
+export function consultaIndisponivel(err: unknown): boolean {
+  if (!(err instanceof ErroDoPagarme)) return false;
+  return err.semResposta || (err.httpStatus !== undefined && err.httpStatus >= 500);
 }
 
 export interface DadosDoPix {
@@ -273,6 +300,15 @@ export function estornadaInteira(c: { status: string; amountCents: number; pagoC
   return c.canceladoCents > 0 && c.canceladoCents >= (c.pagoCents ?? c.amountCents);
 }
 
+/**
+ * Contestação (MED, chargeback) cobrindo o pago? A mesma régua do estorno:
+ * o valor contestado/cancelado (`canceled_amount`) tem de cobrir o pago.
+ * **A confirmar**: em que campo o Pagar.me põe o valor contestado.
+ */
+export function contestacaoInteira(c: { status: string; amountCents: number; pagoCents: number | null; canceladoCents: number }): boolean {
+  return c.status === "chargedback" && c.canceladoCents > 0 && c.canceladoCents >= (c.pagoCents ?? c.amountCents);
+}
+
 /** Status da cobrança que ainda pode virar pago: o evento "pago" chegou antes da API. */
 export const STATUS_AINDA_PENDENTE = ["pending", "processing"] as const;
 
@@ -317,7 +353,9 @@ export function eventoDoPagarme(
     return "ignored";
   }
   if ((EVENTOS_DE_DEVOLUCAO as readonly string[]).includes(tipo)) {
-    if (c.status === "chargedback") return "refunded";
+    // A contestação só desfaz quando o contestado (cancelado) cobre o pago,
+    // como o estorno: a parcial vai ao log e espera a conferência à mão.
+    if (c.status === "chargedback") return contestacaoInteira(c) ? "refunded" : "ignored";
     return estornadaInteira(c) ? "refunded" : "ignored";
   }
   return "ignored";
@@ -410,16 +448,27 @@ export class PagarmeProvider implements PaymentProvider {
     } catch (err) {
       // Prazo ou rede: a mensagem do `fetch` nunca leva a chave (vai no cabeçalho).
       const prazo = (err as Error).name === "TimeoutError" || (err as Error).name === "AbortError";
-      throw new ErroDoPagarme(prazo ? "O Pagar.me não respondeu a tempo." : "Não foi possível falar com o Pagar.me.");
+      const e = new ErroDoPagarme(prazo ? "O Pagar.me não respondeu a tempo." : "Não foi possível falar com o Pagar.me.");
+      e.semResposta = true;
+      throw e;
     }
-    const corpo = await res.text();
+    let corpo: string;
+    try {
+      corpo = await res.text();
+    } catch {
+      const e = new ErroDoPagarme("A resposta do Pagar.me foi cortada no meio.");
+      e.semResposta = true;
+      throw e;
+    }
     if (!res.ok) {
       // Dado do cliente recusado (e-mail, documento, telefone): o comprador lê o que fazer.
       if (dadosDoCliente && (res.status === 422 || res.status === 400)) {
         console.error(`[pagarme] ${erroDoPagarme(res.status, corpo)}`);
         throw new ErroDoPagarme("O Pagar.me recusou os dados de quem paga: confira o nome, o e-mail, o CPF e o telefone.", 400);
       }
-      throw new ErroDoPagarme(erroDoPagarme(res.status, corpo));
+      const e = new ErroDoPagarme(erroDoPagarme(res.status, corpo));
+      e.httpStatus = res.status;
+      throw e;
     }
     try {
       return (corpo ? JSON.parse(corpo) : {}) as T;
@@ -485,7 +534,19 @@ export class PagarmeProvider implements PaymentProvider {
     if (!idDeCobrancaValido(id)) throw new ErroDoPagarme("Webhook do Pagar.me sem cobrança.");
 
     // O corpo não diz se foi pago — quem diz é a API, consultada por nós.
-    const c = await this.cobranca(id);
+    let c: Awaited<ReturnType<PagarmeProvider["cobranca"]>>;
+    try {
+      c = await this.cobranca(id);
+    } catch (err) {
+      // A API de lá fora do ar (rede, prazo, 5xx): 503, para o reenvio não parar.
+      if (consultaIndisponivel(err)) {
+        throw new ErroDoPagarme("Não foi possível consultar a cobrança no Pagar.me agora.", 503);
+      }
+      throw err;
+    }
+    if (c.status === "chargedback" && !contestacaoInteira(c)) {
+      console.warn(`[pagarme] cobrança ${c.id} contestada em parte (${c.canceladoCents} de ${c.pagoCents ?? c.amountCents}): ignorada, conferir à mão.`);
+    }
     if (c.status === "underpaid") {
       // Pagou a menos: não vira cota (o rateio e o bilhete são do valor
       // cheio). Fica no log para a plataforma devolver à mão. A confirmar se
@@ -511,25 +572,35 @@ export class PagarmeProvider implements PaymentProvider {
     if (amountCents !== undefined && (!Number.isInteger(amountCents) || amountCents <= 0)) {
       throw new ErroDoPagarme("Valor do estorno inválido.");
     }
-    // Total sem corpo; parcial com o valor em centavos. **A confirmar**: o
-    // campo `amount` no corpo do `DELETE /charges/{id}` (a documentação diz
-    // que o estorno pode ser parcial, mas o exemplo do corpo não veio).
-    // O parcial lê o cancelado antes, para conferir depois que saiu
-    // exatamente o pedido: um Pagar.me que ignorasse o `amount` devolveria a
-    // cobrança inteira calado (no carrinho, o dinheiro das outras rifas).
-    const antes = amountCents !== undefined ? (await this.cobranca(chargeId)).canceladoCents : 0;
-    const resposta = await this.api<unknown>(`/charges/${chargeId}`, {
-      method: "DELETE",
-      ...(amountCents !== undefined ? { body: JSON.stringify({ amount: amountCents }) } : {}),
-      idempotencia: chaveDoEstorno(chargeId, amountCents, chave),
-    });
-    if (amountCents !== undefined) {
-      const problema = problemaNoEstornoParcial(amountCents, antes, resposta);
-      if (problema) {
-        console.error(`[pagarme] estorno parcial da cobrança ${chargeId}: ${problema}`);
-        throw new ErroDoPagarme(problema);
+    // A cobrança travada durante o par consulta → DELETE: dois estornos da
+    // mesma cobrança do carrinho ao mesmo tempo não leem o mesmo "antes".
+    await comTravaDaCobranca(chargeId, async () => {
+      // O parcial lê o cancelado antes, para conferir depois que saiu
+      // exatamente o pedido: um Pagar.me que ignorasse o `amount` devolveria a
+      // cobrança inteira calado (no carrinho, o dinheiro das outras rifas).
+      // Total sem corpo; parcial com o valor em centavos. **A confirmar**: o
+      // campo `amount` no corpo do `DELETE /charges/{id}`.
+      const antes = amountCents !== undefined ? (await this.cobranca(chargeId)).canceladoCents : 0;
+      let resposta: unknown;
+      try {
+        resposta = await this.api<unknown>(`/charges/${chargeId}`, {
+          method: "DELETE",
+          ...(amountCents !== undefined ? { body: JSON.stringify({ amount: amountCents }) } : {}),
+          idempotencia: chaveDoEstorno(chargeId, amountCents, chave),
+        });
+      } catch (err) {
+        // Sem resposta ou erro do lado de lá: o pedido saiu e pode ter devolvido.
+        if (consultaIndisponivel(err)) throw depoisDeChamar(err as ErroDoPagarme);
+        throw err;
       }
-    }
+      if (amountCents !== undefined) {
+        const problema = problemaNoEstornoParcial(amountCents, antes, resposta);
+        if (problema) {
+          console.error(`[pagarme] estorno parcial da cobrança ${chargeId}: ${problema}`);
+          throw depoisDeChamar(new ErroDoPagarme(problema));
+        }
+      }
+    });
   }
 
   /**
@@ -540,12 +611,16 @@ export class PagarmeProvider implements PaymentProvider {
    * (`expires_at`); isto só fecha a cobrança no painel de lá.
    */
   async cancelCharge(chargeId: string): Promise<void | "paga"> {
-    const c = await this.cobranca(chargeId);
-    // Paga (o Pix chegou no limite e o aviso ainda não veio, ou se perdeu):
-    // quem chamou leva o Pix para a fila de devolução (`markOrderPaid`).
-    if ((STATUS_PAGO as readonly string[]).includes(c.status)) return "paga";
-    if (c.status !== "pending") return;
-    await this.api(`/charges/${chargeId}`, { method: "DELETE", idempotencia: `cancela-${chargeId}` });
+    // A mesma trava do estorno: a consulta e o cancelamento não se misturam
+    // com uma devolução da mesma cobrança.
+    return comTravaDaCobranca(chargeId, async () => {
+      const c = await this.cobranca(chargeId);
+      // Paga (o Pix chegou no limite e o aviso ainda não veio, ou se perdeu):
+      // quem chamou leva o Pix para a fila de devolução (`markOrderPaid`).
+      if ((STATUS_PAGO as readonly string[]).includes(c.status)) return "paga" as const;
+      if (c.status !== "pending") return;
+      await this.api(`/charges/${chargeId}`, { method: "DELETE", idempotencia: `cancela-${chargeId}` });
+    });
   }
 
   /** Só o id do evento, o tipo e a cobrança — nunca o cliente que vem em `data`. */
@@ -556,6 +631,29 @@ export class PagarmeProvider implements PaymentProvider {
   /** A régua de quem paga, antes de reservar: e-mail (até 64) e telefone no formato do Pagar.me. */
   problemaNoPagador(p: { email?: string | null; phone?: string | null }): string | null {
     return problemaNoPagadorDoPagarme(p);
+  }
+}
+
+/**
+ * Trava de sessão do Postgres por cobrança (`pagarme:<id>`), numa conexão do
+ * `poolDasTravas` — nunca do `pool` comum (CLAUDE.md, a regra das travas):
+ * a trava fica presa enquanto o trabalho fala com o Pagar.me. Solta no
+ * `finally`. O banco entra só aqui, carregado na hora: as regras puras deste
+ * arquivo seguem testáveis sem banco.
+ */
+async function comTravaDaCobranca<T>(chargeId: string, fn: () => Promise<T>): Promise<T> {
+  const { poolDasTravas } = await import("../db");
+  const conexao = await poolDasTravas.connect();
+  const chave = `pagarme:${chargeId}`;
+  try {
+    await conexao.query("SELECT pg_advisory_lock(hashtext($1))", [chave]);
+    try {
+      return await fn();
+    } finally {
+      await conexao.query("SELECT pg_advisory_unlock(hashtext($1))", [chave]);
+    }
+  } finally {
+    conexao.release();
   }
 }
 

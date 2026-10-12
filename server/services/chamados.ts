@@ -57,6 +57,13 @@ import { orgOf } from "./orgs";
 import { paymentProviderByName } from "../payments";
 import { avisarDisputa, avisarReembolso, emSegundoPlano } from "./push";
 
+/**
+ * `formaDevolucao` do chamado cujo estorno saiu para o provedor e não foi
+ * confirmado (sem resposta, ou o valor devolvido não confere): estornado,
+ * sem nova devolução e sem nada desfeito no sistema, até conferir no provedor.
+ */
+export const FORMA_A_CONFERIR = "conferir_no_provedor";
+
 export class ChamadoError extends Error {
   constructor(message: string, readonly status = 400) {
     super(message);
@@ -726,6 +733,23 @@ export async function executarEstorno(req: Request, id: string, opcoes: { falhaD
       }
     }
   } catch (err) {
+    if ((err as { depoisDeChamar?: boolean }).depoisDeChamar) {
+      // O pedido de devolução já tinha saído (sem resposta, erro do lado de
+      // lá, ou o valor devolvido não confere): o dinheiro pode ter voltado.
+      // Voltar a aprovado seria a segunda devolução no próximo clique — o
+      // chamado fica tomado (estornado), marcado para conferir no provedor, e
+      // nada é desfeito no sistema até alguém conferir (como o Pix tardio
+      // que fica em "devolvendo").
+      await db.update(chamados).set({ formaDevolucao: FORMA_A_CONFERIR }).where(eq(chamados.id, c.id));
+      console.error(`[chamados] estorno do chamado ${tomado.protocolo} a conferir no provedor: ${(err as Error).message}`);
+      throw new ChamadoError(
+        `O provedor recebeu o pedido de devolução, mas não confirmou o valor (${(err as Error).message}). ` +
+          "Confira a cobrança no painel do provedor antes de qualquer coisa: o chamado fica como estornado, sem nova devolução, e nada foi desfeito no sistema.",
+        // 409, não 5xx: a mensagem precisa chegar à tela (o tratador geral troca
+        // todo 5xx por "erro interno"), e o chamado está num estado que pede ação.
+        409,
+      );
+    }
     // Provedor recusou: nada foi devolvido, então o chamado volta a aprovado.
     await db.update(chamados).set({ status: "aprovado", estornadoEm: null, falhaPlataforma: false }).where(eq(chamados.id, c.id));
     throw new ChamadoError(`O provedor recusou a devolução: ${(err as Error).message}`, 502);

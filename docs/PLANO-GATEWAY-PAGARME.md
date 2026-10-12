@@ -122,16 +122,28 @@ No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
   (`qrcode`), sem depender do `qr_code_url` de lá.
 - **Webhook**: `/api/webhooks/pagarme?t=<PAGARME_WEBHOOK_TOKEN>`, o segredo
   comparado em tempo constante (sem ele ou errado, **401**). O status vem
-  sempre de `GET /charges/{id}`: `charge.paid` só paga com a cobrança `paid`
-  (pendente na API: a entrega é recusada, 400, para o Pagar.me tentar de
-  novo — nada pago); `charge.refunded` só estorna com a cobrança estornada
-  inteira; o resto (inclusive `charge.partial_canceled`) é ignorado. A chave
-  da idempotência é o id do evento (`hook_…`).
+  sempre de `GET /charges/{id}`: `charge.paid`/`charge.overpaid` só pagam com
+  a cobrança `paid` ou `overpaid` (pendente na API: **503 com
+  `Retry-After`**, para o Pagar.me tentar de novo — nada pago); `underpaid`
+  vai ao log e é ignorado; `charge.refunded` só estorna com a cobrança
+  estornada inteira (com `canceled_amount` cobrindo o pago — sem o valor,
+  nada); `charge.chargedback` com a API dizendo `chargedback` vira estorno
+  (MED e contestação são registrados sempre); o resto (inclusive
+  `charge.partial_canceled`) é ignorado. A chave da idempotência é o id do
+  evento (`hook_…`), e `webhook_events` guarda só `{ id, type, data: { id } }`
+  — o `data` de lá traz o cliente.
 - **Estorno**: `DELETE /charges/{id}`, total sem corpo e parcial com
   `{ amount }` em centavos, com a chave `estorno-<cobrança>-<quem>-<valor>`.
+  O parcial lê o `canceled_amount` antes e o da resposta: devolveu outro
+  valor (ou tudo), é erro e nada é desfeito aqui.
 - **Cancelamento da reserva vencida**: consulta a cobrança e só cancela a
-  `pending`; a paga fica como está (o Pix tardio segue para a fila de
-  devolução).
+  `pending`; a paga fica como está e volta `"paga"` — o relógio
+  (`expirarReservas()`) leva o pedido vencido à fila do Pix tardio, mesmo
+  sem o webhook.
+- **Quem paga, antes de reservar**: o e-mail (até 64 letras, nunca cortado)
+  e o telefone no formato do Pagar.me, no pedido, no carrinho, na recarga e
+  no Pix do assistente (sem WhatsApp no acesso, o telefone aprovado da
+  organização); a recarga recusada pelo provedor não fica órfã.
 - **E-mail obrigatório** com o Pagar.me: conferido no servidor antes de
   reservar (pedido e carrinho) e antes de gravar (recarga do patrocínio e Pix
   do assistente, com o e-mail do acesso). A tela de compra (página da rifa e
@@ -157,11 +169,24 @@ provedor no painel):
    parcial (a documentação diz que pode ser parcial, mas o exemplo não veio).
 5. O nome do cabeçalho de idempotência do v5 (usamos `Idempotency-Key`) e
    por quanto tempo a chave vale.
-6. O formato do `expires_at` (a documentação mostra `YYYY-MM-DDThh:mm:ss`,
-   UTC, sem o `Z`; mandamos assim).
+6. O formato e o **fuso** do `expires_at` (a documentação mostra
+   `YYYY-MM-DDThh:mm:ss`, UTC, sem o `Z`; mandamos assim). Conferir no
+   primeiro Pix de teste: se o Pagar.me ler sem o `Z` como Brasília, o QR
+   vive **3 h a mais que a reserva** (e o Pix pago nesse tempo vai para a
+   fila do Pix tardio). Se a documentação disser que aceita o `Z`, mandar com
+   ele.
 7. `phones.mobile_phone` (o exemplo do Pix usa `home_phone`) e o tamanho
-   máximo de `code`, `name` e `email`.
+   máximo de `code`, `name` e `email` (o e-mail acima de 64 é recusado antes
+   de reservar: `EMAIL_MAX_DO_PAGARME`).
 8. Se o Pagar.me reenvia o webhook quando a resposta não é 2xx, e por quanto
    tempo — a recusa do "pago com a cobrança pendente" depende disso.
 9. A autenticação do webhook (seção 3, item 6): se vier assinatura, ela
    entra junto com o segredo do endereço.
+10. A contestação: o nome do evento (`charge.chargedback`, que a
+    documentação diz dar lugar a `chargeback.received`, cujo corpo traz a
+    contestação e não a cobrança) e o status `chargedback` da cobrança.
+11. `overpaid` e `underpaid` numa cobrança Pix (o valor é fixo no QR): o
+    `overpaid` paga, o `underpaid` vai ao log (`[pagarme]`) e espera a
+    devolução à mão.
+12. A resposta do `DELETE` (o `canceled_amount` e o `last_transaction.amount`
+    da devolução), que o estorno parcial confere.

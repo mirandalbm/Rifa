@@ -93,7 +93,7 @@ arquitetura.
 | mexer em reserva/alocação | `server/services/quotas.ts` |
 | cartelas da compra rápida e mapa de números | `sugerirCartelas()` em `server/services/quotas.ts`, `client/src/components/Cartelas.tsx`, `client/src/pages/Rifa.tsx`, o quadriculado em `client/src/lib/quadro.ts` e `.quadro` em `client/src/index.css` |
 | mexer no fluxo do pedido | `server/services/orders.ts` |
-| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`: `PROVEDORES_PIX`, `CREDENCIAIS_PROVEDOR`, `EXIGE_CPF`, `EXIGE_EMAIL`); o Pagar.me (fase 1, sem split) em `server/payments/pagarme.ts`, `scripts/pagarme-test.ts` (`npm run pagarme`), `tests/pagarme.test.ts`, `docs/PLANO-GATEWAY-PAGARME.md` |
+| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`: `PROVEDORES_PIX`, `CREDENCIAIS_PROVEDOR`, `EXIGE_CPF`, `EXIGE_EMAIL`); o Pagar.me (fase 1, sem split) em `server/payments/pagarme.ts`, o relógio da reserva vencida que cancela a cobrança e leva a já paga à fila do Pix tardio em `server/services/reservasVencidas.ts`, `scripts/pagarme-test.ts` (`npm run pagarme`), `tests/pagarme.test.ts`, `docs/PLANO-GATEWAY-PAGARME.md` |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
 | sorteio | `server/services/draw.ts` (a conta), `server/services/sortear.ts` (`executarSorteio`: travas, recusas, avisos — o botão do painel e o sorteio automático), `entropiaDoSorteio()` em `shared/sorteio.ts` |
 | segundo fator (e o segredo selado no cofre) | `server/services/totp.ts`, `server/services/segundoFator.ts`, `scripts/senha-test.ts` |
@@ -1791,23 +1791,46 @@ permite cobrar dela depois, e o aceite é a prova.
     comparado em tempo constante — sem ele ou errado, **401** (o roteador
     passa a consulta ao provedor e responde 401 só ao erro com esse status).
     O status vem **sempre da consulta** (`GET /charges/{id}`): `charge.paid`
-    com a cobrança ainda pendente na API é recusado (400, o Pagar.me tenta de
-    novo; nada é pago), `charge.refunded` só estorna com a cobrança estornada
-    inteira, e `charge.partial_canceled` e o resto são ignorados (a devolução
-    parcial é sempre nossa, pelo chamado). A chave é o id do evento (`hook_…`).
+    (e `charge.overpaid`) com a cobrança ainda pendente na API é recusado com
+    **503 e `Retry-After`**, como o "em andamento" (o Pagar.me tenta de novo;
+    nada é pago, e um 200 ali encerraria os reenvios); paga a cobrança `paid`
+    ou `overpaid` (entrou pelo menos o valor); `underpaid` vai ao log
+    (`[pagarme]`) e é ignorado. `charge.refunded` só estorna com a cobrança
+    estornada inteira — `refunded`/`canceled` **com** `canceled_amount`
+    cobrindo o pago; sem o valor, na dúvida, nada. **A contestação (MED,
+    chargeback) é registrada sempre** (`charge.chargedback`, só com a API
+    dizendo `chargedback`): vira estorno, como no Asaas. `charge.partial_canceled`
+    e o resto são ignorados (a devolução parcial é sempre nossa, pelo
+    chamado). A chave é o id do evento (`hook_…`). **Do corpo, só o id, o
+    tipo e a cobrança ficam em `webhook_events`** (`payloadParaGuardar()`):
+    o `data` do Pagar.me traz o cliente (nome, e-mail, documento, telefone).
   - **Cancelar é a mesma rota do estorno** (`DELETE /charges/{id}`): por isso
-    `cancelCharge` consulta antes e **só cancela a cobrança pendente** — a
-    paga fica, e o Pix que chegou tarde vai para a fila de devolução. O
-    estorno manda o valor em centavos quando é parcial e a chave de
-    idempotência derivada da chave do caso e do valor.
+    `cancelCharge` consulta antes e **só cancela a cobrança pendente**. A paga
+    fica e volta `"paga"`: o relógio da reserva vencida
+    (`expirarReservas()` em `server/services/reservasVencidas.ts`) chama
+    `markOrderPaid`, que leva o pedido vencido à fila do Pix tardio — mesmo
+    que o webhook nunca chegue. O estorno manda o valor em centavos quando é
+    parcial e a chave de idempotência derivada da chave do caso e do valor; o
+    **parcial é conferido** (o cancelado antes e o da resposta,
+    `problemaNoEstornoParcial()`): o Pagar.me que devolvesse outro valor (ou
+    tudo, ignorando o `amount`) vira erro, e o chamado volta a aprovado.
   - **E-mail obrigatório quando o provedor exige** (`EXIGE_EMAIL`, como o
-    `EXIGE_CPF`): conferido no servidor **antes de reservar** (pedido avulso
-    e carrinho, `conferirEmailDoPix()` em `services/orders.ts`) e antes de
-    gravar a recarga do patrocínio e o Pix do assistente (o e-mail do acesso).
+    `EXIGE_CPF`), e no Pagar.me **o e-mail até 64 letras e o telefone com
+    DDD no formato dele** (`problemaNoPagador()` do provedor — e-mail maior é
+    recusado, nunca cortado): conferidos no servidor **antes de reservar** e
+    do antifraude (pedido avulso e carrinho, `conferirPagadorDoPix()` em
+    `services/orders.ts`) e antes de gravar a recarga do patrocínio e o Pix
+    do assistente (o e-mail e o WhatsApp do acesso; sem WhatsApp, o telefone
+    aprovado da organização). A recarga que o provedor recusa não fica órfã.
     Dentro da conta, vale o e-mail dela. `GET /api/public/checkout` diz
     `exigeEmail` e só se a conta já tem e-mail (`contaTemEmail`), nunca o
     e-mail. A tela de compra (página da rifa e carrinho) pede o e-mail só
-    quando o provedor exige, e a conta que já tem e-mail não digita.
+    quando o provedor exige, e a conta que já tem e-mail não digita; a dica
+    diz quem vê ("Só a plataforma, o banco e, se você ganhar, a promotora
+    veem"), nunca "não aparece para ninguém".
+  - **O `expires_at` vai sem o `Z`**, como a documentação mostra (UTC): o
+    primeiro Pix de teste confere o fuso — lido como Brasília, o QR viveria
+    3 h a mais que a reserva (`docs/PENDENCIAS.md`).
   - O que não teve fonte oficial está marcado **a confirmar** no código e na
     seção 6 do plano. `npm run pagarme` prova tudo isso contra um Pagar.me de
     mentira (porta 5095) e `tests/pagarme.test.ts` as regras.

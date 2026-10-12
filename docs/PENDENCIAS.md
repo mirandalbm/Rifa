@@ -128,6 +128,10 @@ senha); **[código]** é trabalho no repositório.
   `charge.paid`, `charge.refunded` e `charge.partial_canceled`. Fazer um Pix
   de teste no ambiente de teste (sdx) antes de escolher o provedor no painel,
   conferindo os itens "a confirmar" do plano.
+  **Conferir o fuso do `expires_at`** nesse primeiro Pix: mandamos sem o `Z`,
+  como a documentação mostra (UTC); se o Pagar.me o ler como Brasília, o QR
+  vive 3 h a mais que a reserva. Se a documentação aceitar o `Z`, passe a
+  mandar com ele (`venceEmDoPagarme()` em `server/payments/pagarme.ts`).
 - [ ] **[código]** Repasse à promotora (a fase que substitui o split): espera
   a resposta do advogado (item acima). Asaas e Mercado Pago (abaixo) ficam no
   código até o Pagar.me estar em produção. Pela busca, o Asaas põe loterias

@@ -22,7 +22,7 @@ export default function EstadoPage() {
   });
 
   const voltar = (
-    <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+    <Link href="/" className="inline-flex items-center gap-1.5 py-0.5 text-sm text-ink-2 hover:text-ink">
       <ArrowLeft size={14} aria-hidden /> Todo o Brasil
     </Link>
   );

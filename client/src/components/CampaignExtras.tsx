@@ -117,8 +117,10 @@ export function CampaignExtras({
           </p>
 
           {packages.map((p, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <label htmlFor={`pkg-qty-${i}`} className="label-xs w-16">
+            // No celular a linha quebra (destaque e o "−" descem); do tablet em
+            // diante cabe inteira. Sem a quebra, o "−" saía do cartão em 390 px.
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <label htmlFor={`pkg-qty-${i}`} className="label-xs w-16 shrink-0">
                 cotas
               </label>
               <input
@@ -131,9 +133,9 @@ export function CampaignExtras({
                   next[i] = { ...p, quantity: Number(e.target.value) };
                   setPackages(next);
                 }}
-                className="tnum w-24 rounded-md border border-line-2 px-2 py-1.5 text-sm"
+                className="tnum w-20 rounded-md border border-line-2 px-2 py-1.5 text-sm sm:w-24"
               />
-              <label htmlFor={`pkg-pct-${i}`} className="label-xs">
+              <label htmlFor={`pkg-pct-${i}`} className="label-xs whitespace-nowrap">
                 desconto %
               </label>
               <input
@@ -147,9 +149,9 @@ export function CampaignExtras({
                   next[i] = { ...p, discountPct: Number(e.target.value) };
                   setPackages(next);
                 }}
-                className="tnum w-20 rounded-md border border-line-2 px-2 py-1.5 text-sm"
+                className="tnum w-16 rounded-md border border-line-2 px-2 py-1.5 text-sm sm:w-20"
               />
-              <label className="flex items-center gap-1 text-xs text-muted">
+              <label className="flex items-center gap-1 whitespace-nowrap text-xs text-muted">
                 <input
                   type="checkbox"
                   checked={p.highlight}
@@ -165,7 +167,7 @@ export function CampaignExtras({
               </label>
               <Button
                 variant="ghost"
-                className="px-2 py-1 text-xs"
+                className="ml-auto px-2 py-1 text-xs"
                 onClick={() => setPackages(packages.filter((_, j) => j !== i))}
               >
                 −

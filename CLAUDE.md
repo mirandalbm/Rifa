@@ -190,6 +190,7 @@ arquitetura.
 | campo de digitar (classe `.campo`, componente `Campo` com rótulo, dica e erro) | `.campo` em `client/src/index.css`, `Campo` em `client/src/components/bits.tsx`, `tests/pecas.test.ts` |
 | janela sobre a tela (sobe de baixo, Esc, fundo, rolagem travada) | `client/src/components/Janela.tsx`, regra 14 de `docs/VERSOES.md`, `tests/pecas.test.ts` |
 | casca dos painéis (menu lateral em grupos, barra de cima, busca, conta, rodapé) e as peças do kit | `MENUS`/`menuDe()` em `shared/access.ts`, `PanelShell` em `client/src/components/AppShell.tsx`, `client/src/components/painel.tsx` (`Estatistica`, `CartaoDoPainel`, `CabecalhoDaTabela`, `AlternarVisao`), `.painel`/`.cartao` em `client/src/index.css`, `tests/menu.test.ts` |
+| o kit congelado da reformulação (botão com tons, pílula, `Filtros`, `Caixa`, estatística, cartão, cabeçalho de tabela, campo) e o destino de cada tela, seção e cartão | `client/src/components/bits.tsx`, `painel.tsx`, `.campo` em `index.css`, `tests/kit.test.ts`; `docs/reformulacao-destinos.json` (todos preenchidos: `DESTINOS_CONGELADOS` em `tests/matrizReformulacao.test.ts`); o desenho é a página "00 · Fundamentos" do Figma e a base "14 · Especificação por tela" no Notion |
 | remodelagem do web e dos painéis: inventário do que existe e lista de conferência | `docs/REMODELAGEM.md` |
 | reformulação dos painéis (plano e cronograma; a matriz de cobertura gerada do código — telas, seções, cartões, rotas da API e a prova de cada uma; o destino de cada coisa na tela nova) | `docs/PLANO-REFORMULACAO.md`, `docs/REFORMULACAO-MATRIZ.md` (**gerada: `npm run matriz`, nunca à mão**), `docs/reformulacao-destinos.json` (o destino, que a fase 2 preenche; `npm run matriz -- --destinos` acrescenta o que for novo), `scripts/matriz.ts`, `tests/matrizReformulacao.test.ts` (falha se a matriz ficar velha ou se tela, seção ou cartão novo não tiver linha de destino) |
 | selo "ao vivo" no story (anel com a transmissão do sorteio) | `transmissaoNoAr()` em `shared/aoVivo.ts` (regra), `transmissoesNoAr()` em `server/services/aoVivo.ts`, `perfisComStory()` e `perfilPublico()` em `server/services/perfil.ts`, `FotoComStory`/`VisualizadorDeStories` em `client/src/components/Stories.tsx`, `tests/seloAoVivo.test.ts`, `scripts/vitrine-test.ts` |
@@ -755,6 +756,18 @@ O verde da marca entra no lugar do roxo do kit; o significado das cores
   `/admin/organizacoes?aberta=`, `/admin/afiliados?q=` e
   `/admin/usuarios?q=`), e `/orders` filtra pelos dois parâmetros
   com o mesmo recorte. `npm run isolation` confere o conteúdo.
+- **O kit é o kit congelado da reformulação** (Figma "00 · Fundamentos";
+  `docs/PLANO-REFORMULACAO.md`, fase 5, onda 1): botão com os tons
+  `primario`, `branco`, `claro`, `contorno`, `cinza` e `azul` (40 px, cantos
+  de 8, Inter Semi Bold 13, ícone opcional — `primary`, `ghost` e `yellow`
+  seguem como apelidos), pílula com o ponto de 6 px, `Filtros` (as fichas de
+  filtro: a acesa em verde cheio, o estado em `aria-pressed` ou, com
+  `exclusivo`, `aria-checked`), `Caixa` (caixa de marcar com a explicação
+  embaixo), estatística com o quadrado do ícone de 44 px, cartão com o título
+  de 16 Semi Bold, cabeçalho de tabela de 10 em maiúsculas, campo de 40 px com
+  cantos de 8. **Tela nova usa a peça; nunca monta a cópia** —
+  `tests/kit.test.ts` segura as medidas e reprova a ficha de filtro feita à
+  mão. Mudar uma medida é mudar o Figma e a base do Notion primeiro.
 - **As regras visuais só valem dentro de `.painel`** (`index.css`): Inter
   nos títulos também (a loja segue com a Bricolage), fundo `--painel`
   (`bg-painel`) e o cartão `.cartao` sem borda, cantos de 10 px e a sombra do

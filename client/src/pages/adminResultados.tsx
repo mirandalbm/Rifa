@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Card, Empty, Kpi } from "@/components/bits";
+import { Card, Empty, Filtros, Kpi } from "@/components/bits";
 import { useSession } from "@/lib/session";
 import { formatBRL, groupNumber } from "@shared/format";
 import { PERIODOS, type Periodo } from "@shared/resultados";
@@ -54,20 +54,13 @@ export function AdminResultados() {
     <PanelShell title="Resultados">
       {/* Filtros numa linha só, acima de tudo. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div role="radiogroup" aria-label="Período" className="inline-flex rounded-md border border-line p-0.5">
-          {PERIODOS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="radio"
-              aria-checked={dias === p}
-              onClick={() => setDias(p)}
-              className={`tnum rounded px-3 py-1 text-sm ${dias === p ? "bg-mist-2 font-semibold text-ink" : "text-muted hover:text-ink"}`}
-            >
-              {p} dias
-            </button>
-          ))}
-        </div>
+        <Filtros
+          exclusivo
+          rotulo="Período"
+          ativa={String(dias)}
+          aoMudar={(v) => setDias(Number(v) as Periodo)}
+          opcoes={PERIODOS.map((p) => ({ valor: String(p), rotulo: <span className="tnum">{p} dias</span> }))}
+        />
         {plataforma ? (
           <select
             value={organizacao}

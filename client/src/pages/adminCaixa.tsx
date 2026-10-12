@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
 import { CabecalhoDaTabela, CartaoDoPainel } from "@/components/painel";
-import { Empty } from "@/components/bits";
+import { Empty, Filtros } from "@/components/bits";
 import { TIPOS_DA_CAIXA, contarPorTipo, destinoDaPendencia, type PendenciaDaCaixa, type TipoDaCaixa } from "@shared/caixa";
 
 const TOM = { red: "bg-red-soft text-red", yellow: "bg-yellow-soft text-yellow-deep", green: "bg-green-soft text-green-deep" } as const;
@@ -32,27 +32,15 @@ export function AdminCaixa() {
   return (
     <PanelShell title="Caixa de entrada">
       <CartaoDoPainel titulo="Esperando a plataforma" subtitulo="Disputas e denúncias primeiro; dentro de cada grupo, o mais antigo.">
-        <div role="group" aria-label="Filtrar por tipo" className="flex gap-2 overflow-x-auto px-5 pb-4">
-          {(["tudo", ...(Object.keys(TIPOS_DA_CAIXA) as TipoDaCaixa[])] as const).map((t) => {
-            const n = t === "tudo" ? data.length : (contagem[t] ?? 0);
-            if (t !== "tudo" && !n) return null;
-            const aceso = tipo === t;
-            return (
-              <button
-                key={t}
-                type="button"
-                aria-pressed={aceso}
-                onClick={() => setTipo(t)}
-                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${
-                  aceso ? "bg-green font-semibold text-on-green" : "text-ink-2 hover:bg-mist-2"
-                }`}
-              >
-                {t === "tudo" ? "Tudo" : TIPOS_DA_CAIXA[t].rotulo}
-                <span className="tnum text-xs opacity-80">{n}</span>
-              </button>
-            );
-          })}
-        </div>
+        <Filtros<TipoDaCaixa | "tudo">
+          rotulo="Filtrar por tipo"
+          className="px-5 pb-4"
+          ativa={tipo}
+          aoMudar={setTipo}
+          opcoes={(["tudo", ...(Object.keys(TIPOS_DA_CAIXA) as TipoDaCaixa[])] as const)
+            .map((t) => ({ valor: t, rotulo: t === "tudo" ? "Tudo" : TIPOS_DA_CAIXA[t].rotulo, extra: t === "tudo" ? data.length : (contagem[t] ?? 0) }))
+            .filter((o) => o.valor === "tudo" || o.extra)}
+        />
         {isLoading ? (
           <Empty>Carregando…</Empty>
         ) : linhas.length === 0 ? (

@@ -5,7 +5,7 @@
  * imagem e dinheiro. Três cuidados que valem para tudo abaixo:
  *
  * 1. **Quem decide é o índice.** Um chamado em andamento por pedido
- *    (`uq_chamados_pedido_em_andamento`) e protocolo que não repete
+ *    (`uq_chamados_pedido_aberto`) e protocolo que não repete
  *    (`uq_chamados_protocolo`) — nenhuma consulta "já existe?" antes.
  * 2. **Recorte por organização** em toda leitura do painel, e 404 (não 403)
  *    para chamado de outra organização ou de outro comprador.
@@ -19,6 +19,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
 import {
+  auditLog,
   buyers,
   campaigns,
   chamadoAnexos,
@@ -32,6 +33,8 @@ import {
   ANEXO_MAX_BYTES,
   CHAMADOS_POR_DIA,
   DIREITO_DO_CONSUMIDOR,
+  FORMA_A_CONFERIR,
+  FORMA_DEVOLVENDO,
   bloqueioDaDisputa,
   bloqueioDoReembolso,
   destinatariosDoAviso,
@@ -53,16 +56,35 @@ import { isUniqueViolation } from "../pgError";
 import { getPlataforma } from "./settings";
 import { hit } from "./antifraude";
 import { adiadoEmSql, refundOrder } from "./orders";
-import { orgOf } from "./orgs";
+import { isPlatform, orgOf } from "./orgs";
 import { paymentProviderByName } from "../payments";
 import { avisarDisputa, avisarReembolso, emSegundoPlano } from "./push";
 
+export { FORMA_A_CONFERIR, FORMA_DEVOLVENDO };
+
+/** A devolução que ficou no meio do caminho (o processo caiu) também vira conferência depois deste prazo. */
+export const DEVOLVENDO_PARADO_MIN = 10;
+
 /**
- * `formaDevolucao` do chamado cujo estorno saiu para o provedor e não foi
- * confirmado (sem resposta, ou o valor devolvido não confere): estornado,
- * sem nova devolução e sem nada desfeito no sistema, até conferir no provedor.
+ * O chamado espera a conferência da plataforma: a conferir, ou a devolução
+ * parada no meio do caminho há mais de `DEVOLVENDO_PARADO_MIN`. Em SQL, sobre
+ * a tabela `chamados` com o apelido dado.
  */
-export const FORMA_A_CONFERIR = "conferir_no_provedor";
+export function aConferirSql(apelido = "chamados") {
+  const t = sql.raw(apelido);
+  return sql`(${t}.status = 'estornado' AND (${t}.forma_devolucao = ${FORMA_A_CONFERIR} OR (${t}.forma_devolucao = ${FORMA_DEVOLVENDO} AND ${t}.estornado_em < now() - make_interval(mins => ${DEVOLVENDO_PARADO_MIN}))))`;
+}
+
+/**
+ * A comissão do pedido com a devolução no meio do caminho ou a conferir não
+ * é liberada (`pending` → `available`): o dinheiro pode ter voltado. Em SQL,
+ * para o `WHERE` da liberação, numa consulta sobre `commissions`.
+ */
+export function comissaoSemDevolucaoAConferirSql() {
+  // A coluna de fora com o nome da tabela: sem ele, `order_id` dentro da
+  // subconsulta seria o da própria `chamados` (CLAUDE.md, "Vitrine").
+  return sql`NOT EXISTS (SELECT 1 FROM chamados ch WHERE ch.order_id = "commissions"."order_id" AND ch.status = 'estornado' AND ch.forma_devolucao IN (${FORMA_DEVOLVENDO}, ${FORMA_A_CONFERIR}))`;
+}
 
 export class ChamadoError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -258,7 +280,7 @@ export async function abrirChamado(
       });
       return chamado;
     } catch (err) {
-      if (isUniqueViolation(err, "uq_chamados_pedido_em_andamento")) {
+      if (isUniqueViolation(err, "uq_chamados_pedido_aberto")) {
         throw new ChamadoError("Já existe um pedido de reembolso em andamento para esta compra.", 409);
       }
       if (!isUniqueViolation(err, "uq_chamados_protocolo")) throw err;
@@ -338,6 +360,8 @@ export async function chamadosDoComprador(buyerId: string) {
       prazoEstornoAte: chamados.prazoEstornoAte,
       disputa: chamados.disputa,
       createdAt: chamados.createdAt,
+      // Só para a situação em texto ("devolução em conferência").
+      formaDevolucao: chamados.formaDevolucao,
     })
     .from(chamados)
     .innerJoin(orders, eq(orders.id, chamados.orderId))
@@ -400,6 +424,7 @@ export async function chamadoDoComprador(buyerId: string, id: string) {
     devolverCents: c.chamado.devolverCents,
     disputa: c.chamado.disputa,
     disputaDecisao: c.chamado.disputaDecisao,
+    formaDevolucao: c.chamado.formaDevolucao,
     // A tela mostra o botão com a mesma régua que o servidor aplica.
     podeDisputar: bloqueio === null,
     disputaBloqueio: c.chamado.disputa ? null : bloqueio,
@@ -511,7 +536,9 @@ export async function listarChamados(req: Request, status?: string) {
     org ? eq(chamados.organizationId, org) : undefined,
     status === "disputa"
       ? eq(chamados.disputa, "aberta")
-      : status && ["aberto", "aprovado", "recusado", "estornado"].includes(status)
+      : status === "a_conferir"
+        ? aConferirSql()
+        : status && ["aberto", "aprovado", "recusado", "estornado"].includes(status)
         ? eq(chamados.status, status as "aberto")
         : undefined,
   ].filter(Boolean);
@@ -528,6 +555,7 @@ export async function listarChamados(req: Request, status?: string) {
       nome: sql<string>`${nomeNoPainelSql(clienteVisivelSql(org, "orders"), "buyers")}`,
       prazoEstornoAte: chamados.prazoEstornoAte,
       disputa: chamados.disputa,
+      formaDevolucao: chamados.formaDevolucao,
       createdAt: chamados.createdAt,
       organizacao: organizations.name,
     })
@@ -568,7 +596,7 @@ export async function detalheDoChamado(req: Request, id: string) {
   // vizinho não é da conta dela.
   const org = orgOf(req);
   const historico = await db
-    .select({ protocolo: chamados.protocolo, status: chamados.status })
+    .select({ protocolo: chamados.protocolo, status: chamados.status, formaDevolucao: chamados.formaDevolucao })
     .from(chamados)
     .where(
       and(
@@ -703,9 +731,16 @@ export async function executarEstorno(req: Request, id: string, opcoes: { falhaD
   }
   const [pedido] = await db.select().from(orders).where(eq(orders.id, c.orderId));
 
+  // Tomado com a marca de "devolvendo": enquanto o provedor responde, o
+  // pedido não aceita outro chamado (o índice) e a comissão não é liberada.
   const [tomado] = await db
     .update(chamados)
-    .set({ status: "estornado", estornadoEm: new Date(), falhaPlataforma: Boolean(opcoes.falhaDaPlataforma) })
+    .set({
+      status: "estornado",
+      estornadoEm: new Date(),
+      falhaPlataforma: Boolean(opcoes.falhaDaPlataforma),
+      formaDevolucao: FORMA_DEVOLVENDO,
+    })
     .where(and(eq(chamados.id, c.id), eq(chamados.status, "aprovado")))
     .returning();
   if (!tomado) {
@@ -740,7 +775,23 @@ export async function executarEstorno(req: Request, id: string, opcoes: { falhaD
       // chamado fica tomado (estornado), marcado para conferir no provedor, e
       // nada é desfeito no sistema até alguém conferir (como o Pix tardio
       // que fica em "devolvendo").
-      await db.update(chamados).set({ formaDevolucao: FORMA_A_CONFERIR }).where(eq(chamados.id, c.id));
+      // A marca e a auditoria na mesma transação: a resposta é um 409, e a
+      // rota (e a ação do assistente) não chegam a auditar.
+      await db.transaction(async (tx) => {
+        await tx
+          .update(chamados)
+          .set({ formaDevolucao: FORMA_A_CONFERIR })
+          .where(and(eq(chamados.id, c.id), eq(chamados.status, "estornado"), eq(chamados.formaDevolucao, FORMA_DEVOLVENDO)));
+        await tx.insert(auditLog).values({
+          actorId: req.user?.id ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "chamado.estorno.conferir",
+          entity: "chamado",
+          entityId: c.id,
+          diff: { protocolo: tomado.protocolo, devolverCents: devolver, provedor: pedido?.pspProvider ?? null, motivo: (err as Error).message.slice(0, 300) },
+          ip: req.ip,
+        });
+      });
       console.error(`[chamados] estorno do chamado ${tomado.protocolo} a conferir no provedor: ${(err as Error).message}`);
       throw new ChamadoError(
         `O provedor recebeu o pedido de devolução, mas não confirmou o valor (${(err as Error).message}). ` +
@@ -751,7 +802,10 @@ export async function executarEstorno(req: Request, id: string, opcoes: { falhaD
       );
     }
     // Provedor recusou: nada foi devolvido, então o chamado volta a aprovado.
-    await db.update(chamados).set({ status: "aprovado", estornadoEm: null, falhaPlataforma: false }).where(eq(chamados.id, c.id));
+    await db
+      .update(chamados)
+      .set({ status: "aprovado", estornadoEm: null, falhaPlataforma: false, formaDevolucao: null })
+      .where(eq(chamados.id, c.id));
     throw new ChamadoError(`O provedor recusou a devolução: ${(err as Error).message}`, 502);
   }
 
@@ -772,7 +826,10 @@ export async function executarEstorno(req: Request, id: string, opcoes: { falhaD
   return { chamado: { ...tomado, formaDevolucao: forma }, refund: r, devolverCents: devolver, taxaCents: taxa };
 }
 
-/** Quantos chamados abertos, para o número no menu. */
+/**
+ * Quantos chamados pedem ação, para o número no menu: abertos, aprovados e
+ * — só para a plataforma, que é quem resolve — os de devolução a conferir.
+ */
 export async function chamadosAbertos(req: Request): Promise<number> {
   const org = orgOf(req);
   const [r] = await db
@@ -781,10 +838,87 @@ export async function chamadosAbertos(req: Request): Promise<number> {
     .where(
       org
         ? and(eq(chamados.organizationId, org), inArray(chamados.status, ["aberto", "aprovado"]))
-        : inArray(chamados.status, ["aberto", "aprovado"]),
+        : sql`(${inArray(chamados.status, ["aberto", "aprovado"])} OR ${aConferirSql()})`,
     );
   return r?.n ?? 0;
 }
+
+/**
+ * A plataforma decide a devolução a conferir, depois de olhar o painel do
+ * provedor (observação obrigatória):
+ *
+ * - **devolveu**: desfaz no sistema (`refundOrder`: cota, contador,
+ *   comissão, taxa) e a forma passa ao provedor do pedido — a marca sai na
+ *   **mesma transação** do estorno, com o chamado travado e condicional à
+ *   marca: dois cliques, uma decisão e um 409;
+ * - **não devolveu**: o chamado volta a aprovado (`UPDATE` condicional,
+ *   chamado travado) e pode ser estornado de novo pelo caminho de sempre.
+ *
+ * Só a plataforma (403 para organizador). Auditoria na mesma transação.
+ */
+export async function resolverConferencia(req: Request, id: string, entrada: { devolveu: boolean; observacao: string }) {
+  if (!isPlatform(req)) {
+    throw new ChamadoError("Só a plataforma resolve a devolução a conferir.", 403);
+  }
+  const [c] = await db.select().from(chamados).where(eq(chamados.id, id));
+  if (!c) throw new ChamadoError("Chamado não encontrado.", 404);
+  const [pedido] = await db.select().from(orders).where(eq(orders.id, c.orderId));
+
+  // Trava o chamado e tira a marca, condicional: a outra decisão no meio é 409.
+  const decidir = async (tx: Tx, novo: Partial<typeof chamados.$inferInsert>) => {
+    await tx.execute(sql`SELECT id FROM chamados WHERE id = ${c.id} FOR UPDATE`);
+    const [feito] = await tx
+      .update(chamados)
+      .set(novo)
+      .where(and(eq(chamados.id, c.id), aConferirSql()))
+      .returning();
+    if (!feito) throw new ChamadoError("Esta devolução já foi conferida.", 409);
+    await tx.insert(auditLog).values({
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: entrada.devolveu ? "chamado.estorno.conferido.devolveu" : "chamado.estorno.conferido.nao_devolveu",
+      entity: "chamado",
+      entityId: c.id,
+      diff: { protocolo: c.protocolo, devolverCents: c.devolverCents, observacao: entrada.observacao },
+      ip: req.ip,
+    });
+    return feito;
+  };
+
+  if (!entrada.devolveu) {
+    const feito = await db.transaction((tx) =>
+      decidir(tx, { status: "aprovado", estornadoEm: null, formaDevolucao: null, falhaPlataforma: false }),
+    );
+    await novaMensagem({
+      chamadoId: c.id,
+      autor: "plataforma",
+      userId: req.user!.id,
+      texto: "A plataforma conferiu com o provedor: a devolução não saiu. O reembolso segue aprovado e será feito de novo.",
+    });
+    return { chamado: feito, refund: null };
+  }
+
+  const forma = pedido?.pspProvider ?? "manual";
+  let feito: typeof chamados.$inferSelect | null = null;
+  const refund = await refundOrder(c.orderId, {
+    naTransacao: async (tx) => {
+      feito = await decidir(tx, { formaDevolucao: forma });
+    },
+  });
+  if (!feito) {
+    // O pedido já estava desfeito (o aviso do provedor chegou antes): só a marca sai.
+    feito = await db.transaction((tx) => decidir(tx, { formaDevolucao: forma }));
+  }
+  await novaMensagem({
+    chamadoId: c.id,
+    autor: "plataforma",
+    userId: req.user!.id,
+    texto: `Reembolso conferido (protocolo ${c.protocolo}): ${formatBRL(c.devolverCents ?? pedido?.amountCents ?? 0)} voltaram para a mesma conta que pagou o Pix.`,
+  });
+  return { chamado: feito as typeof chamados.$inferSelect, refund };
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /* ------------------------------------------------------------------ *
  * Disputa com a plataforma
@@ -833,7 +967,7 @@ export async function abrirDisputa(comprador: CompradorLogado, id: string, motiv
       )
       .returning();
   } catch (err) {
-    if (isUniqueViolation(err, "uq_chamados_pedido_em_andamento")) {
+    if (isUniqueViolation(err, "uq_chamados_pedido_aberto")) {
       throw new ChamadoError("Já existe outro pedido de reembolso em andamento para esta compra.", 409);
     }
     throw err;
@@ -901,7 +1035,7 @@ export async function decidirDisputa(
       .where(and(eq(chamados.id, c.id), eq(chamados.disputa, "aberta")))
       .returning();
   } catch (err) {
-    if (isUniqueViolation(err, "uq_chamados_pedido_em_andamento")) {
+    if (isUniqueViolation(err, "uq_chamados_pedido_aberto")) {
       throw new ChamadoError("Há outro pedido de reembolso em andamento para esta compra.", 409);
     }
     throw err;

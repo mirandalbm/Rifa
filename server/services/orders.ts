@@ -1684,8 +1684,16 @@ export interface RefundResult {
  *
  * Idempotente: só age sobre pedido `paid`, e o `UPDATE` condicional garante
  * que duas chamadas simultâneas não dupliquem nada.
+ *
+ * `opcoes.naTransacao` roda **dentro** da transação do estorno, antes de
+ * mexer no pedido: é como a conferência da devolução (`resolverConferencia`)
+ * tira a marca do chamado no mesmo commit — se ela lançar, nada é desfeito.
+ * Pedido que já não está pago não chega a abrir a transação (volta `null`).
  */
-export async function refundOrder(orderId: string): Promise<RefundResult | null> {
+export async function refundOrder(
+  orderId: string,
+  opcoes: { naTransacao?: (tx: Tx) => Promise<void> } = {},
+): Promise<RefundResult | null> {
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
   if (!order) throw new OrderError("Pedido não encontrado.", 404);
   if (order.status !== "paid") {
@@ -1701,6 +1709,7 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
   // "Quando completar": o estorno que tira a rifa de cheia desfaz a antecipação.
   let desmarcouSorteio = false;
   return db.transaction(async (tx) => {
+    if (opcoes.naTransacao) await opcoes.naTransacao(tx);
     // O sorteio congela o quadro. Basta ter sido executado uma vez. Lido aqui
     // dentro, com a linha do sorteio travada (`FOR SHARE`): o sorteio em
     // andamento espera este estorno, ou este espera o sorteio — nunca os dois

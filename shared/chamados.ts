@@ -29,6 +29,50 @@ export const PILL_CHAMADO: Record<StatusChamado, string> = {
   estornado: "paid",
 };
 
+/**
+ * `chamados.forma_devolucao` enquanto a devolução pelo provedor está no
+ * meio do caminho: `devolvendo_no_provedor` durante a chamada; e
+ * `conferir_no_provedor` quando o pedido saiu e o provedor não confirmou o
+ * valor (sem resposta, erro do lado de lá, valor que não confere — o
+ * dinheiro pode ter voltado). Nos dois, o chamado está `estornado` (não se
+ * devolve de novo), nada foi desfeito no sistema, a comissão fica segura e
+ * o pedido não aceita outro chamado (o índice `uq_chamados_pedido_aberto`).
+ */
+export const FORMA_DEVOLVENDO = "devolvendo_no_provedor";
+export const FORMA_A_CONFERIR = "conferir_no_provedor";
+export const FORMAS_EM_ANDAMENTO = [FORMA_DEVOLVENDO, FORMA_A_CONFERIR] as const;
+
+/**
+ * A situação como cada um lê, com o caso a conferir à parte: nunca
+ * "devolvido" enquanto ninguém conferiu no provedor.
+ */
+export function devolucaoAConferir(c: { status: StatusChamado; formaDevolucao?: string | null }): boolean {
+  return c.status === "estornado" && (FORMAS_EM_ANDAMENTO as readonly string[]).includes(c.formaDevolucao ?? "");
+}
+
+export function situacaoDoChamado(
+  c: { status: StatusChamado; formaDevolucao?: string | null },
+  para: "painel" | "comprador" = "painel",
+): { rotulo: string; pill: string } {
+  if (devolucaoAConferir(c)) {
+    return {
+      rotulo: para === "comprador" ? "devolução em conferência" : "Devolução a conferir no provedor",
+      pill: "pending",
+    };
+  }
+  return { rotulo: NOME_STATUS_CHAMADO[c.status], pill: PILL_CHAMADO[c.status] };
+}
+
+/** A decisão da plataforma sobre a devolução a conferir: só as duas chaves, observação obrigatória. */
+export function validarConferencia(corpo: unknown): { devolveu: boolean; observacao: string } | string {
+  const b = (corpo ?? {}) as { devolveu?: unknown; observacao?: unknown };
+  if (typeof b.devolveu !== "boolean") return "Diga se o dinheiro voltou (devolveu: sim ou não).";
+  const observacao = typeof b.observacao === "string" ? b.observacao.trim() : "";
+  if (observacao.length < 5) return "Escreva o que você conferiu no provedor (pelo menos 5 letras).";
+  if (observacao.length > 1000) return "A observação pode ter até 1000 letras.";
+  return { devolveu: b.devolveu, observacao };
+}
+
 export const PRAZO_ESTORNO_MIN = 1;
 export const PRAZO_ESTORNO_MAX = 30;
 

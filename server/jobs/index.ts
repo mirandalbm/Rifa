@@ -25,6 +25,7 @@ import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { medirImagensDeExemplo } from "../services/demonstracao";
 import { expirarReservas } from "../services/reservasVencidas";
+import { comissaoSemDevolucaoAConferirSql } from "../services/chamados";
 import { sortearRifasPendentesDosSorteiosOficiais } from "../services/sortear";
 import { log } from "../vite";
 import { poolDasTravas } from "../db";
@@ -507,7 +508,13 @@ export function startJobs() {
           .update(commissions)
           .set({ status: "available" })
           .where(
-            and(eq(commissions.status, "pending"), sql`${commissions.availableAt} <= now()`),
+            and(
+              eq(commissions.status, "pending"),
+              sql`${commissions.availableAt} <= now()`,
+              // Devolução no meio do caminho ou a conferir no provedor: o
+              // dinheiro pode ter voltado, a comissão espera a conferência.
+              comissaoSemDevolucaoAConferirSql(),
+            ),
           )
           .returning({ id: commissions.id });
         if (rows.length > 0) log(`${rows.length} comissão(ões) liberadas`, "jobs");

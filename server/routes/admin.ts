@@ -246,11 +246,14 @@ import {
   concluirChamado,
   detalheDoChamado,
   executarEstorno,
+  resolverConferencia,
+  comissaoSemDevolucaoAConferirSql,
   listarChamados,
   respostaDaOrganizacao,
   decidirDisputa,
   disputasAbertas,
 } from "../services/chamados";
+import { validarConferencia } from "@shared/chamados";
 import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
 import { painelDoMarketing, salvarMarketing } from "../services/marketing";
 import {
@@ -3311,6 +3314,29 @@ adminRouter.post("/chamados/:id/disputa/decidir", async (req, res, next) => {
   }
 });
 
+/**
+ * A devolução a conferir no provedor: a plataforma diz se o dinheiro voltou
+ * (com o que conferiu). Só a plataforma (403 para organizador).
+ */
+adminRouter.post("/chamados/:id/conferencia", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    const entrada = validarConferencia(req.body);
+    if (typeof entrada === "string") return res.status(400).json({ message: entrada });
+    const { chamado, refund } = await resolverConferencia(req, req.params.id, entrada);
+    res.json({
+      protocolo: chamado.protocolo,
+      status: chamado.status,
+      forma: chamado.formaDevolucao,
+      cotasLiberadas: refund?.liberadas.length ?? 0,
+      cotasCongeladas: refund ? refund.liberadas.length === 0 : false,
+      comissaoJaPagaCents: refund?.comissaoJaPagaCents ?? 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 adminRouter.post("/chamados/:id/estornar", async (req, res, next) => {
   try {
     const { chamado, refund, devolverCents, taxaCents } = await executarEstorno(req, req.params.id, {
@@ -3908,6 +3934,8 @@ adminRouter.post("/finance/release", async (req, res, next) => {
         and(
           eq(commissions.status, "pending"),
           sql`${commissions.availableAt} <= now()`,
+          // Devolução a conferir no provedor: a comissão espera a conferência.
+          comissaoSemDevolucaoAConferirSql(),
           // Liberar comissão é liberar dinheiro. O organizador libera a dele.
           org
             ? sql`${commissions.campaignId} IN (

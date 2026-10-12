@@ -17,6 +17,7 @@ import {
   percent,
   formatBRL,
   cpfValido,
+  emailValido,
   maskCpf,
   maskPhone,
   quotaDigits,
@@ -153,7 +154,7 @@ export default function Rifa() {
   const [comentando, setComentando] = useState(() => typeof window !== "undefined" && window.location.hash === "#comentarios");
   // Aberto pelo presente ao lado da pílula "Comentar…": o quadro do presente já aparece.
   const [comPresente, setComPresente] = useState(false);
-  const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "" });
+  const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "", email: "" });
   const [error, setError] = useState<string | null>(null);
 
   const { data, isError } = useQuery<CampaignDetail>({
@@ -162,6 +163,8 @@ export default function Rifa() {
   // O provedor do Pix em uso decide se o CPF é pedido (o Asaas exige).
   const { data: checkout } = useQuery<{
     exigeCpf: boolean;
+    exigeEmail?: boolean;
+    contaTemEmail?: boolean;
     reembolso?: { aceita: boolean; taxaPct: number };
   }>({
     queryKey: ["/api/public/checkout"],
@@ -171,6 +174,8 @@ export default function Rifa() {
   const { data: sessao } = useSession();
   const naConta = Boolean(sessao?.buyer?.conta);
   const exigeCpf = (checkout?.exigeCpf ?? false) && !naConta;
+  // O e-mail (o Pagar.me exige): a conta que já tem o dela não digita.
+  const exigeEmail = (checkout?.exigeEmail ?? false) && !(naConta && checkout?.contaTemEmail);
 
   // A rifa abre dentro do perfil de quem a promove. Endereço com a
   // organização errada leva para a certa — nunca mostra a rifa "dentro" de
@@ -180,6 +185,7 @@ export default function Rifa() {
     if (org && dona && org !== dona) navigate(`/o/${dona}/r/${slug}`, { replace: true });
   }, [org, slug, data?.organizacao?.slug, navigate]);
   const cpfOk = !exigeCpf || cpfValido(buyer.cpf);
+  const emailOk = !exigeEmail || emailValido(buyer.email);
   const comprador = naConta
     ? { name: sessao!.buyer!.name || "Conta", phone: sessao!.buyer!.phone }
     : { name: buyer.name, phone: buyer.phone };
@@ -237,6 +243,7 @@ export default function Rifa() {
           name: comprador.name,
           phone: comprador.phone,
           ...(exigeCpf ? { cpf: buyer.cpf.replace(/\D/g, "") } : {}),
+          ...(exigeEmail ? { email: buyer.email.trim() } : {}),
         },
         couponCode: buyer.coupon || undefined,
         origem: lerOrigem(),
@@ -340,7 +347,7 @@ export default function Rifa() {
   // Vende pela loja: com Pix online ligado e nunca em rifa de demonstração.
   const vende = (data.pagamento?.online ?? true) && !campaign.demonstracao && !campaign.travada;
   const count = picked.length;
-  const dadosOk = comprador.name.length >= 2 && comprador.phone.length >= 10 && cpfOk;
+  const dadosOk = comprador.name.length >= 2 && comprador.phone.length >= 10 && cpfOk && emailOk;
 
   const price =
     count > 0
@@ -787,6 +794,29 @@ export default function Rifa() {
                 />
                 {buyer.cpf.replace(/\D/g, "").length === 11 && !cpfOk ? (
                   <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-muted">
+                    Exigido pelo banco para gerar o Pix. Não aparece para ninguém.
+                  </p>
+                )}
+              </div>
+            ) : null}
+            {exigeEmail ? (
+              <div>
+                <label htmlFor="email" className="label-xs">
+                  E-mail
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={buyer.email}
+                  inputMode="email"
+                  autoComplete="email"
+                  onChange={(e) => setBuyer({ ...buyer, email: e.target.value })}
+                  className="campo text-sm"
+                />
+                {buyer.email.includes("@") && buyer.email.includes(".") && !emailOk ? (
+                  <p className="mt-1 text-[11px] text-red">E-mail inválido. Confira o endereço.</p>
                 ) : (
                   <p className="mt-1 text-[11px] text-muted">
                     Exigido pelo banco para gerar o Pix. Não aparece para ninguém.

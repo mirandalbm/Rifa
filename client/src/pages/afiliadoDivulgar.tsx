@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
+import { Button, Campo, Empty, Pill } from "@/components/bits";
+import { CartaoDoPainel } from "@/components/painel";
 import { FotosProprias, useFotosProprias } from "@/components/FotosProprias";
 import { VideoDaDivulgacao, VideoProprio, useVideoProprio, type VideoDaPeca } from "@/components/VideoProprio";
 import { CampoDeAgenda, aindaAgendado, paraCampoLocal, paraInstante, quandoCurto } from "@/components/CampoDeAgenda";
 import { apiRequest } from "@/lib/queryClient";
-import { DIVULGACAO_MIDIAS_MAX, STATUS_DA_DIVULGACAO, podeEditar, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
+import { DIVULGACAO_FOTOS_MAX, DIVULGACAO_MIDIAS_MAX, DIVULGACAO_VIDEO_MAX_SEGUNDOS, STATUS_DA_DIVULGACAO, podeEditar, type ModoDeDivulgacao, type StatusDaDivulgacao } from "@shared/divulgacao";
 import { LEGENDA_MAX } from "@shared/publicacao";
 
 interface RifaParaDivulgar {
@@ -129,14 +130,15 @@ export function AfiliadoDivulgar() {
 
   return (
     <PanelShell title="Divulgar">
-      <p className="mb-3 text-sm text-muted">
+      <p className="mb-4 text-sm text-ink-2 md:mb-6">
         Publique com as fotos e os vídeos que a organização já pôs na rifa e, se quiser, com fotos suas. A sua peça
         leva o seu link, e a compra por ele paga a sua comissão. Não dá para mudar preço, cotas nem prêmio — só
         divulgar.
       </p>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr]">
-        <Card title={editando ? "Editar divulgação" : "Nova divulgação"}>
-          <div id="nova-divulgacao" className="space-y-3 p-4 text-sm">
+      {/* No computador, o formulário à esquerda e as peças à direita (Figma: 670 × 438); a lista não estica até o fim do formulário. */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[3fr_2fr] lg:items-start">
+        <CartaoDoPainel titulo={editando ? "Editar divulgação" : "Nova divulgação"}>
+          <div id="nova-divulgacao" className="scroll-mt-20 space-y-3 px-5 pb-5 text-sm">
             {isLoading ? null : rifas.length === 0 ? (
               <p className="text-muted">
                 Nenhuma rifa disponível. Para divulgar é preciso vínculo aprovado com a organização e o aceite do termo
@@ -164,6 +166,14 @@ export function AfiliadoDivulgar() {
                     ))}
                   </select>
                 </Campo>
+                {rifa ? null : (
+                  <p className="text-xs text-muted">
+                    Escolhida a rifa: a legenda (sem link e sem telefone), as mídias da rifa para marcar, até{" "}
+                    <span className="tnum">{DIVULGACAO_FOTOS_MAX}</span> fotos suas ou um vídeo seu de até{" "}
+                    <span className="tnum">{DIVULGACAO_VIDEO_MAX_SEGUNDOS}</span> s, e a hora de publicar (opcional). Com foto
+                    ou vídeo seu, a peça passa pela organização em qualquer modo.
+                  </p>
+                )}
                 {rifa ? (
                   <>
                     <p className="text-xs text-muted">
@@ -218,6 +228,13 @@ export function AfiliadoDivulgar() {
                         dica="MP4 ou MOV, até 15 MB, em pé ou deitado. Só vídeo seu ou de quem autorizou, sem menores de 18 anos. A organização assiste antes de publicar."
                       />
                     )}
+                    <Campo rotulo="Legenda" dica={
+                        <>
+                          Sem link e sem telefone, e sem pedir pagamento por fora. Até <span className="tnum">{LEGENDA_MAX}</span> caracteres.
+                        </>
+                      }>
+                      <textarea rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
+                    </Campo>
                     <CampoDeAgenda
                       id="divulgar-agenda"
                       valor={agenda}
@@ -227,16 +244,13 @@ export function AfiliadoDivulgar() {
                       }}
                       dica="Vazio, aparece assim que estiver no ar. Com data (até 30 dias), aparece na página da rifa a partir dessa hora — a autorização da organização, quando houver, vem antes."
                     />
-                    <Campo rotulo="Legenda" dica={`Sem link e sem telefone, e sem pedir pagamento por fora. Até ${LEGENDA_MAX} caracteres.`}>
-                      <textarea rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
-                    </Campo>
-                    {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
+                    {msg ? <p role="status" className={`rounded-lg px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
                     <div className="flex flex-wrap gap-2">
                       <Button disabled={publicar.isPending || (!legenda.trim() && escolhidas.length === 0 && fotos.quantas === 0 && !video.tem)} onClick={() => publicar.mutate()}>
                         {editando ? "Salvar edição" : direta ? "Publicar" : "Enviar para autorização"}
                       </Button>
                       {editando ? (
-                        <Button variant="ghost" onClick={limpar}>
+                        <Button variant="cinza" onClick={limpar}>
                           Cancelar edição
                         </Button>
                       ) : null}
@@ -246,26 +260,27 @@ export function AfiliadoDivulgar() {
               </>
             )}
           </div>
-        </Card>
+        </CartaoDoPainel>
 
-        <Card title="Minhas divulgações">
+        <CartaoDoPainel titulo="Minhas divulgações">
           {minhas.length === 0 ? (
             <Empty>Você ainda não divulgou nada.</Empty>
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line border-t border-line">
               {minhas.map((m) => (
-                <li key={m.id} className="space-y-1 px-4 py-3 text-sm">
+                <li key={m.id} className="space-y-2 px-5 py-3 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
                     <Pill status={PILL_DA_DIVULGACAO[m.status]}>{STATUS_DA_DIVULGACAO[m.status]}</Pill>
-                    <span className="font-semibold">{m.title}</span>
+                    <span className="min-w-0 break-words font-semibold">{m.title}</span>
                     {m.editadaEm ? <span className="text-xs text-muted">Editada</span> : null}
-                    {aindaAgendado(m.publicaEm) ? (
+                    {/* Agendada só diz algo da peça que ainda vai ao ar (recusada e retirada terminaram). */}
+                    {podeEditar(m.status) && aindaAgendado(m.publicaEm) ? (
                       <span className="text-xs text-muted">
                         Agendada: <span className="tnum">{quandoCurto(m.publicaEm as string)}</span>
                       </span>
                     ) : null}
                   </div>
-                  {m.legenda ? <p className="line-clamp-3 break-words text-muted">{m.legenda}</p> : null}
+                  {m.legenda ? <p className="line-clamp-3 break-words text-ink-2">{m.legenda}</p> : null}
                   {m.fotos.length ? (
                     <ul className="flex gap-2">
                       {m.fotos.map((f, i) => (
@@ -276,13 +291,13 @@ export function AfiliadoDivulgar() {
                     </ul>
                   ) : null}
                   {m.video ? <VideoDaDivulgacao video={m.video} rotulo={`Seu vídeo na divulgação de ${m.title}`} /> : null}
-                  {m.motivo ? <p className="text-xs text-muted">Motivo: {m.motivo}</p> : null}
+                  {m.motivo ? <p className="text-xs text-ink-2">Motivo: {m.motivo}</p> : null}
                   {podeEditar(m.status) ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="ghost" className="px-3 py-1 text-xs" disabled={editando?.id === m.id} onClick={() => editar(m)}>
+                      <Button variant="contorno" disabled={editando?.id === m.id} onClick={() => editar(m)}>
                         Editar
                       </Button>
-                      <Button variant="ghost" className="px-3 py-1 text-xs" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
+                      <Button variant="cinza" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
                         Retirar
                       </Button>
                     </div>
@@ -291,7 +306,7 @@ export function AfiliadoDivulgar() {
               ))}
             </ul>
           )}
-        </Card>
+        </CartaoDoPainel>
       </div>
     </PanelShell>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Pill } from "@/components/bits";
+import { Button, Card, Filtros, Pill, TONS_DO_BOTAO } from "@/components/bits";
 import { CartaoDoPainel } from "@/components/painel";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { apiRequest } from "@/lib/queryClient";
@@ -139,10 +139,9 @@ const EXPLICA: Partial<Record<StatusVerificacao, string>> = {
  * confere, e cada consulta fica registrada.
  */
 /**
- * A moldura dos três cartões: no painel da organização é o cartão do kit, como
- * os vizinhos da aba "Conta e segurança"; na conta do apostador e no painel do
- * afiliado segue o cartão de antes (as telas deles ainda não passaram pela
- * reformulação).
+ * A moldura dos três cartões: nos painéis (organização e afiliado) é o cartão
+ * do kit, como os vizinhos da tela; na conta do apostador (loja) segue o
+ * cartão de antes (a tela dele ainda não passou pela reformulação).
  */
 function Moldura({ kit, titulo, direita, children }: { kit: boolean; titulo: string; direita?: ReactNode; children: ReactNode }) {
   return kit ? (
@@ -173,8 +172,8 @@ export function VerificacaoCard({
   const qc = useQueryClient();
   const { data } = useQuery<Estado>({ queryKey: [base] });
   const pessoa = sujeito !== "organizacao";
-  // A organização está no painel já no kit: o cartão do kit e o respiro dele (px-5, sem a linha sob o título).
-  const kit = sujeito === "organizacao";
+  // Organização e afiliado estão no painel já no kit: o cartão do kit e o respiro dele (px-5, sem a linha sob o título).
+  const kit = sujeito !== "apostador";
   const [id, setId] = useState(identificacaoVazia);
   const [org, setOrg] = useState({ razaoSocial: "", cnpj: "" });
   const [conta, setConta] = useState(contaVazia);
@@ -285,9 +284,10 @@ export function VerificacaoCard({
       </Moldura>
 
       {mostrarFormulario ? (
-        // Minha conta do apostador é coluna estreita de propósito (texto de leitura):
-        // lá dados e documentos vão um embaixo do outro. No painel, lado a lado no computador.
-        <div className={`grid grid-cols-1 ${kit ? "gap-4 md:gap-6 lg:items-start" : "gap-3"} ${sujeito === "apostador" ? "" : "lg:grid-cols-2"}`}>
+        // Minha conta do apostador é coluna estreita de propósito (texto de leitura), e no
+        // afiliado a verificação já mora na coluna da direita de Meus dados: nos dois, dados e
+        // documentos vão um embaixo do outro. Na organização, lado a lado no computador.
+        <div className={`grid grid-cols-1 ${kit ? "gap-4 md:gap-6 lg:items-start" : "gap-3"} ${sujeito === "organizacao" ? "lg:grid-cols-2" : ""}`}>
           <Moldura kit={kit} titulo={pessoa ? "Seus dados" : "Dados da organização"}>
             <form
               className={`space-y-3 ${kit ? "px-5 pb-5" : "p-4"}`}
@@ -315,14 +315,27 @@ export function VerificacaoCard({
                 {campo("Agência", conta.agencia, (v) => setConta({ ...conta, agencia: v }), { inputMode: "numeric" })}
                 <div className="col-span-2 sm:col-span-1">{campo("Conta com dígito", conta.conta, (v) => setConta({ ...conta, conta: v }))}</div>
               </div>
-              <div className="flex gap-4 text-sm">
-                {(["corrente", "poupanca"] as const).map((t) => (
-                  <label key={t} className="flex items-center gap-1.5">
-                    <input type="radio" checked={conta.tipo === t} onChange={() => setConta({ ...conta, tipo: t })} />
-                    {t === "corrente" ? "Corrente" : "Poupança"}
-                  </label>
-                ))}
-              </div>
+              {kit ? (
+                <Filtros
+                  exclusivo
+                  rotulo="Tipo da conta"
+                  opcoes={[
+                    { valor: "corrente" as const, rotulo: "Corrente" },
+                    { valor: "poupanca" as const, rotulo: "Poupança" },
+                  ]}
+                  ativa={conta.tipo}
+                  aoMudar={(t) => setConta({ ...conta, tipo: t })}
+                />
+              ) : (
+                <div className="flex gap-4 text-sm">
+                  {(["corrente", "poupanca"] as const).map((t) => (
+                    <label key={t} className="flex items-center gap-1.5">
+                      <input type="radio" checked={conta.tipo === t} onChange={() => setConta({ ...conta, tipo: t })} />
+                      {t === "corrente" ? "Corrente" : "Poupança"}
+                    </label>
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-[1fr_2fr] gap-2">
                 <label className="block">
                   <span className="label-xs">Tipo da chave Pix</span>
@@ -361,14 +374,14 @@ export function VerificacaoCard({
           </Moldura>
 
           <Moldura kit={kit} titulo="Documentos">
-            {extra ? <div className="border-b border-line px-4 py-3 text-sm">{extra}</div> : null}
+            {extra ? <div className={`border-b border-line py-3 text-sm ${kit ? "px-5" : "px-4"}`}>{extra}</div> : null}
             <ul className="divide-y divide-line">
               {DOCUMENTOS_DO_SUJEITO[sujeito].map((tipo) => {
                 const enviado = data?.documentos.find((d) => d.tipo === tipo);
                 const opcional = DOCUMENTOS_OPCIONAIS.includes(tipo);
                 return (
                   <li key={tipo} className={`flex flex-wrap items-center gap-3 py-3 text-sm ${kit ? "px-5" : "px-4"}`}>
-                    <span className="min-w-0 flex-1 basis-full sm:basis-auto">
+                    <span className="min-w-0 flex-1 basis-full sm:basis-48">
                       <span className="block font-semibold">{DOCUMENTOS_VERIFICACAO[tipo]}</span>
                       <span className="text-xs text-muted">
                         {enviado
@@ -379,7 +392,13 @@ export function VerificacaoCard({
                       </span>
                     </span>
                     {enviado ? <Pill status="active">enviado</Pill> : <Pill status="draft">{opcional ? "opcional" : "falta"}</Pill>}
-                    <label className="cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist">
+                    <label
+                      className={
+                        kit
+                          ? `relative inline-flex h-10 shrink-0 cursor-pointer items-center rounded-lg px-4 text-[13px] font-semibold focus-within:ring-2 focus-within:ring-green ${TONS_DO_BOTAO.cinza}`
+                          : "cursor-pointer rounded-md border border-line-2 px-3 py-1.5 text-xs font-semibold hover:bg-mist"
+                      }
+                    >
                       {enviado ? "Trocar" : "Enviar"}
                       <input
                         type="file"

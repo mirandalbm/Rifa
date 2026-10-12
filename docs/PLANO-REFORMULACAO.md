@@ -111,6 +111,43 @@ botão, botão de escolher arquivo, a aba ativa rolar para a vista no
 celular, a caixa de marcar com 24 px de alvo e a fileira de amostras de
 cor.
 
+### Fase 5 — onda 4 (afiliado e cambista)
+
+As dez telas do afiliado e do cambista (A01 a A07 e C08 a C10: Visão geral,
+Meus links, Divulgar, Organizações, Comissões, Saques, Meus dados, Nova
+venda, Minhas vendas e Meu acerto) alinhadas ao Figma congelado, só com as
+peças do kit, no PR #251. Onde o Figma e a especificação discordaram,
+valeu a especificação: no computador, a venda do cambista à esquerda com o
+resumo e as últimas vendas à direita, o acerto em três números, Meus dados
+em duas colunas e os Saques divididos em "Saldo por quem paga" e "Pedir
+saque". A visão geral do afiliado agora mostra o saldo por quem paga
+(pendente em azul, disponível em verde, a "Plataforma" da comissão
+guardada e contra quem sai a nota), e as Comissões não somam mais a
+revertida no total. A revisão de invariantes achou uma corrida antiga na
+venda do cambista: confirmar e cancelar ao mesmo tempo respondiam os dois
+"ok" — a venda devolvida saía como paga (bilhete sem cota) e a paga como
+cancelada (o cambista devolvia o dinheiro de uma venda que entra no
+acerto); o prazo de espera que a onda pôs na tela soltava os botões e
+deixava a corrida ao alcance de um toque. Agora o servidor responde 409 a
+quem perdeu, a tela nunca solta o botão antes da resposta, e `npm run
+cambista` corre os dois juntos. O azul do kit ganhou o formato com
+opacidade (o ícone azul da estatística saía sem o fundo).
+Confirmado com você em 12/10/2026: a visão geral do afiliado fica com duas
+estatísticas por linha no tablet (três no computador; com o menu aberto o
+valor não cabia), os Saques ficam em dois cartões, e o texto da venda do
+cambista que falava em "cartão aprovado" virou dinheiro ou Pix, no código e
+no nó do Figma (as três larguras do C08).
+Ficou para quem mexe em regra: "Vendas hoje" do cambista conta o dia em UTC
+(`server/routes/seller.ts`), o total da venda na tela não tem o desconto do
+pacote (o servidor cobra o certo), a lista do cambista para em 200 sem
+paginação, a venda cancelada e a vencida aparecem iguais ("expirada"), a
+confirmação repetida não traz a cota premiada, as Comissões do afiliado não
+sabem qual é guardada (`GET /api/affiliate/commissions` não devolve
+`guardada`), e o pedido de saque já marca as comissões como "paga" antes de
+o saque ser pago. Falta no kit: botão de escolher arquivo, variante pequena
+do botão, seletor segmentado, cabeçalho de tabela alinhado à direita nas
+colunas de número.
+
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
 Medido no repositório (51 páginas, 89 componentes, cerca de 60 telas no
@@ -228,7 +265,7 @@ Proposta de partida, a ser desenhada e testada na simulação:
 | 2 Arquitetura da informação | árvore de navegação, "onde mora cada ferramenta", fluxos | Opus | **você aprova** |
 | 3 Simulação | (a) fluxos em baixa fidelidade, (b) telas em alta fidelidade com os tokens reais, (c) protótipo clicável com dados de exemplo; 2 rodadas de ajuste; tarefas de teste ("publique uma rifa", "ache o pedido X") com tempo e cliques | Fable (visual), Sonnet (volume), Opus (fluxos) | **você aprova cada painel** |
 | 4 Congelar o desenho | especificação por tela + critérios de aceite (base 14 do Notion) | Opus | **assinada** em 11/10/2026 |
-| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — onda 1 feita (#248); onda 2 feita (#249, 11/10/2026); **onda 3 feita** (#250, 11/10/2026) |
+| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — onda 1 feita (#248); onda 2 feita (#249, 11/10/2026); onda 3 feita (#250, 11/10/2026); **onda 4 feita** (#251, 11/10/2026) |
 | 6 Recriação final | passada de coerência, a11y, desempenho, `npm run telas` sem reprova, docs | Fable (visual), Sonnet, Haiku | você confere |
 
 Cada PR de produção: `/provar`, `revisor-de-invariantes` (quando toca recorte,

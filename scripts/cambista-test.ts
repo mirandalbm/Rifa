@@ -264,6 +264,29 @@ async function main() {
     checa("a plataforma vê o acerto do cambista", JSON.stringify(r.json?.historico ?? []).includes(acerto.id));
     void todos;
 
+    // ---- confirmar e cancelar ao mesmo tempo: nunca os dois "ok" ----------
+    // A tela trava os dois botões enquanto um corre, mas a rede pode repetir
+    // e o servidor decide sozinho: venda paga não é "cancelada" (o cambista
+    // devolveria o dinheiro de uma venda que entra no acerto), e venda
+    // devolvida não é "confirmada" (o bilhete sairia sem cota nenhuma).
+    let corridas = 0;
+    for (let i = 0; i < 6; i++) {
+      const s = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: comprador() });
+      const code = s.json.code as number;
+      const [conf, canc] = await Promise.all([
+        c1.req("POST", `/api/seller/sales/${code}/confirm`, { method: "dinheiro" }),
+        c1.req("POST", `/api/seller/sales/${code}/cancel`),
+      ]);
+      const [fim] = await db.select({ status: orders.status }).from(orders).where(eq(orders.code, code));
+      const coerente =
+        (conf.status === 200 && canc.status === 409 && fim.status === "paid") ||
+        (canc.status === 200 && conf.status === 409 && fim.status === "expired");
+      if (coerente) corridas++;
+      else checa(`corrida ${i}: confirmar ${conf.status}, cancelar ${canc.status}, ficou ${fim.status}`, false);
+      if (conf.status === 409) checa("…o 409 da confirmação fala português", !/expired|pending|refunded/.test(conf.json?.message ?? ""), conf.json?.message);
+    }
+    checa("confirmar e cancelar ao mesmo tempo: sempre um 200 e um 409, e o banco concorda", corridas === 6, `${corridas}/6`);
+
     const resto = await db.select({ id: quotaAlloc.number }).from(quotaAlloc).where(eq(quotaAlloc.campaignId, campB.id));
     checa("nada foi reservado na rifa da vizinha", resto.length === 0);
     const ped = await db.select({ id: orders.id }).from(orders).where(eq(orders.campaignId, campB.id));

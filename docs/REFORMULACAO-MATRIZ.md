@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 766 |
+| Cartões (componentes usados pelas telas) | 799 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 873 de 873 |
+| Destinos decididos | 906 de 906 |
 
 ## 1. Telas
 
@@ -773,12 +773,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A01 Visão geral do afiliado · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A01 Visão geral do afiliado · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Campo` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Card` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Empty` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Money` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 | `Pill` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A01 Visão geral do afiliado |
 
 ### `/afiliado/comissoes` — Comissões
 
@@ -787,21 +791,29 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A05 Comissões · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A05 Comissões · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Campo` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Card` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Empty` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Money` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 | `Pill` | manter · peça do kit (onda 1) · na tela A05 Comissões |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A05 Comissões |
 
 ### `/afiliado/dados` — Meus dados
 
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
-| `Card` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `Campo` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `IconePerfil` | manter · na tela A07 Meus dados · onda 4 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
 | `Pill` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela A07 Meus dados |
 | `VerificacaoCard` | manter · na tela A07 Meus dados · onda 4 |
 
 ### `/afiliado/divulgar` — Divulgar
@@ -811,7 +823,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Button` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `Campo` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `CampoDeAgenda` | manter · na tela A03 Divulgar · onda 4 |
-| `Card` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `Empty` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
 | `FotosProprias` | manter · na tela A03 Divulgar · onda 4 |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A03 Divulgar |
@@ -826,12 +838,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A02 Meus links · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A02 Meus links · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Campo` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Card` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Empty` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Money` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 | `Pill` | manter · peça do kit (onda 1) · na tela A02 Meus links |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A02 Meus links |
 
 ### `/afiliado/organizacoes` — Organizações
 
@@ -840,12 +856,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A04 Organizações do afiliado · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A04 Organizações do afiliado · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Campo` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Card` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Empty` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Money` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 | `Pill` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A04 Organizações do afiliado |
 
 ### `/afiliado/saques` — Saques
 
@@ -854,12 +874,16 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AbrirEditorDeImagem` | manter · na tela A06 Saques · onda 4 |
 | `ArtesParaDivulgar` | manter · na tela A06 Saques · onda 4 |
 | `Button` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Campo` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Card` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Empty` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Estatistica` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `Filtros` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Money` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela A06 Saques |
 | `Pill` | manter · peça do kit (onda 1) · na tela A06 Saques |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela A06 Saques |
 
 ### `/ajuda` — Ajuda
 
@@ -882,36 +906,45 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `Campo` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Card` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Empty` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Kpi` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Money` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 | `Pill` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela C08 Nova venda do cambista |
 
 ### `/cambista/acerto` — Meu acerto
 
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `Campo` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Card` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Empty` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Kpi` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Money` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 | `Pill` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela C10 Meu acerto |
 
 ### `/cambista/vendas` — Minhas vendas
 
 | Cartão | Destino |
 |---|---|
 | `Button` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `Campo` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Card` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Empty` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Kpi` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Money` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `PanelShell` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 | `Pill` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
+| `TabelaOuCartoes` | manter · peça do kit (onda 1) · na tela C09 Minhas vendas |
 
 ### `/carrinho` — Carrinho
 

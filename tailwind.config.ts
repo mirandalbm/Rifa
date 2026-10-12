@@ -32,7 +32,8 @@ export default {
         /** Cor de marca do template: logo, links, destaque de navegação. */
         marca: "var(--marca)",
         /** O "+" do carrinho na barra da publicação. */
-        azul: "var(--azul)",
+        // Com `<alpha-value>`, como o `white`: sem isso o `bg-azul/10` do ícone da estatística não saía.
+        azul: "color-mix(in srgb, var(--azul) calc(<alpha-value> * 100%), transparent)",
         mais: "var(--mais)",
         /** Fundo da página dos painéis (padrão Materialize). */
         // Com `<alpha-value>`, como o `white`: sem isso o `bg-painel/95` da barra de cima saía transparente.

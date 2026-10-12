@@ -556,24 +556,29 @@ export function CambistaVendas() {
               { titulo: "Bilhete", celula: (v) => <SegundaVia codigo={v.code} /> },
             ]}
             cartao={(v) => (
-              <div className="space-y-1.5 text-sm">
-                <div className="flex items-start justify-between gap-3">
+              // Do tablet em diante, três linhas em vez de seis: quem e a rifa à
+              // esquerda; cotas, valor e a segunda via à direita (a grade só
+              // reposiciona — o DOM segue a ordem do celular).
+              <div className="grid grid-cols-1 gap-y-1.5 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
+                <div className="flex items-start justify-between gap-3 sm:col-span-2">
                   <span className="tnum font-medium">#{v.code}</span>
                   <span className="flex flex-wrap justify-end gap-1">
                     <SituacaoDaVenda status={v.status} />
                     <Acertada v={v} />
                   </span>
                 </div>
-                <p className="min-w-0 break-words">{v.buyerName}</p>
-                <p className="min-w-0 truncate text-muted">{v.campaignTitle}</p>
-                <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 break-words sm:col-start-1 sm:row-start-2">{v.buyerName}</p>
+                <p className="min-w-0 truncate text-muted sm:col-start-1 sm:row-start-3 sm:self-center">{v.campaignTitle}</p>
+                <div className="flex items-center justify-between gap-3 sm:col-start-2 sm:row-start-2">
                   <span className="text-muted">
                     <span className="tnum">{v.quantity}</span> cota{v.quantity === 1 ? "" : "s"} ·{" "}
                     {FORMA[v.method] ?? v.method}
                   </span>
                   <Money cents={v.amountCents} />
                 </div>
-                <SegundaVia codigo={v.code} />
+                <div className="sm:col-start-2 sm:row-start-3 sm:justify-self-end">
+                  <SegundaVia codigo={v.code} />
+                </div>
               </div>
             )}
           />

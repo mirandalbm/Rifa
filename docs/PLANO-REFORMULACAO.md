@@ -132,6 +132,11 @@ deixava a corrida ao alcance de um toque. Agora o servidor responde 409 a
 quem perdeu, a tela nunca solta o botão antes da resposta, e `npm run
 cambista` corre os dois juntos. O azul do kit ganhou o formato com
 opacidade (o ícone azul da estatística saía sem o fundo).
+Confirmado com você em 12/10/2026: a visão geral do afiliado fica com duas
+estatísticas por linha no tablet (três no computador; com o menu aberto o
+valor não cabia), os Saques ficam em dois cartões, e o texto da venda do
+cambista que falava em "cartão aprovado" virou dinheiro ou Pix, no código e
+no nó do Figma (as três larguras do C08).
 Ficou para quem mexe em regra: "Vendas hoje" do cambista conta o dia em UTC
 (`server/routes/seller.ts`), o total da venda na tela não tem o desconto do
 pacote (o servidor cobra o certo), a lista do cambista para em 200 sem

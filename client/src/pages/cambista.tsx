@@ -348,8 +348,8 @@ export function CambistaVenda() {
                   {reservar.isPending ? "Reservando…" : "Reservar cotas"}
                 </Button>
                 <p className="text-xs leading-[17px] text-muted">
-                  As cotas são reservadas antes da cobrança — cartão aprovado com número já vendido
-                  seria o pior dos mundos.
+                  As cotas são reservadas antes da cobrança: dinheiro ou Pix recebido por número já
+                  vendido seria dinheiro sem nada para entregar.
                 </p>
               </div>
             </CartaoDoPainel>

@@ -150,6 +150,8 @@ export default function Rifa() {
   // Quem chega pelo aviso ou pelo "Ver comentários" do feed (#comentarios)
   // encontra a janela aberta: embaixo da rifa fica só o comentário fixo.
   const [comentando, setComentando] = useState(() => typeof window !== "undefined" && window.location.hash === "#comentarios");
+  // Aberto pelo presente ao lado da pílula "Comentar…": o quadro do presente já aparece.
+  const [comPresente, setComPresente] = useState(false);
   const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "" });
   const [error, setError] = useState<string | null>(null);
 
@@ -456,7 +458,10 @@ export default function Rifa() {
             titulo={campaign.prizeTitle}
             caminho={data.organizacao ? `/o/${data.organizacao.slug}/r/${campaign.slug}` : `/r/${campaign.slug}`}
             interacoes={campaign.interacoes}
-            aoComentar={() => setComentando(true)}
+            aoComentar={() => {
+              setComPresente(false);
+              setComentando(true);
+            }}
           />
           <Legenda autor={data.organizacao?.nome ?? ""} texto={campaign.legenda} />
         </div>
@@ -465,11 +470,13 @@ export default function Rifa() {
 
       </div>
 
-      {/* A compra: no computador, coluna da direita que acompanha a rolagem
-          (com rolagem própria quando o mapa e o formulário passam da tela). */}
+      {/* A compra é um cartão com borda nas três larguras (Figma "10 · Loja").
+          No computador, coluna da direita que acompanha a rolagem (com rolagem
+          própria quando o mapa e o formulário passam da tela); lá não há a barra
+          de cima, então ela para a 16 px do alto, alinhada com a publicação. */}
       <aside
         aria-label="Comprar"
-        className="lg:sticky lg:top-[68px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100vh-68px-48px)] lg:overflow-y-auto lg:rounded-xl lg:border lg:border-line lg:px-4 lg:[scrollbar-width:thin]"
+        className="mt-4 rounded-xl border border-line px-4 pb-4 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:max-h-[calc(100vh-32px)] lg:overflow-y-auto lg:[scrollbar-width:thin]"
       >
       {/* No computador o prêmio encabeça a coluna da compra. */}
       <h2 className="mt-4 hidden font-display text-lg font-extrabold leading-tight lg:block">{campaign.prizeTitle}</h2>
@@ -850,9 +857,10 @@ export default function Rifa() {
           </div>
         </div>
       ) : null}
-      {/* No computador, o total e o Pix ficam no pé da coluna da compra. */}
+      {/* No computador, o total e o Pix ficam no pé da coluna da compra (`-bottom-4`:
+          cola na borda de baixo do cartão, por cima do respiro dele). */}
       {count > 0 && price && vende ? (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-3 hidden items-center gap-3 border-t border-line bg-mist px-4 py-3 lg:flex">
+        <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 mt-3 hidden items-center gap-3 border-t border-line bg-mist px-4 py-3 lg:flex">
           <span className="tnum text-base">
             <span className="label-xs block">{count} cota(s)</span>
             {formatBRL(price.totalCents)}
@@ -916,8 +924,16 @@ export default function Rifa() {
 
       <SorteioCard slug={slug} />
 
-      <Comentarios slug={campaign.slug} aoAbrirPainel={() => setComentando(true)} />
-      {comentando ? <PainelDeComentarios slug={campaign.slug} onFechar={() => setComentando(false)} /> : null}
+      <Comentarios
+        slug={campaign.slug}
+        aoAbrirPainel={(o) => {
+          setComPresente(Boolean(o?.presente));
+          setComentando(true);
+        }}
+      />
+      {comentando ? (
+        <PainelDeComentarios slug={campaign.slug} presente={comPresente} onFechar={() => setComentando(false)} />
+      ) : null}
 
       <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[11px] text-muted">
         <p>

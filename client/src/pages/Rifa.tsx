@@ -39,6 +39,7 @@ import { SeguirBotoes, FotoDoPerfil } from "@/components/Seguir";
 import { SorteioCard } from "@/components/SorteioCard";
 import { Comentarios, PainelDeComentarios } from "@/components/Comentarios";
 import { BotaoDenunciar, SoValePelaPlataforma } from "@/components/Seguranca";
+import { PaginaNaoEncontrada } from "@/components/PaginaNaoEncontrada";
 import { Cartelas, preCarregarCartelas } from "@/components/Cartelas";
 import { CotaSurpresa, type PremiosDaRifa } from "@/components/CotaSurpresa";
 import { avisoDaJuntada, juntarNoCarrinho, lerCarrinho } from "@/lib/carrinho";
@@ -155,7 +156,7 @@ export default function Rifa() {
   const [buyer, setBuyer] = useState({ name: "", phone: "", coupon: "", cpf: "" });
   const [error, setError] = useState<string | null>(null);
 
-  const { data } = useQuery<CampaignDetail>({
+  const { data, isError } = useQuery<CampaignDetail>({
     queryKey: [`/api/public/campaigns/${slug}`],
   });
   // O provedor do Pix em uso decide se o CPF é pedido (o Asaas exige).
@@ -305,6 +306,9 @@ export default function Rifa() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rifaCarregada]);
 
+  // Rascunho, rifa apagada ou endereço errado: o servidor diz 404 e a página
+  // é a mesma do endereço que não existe (sem "Carregando…" para sempre).
+  if (!data && isError) return <PaginaNaoEncontrada />;
   if (!data) {
     return (
       <PublicShell>

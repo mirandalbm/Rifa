@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 813 |
+| Cartões (componentes usados pelas telas) | 815 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 129 arquivos |
-| Destinos decididos | 920 de 920 |
+| Destinos decididos | 922 de 922 |
 
 ## 1. Telas
 
@@ -1122,6 +1122,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `GruposDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
 | `Legenda` | manter · na tela 02 Página da rifa · onda 5 |
 | `Money` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `PaginaNaoEncontrada` | manter · na tela 02 Página da rifa (rascunho ou endereço errado) · onda 5 |
 | `PainelDeComentarios` | manter · na tela 02 Página da rifa · onda 5 |
 | `Progress` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
@@ -1213,6 +1214,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `GruposDaRifa` | manter · na tela 02 Página da rifa · onda 5 |
 | `Legenda` | manter · na tela 02 Página da rifa · onda 5 |
 | `Money` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
+| `PaginaNaoEncontrada` | manter · na tela 02 Página da rifa (rascunho ou endereço errado) · onda 5 |
 | `PainelDeComentarios` | manter · na tela 02 Página da rifa · onda 5 |
 | `Progress` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 02 Página da rifa |

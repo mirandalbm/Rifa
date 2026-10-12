@@ -17,6 +17,9 @@ import {
   problemaNoEstornoParcial,
   problemaNoPagadorDoPagarme,
   segredoConfere,
+  consultaIndisponivel,
+  contestacaoInteira,
+  ErroDoPagarme,
   telefoneDoPagarme,
   venceEmDoPagarme,
 } from "../server/payments/pagarme";
@@ -213,8 +216,14 @@ describe("Pagar.me: pago a mais, a menos e contestação", () => {
     expect(eventoDoPagarme("charge.underpaid", c("underpaid"))).toBe("ignored");
   });
   it("contestação confirmada pela API desfaz; sem a API confirmar, não", () => {
-    expect(eventoDoPagarme("charge.chargedback", c("chargedback"))).toBe("refunded");
-    expect(eventoDoPagarme("charge.refunded", c("chargedback"))).toBe("refunded");
+    const contestada = (cancelado: number) => ({ ...c("chargedback"), canceladoCents: cancelado });
+    expect(eventoDoPagarme("charge.chargedback", contestada(1000))).toBe("refunded");
+    expect(eventoDoPagarme("charge.refunded", contestada(1000))).toBe("refunded");
+    // Contestação parcial, ou sem o valor contestado: ignorada (vai ao log).
+    expect(eventoDoPagarme("charge.chargedback", contestada(400))).toBe("ignored");
+    expect(eventoDoPagarme("charge.chargedback", contestada(0))).toBe("ignored");
+    expect(contestacaoInteira(contestada(1000))).toBe(true);
+    expect(contestacaoInteira(contestada(999))).toBe(false);
     expect(eventoDoPagarme("charge.chargedback", c("paid"))).toBe("ignored");
     // O status sozinho não vale: o evento precisa ser de devolução.
     expect(eventoDoPagarme("charge.paid", c("chargedback"))).toBe("ignored");
@@ -248,6 +257,22 @@ describe("Pagar.me: o que fica do webhook", () => {
     expect(g).toEqual({ id: "hook_ABC", type: "charge.paid", data: { id: "ch_X" } });
     expect(JSON.stringify(g)).not.toMatch(/Ana|ana@|52998224725/);
     expect(payloadDoPagarme("não é json")).toEqual({ id: null, type: null, data: { id: null } });
+  });
+});
+
+describe("Pagar.me: a consulta fora do ar", () => {
+  it("sem resposta ou 5xx é indisponível (503 no webhook); 4xx e outro erro não", () => {
+    const semResposta = new ErroDoPagarme("rede");
+    semResposta.semResposta = true;
+    const de500 = new ErroDoPagarme("500");
+    de500.httpStatus = 502;
+    const de404 = new ErroDoPagarme("404");
+    de404.httpStatus = 404;
+    expect(consultaIndisponivel(semResposta)).toBe(true);
+    expect(consultaIndisponivel(de500)).toBe(true);
+    expect(consultaIndisponivel(de404)).toBe(false);
+    expect(consultaIndisponivel(new Error("outro"))).toBe(false);
+    expect(new ErroDoPagarme("x").depoisDeChamar).toBe(false);
   });
 });
 

@@ -1450,7 +1450,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/chamados/:id/mensagens` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
 | POST | `/chamados/:id/concluir` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
 | POST | `/chamados/:id/disputa/decidir` | `disputa-test.ts`, `isolation-test.ts` |
-| POST | `/chamados/:id/estornar` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
+| POST | `/chamados/:id/estornar` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` +1 |
 | GET | `/reembolso` | `chamados-test.ts` |
 | PUT | `/reembolso` | `chamados-test.ts` |
 | GET | `/whatsapp` | `isolation-test.ts` |

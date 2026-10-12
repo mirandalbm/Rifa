@@ -34,6 +34,7 @@ import {
   orders,
   organizations,
   platformCharges,
+  chamados,
   quotaAlloc,
   users,
   webhookEvents,
@@ -55,7 +56,11 @@ const URL_PAGARME = process.env.PAGARME_API_URL?.trim() ?? "";
 
 const PREFIXO = "pagarme-teste-";
 const ORG_SLUG = "pagarme-teste-promotora";
-const TELEFONES = ["11973330001", "11973330002", "11973330003", "11973330004", "11973330005", "11973330006", "11973330007", "11973330008", "11973330009"];
+const TELEFONES = [
+  "11973330001", "11973330002", "11973330003", "11973330004", "11973330005", "11973330006",
+  "11973330007", "11973330008", "11973330009", "11973330010", "11973330011", "11973330012",
+];
+const RESTRICAO_DE_FALHA = "pagarme_teste_falha_do_banco";
 const EMAIL_ORG = "pagarme-org@teste.rifa";
 /** Celular de 11 algarismos sem o 9: o Pagar.me não aceita (o nosso formulário sim). */
 const TELEFONE_FORA = "11873330008";
@@ -85,6 +90,12 @@ interface Cobranca {
 let ignoraAmount = false;
 /** O Pagar.me de mentira que recusa o pedido (500). */
 let recusaPedidos = false;
+/** O DELETE responde sem `canceled_amount` (o estorno que não confirma o valor). */
+let deleteSemCancelado = false;
+/** O DELETE demora (para dois estornos da mesma cobrança se cruzarem). */
+let atrasoDoDelete = 0;
+/** A consulta da cobrança fecha a conexão sem responder (a API de lá fora do ar). */
+let derrubaConsulta = false;
 const cobrancas = new Map<string, Cobranca>();
 let seq = 0;
 const novoId = (p: string) => `${p}_${Date.now().toString(36)}${(++seq).toString(36)}TESTE`;
@@ -148,8 +159,21 @@ function servidorDeMentira(porta: number, prefixo: string) {
         const { semCancelado, ...resto } = x;
         return semCancelado ? { ...resto, canceled_amount: undefined } : resto;
       };
+      if (req.method === "GET" && c && derrubaConsulta) {
+        req.socket.destroy();
+        return;
+      }
       if (req.method === "GET" && c) return responde(200, { ...comoA(c), payment_method: "pix" });
       if (req.method === "DELETE" && c) {
+        if (atrasoDoDelete) {
+          const espera = atrasoDoDelete;
+          setTimeout(() => apagar(c), espera);
+          return;
+        }
+        return apagar(c);
+      }
+      responde(404, { message: "Rota desconhecida no Pagar.me de mentira." });
+      function apagar(c: Cobranca) {
         if (c.status === "pending") {
           c.status = "canceled";
           return responde(200, c);
@@ -158,9 +182,8 @@ function servidorDeMentira(porta: number, prefixo: string) {
         const valor = typeof corpo?.amount === "number" && !ignoraAmount ? corpo.amount : resto;
         c.canceled_amount += valor;
         if (c.canceled_amount >= (c.paid_amount ?? c.amount)) c.status = "refunded";
-        return responde(200, c);
+        return responde(200, deleteSemCancelado ? { ...c, canceled_amount: undefined } : c);
       }
-      responde(404, { message: "Rota desconhecida no Pagar.me de mentira." });
     });
   });
   return new Promise<http.Server>((ok) => srv.listen(porta, "127.0.0.1", () => ok(srv)));
@@ -193,6 +216,7 @@ async function limpar() {
   if (ids.length) {
     const ps = await db.select({ id: orders.id }).from(orders).where(inArray(orders.campaignId, ids));
     if (ps.length) {
+      await db.execute(sql`delete from chamados where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
       await db.execute(sql`delete from pix_tardios where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
       await db.execute(sql`delete from commissions where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
       await db.delete(platformCharges).where(inArray(platformCharges.orderId, ps.map((p) => p.id)));
@@ -499,9 +523,27 @@ async function main() {
     situacao = await statusDoCarrinho();
     checa("contestação avisada com a cobrança ainda paga na API: nada", st === 200 && situacao === "paid,paid", `HTTP ${st} ${situacao}`);
     cC.status = "chargedback";
+    cC.canceled_amount = (cC.paid_amount ?? cC.amount) - 1;
     st = await webhook({ id: hookId(), type: "charge.chargedback", data: { id: chC } }, SEGREDO);
     situacao = await statusDoCarrinho();
-    checa("contestação confirmada pela API: os dois pedidos do carrinho são estornados", st === 200 && situacao === "refunded,refunded", `HTTP ${st} ${situacao}`);
+    checa("contestação parcial na API (o contestado não cobre o pago): ignorada", st === 200 && situacao === "paid,paid", `HTTP ${st} ${situacao}`);
+    cC.canceled_amount = cC.paid_amount ?? cC.amount;
+    st = await webhook({ id: hookId(), type: "charge.chargedback", data: { id: chC } }, SEGREDO);
+    situacao = await statusDoCarrinho();
+    checa("contestação inteira confirmada pela API: os dois pedidos do carrinho são estornados", st === 200 && situacao === "refunded,refunded", `HTTP ${st} ${situacao}`);
+
+    console.log("\n  a API do Pagar.me fora do ar na hora do webhook:");
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(9, { cpf: CPF, email: EMAIL }) });
+    const pFora = await pedidoPorCodigo(r.json?.code ?? 0);
+    cobrancas.get(pFora!.pspChargeId!)!.status = "paid";
+    derrubaConsulta = true;
+    st = await webhook(evPago(hookId(), pFora!.pspChargeId!), SEGREDO);
+    derrubaConsulta = false;
+    checa(
+      "a consulta da cobrança cai: 503 com Retry-After (o reenvio não para), nada pago",
+      st === 503 && Number(ultimoRetryAfter) > 0 && (await pedidoPorCodigo(pFora!.code)).status === "pending",
+      `HTTP ${st} Retry-After ${ultimoRetryAfter}`,
+    );
 
     console.log("\n  pago a mais e pago a menos:");
     r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(5, { cpf: CPF, email: EMAIL }) });
@@ -579,8 +621,98 @@ async function main() {
       `HTTP ${r.status} ${r.json?.message ?? ""}`,
     );
 
+
+    console.log("\n  estorno do chamado que o provedor não confirma:");
+    r = await admin.req("PUT", "/api/admin/plataforma", { ...antes, provedorPix: "pagarme", estornoManual: true });
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(10, { cpf: CPF, email: EMAIL }) });
+    const pCh = await pedidoPorCodigo(r.json?.code ?? 0);
+    const cCh = cobrancas.get(pCh!.pspChargeId!)!;
+    cCh.status = "paid";
+    cCh.paid_amount = cCh.amount;
+    st = await webhook(evPago(hookId(), cCh.id), SEGREDO);
+    const [compradorCh] = await db.select().from(buyers).where(eq(buyers.phone, TELEFONES[10]));
+    const [chamado] = await db
+      .insert(chamados)
+      .values({
+        protocolo: `PAGTESTE-${pCh!.code}`,
+        organizationId: org.id,
+        orderId: pCh!.id,
+        buyerId: compradorCh.id,
+        status: "aprovado",
+        motivo: "Prova do Pagar.me: estorno que o provedor não confirma",
+        devolverCents: pCh!.amountCents - 100,
+        taxaCents: 100,
+        taxaPct: 10,
+        tipoReembolso: "com_taxa",
+      })
+      .returning();
+    deleteSemCancelado = true;
+    const deletesDoChamado = () => pedidos.filter((p) => p.metodo === "DELETE" && p.url.endsWith(`/charges/${cCh.id}`)).length;
+    r = await admin.req("POST", `/api/admin/chamados/${chamado.id}/estornar`, {});
+    deleteSemCancelado = false;
+    let [chDepois] = await db.select().from(chamados).where(eq(chamados.id, chamado.id));
+    checa(
+      "a resposta sem o valor devolvido: 409 pedindo conferência, o chamado fica estornado (não volta a aprovado) e nada é desfeito",
+      r.status === 409 &&
+        /Confira a cobrança/.test(r.json?.message ?? "") &&
+        chDepois.status === "estornado" &&
+        chDepois.formaDevolucao === "conferir_no_provedor" &&
+        (await pedidoPorCodigo(pCh!.code)).status === "paid",
+      `HTTP ${r.status} ${chDepois.status} ${chDepois.formaDevolucao} ${r.json?.message ?? ""}`,
+    );
+    r = await admin.req("POST", `/api/admin/chamados/${chamado.id}/estornar`, {});
+    [chDepois] = await db.select().from(chamados).where(eq(chamados.id, chamado.id));
+    checa("o segundo clique não devolve de novo (409, um DELETE só)", r.status === 409 && deletesDoChamado() === 1, `HTTP ${r.status} DELETEs ${deletesDoChamado()}`);
+
+    console.log("\n  dois estornos parciais da mesma cobrança ao mesmo tempo:");
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(11, { cpf: CPF, email: EMAIL }) });
+    const pDois = await pedidoPorCodigo(r.json?.code ?? 0);
+    const cDois = cobrancas.get(pDois!.pspChargeId!)!;
+    cDois.status = "paid";
+    cDois.paid_amount = cDois.amount;
+    atrasoDoDelete = 400;
+    const resultados = await Promise.allSettled([
+      prov.refund(cDois.id, 100, "parcial-a"),
+      prov.refund(cDois.id, 200, "parcial-b"),
+    ]);
+    atrasoDoDelete = 0;
+    checa(
+      "os dois passam (a trava da cobrança: o segundo lê o cancelado depois do primeiro)",
+      resultados.every((x) => x.status === "fulfilled") && cDois.canceled_amount === 300,
+      resultados.map((x) => (x.status === "fulfilled" ? "ok" : (x.reason as Error).message)).join(" | ") + ` cancelado ${cDois.canceled_amount}`,
+    );
+
+    console.log("\n  relógio que acha o Pix pago e o banco falha:");
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: b.id, quantity: 1, buyer: comprador(8, { cpf: CPF, email: EMAIL }) });
+    const pFalha = await pedidoPorCodigo(r.json?.code ?? 0);
+    const cFalha = cobrancas.get(pFalha!.pspChargeId!)!;
+    cFalha.status = "paid";
+    cFalha.paid_amount = cFalha.amount;
+    await db.update(quotaAlloc).set({ reservedUntil: new Date(Date.now() - 60_000) }).where(eq(quotaAlloc.orderId, pFalha!.id));
+    // O banco recusa a linha da fila: a gravação do Pix tardio falha.
+    await db.execute(sql.raw(`ALTER TABLE pix_tardios ADD CONSTRAINT ${RESTRICAO_DE_FALHA} CHECK (valor_cents < 0) NOT VALID`));
+    await expirarReservas();
+    const naFila = async () => ((await db.execute(sql`select 1 from pix_tardios where order_id = ${pFalha!.id}`)).rows.length);
+    const anotada = async () =>
+      JSON.stringify(((await db.execute(sql`select value from app_settings where key = 'cobrancas_pagas_a_conferir'`)).rows[0] as { value?: unknown } | undefined)?.value ?? []).includes(cFalha.id);
+    const primeira = { fila: await naFila(), anotada: await anotada(), status: (await pedidoPorCodigo(pFalha!.code)).status };
+    checa(
+      "o banco falhou: nada na fila, mas a cobrança paga fica anotada para a próxima volta",
+      primeira.fila === 0 && primeira.anotada && primeira.status === "expired",
+      JSON.stringify(primeira),
+    );
+    await db.execute(sql.raw(`ALTER TABLE pix_tardios DROP CONSTRAINT IF EXISTS ${RESTRICAO_DE_FALHA}`));
+    await expirarReservas();
+    let filaDepois = 0;
+    for (let i = 0; i < 20 && !filaDepois; i++) {
+      filaDepois = await naFila();
+      if (!filaDepois) await new Promise((ok) => setTimeout(ok, 250));
+    }
+    checa("a volta seguinte põe o Pix na fila do Pix tardio e tira a anotação", filaDepois === 1 && !(await anotada()), `fila ${filaDepois}`);
+
     checa("a chave nunca foi para uma URL", pedidos.every((p) => !p.url.includes(CHAVE)));
   } finally {
+    await db.execute(sql.raw(`ALTER TABLE pix_tardios DROP CONSTRAINT IF EXISTS ${RESTRICAO_DE_FALHA}`)).catch(() => {});
     await admin.req("PUT", "/api/admin/plataforma", { ...antes });
     await limpar();
     srv.close();

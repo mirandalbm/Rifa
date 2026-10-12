@@ -8,8 +8,8 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 845 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 61 |
-| Testes de regra (`tests/`) | 129 arquivos |
+| Provas contra a API (`npm run …`) | 62 |
+| Testes de regra (`tests/`) | 130 arquivos |
 | Destinos decididos | 952 de 952 |
 
 ## 1. Telas
@@ -1435,10 +1435,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/organizacoes/:id/acessos` | `acessos-test.ts` |
 | POST | `/organizacoes/:id/arquivar` | `isolation-test.ts` |
 | POST | `/organizacoes/:id/restaurar` | `isolation-test.ts` |
-| GET | `/plataforma` | `bonus-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +3 |
+| GET | `/plataforma` | `bonus-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +4 |
 | PUT | `/app` | `buscar-test.ts`, `divulgacao-test.ts`, `grupos-test.ts` +3 |
 | PUT | `/selos` | `isolation-test.ts`, `verificacao-test.ts` |
-| PUT | `/plataforma` | `bonus-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +3 |
+| PUT | `/plataforma` | `bonus-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +4 |
 | GET | `/comissao` | `guarda-test.ts` |
 | PUT | `/comissao` | `guarda-test.ts` |
 | GET | `/chamados` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
@@ -1632,7 +1632,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/me` | `acessos-test.ts`, `google-test.ts`, `marketing-test.ts` |
-| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +44 |
+| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +45 |
 | POST | `/senha` | `acessos-test.ts` |
 | POST | `/logout` | `acessos-test.ts` |
 
@@ -1747,9 +1747,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/campaigns/:slug/cartelas` | `carrinho-test.ts`, `load-test.ts` |
 | GET | `/campaigns/:slug/numbers/:number` | `publico-test.ts` |
 | POST | `/track-click` | `publico-test.ts` |
-| GET | `/checkout` | `base-ia.ts` |
-| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +18 |
-| POST | `/carrinho/checkout` | `carrinho-test.ts` |
+| GET | `/checkout` | `base-ia.ts`, `pagarme-test.ts` |
+| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +19 |
+| POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts` |
 | GET | `/orders/:code` | `carrinho-test.ts`, `marketing-test.ts`, `presente-test.ts` |
 | GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts` |
 | POST | `/my-quotas/request-code` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
@@ -1837,7 +1837,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| POST | `/:provider` | `webhook-test.ts` |
+| POST | `/:provider` | `pagarme-test.ts`, `webhook-test.ts` |
 
 ## 5. Rotas que nenhuma prova cita
 
@@ -1888,6 +1888,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `marketing` | `scripts/marketing-test.ts` |
 | `matriz` | `scripts/matriz.ts` |
 | `mensagens` | `scripts/mensagens-test.ts` |
+| `pagarme` | `scripts/pagarme-test.ts` |
 | `patrocinio` | `scripts/patrocinio-test.ts` |
 | `perfil` | `scripts/perfil-test.ts` |
 | `pix-tardio` | `scripts/pix-tardio-test.ts` |

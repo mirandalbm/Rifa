@@ -82,6 +82,12 @@ jobs:
       META_AD_ACCOUNT_ID: act_1234567890
       META_PAGE_ID: "1122334455"
       META_API_URL: http://127.0.0.1:5096/v25.0
+      # Só para o provedor Pagar.me (`npm run pagarme`): a chave de teste, o segredo do webhook e o
+      # Pagar.me de mentira que a própria prova sobe nesta porta (o servidor só troca o endereço fora de
+      # produção). O provedor em uso segue o `dev`: a prova escolhe o Pagar.me e devolve o de antes.
+      PAGARME_SECRET_KEY: sk_test_ci_pagarme_1234
+      PAGARME_WEBHOOK_TOKEN: ci-segredo-do-webhook-pagarme
+      PAGARME_API_URL: http://127.0.0.1:5095/core/v5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -156,6 +162,7 @@ jobs:
       - run: npm run acessos
       - run: npm run publico
       - run: npm run webhook
+      - run: npm run pagarme
       - run: npm run bonus
       - run: npm run patrocinio
       - run: npm run banner

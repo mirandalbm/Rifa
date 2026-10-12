@@ -95,7 +95,7 @@ export default function Publicar() {
   return (
     <PublicShell>
       <div>
-        <Link href="/perfil" className="mb-3 inline-flex items-center gap-1 text-sm text-ink-2">
+        <Link href="/perfil" className="mb-3 inline-flex min-h-6 items-center gap-1 text-sm text-ink-2">
           <ArrowLeft size={16} aria-hidden /> Voltar
         </Link>
         <h1 className="font-display text-2xl font-extrabold">Publicar sobre uma rifa</h1>
@@ -119,7 +119,7 @@ export default function Publicar() {
         ) : (
           <div className="mt-3 space-y-3 text-sm">
             <p className="text-muted">
-              Conte o que você achou de uma rifa em que comprou, com até {DIVULGACAO_FOTOS_MAX} fotos suas. A
+              Conte o que você achou de uma rifa em que comprou, com até <span className="tnum">{DIVULGACAO_FOTOS_MAX}</span> fotos suas. A
               organização lê antes de aparecer; link, telefone e pedido de Pix por fora não são aceitos.
             </p>
             {rifas.length === 0 ? (

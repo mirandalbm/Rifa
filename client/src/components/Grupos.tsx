@@ -157,7 +157,7 @@ export function GrupoAberto({ id }: { id: string }) {
         <Link href="/mensagens" aria-label="Voltar para a lista" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-mist lg:hidden">
           <ArrowLeft size={22} aria-hidden />
         </Link>
-        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mist-2 text-ink-2">
+        <span aria-hidden className="hidden h-10 w-10 shrink-0 sm:flex items-center justify-center rounded-full bg-mist-2 text-ink-2">
           <Users size={18} />
         </span>
         <div className="min-w-0 flex-1 text-sm">

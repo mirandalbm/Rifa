@@ -144,7 +144,7 @@ function Reels() {
           {precisaEntrar ? (
             <p className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm">
               Entre na sua conta para ver os reels de quem você segue.
-              <Link href="/entrar?volta=/reels" className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.branco}`}>
+              <Link href="/entrar?volta=/reels" className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.primario}`}>
                 Entrar
               </Link>
             </p>

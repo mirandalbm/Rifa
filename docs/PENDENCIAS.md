@@ -94,7 +94,20 @@ senha); **[código]** é trabalho no repositório.
   comercial com autorização SPA/MF; (b) conta com split (recebedor por
   promotora) para Pix; (c) como o estorno e a devolução por MED se dividem
   entre os recebedores; (d) o prazo em que o Pix fica disponível para o
-  recebedor; (e) as tarifas.
+  recebedor; (e) as tarifas. **Conta aberta na Stone em 12/10/2026**:
+  confirmar que ela dá o painel e as chaves de API do Pagar.me. Com a
+  decisão "sem split" (abaixo), o (b) e o (c) deixam de importar; seguem
+  valendo o (a), a tarifa, a validade do QR, a autenticação do webhook e a
+  idempotência (`docs/PLANO-GATEWAY-PAGARME.md`, seção 3).
+- [ ] **[você → advogado]** **Sem split, a plataforma recebe e repassa**
+  (decisão de 12/10/2026, com o aval do advogado e do contador para a parte
+  fiscal: valor a repassar, não receita). Falta o advogado confirmar por
+  escrito que a conclusão do item 1.2 (a plataforma **não é
+  subcredenciadora**, Resolução BCB 150/2021, art. 2º, V) continua valendo:
+  ela se apoiava no provedor receber e dividir o Pix. E a cláusula do
+  contrato da promotora sobre o repasse (prazo: depois do sorteio; forma:
+  Pix com comprovante e recibo; o que se desconta: taxa, comissão guardada,
+  estornos, MED e contestação). O repasse no código espera essa resposta.
 - [ ] **[código]** Integrar o Pagar.me (`server/payments/`, `PaymentProvider`)
   com o recebedor de cada organização no lugar da carteira do Asaas: plano
   em `docs/PLANO-GATEWAY-PAGARME.md` (documentação lida em 10/10/2026). O

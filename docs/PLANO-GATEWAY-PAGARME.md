@@ -7,6 +7,34 @@ código. A documentação foi lida pelo pesquisador de integração em 10/10/202
 busca); daqui, os domínios do Pagar.me não abrem. O que não teve fonte oficial
 está marcado **a confirmar**.
 
+## 0. Decisões de 12/10/2026 (o dono, com o advogado e o contador)
+
+- **Sem split, sempre.** A plataforma recebe o Pix inteiro e repassa a
+  parte de cada promotora. O advogado e o contador disseram ao dono que,
+  mesmo com a conta recebendo tudo, a documentação mostra que é dinheiro de
+  repasse (valor a repassar, não receita). Sem split, somem o contrato PSP,
+  o recebedor por promotora e a prova de vida (a antiga fase 2).
+- **O repasse é liberado depois do sorteio**, como a carência da comissão:
+  o arrependimento fecha 2 h antes do sorteio, e depois dele sobra o risco
+  de MED e de contestação.
+- **O repasse é pago por Pix manual com baixa e comprovante**, com recibo,
+  como o saque do afiliado. Transferência automática pela API fica para
+  depois, se o Pagar.me fizer.
+- **Em aberto, antes de construir o repasse**: o parecer de 07/10 (item 1.2
+  de `docs/PENDENCIAS.md`) concluiu que a plataforma **não é
+  subcredenciadora** (Resolução BCB 150/2021, art. 2º, V) *porque* o
+  provedor recebia e dividia o Pix, e a plataforma não liquidava para
+  recebedores. Sem split, a plataforma liquida para as promotoras. O
+  advogado precisa confirmar por escrito que a conclusão continua valendo
+  (ou o que muda), além da parte fiscal. A decisão B3 de
+  `docs/FECHAMENTO-JURIDICO-CONTABIL.md` ("a plataforma nunca segura
+  dinheiro de rifa") deixa de valer se ele confirmar.
+- **Efeito no sistema** (quando o repasse entrar): a taxa da venda online
+  fica sempre retida (como hoje com `taxa_retida_no_split`), a notificação
+  de falta de pagamento passa a valer só para o cambista, a retenção
+  cautelar alcança o dinheiro das vendas, e o MED e a contestação saem do
+  saldo a repassar da promotora.
+
 ## 1. O que a documentação confirma
 
 | Assunto | O que vale | Efeito no sistema |
@@ -22,6 +50,11 @@ está marcado **a confirmar**.
 | Webhook | eventos `charge.paid`, `charge.refunded`, `charge.partial_canceled`, `order.*`, `recipient.updated`, `chargeback.received`; id `hook_…`; **a autenticação não está documentada** | O status vem sempre da consulta à API (regra de hoje), com segredo no endereço do webhook e a assinatura assimétrica, se vier |
 
 ## 2. Fases (cada uma é um PR, com o revisor de invariantes)
+
+Reordenadas em 12/10/2026 pela decisão "sem split": a fase 1 segue (sem as
+regras de split), a 2 (recebedor da promotora) sai, e o **repasse à
+promotora** entra no lugar dela, depois da resposta do advogado (seção 0).
+A lista abaixo é a de 10/10, para registro.
 
 1. **Provedor Pagar.me**:
    - o Pix com split em centavos (promotora, plataforma e, com a guarda ligada, a comissão do lado da plataforma);

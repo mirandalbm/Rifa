@@ -112,6 +112,10 @@ export async function confirmarTelefone(req: Request, codigo: string) {
   if (!(await checkOtp(req, String(codigo ?? "").trim()))) throw new ContaError("Código incorreto ou expirado.", 401);
 
   if (real) {
+    // As outras sessões saem ANTES de gravar: se o DELETE falhar, nada fica
+    // confirmado e a pessoa pede outro código. Na ordem inversa, a conta já
+    // estaria confirmada e quem entrou pela senha sem ser dono ficaria de pé.
+    await encerrarOutrasSessoes(sessao.id, req.sessionID);
     const [gravou] = await db
       .update(buyers)
       .set({ telefoneConfirmadoEm: new Date() })
@@ -150,7 +154,8 @@ export async function confirmarTelefone(req: Request, codigo: string) {
       throw err;
     }
   }
-  // Provou o número: a sessão que já existe passa a ser dele e as outras saem.
+  // Provou o número: a sessão que já existe passa a ser dele e as outras saem
+  // (no telefone real, já saíram antes do UPDATE).
+  if (!real) await encerrarOutrasSessoes(sessao.id, req.sessionID);
   req.session.buyer = { ...sessao, phone, confirmado: true };
-  await encerrarOutrasSessoes(sessao.id, req.sessionID);
 }

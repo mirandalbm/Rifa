@@ -381,7 +381,8 @@ async function main() {
     r = await tc.req("GET", "/api/public/conta");
     checa("e segue valendo, agora confirmada", r.status === 200 && r.json?.sessaoConfirmada === true, `HTTP ${r.status}`);
     const lembrarDepois = await lembrarDaSessao(tc.cookie);
-    checa("o \"lembrar\" ficou", lembrarAntes > 0 && lembrarDepois === lembrarAntes, `${lembrarAntes} → ${lembrarDepois}`);
+    // A sessão rola a cada resposta: a idade pode andar alguns milissegundos.
+    checa("o \"lembrar\" ficou", lembrarAntes > 0 && Math.abs(lembrarDepois - lembrarAntes) < 60_000, `${lembrarAntes} → ${lembrarDepois}`);
     checa("a outra sessão da conta caiu", (await outraSessao.req("GET", "/api/public/conta")).status === 401);
     r = await tc.req("POST", "/api/public/conta/telefone/codigo", {});
     checa("pedir de novo com o telefone já confirmado: 409", r.status === 409, r.json?.message);

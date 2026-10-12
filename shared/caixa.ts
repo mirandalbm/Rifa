@@ -22,6 +22,8 @@ export const TIPOS_DA_CAIXA = {
   entidade: { rotulo: "Entidade beneficiada", tom: "yellow" },
   pix_tardio: { rotulo: "Pix a devolver", tom: "red" },
   retencao: { rotulo: "Saldo retido", tom: "red" },
+  estorno_a_conferir: { rotulo: "Devolução a conferir", tom: "red" },
+  contestacao: { rotulo: "Contestação a conferir", tom: "red" },
 } as const;
 
 export type TipoDaCaixa = keyof typeof TIPOS_DA_CAIXA;
@@ -44,6 +46,10 @@ export function destinoDaPendencia(p: Pick<PendenciaDaCaixa, "tipo">): string {
     case "disputa":
     case "reembolso":
       return "/admin/atendimento";
+    case "estorno_a_conferir":
+      return "/admin/atendimento?status=a_conferir";
+    case "contestacao":
+      return "/admin/pedidos";
     case "edicao":
     case "adiamento":
       return "/admin/atendimento?aba=rifas";
@@ -89,6 +95,8 @@ const PESO: Record<TipoDaCaixa, number> = {
   entidade: 2,
   pix_tardio: 0,
   retencao: 1,
+  estorno_a_conferir: 0,
+  contestacao: 0,
 };
 
 export function ordenarCaixa<T extends Pick<PendenciaDaCaixa, "tipo" | "desde">>(linhas: T[]): T[] {

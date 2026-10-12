@@ -13,6 +13,7 @@
  * reter pega a linha `FOR UPDATE` (o banimento já a atualiza na mesma
  * transação) e todo pagamento confere a retenção com a mesma linha travada.
  */
+import { ehUuid } from "@shared/uuid";
 import type { Request } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -34,7 +35,7 @@ export { RetencaoError };
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Tx | typeof db;
 
-const uuidValido = (id: unknown): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id);
+const uuidValido = (id: unknown): id is string => typeof id === "string" && ehUuid(id);
 
 function soPlataforma(req: Request) {
   if (orgOf(req)) throw new RetencaoError("Retenção de saldo é da plataforma.", 403);

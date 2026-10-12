@@ -20,6 +20,7 @@
  * ar. Quando um gasta o último clique, o próximo passa a estar no ar na
  * consulta seguinte — ninguém precisa apertar botão.
  */
+import { ehUuid } from "@shared/uuid";
 import { comprovanteConfere } from "./ticketDoClique";
 import { randomInt, randomUUID } from "node:crypto";
 import type { Request } from "express";
@@ -72,7 +73,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Tx | typeof db;
 
 const ufValida = (uf: unknown): uf is string => typeof uf === "string" && uf in UFS;
-const uuidValido = (id: unknown): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id);
+const uuidValido = (id: unknown): id is string => typeof id === "string" && ehUuid(id);
 
 
 /** Credita (ou debita) o saldo pelo livro. Só mexe no saldo se a chave for nova; nunca deixa negativo. */

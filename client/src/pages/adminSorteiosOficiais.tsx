@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PanelShell } from "@/components/AppShell";
 import { Comentarios } from "@/components/Comentarios";
 import { Janela } from "@/components/Janela";
+import { CamposDoSegundoFator, SEGUNDO_FATOR_VAZIO, segundoFatorCompleto, type SegundoFatorNaHora } from "@/components/SegundoFatorNaHora";
 import { Button, Card, Campo, Empty, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
@@ -597,21 +598,27 @@ function NovaExtracao({
   const [bolas, setBolas] = useState<string[]>(() => Array(6).fill(""));
   const [horas, setHoras] = useState<string[]>(() => Array(6).fill(""));
   const [aviso, setAviso] = useState<string | null>(null);
+  const [fator, setFator] = useState<SegundoFatorNaHora>(SEGUNDO_FATOR_VAZIO);
   const registrar = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/admin/sorteios-oficiais/${sorteioId}/rifas/${rifaId}/extracoes`, {
+        ...fator,
         bolas,
         horas: horas.map((h) => (h.length === 5 ? `${h}:00` : h)),
       });
       return (await res.json()) as { ordem: number; numero: string; sorteada: boolean; motivo: string | null };
     },
     onSuccess: (r) => {
+      setFator(SEGUNDO_FATOR_VAZIO);
       setBolas(Array(6).fill(""));
       setHoras(Array(6).fill(""));
       setAviso(r.sorteada ? `${r.ordem}ª extração: ${r.numero} — distribuído, a rifa foi sorteada.` : `${r.ordem}ª extração: ${r.numero}. ${r.motivo ?? ""}`);
       aoMudar();
     },
-    onError: aoErro,
+    onError: (e: Error) => {
+      setFator((f) => ({ ...f, code: "" }));
+      aoErro(e);
+    },
   });
   return (
     <form
@@ -654,7 +661,15 @@ function NovaExtracao({
           A hora de cada bola vem depois da última bola já registrada. Se o número de novo não tiver dono, registre outra extração.
         </p>
       </fieldset>
-      <Button type="submit" disabled={registrar.isPending || bolas.some((b) => !b) || horas.some((h) => !h)}>
+      <CamposDoSegundoFator
+        valor={fator}
+        aoMudar={setFator}
+        aviso="Registrar a extração pode sortear a rifa na hora e não muda depois. Peça o código do aplicativo autenticador."
+      />
+      <Button
+        type="submit"
+        disabled={registrar.isPending || bolas.some((b) => !b) || horas.some((h) => !h) || !segundoFatorCompleto(fator)}
+      >
         Registrar nova extração
       </Button>
       {aviso ? (
@@ -732,10 +747,12 @@ function LancarResultado({
   const [horas, setHoras] = useState<string[]>(() => Array.from({ length: L.quantos }, () => ""));
   const [ata, setAta] = useState({ local: "", tabelionato: "", registro: "", auditor: "", auditorRegistro: "", testemunhas: "", observacoes: "" });
   const [erro, setErro] = useState<string | null>(null);
+  const [fator, setFator] = useState<SegundoFatorNaHora>(SEGUNDO_FATOR_VAZIO);
   const lancar = useMutation({
     mutationFn: async () =>
       (await (
         await apiRequest("POST", `/api/admin/sorteios-oficiais/${s.id}/resultado`, {
+          ...fator,
           numeros,
           ...(globo
             ? {
@@ -755,8 +772,14 @@ function LancarResultado({
       ).json()) as {
         rifas: { sorteadas: number; esperando: number };
       },
-    onSuccess: (r) => aoLancar(r.rifas),
-    onError: (e: Error) => setErro(e.message),
+    onSuccess: (r) => {
+      setFator(SEGUNDO_FATOR_VAZIO);
+      aoLancar(r.rifas);
+    },
+    onError: (e: Error) => {
+      setFator((f) => ({ ...f, code: "" }));
+      setErro(e.message);
+    },
   });
   const largura = L.tipo === "bilhete" ? 5 : globo ? 1 : 2;
   const campoDaAta = (chave: keyof typeof ata) => ({
@@ -836,12 +859,17 @@ function LancarResultado({
           </Campo>
         </fieldset>
       ) : null}
+      <CamposDoSegundoFator
+        valor={fator}
+        aoMudar={setFator}
+        aviso="Lançar o resultado decide o ganhador de todas as rifas deste sorteio e não muda depois. Peça o código do aplicativo autenticador na hora."
+      />
       {erro ? (
         <p role="alert" className="text-xs text-red">
           {erro}
         </p>
       ) : null}
-      <Button type="submit" disabled={lancar.isPending}>
+      <Button type="submit" disabled={lancar.isPending || !segundoFatorCompleto(fator)}>
         {lancar.isPending ? "Lançando…" : globo ? "Lançar resultado e ata" : "Lançar resultado"}
       </Button>
     </form>

@@ -10,6 +10,7 @@
  * a taxa cancelada por estorno também sai da conta, e a notificação sem nada
  * em aberto não bloqueia (é encerrada na próxima notificação ou baixa).
  */
+import { ehUuid } from "@shared/uuid";
 import type { Request } from "express";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -29,7 +30,7 @@ export { InadimplenciaError };
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Tx | typeof db;
 
-const uuidValido = (id: unknown): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id);
+const uuidValido = (id: unknown): id is string => typeof id === "string" && ehUuid(id);
 
 /** O que ainda está em aberto das taxas notificadas (a venda de depois não entra). */
 const abertoDaNotificacao = sql<number>`(

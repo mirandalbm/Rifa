@@ -4,6 +4,7 @@
  * organização e o endereço do QR — e a conferência do texto antes de ele
  * virar pixel. A régua mora em `shared/editorImagem.ts`; o recorte é da rota.
  */
+import { ehUuid } from "@shared/uuid";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { campaignMedia, campaigns, organizacaoFotos, organizations } from "@shared/schema";
@@ -145,7 +146,7 @@ const FOCOS_GUARDADOS_MAX = 500;
 const focos = new Map<string, Foco | null>();
 
 export async function focoDaFoto(campaignId: string, mediaId: string): Promise<{ foco: Foco | null } | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) return null;
+  if (!ehUuid(mediaId)) return null;
   const [m] = await db
     .select({ key: campaignMedia.storageKey, mime: campaignMedia.mime })
     .from(campaignMedia)

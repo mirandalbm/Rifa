@@ -14,6 +14,8 @@ import { db } from "../db";
 import { users } from "@shared/schema";
 import { abrirTexto, cofreDisponivel, estaSelado, selarTexto } from "./cofre";
 import { verifyTotp } from "./totp";
+import { verifyPassword } from "./hashSenha";
+import { hit } from "./antifraude";
 
 export function guardarSegredo(segredo: string): string {
   if (cofreDisponivel()) return selarTexto(segredo);
@@ -63,4 +65,61 @@ export function codigoConfere(guardado: string | null | undefined, codigo: strin
     return false;
   }
   return segredo ? verifyTotp(segredo, codigo) : false;
+}
+
+/**
+ * Por que o ato não vale, ou `null` se vale. Os atos mais sensíveis da
+ * plataforma (lançar o resultado do sorteio oficial, registrar nova extração
+ * do globo) pedem a senha E o código do autenticador **na hora**: a sessão
+ * aberta sozinha não decide o ganhador de várias rifas. Quem não ligou o
+ * segundo fator é mandado ligar — não há caminho sem ele.
+ *
+ * Vem depois do recorte da rota (organizador leva 403 antes) e antes de
+
+ * qualquer gravação. Limite por pessoa: chutar senha e código numa sessão
+ * roubada não passa de umas poucas tentativas (a errada conta; a certa também).
+ */
+export interface RecusaDoSegundoFator {
+  status: number;
+  message: string;
+  code?: string;
+}
+
+// Cada ato sensível conta uma tentativa (certa ou errada), atômico: o ganhador de um
+// sorteio não se decide mais de umas vezes por minuto. Quem erra a senha também gasta.
+export const TENTATIVAS_DO_SEGUNDO_FATOR = { limite: 30, minutos: 10 };
+
+export async function conferirSegundoFatorAgora(
+  userId: string,
+  corpo: unknown,
+  verbo: string,
+): Promise<RecusaDoSegundoFator | null> {
+  const [eu] = await db.select().from(users).where(eq(users.id, userId));
+  if (!eu) return { status: 401, message: "Entre de novo." };
+  if (!eu.totpSecret) {
+    return {
+      status: 409,
+      message: `Ative o segundo fator (em Configurações) para poder ${verbo}.`,
+      code: "totp_required",
+    };
+  }
+  const { password, code } = (corpo ?? {}) as { password?: unknown; code?: unknown };
+  if (typeof password !== "string" || typeof code !== "string" || !password || !code) {
+    return {
+      status: 401,
+      message: `Para ${verbo}, confirme com a sua senha e o código do autenticador.`,
+      code: "segundo_fator_pedido",
+    };
+  }
+  const { limite, minutos } = TENTATIVAS_DO_SEGUNDO_FATOR;
+  if ((await hit(`segundo-fator:${userId}`, minutos, limite)).excedeu) {
+    return { status: 429, message: "Muitas tentativas. Espere alguns minutos e tente de novo." };
+  }
+  if (!(await verifyPassword(password, eu.passwordHash))) {
+    return { status: 401, message: "Senha incorreta." };
+  }
+  if (!codigoConfere(eu.totpSecret, code)) {
+    return { status: 401, message: "Código do autenticador incorreto." };
+  }
+  return null;
 }

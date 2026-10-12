@@ -1,3 +1,4 @@
+import { ehUuid } from "@shared/uuid";
 import { Router, type Request } from "express";
 import { SORTEIO_SEM_DATA } from "@shared/campanhaLegal";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
@@ -549,7 +550,7 @@ affiliateRouter.post("/payouts", async (req, res, next) => {
 affiliateRouter.get("/payouts/:id/nota", async (req, res, next) => {
   try {
     const pid = String(req.params.id);
-    if (!/^[0-9a-f-]{36}$/i.test(pid)) return res.status(404).json({ message: "Saque não encontrado." });
+    if (!ehUuid(pid)) return res.status(404).json({ message: "Saque não encontrado." });
     const [p] = await db
       .select({ id: payouts.id })
       .from(payouts)

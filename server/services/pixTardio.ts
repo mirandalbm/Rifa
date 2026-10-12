@@ -12,6 +12,7 @@
  * observação, quando a devolução foi feita por fora. Só a plataforma (403
  * para organizador): o dinheiro passou pela conta dela.
  */
+import { ehUuid } from "@shared/uuid";
 import type { Request } from "express";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -32,26 +33,24 @@ export class PixTardioError extends Error {
 type PedidoTardio = Pick<typeof orders.$inferSelect, "id" | "code" | "amountCents" | "pspProvider" | "pspChargeId">;
 
 /**
- * Anota o Pix tardio. Nunca lança: quem chama é a confirmação do pagamento
- * (o webhook), e falhar aqui não pode virar 500 para o provedor — o log
- * continua sendo a rede de segurança.
+ * Anota o Pix tardio. **Lança se o banco falhar**: quem chama é a confirmação
+ * do pagamento (o webhook), e engolir o erro concluía o evento com o dinheiro
+ * sem cota e fora da fila — a devolução só existiria num `console.error`. Com
+ * a falha propagada, o webhook solta o evento e o reenvio do provedor tenta de
+ * novo. É idempotente (`uq_pix_tardio_pedido`, `ON CONFLICT DO NOTHING`).
  */
 export async function registrarPixTardio(pedido: PedidoTardio, motivo: MotivoDoPixTardio) {
   console.error(`[pix tardio] Pix do pedido ${pedido.code} confirmado tarde (${motivo}): ${pedido.amountCents} centavos a devolver.`);
-  try {
-    await db
-      .insert(pixTardios)
-      .values({
-        orderId: pedido.id,
-        provider: pedido.pspProvider,
-        chargeId: pedido.pspChargeId,
-        valorCents: pedido.amountCents,
-        motivo,
-      })
-      .onConflictDoNothing();
-  } catch (e) {
-    console.error(`[pix tardio] não consegui anotar o pedido ${pedido.code}:`, e);
-  }
+  await db
+    .insert(pixTardios)
+    .values({
+      orderId: pedido.id,
+      provider: pedido.pspProvider,
+      chargeId: pedido.pspChargeId,
+      valorCents: pedido.amountCents,
+      motivo,
+    })
+    .onConflictDoNothing();
 }
 
 /** A fila: os pendentes primeiro, depois os 50 últimos resolvidos. Sem nome nem telefone de comprador. */
@@ -107,7 +106,7 @@ async function auditar(tx: Tx, req: Request, id: string, action: string, diff: R
  * e só se fecha por "resolver" depois de conferir no provedor. Voltar a
  * `pendente` deixaria o próximo clique devolver duas vezes.
  */
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = { test: (v: unknown) => ehUuid(v) };
 
 export async function devolverPixTardio(req: Request, id: string) {
   requirePlatformAdmin(req);

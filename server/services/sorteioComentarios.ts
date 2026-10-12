@@ -12,6 +12,7 @@
  * - O apostador aparece pelo apelido (ou o primeiro nome e a inicial);
  *   telefone nunca sai.
  */
+import { ehUuid } from "@shared/uuid";
 import type { Request } from "express";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -39,7 +40,7 @@ import { urlDaFotoDoApostador } from "./perfilApostador";
 import { ComentarioError } from "./comentarios";
 
 const LISTA_MAX = 200;
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = { test: (v: unknown) => ehUuid(v) };
 
 /** O sorteio existe e não foi cancelado; senão, para quem pergunta, não existe. */
 async function sorteioAberto(id: string) {

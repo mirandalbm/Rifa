@@ -10,6 +10,7 @@
  * O texto da conversa não é guardado aqui: mora no Chatbase e é lido pela API
  * quando a coluna abre. Daqui só sai o id da conversa de cada pessoa.
  */
+import { ehUuid } from "@shared/uuid";
 import { and, desc, eq, gt, lt } from "drizzle-orm";
 import type { Request } from "express";
 import { db } from "../db";
@@ -552,7 +553,7 @@ export async function destravarAcoesPresas(): Promise<number> {
  */
 export async function decidirAcaoDaIA(req: Request, id: string, confirmar: boolean): Promise<RespostaDaIA> {
   const c = await exigirContexto(req);
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new IAError("Ação não encontrada.", 404);
+  if (!ehUuid(id)) throw new IAError("Ação não encontrada.", 404);
   const [a] = await db.select().from(iaAcoes).where(and(eq(iaAcoes.id, id), eq(iaAcoes.userId, c.userId)));
   if (!a) throw new IAError("Ação não encontrada.", 404);
   // Continuar a conversa custa uma resposta: quem paga precisa de saldo, e conta no limite como uma mensagem.

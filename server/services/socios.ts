@@ -6,6 +6,7 @@
  * organização atualizada — a publicação, que lê a organização `FOR SHARE`,
  * espera.
  */
+import { ehUuid } from "@shared/uuid";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { organizacaoSocios, organizations } from "@shared/schema";
@@ -80,7 +81,7 @@ export async function adicionarSocio(organizationId: string, bruto: unknown, use
 }
 
 export async function removerSocio(organizationId: string, socioId: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(socioId)) throw new SociosError("Pessoa não encontrada.", 404);
+  if (!ehUuid(socioId)) throw new SociosError("Pessoa não encontrada.", 404);
   return db.transaction(async (tx) => {
     await lockEApagarDeclaracao(tx, organizationId);
     const [apagado] = await tx

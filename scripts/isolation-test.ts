@@ -255,6 +255,11 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     .insert(stories)
     .values({ organizationId: vizinho.orgId, mime: "image/webp", bytes: Buffer.from([0]), expiraEm: new Date(Date.now() + 3_600_000) })
     .returning({ id: stories.id });
+  // Uma cota premiada do vizinho: apagar pelo id dela tem de dar 404 e ela segue lá.
+  const [premioDoVizinho] = await db
+    .insert(prizedQuotas)
+    .values({ campaignId: vizinho.campaignId, number: 4242, prizeLabel: "premiada do vizinho" })
+    .returning({ id: prizedQuotas.id });
   // Um pedido de mudança do vizinho em análise: ler, responder e cancelar
   // pelo id dele tem de dar 404.
   const [pedidoDoVizinho] = await db
@@ -361,6 +366,7 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
     ["PUT agendar publicação da rifa do vizinho", `/api/admin/campaigns/${c}/agendar-publicacao`, { method: "PUT", body: JSON.stringify({ publicarEm: new Date(Date.now() + 3_600_000).toISOString() }) }],
     ["PUT perfil público do vizinho", `/api/admin/organizacoes/${vizinho.orgId}/perfil`, { method: "PUT", body: '{"bio":"perfil invadido"}' }],
     ["DELETE story do vizinho", `/api/admin/stories/${storyDoVizinho.id}`, { method: "DELETE" }],
+    ["DELETE cota premiada do vizinho", `/api/admin/prized/${premioDoVizinho.id}`, { method: "DELETE" }],
     // A porta do painel serve o story agendado; a do vizinho não existe para mim.
     ["GET imagem do story do vizinho pelo painel", `/api/admin/stories/${storyDoVizinho.id}/imagem`, {}],
     ["GET pôster do story do vizinho pelo painel", `/api/admin/stories/${storyDoVizinho.id}/poster`, {}],
@@ -433,6 +439,8 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
   checa("o pedido vale só para a própria organização", troca.status === 200 && meuModo?.m === alvo, `HTTP ${troca.status}`);
   await db.update(organizations).set({ divulgacaoAfiliado: "autorizacao" }).where(eq(organizations.id, eu.orgId));
   await db.delete(divulgacoes).where(eq(divulgacoes.id, divulgacaoDoVizinho.id));
+  const [premioAindaLa] = await db.select({ id: prizedQuotas.id }).from(prizedQuotas).where(eq(prizedQuotas.id, premioDoVizinho.id));
+  checa("a cota premiada do vizinho segue no banco", Boolean(premioAindaLa));
   const [aindaLa] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, storyDoVizinho.id));
   checa("o story do vizinho continua no ar", Boolean(aindaLa));
   const meus = (await (await pedir(eu.cookie, "/api/admin/stories")).json()) as { id: string }[];
@@ -1041,6 +1049,12 @@ async function conteudoDasListas(eu: Lado, vizinho: Lado) {
     ganhou?.buyer.name === `Cliente ${eu.nome}` && Boolean(ganhou?.buyer.phone),
     ganhou?.buyer.name ?? "sem linha",
   );
+  let rp = await pedir(eu.cookie, `/api/admin/prized/${premio.id}`, { method: "DELETE" });
+  checa("cota premiada já ganha não se apaga (409)", rp.status === 409, `HTTP ${rp.status}`);
+  const [premioIntacto] = await db.select({ id: prizedQuotas.id }).from(prizedQuotas).where(eq(prizedQuotas.id, premio.id));
+  checa("…e segue no banco", Boolean(premioIntacto));
+  rp = await pedir(eu.cookie, `/api/admin/prized/${"-".repeat(36)}`, { method: "DELETE" });
+  checa("id de cota premiada fora do formato: 404, nunca 500", rp.status === 404, `HTTP ${rp.status}`);
   await db.delete(prizedQuotas).where(eq(prizedQuotas.id, premio.id));
 
   const administradora = await (await pedir(eu.cookie, "/api/admin/organizer")).json();

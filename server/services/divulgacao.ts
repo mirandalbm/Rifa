@@ -19,6 +19,7 @@
  * - Foto própria (do apostador ou do afiliado) e o vídeo próprio do afiliado
  *   sempre passam pela organização: a varredura do Pix por fora só lê texto.
  */
+import { ehUuid } from "@shared/uuid";
 import type { Request } from "express";
 import sharp from "sharp";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
@@ -350,7 +351,7 @@ export async function arquivoDoVideo(divulgacaoId: string, poster: boolean): Pro
 }
 
 async function bytesDaFoto(divulgacaoId: string, fotoId: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(fotoId)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  if (!ehUuid(fotoId)) throw new DivulgacaoError("Foto não encontrada.", 404);
   const [f] = await db
     .select({ bytes: divulgacaoFotos.bytes })
     .from(divulgacaoFotos)
@@ -589,7 +590,7 @@ export async function minhasDoAfiliado(affiliateId: string) {
 
 /** O vídeo (ou o pôster) da própria peça, para o afiliado que publicou. O de outro é 404. */
 export async function videoDaPecaDoAfiliado(affiliateId: string, id: string, poster: boolean) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Vídeo não encontrado.", 404);
+  if (!ehUuid(id)) throw new DivulgacaoError("Vídeo não encontrado.", 404);
   await afiliadoOnline(affiliateId);
   const [d] = await db
     .select({ id: divulgacoes.id })
@@ -601,7 +602,7 @@ export async function videoDaPecaDoAfiliado(affiliateId: string, id: string, pos
 
 /** A foto da própria peça, para o afiliado que publicou. A de outro é 404. */
 export async function fotoDaPecaDoAfiliado(affiliateId: string, id: string, fotoId: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  if (!ehUuid(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
   // A porta fecha com a conta: afiliado bloqueado ou desligado não abre nada por aqui.
   await afiliadoOnline(affiliateId);
   const [d] = await db
@@ -630,7 +631,7 @@ export async function minhasDoApostador(req: Request) {
 export async function fotoDoAutor(req: Request, id: string, fotoId: string) {
   await interruptorDoApostador();
   const b = await apostadorComConta(req);
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
+  if (!ehUuid(id)) throw new DivulgacaoError("Foto não encontrada.", 404);
   const [d] = await db.select({ id: divulgacoes.id }).from(divulgacoes).where(and(eq(divulgacoes.id, id), eq(divulgacoes.buyerId, b.id)));
   if (!d) throw new DivulgacaoError("Foto não encontrada.", 404);
   return bytesDaFoto(id, fotoId);
@@ -638,7 +639,7 @@ export async function fotoDoAutor(req: Request, id: string, fotoId: string) {
 
 /** Quem escreveu retira a própria peça (em análise ou no ar). O de outra pessoa é 404. */
 export async function retirarPropria(dono: { affiliateId: string } | { buyerId: string }, id: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+  if (!ehUuid(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
   const dono_ = "affiliateId" in dono ? eq(divulgacoes.affiliateId, dono.affiliateId) : eq(divulgacoes.buyerId, dono.buyerId);
   await db.transaction(async (tx: Tx) => {
     const [r] = await tx
@@ -679,7 +680,7 @@ async function editarPropria(
   id: string,
   entrada: Record<string, unknown>,
 ) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+  if (!ehUuid(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
   // Sem `fotos` no corpo, ficam as que a peça tinha; lista vazia tira todas.
   const fotosBrutas = regra(() => validarFotos(entrada.fotos));
   // Sem `video` no corpo, fica o que a peça tinha; `null` tira. Só o afiliado manda vídeo.
@@ -884,7 +885,7 @@ export async function videoDoPainel(req: Request, id: string, poster: boolean) {
 }
 
 async function pecaNoRecorte(req: Request, id: string, naoAchou: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError(naoAchou, 404);
+  if (!ehUuid(id)) throw new DivulgacaoError(naoAchou, 404);
   const org = orgOf(req);
   const [d] = await db
     .select({ id: divulgacoes.id })
@@ -909,7 +910,7 @@ export async function pendentesDaOrganizacao(req: Request) {
  * vizinho é 404 — conferido antes de tudo.
  */
 export async function decidir(req: Request, id: string, entrada: unknown) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
+  if (!ehUuid(id)) throw new DivulgacaoError("Divulgação não encontrada.", 404);
   const { acao, motivo, versao } = regra(() => validarDecisao(entrada));
   const { de, para } = DE_PARA_DA_DECISAO[acao];
   const org = orgOf(req);
@@ -1204,7 +1205,7 @@ export async function videoPublico(id: string, poster: boolean) {
 }
 
 async function pecaPublica(id: string, naoAchou: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new DivulgacaoError(naoAchou, 404);
+  if (!ehUuid(id)) throw new DivulgacaoError(naoAchou, 404);
   const [d] = await db
     .select({
       autor: divulgacoes.autor,

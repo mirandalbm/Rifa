@@ -17,6 +17,7 @@
  *    sorteio passa a esperar a data nova — senão seria liberada antes do
  *    sorteio que ela devia esperar.
  */
+import { ehUuid } from "@shared/uuid";
 import { DIAS_UTEIS_DEVOLUCAO_INTEGRAL, somarDiasUteis } from "@shared/chamados";
 import { randomInt } from "node:crypto";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
@@ -195,7 +196,7 @@ export async function pedirAdiamento(
   let sorteioOficialNovoId: string | undefined;
   if (entrada.sorteioOficialId !== undefined && entrada.sorteioOficialId !== null && entrada.sorteioOficialId !== "") {
     const id = entrada.sorteioOficialId;
-    if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) {
+    if (typeof id !== "string" || !ehUuid(id)) {
       throw new SolicitacaoError("Escolha um sorteio do calendário.", 400);
     }
     const [s] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, id));
@@ -288,7 +289,7 @@ export async function solicitacoesEmAnalise(req: Request) {
 
 /** O pedido no recorte de quem olha — o do vizinho é 404. */
 async function noRecorte(req: Request, id: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new SolicitacaoError("Pedido não encontrado.", 404);
+  if (!ehUuid(id)) throw new SolicitacaoError("Pedido não encontrado.", 404);
   const [s] = await db.select().from(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, id));
   const org = orgOf(req);
   if (!s || (org && s.organizationId !== org)) throw new SolicitacaoError("Pedido não encontrado.", 404);

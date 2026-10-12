@@ -35,7 +35,7 @@ import {
 import { once } from "node:events";
 import { randomInt } from "node:crypto";
 import QRCode from "qrcode";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, isNull } from "drizzle-orm";
 import { db } from "../db";
 import {
   campaigns,
@@ -90,6 +90,7 @@ import { encerrarSessoesDoUsuario, hashPassword, verifyPassword } from "../auth"
 import { notify } from "../notifications";
 import { baseDoSite, publicUrl } from "../services/urls";
 import { normalizePhone } from "@shared/format";
+import { ehUuid } from "@shared/uuid";
 import {
   getLimits,
   setLimits,
@@ -103,6 +104,7 @@ import {
 } from "../services/antifraude";
 import {
   openBalancesBySeller,
+  AcertoError,
   closeSettlement,
   markSettlementPaid,
   listSettlements,
@@ -122,7 +124,7 @@ import { CORTES_POR_JANELA } from "@shared/corte";
 import { type Figurinha, textosDasFigurinhas, validarFigurinhas } from "@shared/figurinhasStory";
 import { enviarArte, enviarPacote, listaDeArtes } from "./artesRotas";
 import { generateSecret, otpauthUrl } from "../services/totp";
-import { codigoConfere, guardarSegredo } from "../services/segundoFator";
+import { TENTATIVAS_DO_SEGUNDO_FATOR, codigoConfere, conferirSegundoFatorAgora, guardarSegredo } from "../services/segundoFator";
 import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
@@ -1340,7 +1342,7 @@ adminRouter.get("/entidades", async (req, res, next) => {
 adminRouter.get("/entidades/:campaignId/documentos/:tipo", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) return res.status(404).json({ message: "Documento não encontrado." });
+    if (!ehUuid(req.params.campaignId)) return res.status(404).json({ message: "Documento não encontrado." });
     await audit(req, "entidade.documento.ler", "campaign", req.params.campaignId, { tipo: req.params.tipo });
     const d = await documentoDaEntidade(req.params.campaignId, req.params.tipo);
     if (!d) return res.status(404).json({ message: "Documento não encontrado." });
@@ -1355,7 +1357,7 @@ adminRouter.get("/entidades/:campaignId/documentos/:tipo", async (req, res, next
 adminRouter.post("/entidades/:campaignId/decidir", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) return res.status(404).json({ message: "Entidade não encontrada." });
+    if (!ehUuid(req.params.campaignId)) return res.status(404).json({ message: "Entidade não encontrada." });
     const feita = await decidirEntidade(req.params.campaignId, req.body, req.user?.id ?? null);
     await audit(req, "entidade.decidir", "campaign", req.params.campaignId, { status: feita.status, motivo: feita.motivo });
     res.json(feita);
@@ -1969,25 +1971,26 @@ adminRouter.post("/campaigns/:id/prized", async (req, res, next) => {
 
 adminRouter.delete("/prized/:prizedId", async (req, res, next) => {
   try {
+    if (!ehUuid(req.params.prizedId)) return res.status(404).json({ message: "Cota premiada não encontrada." });
     // Confere o dono ANTES de apagar: aqui a rota apaga e só depois decide se
     // devolve, então um id de outra organização já teria sumido do banco.
     const [alvo] = await db
-      .select({ campaignId: prizedQuotas.campaignId })
+      .select({ campaignId: prizedQuotas.campaignId, claimedByOrderId: prizedQuotas.claimedByOrderId })
       .from(prizedQuotas)
       .where(eq(prizedQuotas.id, req.params.prizedId));
     if (!alvo) return res.status(404).json({ message: "Cota premiada não encontrada." });
     await assertCampaignInScope(req, alvo.campaignId);
-
-    const [removed] = await db
-      .delete(prizedQuotas)
-      .where(eq(prizedQuotas.id, req.params.prizedId))
-      .returning();
-    if (!removed) return res.status(404).json({ message: "Cota premiada não encontrada." });
-    if (removed.claimedByOrderId) {
-      // Já foi ganha: recriar seria tirar prêmio de quem levou.
-      await db.insert(prizedQuotas).values(removed);
+    // Já foi ganha: apagar seria tirar prêmio de quem levou.
+    if (alvo.claimedByOrderId) {
       return res.status(409).json({ message: "Esta cota premiada já foi ganha." });
     }
+
+    // Condicional ao "ainda não ganha": se a revelação chegou no meio, nada some.
+    const [removed] = await db
+      .delete(prizedQuotas)
+      .where(and(eq(prizedQuotas.id, req.params.prizedId), isNull(prizedQuotas.claimedByOrderId)))
+      .returning();
+    if (!removed) return res.status(409).json({ message: "Esta cota premiada já foi ganha." });
     await audit(req, "prized.remove", "campaign", removed.campaignId, { id: removed.id });
     res.json({ removed: removed.id });
   } catch (err) {
@@ -2384,10 +2387,16 @@ adminRouter.get("/settlements", async (req, res, next) => {
 adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
   try {
     await assertAffiliateInScope(req, req.params.sellerId);
-    const created = await closeSettlement(
-      req.params.sellerId,
-      req.body?.notes ? String(req.body.notes) : undefined,
-    );
+    let created;
+    try {
+      created = await closeSettlement(
+        req.params.sellerId,
+        req.body?.notes ? String(req.body.notes) : undefined,
+      );
+    } catch (err) {
+      if (err instanceof AcertoError) return res.status(err.status).json({ message: err.message });
+      throw err;
+    }
     if (!created) {
       return res.status(400).json({ message: "Este cambista não tem venda em aberto." });
     }
@@ -2403,6 +2412,7 @@ adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
 
 adminRouter.post("/settlements/:id/paid", async (req, res, next) => {
   try {
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Acerto não encontrado." });
     const [acerto] = await db
       .select({ sellerId: settlements.sellerId })
       .from(settlements)
@@ -2411,7 +2421,7 @@ adminRouter.post("/settlements/:id/paid", async (req, res, next) => {
     await assertAffiliateInScope(req, acerto.sellerId);
 
     const updated = await markSettlementPaid(req.params.id);
-    if (!updated) return res.status(404).json({ message: "Acerto não encontrado." });
+    if (!updated) return res.status(409).json({ message: "Este acerto já está pago." });
     await audit(req, "settlement.paid", "settlement", updated.id);
     res.json(updated);
   } catch (err) {
@@ -3422,7 +3432,7 @@ adminRouter.get("/usuarios", async (req, res, next) => {
     // id válido é ignorado, em vez de virar erro de conversão no Postgres.
     const bruta = !org && req.query.organizacao ? String(req.query.organizacao) : null;
     const pedida =
-      bruta === "plataforma" || (bruta && /^[0-9a-f-]{36}$/i.test(bruta)) ? bruta : null;
+      bruta === "plataforma" || (bruta && ehUuid(bruta)) ? bruta : null;
     const papel = req.query.papel ? String(req.query.papel) : null;
     const busca = req.query.q ? `%${String(req.query.q).trim().toLowerCase()}%` : null;
 
@@ -3630,7 +3640,7 @@ adminRouter.delete("/cobranca/tabela/proxima", async (req, res, next) => {
 adminRouter.post("/cobranca/:id/baixa", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ message: "Organização não encontrada." });
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Organização não encontrada." });
     const { quantas, regularizada } = await darBaixa(req.params.id, req.user!.id);
     await audit(req, "cobranca.baixa", "organization", req.params.id, { quantas, regularizada });
     res.json({ baixadas: quantas, regularizada });
@@ -3757,12 +3767,22 @@ adminRouter.post("/antifraude/bloqueios", async (req, res, next) => {
       return res.status(400).json({ message: "Informe o valor a bloquear." });
     }
 
+    // Data que não é data: `new Date("x")` é "Invalid Date" e o banco devolvia
+    // 500. Prazo no passado também é recusado — o bloqueio nasceria vencido.
+    let expiresAt: Date | null = null;
+    if (req.body?.expiresAt) {
+      expiresAt = new Date(req.body.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+        return res.status(400).json({ message: "Informe uma data de validade futura, ou deixe em branco." });
+      }
+    }
+
     const value = kind === "phone" ? normalizePhone(bruto) : bruto;
     const created = await block({
       kind,
       value,
       reason: req.body?.reason ? String(req.body.reason) : undefined,
-      expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
+      expiresAt,
     });
 
     await audit(req, "antifraude.bloqueio", "fraud_block", created.id, { kind });
@@ -3775,6 +3795,10 @@ adminRouter.post("/antifraude/bloqueios", async (req, res, next) => {
 adminRouter.delete("/antifraude/bloqueios/:id", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Fora do formato de id é "não existe", não erro do banco.
+    if (!ehUuid(req.params.id)) {
+      return res.status(404).json({ message: "Bloqueio não encontrado." });
+    }
     const removed = await unblock(req.params.id);
     if (!removed) return res.status(404).json({ message: "Bloqueio não encontrado." });
     await audit(req, "antifraude.desbloqueio", "fraud_block", removed.id);
@@ -3905,7 +3929,7 @@ adminRouter.get("/payouts/:id/nota", async (req, res, next) => {
   try {
     const pid = String(req.params.id);
     const org = orgOf(req);
-    const [saque] = /^[0-9a-f-]{36}$/i.test(pid)
+    const [saque] = ehUuid(pid)
       ? await db.select({ organizationId: payouts.organizationId }).from(payouts).where(eq(payouts.id, pid))
       : [];
     if (!saque || (org && saque.organizationId !== org)) return res.status(404).json({ message: "Saque não encontrado." });
@@ -4168,6 +4192,13 @@ adminRouter.post("/2fa/disable", async (req, res, next) => {
     const [user] = await db.select().from(users).where(eq(users.id, req.user!.id));
     if (!user.totpSecret) return res.json({ enabled: false });
 
+    // Cada tentativa conta, certa ou errada, na mesma janela dos atos que
+    // pedem o segundo fator na hora: quem tomou a sessão e sabe a senha não
+    // chuta o código de 6 dígitos sem limite.
+    const { limite, minutos } = TENTATIVAS_DO_SEGUNDO_FATOR;
+    if ((await hit(`2fa-off:${user.id}`, minutos, limite)).excedeu) {
+      return res.status(429).json({ message: "Muitas tentativas. Espere alguns minutos e tente de novo." });
+    }
     const password = String(req.body?.password ?? "");
     if (!(await verifyPassword(password, user.passwordHash))) {
       return res.status(401).json({ message: "Senha incorreta." });
@@ -4308,6 +4339,9 @@ adminRouter.post("/sorteios-oficiais/:id/cancelar", async (req, res, next) => {
 adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Decide o ganhador de várias rifas: senha e código na hora, antes de gravar.
+    const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "lançar o resultado do sorteio");
+    if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
     const s = await lancarResultado(req.params.id, req.body?.numeros, req.body?.ata);
     await audit(req, "sorteio_oficial.resultado", "sorteio_oficial", s.id, { resultado: s.resultado });
     // O resultado já está gravado: falha aqui não vira 500 (o segundo clique
@@ -4341,9 +4375,11 @@ adminRouter.put("/sorteios-oficiais/:id/ata", async (req, res, next) => {
 adminRouter.post("/sorteios-oficiais/:id/rifas/:campaignId/extracoes", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id) || !/^[0-9a-f-]{36}$/i.test(req.params.campaignId)) {
+    if (!ehUuid(req.params.id) || !ehUuid(req.params.campaignId)) {
       return res.status(404).json({ message: "Não encontrado." });
     }
+    const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "registrar nova extração do globo");
+    if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
     const r = await registrarNovaExtracao(req.params.id, req.params.campaignId, req.body ?? {}, {
       id: req.user?.id,
       role: req.user?.role,
@@ -4363,7 +4399,7 @@ adminRouter.put("/campaigns/:id/sorteio-oficial", async (req, res, next) => {
   try {
     const c = await assertCampaignInScope(req, req.params.id);
     const id = req.body?.sorteioOficialId;
-    if (id !== null && (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) {
+    if (id !== null && (typeof id !== "string" || !ehUuid(id))) {
       return res.status(400).json({ message: "Escolha um sorteio do calendário." });
     }
     const r = await integrarAoSorteioOficial(c, id);
@@ -4526,7 +4562,7 @@ adminRouter.get("/resultados", async (req, res, next) => {
   try {
     const daSessao = orgOf(req);
     const escolhida =
-      !daSessao && typeof req.query.organizacao === "string" && /^[0-9a-f-]{36}$/i.test(req.query.organizacao)
+      !daSessao && typeof req.query.organizacao === "string" && ehUuid(req.query.organizacao)
         ? req.query.organizacao
         : null;
     res.json(await resultadosDoPainel(daSessao ?? escolhida, validarPeriodo(req.query.dias)));
@@ -4562,7 +4598,7 @@ function organizacaoDoPedido(req: Request): string | null {
   const org = orgOf(req);
   if (org) return org;
   const pedida = req.query.organizacao ?? req.body?.organizacaoId;
-  return typeof pedida === "string" && /^[0-9a-f-]{36}$/i.test(pedida) ? pedida : null;
+  return typeof pedida === "string" && ehUuid(pedida) ? pedida : null;
 }
 
 adminRouter.get("/termo-afiliado", async (req, res, next) => {

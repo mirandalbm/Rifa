@@ -577,6 +577,10 @@ function ConferenciaDaDevolucao({
           <Campo rotulo="O que você conferiu no provedor (obrigatório)">
             <textarea id="conferencia" rows={2} value={observacao} onChange={(e) => setObservacao(e.target.value)} />
           </Campo>
+          <p className="text-[13px] text-muted">
+            "Não voltou" reabre a devolução, e a próxima sai como uma devolução nova no provedor: só escolha depois de
+            conferir que nada voltou para o comprador, senão o valor sai duas vezes.
+          </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => decidir.mutate(true)} disabled={observacao.trim().length < 5 || decidir.isPending}>
               O dinheiro voltou: desfazer o pedido

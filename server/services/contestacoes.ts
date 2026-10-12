@@ -39,9 +39,12 @@ export function cobrancaValida(id: unknown): id is string {
  */
 export function contestacaoPendenteSql(apelido = "a") {
   const t = sql.raw(apelido);
-  return sql`(${t}.action = ${ACAO_CONTESTACAO_A_CONFERIR} AND NOT EXISTS (
+  // `entity = 'cobranca'` nas duas pontas: é o que deixa a consulta usar
+  // `idx_audit_entity` em vez de ler o `audit_log` inteiro.
+  return sql`(${t}.entity = 'cobranca' AND ${t}.action = ${ACAO_CONTESTACAO_A_CONFERIR} AND NOT EXISTS (
     SELECT 1 FROM audit_log d
-     WHERE d.action = ${ACAO_CONTESTACAO_CONFERIDA} AND d.entity_id = ${t}.entity_id AND d.created_at >= ${t}.created_at))`;
+     WHERE d.entity = 'cobranca' AND d.entity_id = ${t}.entity_id
+       AND d.action = ${ACAO_CONTESTACAO_CONFERIDA} AND d.created_at >= ${t}.created_at))`;
 }
 
 /** As contestações esperando a plataforma: uma por cobrança (o aviso mais novo). */

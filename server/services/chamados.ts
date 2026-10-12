@@ -898,8 +898,13 @@ export async function resolverConferencia(req: Request, id: string, entrada: { d
       // compra enquanto a devolução estava a conferir, o chamado com taxa
       // passa a devolver tudo — a mesma conversão que a aprovação do
       // adiamento faz nos chamados abertos e aprovados (`solicitacoes.ts`).
-      // Lido com o chamado travado: o adiamento aprovado no meio espera a
-      // linha e converte depois, já aprovado.
+      // A rifa é travada antes (`FOR SHARE`), na ordem da aprovação do
+      // adiamento (rifa, depois chamados): o adiamento aprovado no meio
+      // termina antes desta leitura, e a data dele já vale aqui. O chamado
+      // vem travado depois.
+      if (pedido) {
+        await tx.execute(sql`SELECT id FROM campaigns WHERE id = ${pedido.campaignId} FOR SHARE`);
+      }
       await tx.execute(sql`SELECT id FROM chamados WHERE id = ${c.id} FOR UPDATE`);
       const [rifa] = pedido
         ? await tx.select({ adiadoEm: adiadoEmSql }).from(campaigns).where(eq(campaigns.id, pedido.campaignId))

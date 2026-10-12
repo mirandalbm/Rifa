@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Button, Card, Empty, Pill } from "@/components/bits";
+import { Button, Campo, Card, Empty, Pill, Progress } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { RESGATE_MAX } from "@shared/bonus";
 
@@ -74,27 +74,26 @@ export function BonusDoComprador({ dados }: { dados: EstadoBonus }) {
                 resgatar.mutate();
               }}
             >
-              <label className="block min-w-0 flex-1 basis-48">
-                <span className="label-xs">Rifa</span>
-                <select value={rifa} onChange={(e) => setRifa(e.target.value)} className="mt-1 w-full rounded-md border border-line-2 px-2 py-2">
+              <Campo rotulo="Rifa" className="min-w-0 flex-1 basis-48">
+                <select value={rifa} onChange={(e) => setRifa(e.target.value)}>
                   {dados.rifas.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.titulo} — {r.organizacao}
                     </option>
                   ))}
                 </select>
-              </label>
-              <label className="block w-20">
-                <span className="label-xs">Cotas</span>
+              </Campo>
+              <Campo rotulo="Cotas" className="w-24">
                 <input
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={Math.min(RESGATE_MAX, Math.max(1, dados.saldo))}
                   value={qtd}
                   onChange={(e) => setQtd(e.target.value)}
-                  className="tnum mt-1 w-full rounded-md border border-line-2 px-2 py-2"
+                  className="campo tnum text-sm"
                 />
-              </label>
+              </Campo>
               <Button type="submit" disabled={dados.saldo < 1 || resgatar.isPending}>
                 {resgatar.isPending ? "Resgatando…" : "Resgatar"}
               </Button>
@@ -130,17 +129,16 @@ export function BonusDoComprador({ dados }: { dados: EstadoBonus }) {
                 <p className="text-xs text-muted">
                   {m.descricao} → <span className="tnum">{m.recompensa}</span> cota(s)
                 </p>
-                <div
-                  className="h-2 overflow-hidden rounded-full bg-mist-2"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={m.alvo}
-                  aria-valuenow={m.feito}
-                  aria-label={`${m.feito} de ${m.alvo}`}
-                >
-                  <div className="h-full bg-yellow" style={{ width: `${(100 * m.feito) / m.alvo}%` }} />
-                </div>
-                <p className="tnum text-xs text-muted">
+                {/* A barra do kit, no azul do prêmio; o número vai em texto logo embaixo e,
+                    para o leitor de tela, na própria barra ("3 de 5"), não só o percentual. */}
+                <Progress
+                  value={m.feito}
+                  total={m.alvo}
+                  tone="yellow"
+                  rotulo={`Progresso da meta ${m.titulo}`}
+                  texto={`${m.feito} de ${m.alvo}`}
+                />
+                <p aria-hidden className="tnum text-xs text-muted">
                   {m.feito} de {m.alvo}
                 </p>
               </li>

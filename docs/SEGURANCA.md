@@ -118,6 +118,17 @@ o `ffmpeg` (sem shell, protocolos limitados, prazo, saída com teto) e nenhum
 
 - `ffmpeg` simultâneos: limitado a 2 (fila) desde o PR dos extras do pôster.
 - O identificador do aparelho continua vindo do cliente; o que segura é o IP.
+- Sessão derrubada pode voltar (suspeita, não provada; revisão de 12/10/2026,
+  PR #252): `encerrarOutrasSessoes` apaga as linhas de `sessions`, mas o
+  `connect-pg-simple` grava com `INSERT … ON CONFLICT (sid) DO UPDATE` — uma
+  requisição da sessão expulsa que já estava em andamento e mexe na própria
+  sessão pode recriá-la depois do `DELETE`. Vale para troca de senha,
+  primeira prova do telefone e exclusão da conta. Correção possível: uma marca
+  na conta (`sessoes_validas_desde`) conferida a cada requisição. A primeira
+  prova do telefone pela conta já encerra as outras **antes** de gravar a
+  confirmação (`confirmarTelefone`), para uma falha do `DELETE` não deixar a
+  conta confirmada com a sessão do intruso de pé; o `/my-quotas/verify` segue
+  na ordem antiga.
 
 ### 28/09/2026
 

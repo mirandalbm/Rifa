@@ -266,6 +266,7 @@ function Escrever({
   foco,
   podeUsarEmoji,
   comoOrganizacao,
+  presenteInicial = false,
 }: {
   /** A rifa (o presente só existe nela); sem rifa, é o sorteio oficial. */
   slug?: string;
@@ -276,10 +277,12 @@ function Escrever({
   foco: number;
   podeUsarEmoji: boolean;
   comoOrganizacao: boolean;
+  /** Chegou pelo presente da página da rifa: o quadro do presente já abre. */
+  presenteInicial?: boolean;
 }) {
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [presenteAberto, setPresenteAberto] = useState(false);
+  const [presenteAberto, setPresenteAberto] = useState(presenteInicial);
   const campo = useRef<HTMLTextAreaElement>(null);
   // Único na página: na tela cheia do sorteio a mesma conversa aparece duas vezes.
   const idDoCampo = `comentar-${slug ?? "sorteio"}-${useId().replace(/:/g, "")}`;
@@ -494,6 +497,7 @@ export function Comentarios({
   dentroDoPainel,
   aoAbrirPainel,
   soModerar,
+  presenteInicial,
 }: {
   /** A rifa. Sem ela, os comentários são do sorteio oficial (`sorteioOficialId`). */
   slug?: string;
@@ -506,7 +510,9 @@ export function Comentarios({
    * levou a cota premiada) e o atalho para o painel — a conversa inteira
    * mora no painel, como no Instagram. Sem ganhador, nada é fixado.
    */
-  aoAbrirPainel?: () => void;
+  aoAbrirPainel?: (opcoes?: { presente?: boolean }) => void;
+  /** Dentro do painel aberto pelo presente da página da rifa: o quadro do presente já abre. */
+  presenteInicial?: boolean;
 }) {
   const qc = useQueryClient();
   const rotaDaLista = sorteioOficialId
@@ -592,19 +598,39 @@ export function Comentarios({
       ) : null}
 
       {aoAbrirPainel ? (
-        <button
-          type="button"
-          onClick={aoAbrirPainel}
-          className="text-[14px] font-semibold text-muted hover:text-ink"
-        >
+        <>
           {total > 0 ? (
-            <>
+            <button
+              type="button"
+              onClick={() => aoAbrirPainel()}
+              className="mb-2 block min-h-6 py-1 text-left text-[14px] font-semibold text-muted hover:text-ink"
+            >
               Ver {total === 1 ? "o comentário" : <>os <span className="tnum">{total}</span> comentários</>}
-            </>
-          ) : (
-            "Comentar"
-          )}
-        </button>
+            </button>
+          ) : null}
+          {/* A pílula do campo, como no Figma: tocada, abre a conversa no
+              painel (o campo de verdade mora lá). O presente fica à direita,
+              como no campo — e abre o painel já com o quadro do presente. */}
+          <div className="flex items-center rounded-full border border-line-2 bg-white pl-4 pr-1 hover:border-ink-2">
+            <button
+              type="button"
+              onClick={() => aoAbrirPainel()}
+              className="min-h-10 min-w-0 flex-1 py-2 text-left text-[14px] text-muted"
+            >
+              Comentar…
+            </button>
+            {slug && !data?.comoOrganizacao ? (
+              <button
+                type="button"
+                onClick={() => aoAbrirPainel({ presente: true })}
+                aria-label="Mandar um presente para um amigo"
+                className="rounded-full p-1.5 text-ink hover:bg-mist"
+              >
+                <Gift size={22} strokeWidth={1.75} aria-hidden />
+              </button>
+            ) : null}
+          </div>
+        </>
       ) : null}
 
       {aoAbrirPainel ? null : (
@@ -663,21 +689,37 @@ export function Comentarios({
 
       <div className={`mt-4 ${dentroDoPainel ? "sticky bottom-0 bg-white pb-2" : ""}`}>
         {!data || soModerar ? null : !data.podeComentar ? (
-          <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
-            <Link href="/entrar" className="font-semibold text-marca">
-              Entre na sua conta
-            </Link>{" "}
-            para comentar e conversar com {data.organizacao.nome}.
-          </p>
+          <>
+            <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
+              <Link href="/entrar" className="font-semibold text-marca">
+                Entre na sua conta
+              </Link>{" "}
+              para comentar e conversar com {data.organizacao.nome}.
+            </p>
+            {/* Chegou pelo presente da pílula: o quadro aparece mesmo sem campo (ele mesmo pede a conta). */}
+            {presenteInicial && slug && !sorteioOficialId ? (
+              <div className="mt-2">
+                <Presentear slug={slug} />
+              </div>
+            ) : null}
+          </>
         ) : data.precisaApelido ? (
           // Conta antiga, de antes do apelido no cadastro: completa em Minha conta.
-          <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
-            Para comentar, complete seu cadastro com um apelido em{" "}
-            <Link href="/minhas-cotas?aba=conta" className="font-semibold text-marca">
-              Minha conta
-            </Link>
-            .
-          </p>
+          <>
+            <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
+              Para comentar, complete seu cadastro com um apelido em{" "}
+              <Link href="/minhas-cotas?aba=conta" className="font-semibold text-marca">
+                Minha conta
+              </Link>
+              .
+            </p>
+            {/* Mandar presente pede só conta, não apelido. */}
+            {presenteInicial && slug && !sorteioOficialId ? (
+              <div className="mt-2">
+                <Presentear slug={slug} />
+              </div>
+            ) : null}
+          </>
         ) : (
           <>
             {respondendo ? (
@@ -695,6 +737,7 @@ export function Comentarios({
               foco={foco}
               podeUsarEmoji={Boolean(data.podeUsarEmoji)}
               comoOrganizacao={data.comoOrganizacao}
+              presenteInicial={presenteInicial}
               rotulo={data.comoOrganizacao ? `Comentar como ${data.organizacao.nome}…` : "Participe da conversa…"}
               aoEnviar={() => {
                 if (respondendo) setAbertas((s) => new Set(s).add(respondendo.id));
@@ -715,7 +758,16 @@ export function Comentarios({
  * Os comentários em painel que sobe de baixo, por cima do feed — como no
  * Instagram. Fecha pelo X, pelo fundo ou pelo Esc.
  */
-export function PainelDeComentarios({ slug, onFechar }: { slug: string; onFechar: () => void }) {
+export function PainelDeComentarios({
+  slug,
+  onFechar,
+  presente,
+}: {
+  slug: string;
+  onFechar: () => void;
+  /** Aberto pelo presente da página da rifa: o quadro do presente já aparece. */
+  presente?: boolean;
+}) {
   return (
     <Janela onFechar={onFechar} rotulo="Comentários" centralizarEm="lg" largura="max-w-lg" rolar={false} className="flex max-h-[85vh] flex-col">
       <div className="relative border-b border-line py-3 text-center">
@@ -731,7 +783,7 @@ export function PainelDeComentarios({ slug, onFechar }: { slug: string; onFechar
         </button>
       </div>
       <div className="overflow-y-auto px-4 pt-4">
-        <Comentarios slug={slug} dentroDoPainel />
+        <Comentarios slug={slug} dentroDoPainel presenteInicial={presente} />
       </div>
     </Janela>
   );

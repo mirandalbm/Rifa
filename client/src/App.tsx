@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
+import { PaginaNaoEncontrada } from "@/components/PaginaNaoEncontrada";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -108,15 +109,9 @@ function GuardedConta({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** O 404 de toda rota que não existe (tela 26): a mesma página para qualquer caso. */
 function NotFound() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-2 px-5 text-center">
-      <h1 className="font-display text-xl font-extrabold">Página não encontrada</h1>
-      <a href="/" className="text-sm text-green-deep underline">
-        voltar para as rifas
-      </a>
-    </div>
-  );
+  return <PaginaNaoEncontrada />;
 }
 
 /**

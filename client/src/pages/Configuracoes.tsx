@@ -100,13 +100,15 @@ export default function Configuracoes() {
             ) : null}
           </>
         ) : null}
-        {sessao?.user ? <Item href={sessao.home} icone={LayoutDashboard} rotulo="Meu painel" /> : null}
-                <Item href="/ajuda" icone={HelpCircle} rotulo="Central de ajuda" />
+        <Item href="/ajuda" icone={HelpCircle} rotulo="Central de ajuda" />
         <Item href="/termos" icone={FileText} rotulo="Termos de uso" />
         <Item href="/privacidade" icone={ShieldCheck} rotulo="Política de privacidade" detalhe="Que dados guardamos, para quê, e os seus direitos" />
+        {/* Por último, como no Figma: só quem tem painel (organizador, afiliado, cambista, plataforma). */}
+        {sessao?.user ? <Item href={sessao.home} icone={LayoutDashboard} rotulo="Meu painel" /> : null}
       </ul>
 
       <section className="mt-6 space-y-3">
+        {/* O grupo de rádios (automático, claro, escuro) leva o nome "Tema" (`aria-label` do `TemaEscolha`). */}
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold">Tema</span>
           <TemaEscolha />
@@ -115,7 +117,7 @@ export default function Configuracoes() {
       </section>
 
       {sessao?.user || sessao?.buyer ? (
-        <button type="button" onClick={sair} className="mt-6 flex min-h-6 items-center gap-2 text-sm font-semibold text-red">
+        <button type="button" onClick={sair} className="mt-6 flex min-h-6 items-center gap-2 text-sm font-semibold text-red hover:underline">
           <LogOut size={18} aria-hidden />
           Sair
         </button>

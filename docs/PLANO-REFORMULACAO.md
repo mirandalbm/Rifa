@@ -148,6 +148,36 @@ o saque ser pago. Falta no kit: botão de escolher arquivo, variante pequena
 do botão, seletor segmentado, cabeçalho de tabela alinhado à direita nas
 colunas de número.
 
+### Fase 5 — onda 5 (a loja)
+
+As 26 telas da loja (Figma "10 · Loja") no PR #252, em duas metades por
+causa do teto de 10 linhas do registro das versões, com as levas 17 (onda
+4) e 18 (5a) no meio. **5a** (01 a 08): vitrine, página da rifa (a compra
+num cartão nas três larguras, o total com o Pix colado no pé), perfis da
+organização e do apostador, página do estado, carrinho, pedido e Pix do
+carrinho (situação em pílula com texto; com o prazo zerado o Pix sai da tela
+e a faixa diz para não pagar mais). **5b** (09 a 26): Minhas compras,
+Notificações, Perfil, Configurações, Meus bilhetes, Publicar, Reels,
+Mensagens e grupos, Buscar, ajuda, Termos, Privacidade, regulamento, recibo,
+bilhete, Entrar, Criar conta, Seja afiliado e a página não encontrada (agora
+também para a rifa em rascunho ou com endereço errado). Confirmado com você
+em 12/10/2026: o aviso "só vale bilhete pago pela plataforma" virou o verde
+do Figma com o escudo, com o texto e o "Denunciar" de antes; a barra das
+cotas é azul no feed e na página da rifa; e a conta com senha confirma o
+próprio telefone em Minhas compras por uma rota da conta
+(`/conta/telefone/*`), sem trocar a sessão — o caminho antigo
+(`/my-quotas/verify`) refazia a sessão e perdia o "lembrar" e o painel. A
+revisão de invariantes não achou nada grave nas telas do Pix nem na rota
+nova; dela saiu encerrar as outras sessões **antes** de gravar a
+confirmação, e a suspeita de a sessão apagada voltar pelo `ON CONFLICT` do
+armazém de sessões ficou em `docs/SEGURANCA.md`.
+Ficou para quem mexe em regra: a rifa travada não sai sozinha do carrinho,
+o Pix do carrinho não traz os números (a rota não devolve), o recibo não
+tem PDF público nem a origem. Falta no kit: botão grande do "Pagar",
+`Progress` fina, `Button` que seja link, seletor de quantidade, botão de
+36 px, `Pill` informativa, campo de senha com mostrar/esconder e os campos
+de 46 px da loja.
+
 ## 1. Diagnóstico: por que o painel parece "escrito"
 
 Medido no repositório (51 páginas, 89 componentes, cerca de 60 telas no
@@ -265,7 +295,7 @@ Proposta de partida, a ser desenhada e testada na simulação:
 | 2 Arquitetura da informação | árvore de navegação, "onde mora cada ferramenta", fluxos | Opus | **você aprova** |
 | 3 Simulação | (a) fluxos em baixa fidelidade, (b) telas em alta fidelidade com os tokens reais, (c) protótipo clicável com dados de exemplo; 2 rodadas de ajuste; tarefas de teste ("publique uma rifa", "ache o pedido X") com tempo e cliques | Fable (visual), Sonnet (volume), Opus (fluxos) | **você aprova cada painel** |
 | 4 Congelar o desenho | especificação por tela + critérios de aceite (base 14 do Notion) | Opus | **assinada** em 11/10/2026 |
-| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — onda 1 feita (#248); onda 2 feita (#249, 11/10/2026); onda 3 feita (#250, 11/10/2026); **onda 4 feita** (#251, 11/10/2026) |
+| 5 Produção (ondas) | 1 base e componentes → 2 organizador → 3 plataforma → 4 afiliado/cambista → 5 loja | Sonnet, Opus nos fluxos críticos | PR por onda, rascunho, revisor de invariantes, capturas — onda 1 feita (#248); onda 2 feita (#249, 11/10/2026); onda 3 feita (#250, 11/10/2026); onda 4 feita (#251, 11/10/2026); **onda 5 feita** (#252, 12/10/2026) |
 | 6 Recriação final | passada de coerência, a11y, desempenho, `npm run telas` sem reprova, docs | Fable (visual), Sonnet, Haiku | você confere |
 
 Cada PR de produção: `/provar`, `revisor-de-invariantes` (quando toca recorte,

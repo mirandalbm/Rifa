@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { FileText } from "lucide-react";
+import { Button } from "@/components/bits";
 import { formatBRL } from "@shared/format";
 
 interface Ticket {
@@ -87,6 +89,9 @@ export default function Bilhete() {
           font-size: 9.5pt;
           line-height: 1.35;
         }
+        /* Na tela, a borda fina mostra onde o papel acaba (branco sobre branco
+           no tema claro); na impressao, nada em volta. */
+        @media screen { .bilhete { border: 1px solid #e1ebe3; margin-bottom: 16px; } }
         .bilhete h1 { font-size: 11pt; margin: 0; text-align: center; letter-spacing: .02em; }
         .bilhete .centro { text-align: center; }
         .bilhete .regua { border-top: 1px dashed #000; margin: 2mm 0; }
@@ -102,23 +107,10 @@ export default function Bilhete() {
         .bilhete .mini { font-size: 7pt; overflow-wrap: anywhere; }
       `}</style>
 
-      <div className="nao-imprime" style={{ textAlign: "center", padding: "12px" }}>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          style={{
-            background: "#00873E",
-            color: "#fff",
-            border: 0,
-            borderRadius: 8,
-            padding: "10px 18px",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
+      <div className="nao-imprime flex justify-center p-4">
+        <Button type="button" icone={<FileText />} onClick={() => window.print()}>
           Imprimir bilhete
-        </button>
+        </Button>
       </div>
 
       <div className="bilhete">

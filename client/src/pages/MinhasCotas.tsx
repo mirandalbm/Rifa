@@ -1,21 +1,30 @@
 import { numeracaoZero } from "@shared/apuracao";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { Janela } from "@/components/Janela";
-import { useEffect, useState } from "react";
-import { Link, useSearch } from "wouter";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
-import { Button, Campo, Card, Money, Pill, Empty } from "@/components/bits";
+import { Button, Caixa, Campo, Card, Money, Pill, Empty, TONS_DO_BOTAO } from "@/components/bits";
+import { usePendencias } from "@/components/Console";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { BonusDoComprador, type EstadoBonus } from "@/components/BonusDoComprador";
-import { apiRequest, ApiError } from "@/lib/queryClient";
+import { apiRequest, ApiError, getQueryFn } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
 import { PerfilPublicoCard } from "@/components/PerfilDoApostador";
 import { VerificacaoCard } from "@/components/Verificacao";
 import { estadoPush, ligarPush, desligarPush, type EstadoPush } from "@/lib/push";
 import { cepValido, cidadeUf, maskCep } from "@shared/endereco";
 import { formatQuota, maskPhone, maskCpf, cpfValido, formatBRL } from "@shared/format";
-import { calcularReembolso, NOME_TIPO_REEMBOLSO } from "@shared/reembolso";
+import {
+  calcularReembolso,
+  NOME_TIPO_REEMBOLSO,
+  regraDoReembolso,
+  regraSemReembolsoPeloSite,
+  TAXA_REEMBOLSO_PADRAO_PCT,
+} from "@shared/reembolso";
+import { abaDoTeclado } from "@shared/abas";
+import { useSession } from "@/lib/session";
 import {
   DISPUTA_PRAZO_DIAS,
   DIREITO_DO_CONSUMIDOR,
@@ -65,11 +74,15 @@ interface Conta {
   taxaReembolsoPct?: number;
   /**
    * Sobrou compra antiga, feita só pelo telefone e sem CPF gravado, que a
-   * conta ainda não provou ser dela. É o único caso em que a tela oferece o
-   * código do WhatsApp.
+   * conta ainda não provou ser dela. A tela avisa e oferece a confirmação do
+   * telefone da própria conta (`ConfirmarTelefoneDaConta`: o código vai ao
+   * número gravado e a sessão não troca) — a mesma de "Complete sua conta".
    */
   comprasAntigasOcultas?: boolean;
 }
+
+/** A lista de Minhas compras: confirmar o telefone e resgatar bônus a invalidam. */
+const MINHAS_COMPRAS = ["/api/public/my-quotas"];
 
 interface ChamadoResumo {
   id: string;
@@ -84,17 +97,23 @@ interface ChamadoResumo {
 
 /** Sem senha: telefone + código de acesso. */
 export default function MinhasCotas() {
-  const [conta, setConta] = useState<Conta | null>(null);
-  const [restaurando, setRestaurando] = useState(true);
-
-  // Quem já confirmou o telefone nesta sessão não digita o código de novo.
-  useEffect(() => {
-    apiRequest("GET", "/api/public/my-quotas")
-      .then((r) => r.json())
-      .then((c: Conta) => setConta(c))
-      .catch(() => undefined)
-      .finally(() => setRestaurando(false));
-  }, []);
+  const qc = useQueryClient();
+  // Quem já confirmou o telefone nesta sessão não digita o código de novo. É
+  // uma consulta (não um efeito solto): confirmar o telefone ou resgatar bônus
+  // a invalida e a lista se refaz — com as compras antigas e a taxa do reembolso.
+  const { data, isPending, isFetching } = useQuery<Conta | null>({
+    queryKey: MINHAS_COMPRAS,
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchOnMount: "always",
+  });
+  const conta = data ?? null;
+  const restaurando = isPending || (isFetching && !conta);
+  const setConta = (c: Conta | null) => {
+    qc.setQueryData(MINHAS_COMPRAS, c);
+    // A resposta de quem acabou de entrar não traz tudo o que a lista traz
+    // (`comprasAntigasOcultas`, `taxaReembolsoPct`): a tela busca de novo.
+    if (c) qc.invalidateQueries({ queryKey: MINHAS_COMPRAS });
+  };
 
   return (
     <PublicShell>
@@ -123,17 +142,13 @@ export default function MinhasCotas() {
   );
 }
 
-function Entrar({
-  aoEntrar,
-  telefoneFixo,
-  rotulo = "Confirmar",
-}: {
-  aoEntrar: (c: Conta) => void;
-  /** Confirmação do telefone da própria conta: o número não se escolhe. */
-  telefoneFixo?: string;
-  rotulo?: string;
-}) {
-  const [phone, setPhone] = useState(telefoneFixo ?? "");
+/**
+ * Entrar sem conta, pelo telefone e o código do WhatsApp (a sessão nasce de
+ * novo). A conta que já entrou confirma o telefone dela por
+ * `ConfirmarTelefoneDaConta`, que não troca a sessão.
+ */
+function Entrar({ aoEntrar }: { aoEntrar: (c: Conta) => void }) {
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -164,39 +179,31 @@ function Entrar({
   return (
     <Card>
       <div className="space-y-3 p-4">
-        <div>
-          <label htmlFor="telefone" className="label-xs">
-            WhatsApp
-          </label>
+        <Campo rotulo="WhatsApp">
           <input
-            id="telefone"
             value={phone}
             inputMode="tel"
-            disabled={step === "code" || Boolean(telefoneFixo)}
+            autoComplete="tel"
+            disabled={step === "code"}
             onChange={(e) => setPhone(e.target.value)}
             className="campo tnum text-sm disabled:bg-mist"
           />
-        </div>
+        </Campo>
 
         {step === "code" ? (
-          <div>
-            <label htmlFor="codigo" className="label-xs">
-              Código de 6 dígitos
-            </label>
+          <Campo
+            rotulo="Código de 6 dígitos"
+            dica={devCode ? <span className="tnum text-yellow-deep">desenvolvimento — seu código é {devCode}</span> : undefined}
+          >
             <input
-              id="codigo"
               value={code}
               inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength={6}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               className="campo tnum text-lg tracking-[0.3em]"
             />
-            {devCode ? (
-              <p className="tnum mt-1 text-[11px] text-yellow-deep">
-                desenvolvimento — seu código é {devCode}
-              </p>
-            ) : null}
-          </div>
+          </Campo>
         ) : null}
 
         {error ? <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p> : null}
@@ -206,24 +213,136 @@ function Entrar({
           disabled={request.isPending || verify.isPending}
           onClick={() => (step === "phone" ? request.mutate() : verify.mutate())}
         >
-          {step === "phone" ? "Receber código" : rotulo}
+          {step === "phone" ? "Receber código" : "Confirmar"}
         </Button>
       </div>
     </Card>
   );
 }
 
+/**
+ * Confirmar o telefone da própria conta (`/conta/telefone/codigo` e
+ * `/confirmar`): o código vai ao número gravado na conta — não há campo de
+ * número — e a sessão continua a mesma (o "lembrar" fica). Confirmado, a
+ * lista de Minhas compras se refaz e as compras antigas aparecem.
+ */
+function ConfirmarTelefoneDaConta({ telefone }: { telefone: string }) {
+  const qc = useQueryClient();
+  const [codigo, setCodigo] = useState("");
+  const [enviado, setEnviado] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const erro = (e: Error) => setMsg({ ok: false, texto: e.message });
+  const pedir = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/public/conta/telefone/codigo", {})).json() as Promise<{ devCode?: string }>,
+    onSuccess: (r) => {
+      setEnviado(true);
+      setDevCode(r.devCode ?? null);
+      setMsg({ ok: true, texto: "Enviamos um código pelo WhatsApp." });
+    },
+    onError: erro,
+  });
+  const confirmar = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/public/conta/telefone/confirmar", { codigo }),
+    onSuccess: () => {
+      setEnviado(false);
+      setCodigo("");
+      setDevCode(null);
+      setMsg({ ok: true, texto: "Telefone confirmado." });
+      qc.invalidateQueries({ queryKey: MINHAS_COMPRAS });
+      qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
+      qc.invalidateQueries({ queryKey: ["/api/public/conta/perfil"] });
+      qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+    onError: erro,
+  });
+  return (
+    <div className="space-y-2">
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMsg(null);
+          pedir.mutate();
+        }}
+      >
+        <p className="min-w-0 flex-1 basis-48 text-ink-2">
+          O código vai para o WhatsApp da conta, <strong className="tnum whitespace-nowrap">{maskPhone(telefone)}</strong>.
+        </p>
+        <Button type="submit" variant={enviado ? "contorno" : "primario"} disabled={pedir.isPending}>
+          {enviado ? "Enviar de novo" : "Enviar código"}
+        </Button>
+      </form>
+      {enviado ? (
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            confirmar.mutate();
+          }}
+        >
+          <Campo
+            rotulo="Código de 6 dígitos"
+            className="min-w-0 flex-1 basis-40"
+            dica={devCode ? <span className="tnum">desenvolvimento — seu código é {devCode}</span> : undefined}
+          >
+            <input
+              className="campo tnum"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
+            />
+          </Campo>
+          <Button type="submit" disabled={confirmar.isPending || codigo.length < 6}>
+            Confirmar telefone
+          </Button>
+        </form>
+      ) : null}
+      {msg ? (
+        <p role={msg.ok ? "status" : "alert"} className={msg.ok ? "text-green-deep" : "text-red"}>
+          {msg.texto}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+type AbaDaConta = "cotas" | "chamados" | "conta" | "bonus" | "salvos";
+/** O nome de cada aba na URL (`?aba=`); a primeira não leva parâmetro. */
+const ABA_NA_URL: Record<AbaDaConta, string | null> = {
+  cotas: null,
+  chamados: "reembolsos",
+  bonus: "bonus",
+  salvos: "salvos",
+  conta: "conta",
+};
+
 function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) => void }) {
   const qc = useQueryClient();
-  // O menu do apostador abre direto numa aba (?aba=reembolsos, ?aba=conta) —
-  // e troca de aba mesmo já estando nesta página.
+  // A aba vai na URL (?aba=reembolsos, ?aba=conta): o menu do apostador abre
+  // direto nela, trocar de aba a grava (sem entrada nova no histórico) e recarregar a mantém.
   const busca = useSearch();
-  const abaDaUrl = (): "cotas" | "chamados" | "conta" | "bonus" | "salvos" => {
+  const [local, navegar] = useLocation();
+  const abaDaUrl = (): AbaDaConta => {
     const q = new URLSearchParams(busca).get("aba");
     return q === "conta" ? "conta" : q === "reembolsos" ? "chamados" : q === "bonus" ? "bonus" : q === "salvos" ? "salvos" : "cotas";
   };
   const [aba, setAba] = useState(abaDaUrl);
   useEffect(() => setAba(abaDaUrl()), [busca]);
+  const botoesDasAbas = useRef<Partial<Record<AbaDaConta, HTMLButtonElement | null>>>({});
+  // A fileira rola para o lado no celular: a aba aberta pela URL fica à vista.
+  useEffect(() => {
+    botoesDasAbas.current[aba]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [aba]);
+  const abrirAba = (v: AbaDaConta, foco = false) => {
+    setAba(v);
+    setChamadoAberto(null);
+    const q = ABA_NA_URL[v];
+    navegar(q ? `${local}?aba=${q}` : local, { replace: true });
+    if (foco) botoesDasAbas.current[v]?.focus();
+  };
   const [pedindo, setPedindo] = useState<OrderRow | null>(null);
   const [chamadoAberto, setChamadoAberto] = useState<string | null>(null);
 
@@ -237,6 +356,13 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
   const emAndamento = new Set(
     chamados.filter((c) => c.status === "aberto" || c.status === "aprovado").map((c) => c.pedido),
   );
+  const abasDaConta: [AbaDaConta, string][] = [
+    ["cotas", "Minhas compras"],
+    ["chamados", `Reembolsos${chamados.length ? ` (${chamados.length})` : ""}`],
+    ...(bonus?.ligado ? ([["bonus", `Bônus${bonus.saldo > 0 ? ` (${bonus.saldo})` : ""}`]] as [AbaDaConta, string][]) : []),
+    ["salvos", "Salvos"],
+    ["conta", "Minha conta"],
+  ];
 
   return (
     <>
@@ -249,34 +375,36 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
         ) : null}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1" role="tablist">
-        {(
-          [
-            ["cotas", "Minhas compras"],
-            ["chamados", `Reembolsos${chamados.length ? ` (${chamados.length})` : ""}`],
-            ...(bonus?.ligado ? ([["bonus", `Bônus${bonus.saldo > 0 ? ` (${bonus.saldo})` : ""}`]] as const) : []),
-            ["salvos", "Salvos"],
-            ["conta", "Minha conta"],
-          ] as const
-        ).map(([v, rotulo]) => (
-          <button
-            key={v}
-            type="button"
-            role="tab"
-            aria-selected={aba === v}
-            onClick={() => {
-              setAba(v);
-              setChamadoAberto(null);
-            }}
-            className={
-              aba === v
-                ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green"
-                : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"
-            }
-          >
-            {rotulo}
-          </button>
-        ))}
+      {/* As abas numa fileira que rola para o lado no celular (o Figma corta "Minha conta" na borda). */}
+      <div className="relative mt-3 overflow-x-auto">
+        <div className="flex min-w-max gap-1" role="tablist" aria-label="Minhas compras e minha conta">
+          {abasDaConta.map(([v, rotulo], i) => (
+            <button
+              key={v}
+              ref={(el) => {
+                botoesDasAbas.current[v] = el;
+              }}
+              type="button"
+              role="tab"
+              id={`aba-${v}`}
+              aria-selected={aba === v}
+              aria-controls={`painel-${v}`}
+              tabIndex={aba === v ? 0 : -1}
+              onClick={() => abrirAba(v)}
+              onKeyDown={(e) => {
+                const alvo = abaDoTeclado(e.key, i, abasDaConta.length);
+                if (alvo === null) return;
+                e.preventDefault();
+                abrirAba(abasDaConta[alvo][0], true);
+              }}
+              className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-lg px-3.5 text-sm ${
+                aba === v ? "bg-green font-semibold text-on-green" : "font-medium text-ink-2 hover:bg-mist-2"
+              }`}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
       </div>
 
       {conta.comprasAntigasOcultas ? (
@@ -286,16 +414,32 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
             Foram feitas antes da conta e sem CPF, então não dá para provar que são suas pelo
             cadastro. Confirme o número pelo código do WhatsApp e elas aparecem aqui.
           </p>
-          <div className="mt-2">
-            <Entrar aoEntrar={aoMudar} telefoneFixo={conta.phone} rotulo="Confirmar telefone" />
-          </div>
+          {conta.phone ? (
+            <div className="mt-2 rounded-lg bg-white p-3 text-ink">
+              <ConfirmarTelefoneDaConta telefone={conta.phone} />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
+      {/* A aba aberta pela URL pode não estar na fileira (o Bônus com o programa
+          desligado): aí o painel leva o nome em texto, nunca um id que não existe. */}
+      <div
+        role="tabpanel"
+        id={`painel-${aba}`}
+        {...(abasDaConta.some(([v]) => v === aba)
+          ? { "aria-labelledby": `aba-${aba}` }
+          : { "aria-label": aba === "bonus" ? "Bônus" : "Minhas compras" })}
+      >
       {aba === "salvos" ? (
         <Salvos />
       ) : aba === "conta" ? (
-        <MinhaConta aoSair={() => aoMudar(null)} />
+        <MinhaConta
+          aoSair={() => aoMudar(null)}
+          telefone={conta.phone}
+          // O aviso das compras antigas, acima, já traz a confirmação do telefone.
+          confirmarAqui={!conta.comprasAntigasOcultas}
+        />
       ) : aba === "bonus" ? (
         bonus?.ligado ? <BonusDoComprador dados={bonus} /> : <Empty>O programa de bônus não está ativo.</Empty>
       ) : aba === "cotas" ? (
@@ -304,8 +448,9 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
             <Empty>
               Nenhuma compra ainda.{" "}
               <Link href="/" className="text-green-deep underline">
-                ver as rifas
+                Ver as rifas
               </Link>
+              .
             </Empty>
           ) : null}
           <ComprasPorRifa
@@ -325,6 +470,7 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
             emAndamento={emAndamento}
             pedir={setPedindo}
           />
+          {conta.orders.length ? <RegraDoReembolso conta={conta} /> : null}
         </>
       ) : chamadoAberto ? (
         <ChamadoDoComprador id={chamadoAberto} voltar={() => setChamadoAberto(null)} />
@@ -356,26 +502,44 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
                 ))}
               </ul>
             ) : (
-              <Empty>Nenhum pedido de reembolso.</Empty>
+              <Empty>Nenhum pedido de reembolso. Quando couber, o pedido sai de cada compra, em “Minhas compras”.</Empty>
             )}
           </Card>
+          <RegraDoReembolso conta={conta} />
         </div>
       )}
+      </div>
 
       {pedindo ? (
         <PedirReembolso
           row={pedindo}
-          taxaPct={conta.taxaReembolsoPct ?? 10}
+          taxaPct={conta.taxaReembolsoPct ?? TAXA_REEMBOLSO_PADRAO_PCT}
           fechar={() => setPedindo(null)}
           aoAbrir={(id) => {
             setPedindo(null);
             qc.invalidateQueries({ queryKey: ["/api/public/chamados"] });
-            setAba("chamados");
+            abrirAba("chamados");
             setChamadoAberto(id);
           }}
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * A regra do reembolso em vigor, a mesma que a página da rifa mostra antes do
+ * Pix (`regraDoReembolso()` com a taxa de agora; desligado o pedido pelo site,
+ * `regraSemReembolsoPeloSite()`). Texto longo: fica num "Como funciona".
+ */
+function RegraDoReembolso({ conta }: { conta: Conta }) {
+  return (
+    <details className="mt-4 rounded-lg border border-line px-4 py-3 text-sm">
+      <summary className="min-h-6 cursor-pointer font-semibold">Como funciona o reembolso</summary>
+      <p className="mt-2 text-ink-2">
+        {conta.reembolso ? regraDoReembolso(conta.taxaReembolsoPct ?? TAXA_REEMBOLSO_PADRAO_PCT) : regraSemReembolsoPeloSite()}
+      </p>
+    </details>
   );
 }
 
@@ -548,7 +712,7 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
 
   return (
     <div className="mt-3">
-      <button type="button" onClick={voltar} className="mb-2 text-xs text-muted underline">
+      <button type="button" onClick={voltar} className="mb-2 inline-flex min-h-6 items-center text-xs text-muted underline">
         ← todos os pedidos de reembolso
       </button>
       <Card
@@ -681,17 +845,9 @@ function Disputa({
                 abrir.mutate();
               }}
             >
-              <label className="block">
-                <span className="label-xs">Por que você discorda</span>
-                <textarea
-                  value={motivo}
-                  onChange={(e) => setMotivo(e.target.value)}
-                  rows={4}
-                  maxLength={1000}
-                  className="campo text-sm"
-                />
-              </label>
-              {erro ? <p className="text-xs text-red">{erro}</p> : null}
+              <Campo rotulo="Por que você discorda" erro={erro}>
+                <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={4} maxLength={1000} />
+              </Campo>
               <div className="flex gap-2">
                 <Button type="submit" disabled={Boolean(problema) || abrir.isPending}>
                   {abrir.isPending ? "Enviando…" : "Enviar à plataforma"}
@@ -748,11 +904,29 @@ function Salvos() {
   );
 }
 
-/** Conta criada pelo Google: CPF e telefone provado antes de comprar, comentar e pedir reembolso. */
-function CompletarConta({ dados }: { dados: DadosConta }) {
+/**
+ * "Complete sua conta": a mesma lista do ponto na foto do perfil
+ * (`pendenciasDaConta()`, por `usePendencias()`), e o que dá para fazer aqui
+ * mesmo — o CPF e o telefone da conta do Google, e a confirmação do telefone
+ * da conta pelo código do WhatsApp (`ConfirmarTelefoneDaConta`, sem trocar a
+ * sessão). O apelido mora em "Meu perfil público", logo abaixo.
+ */
+function CompletarConta({
+  dados,
+  pendencias,
+  telefone,
+  confirmarAqui,
+}: {
+  dados: DadosConta;
+  pendencias: string[];
+  /** O telefone da conta: o código vai para ele, nunca para outro número. */
+  telefone: string;
+  confirmarAqui: boolean;
+}) {
   const qc = useQueryClient();
+  const { data: sessao } = useSession();
   const [cpf, setCpf] = useState("");
-  const [telefone, setTelefone] = useState("");
+  const [novoTelefone, setNovoTelefone] = useState("");
   const [codigo, setCodigo] = useState("");
   const [enviado, setEnviado] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -760,6 +934,7 @@ function CompletarConta({ dados }: { dados: DadosConta }) {
     qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
     qc.invalidateQueries({ queryKey: ["/api/public/conta/perfil"] });
     qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    qc.invalidateQueries({ queryKey: MINHAS_COMPRAS });
   };
   const erro = (e: Error) => setMsg({ ok: false, texto: e.message });
   const salvarCpf = useMutation({
@@ -771,7 +946,7 @@ function CompletarConta({ dados }: { dados: DadosConta }) {
     onError: erro,
   });
   const pedir = useMutation({
-    mutationFn: async () => (await apiRequest("POST", "/api/public/conta/telefone/codigo", { telefone })).json(),
+    mutationFn: async () => (await apiRequest("POST", "/api/public/conta/telefone/codigo", { telefone: novoTelefone })).json(),
     onSuccess: (r: { devCode?: string }) => {
       setEnviado(true);
       setMsg({ ok: true, texto: r.devCode ? `Código (desenvolvimento): ${r.devCode}` : "Enviamos um código pelo WhatsApp." });
@@ -788,12 +963,20 @@ function CompletarConta({ dados }: { dados: DadosConta }) {
     },
     onError: erro,
   });
+  const faltaTelefoneDoGoogle = dados.falta.includes("telefone");
+  const confirmarTelefone =
+    confirmarAqui && !faltaTelefoneDoGoogle && Boolean(telefone) && !dados.telefoneConfirmado && !sessao?.buyer?.confirmado;
   return (
-    <Card title="Complete sua conta">
-      <div className="space-y-4 p-4 text-sm">
-        <p className="text-muted">
-          Você entrou pelo Google. Para comprar, comentar e pedir reembolso, falta: {dados.falta.join(" e ")}.
-        </p>
+    <section aria-labelledby="titulo-completar" className="rounded-xl border border-green bg-green-soft p-3.5 text-sm">
+      <h2 id="titulo-completar" className="font-bold text-green-deep">
+        Complete sua conta
+      </h2>
+      <ul className="mt-1 list-disc pl-5 text-ink-2">
+        {pendencias.map((p) => (
+          <li key={p}>{p}</li>
+        ))}
+      </ul>
+      <div className="mt-3 space-y-4">
         {dados.falta.includes("CPF") ? (
           <form
             className="flex flex-wrap items-end gap-2"
@@ -802,16 +985,15 @@ function CompletarConta({ dados }: { dados: DadosConta }) {
               salvarCpf.mutate();
             }}
           >
-            <label className="block">
-              <span className="label-xs">CPF</span>
+            <Campo rotulo="CPF" className="min-w-0 flex-1 basis-40">
               <input className="campo tnum" inputMode="numeric" autoComplete="off" value={cpf} onChange={(e) => setCpf(e.target.value)} />
-            </label>
+            </Campo>
             <Button type="submit" disabled={salvarCpf.isPending || cpf.replace(/\D/g, "").length !== 11}>
               Salvar CPF
             </Button>
           </form>
         ) : null}
-        {dados.falta.includes("telefone") ? (
+        {faltaTelefoneDoGoogle ? (
           <div className="space-y-2">
             <form
               className="flex flex-wrap items-end gap-2"
@@ -820,11 +1002,10 @@ function CompletarConta({ dados }: { dados: DadosConta }) {
                 pedir.mutate();
               }}
             >
-              <label className="block">
-                <span className="label-xs">WhatsApp (com DDD)</span>
-                <input className="campo tnum" inputMode="tel" autoComplete="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-              </label>
-              <Button type="submit" disabled={pedir.isPending || telefone.replace(/\D/g, "").length < 10}>
+              <Campo rotulo="WhatsApp (com DDD)" className="min-w-0 flex-1 basis-40">
+                <input className="campo tnum" inputMode="tel" autoComplete="tel" value={novoTelefone} onChange={(e) => setNovoTelefone(e.target.value)} />
+              </Campo>
+              <Button type="submit" disabled={pedir.isPending || novoTelefone.replace(/\D/g, "").length < 10}>
                 {enviado ? "Enviar de novo" : "Enviar código"}
               </Button>
             </form>
@@ -836,10 +1017,9 @@ function CompletarConta({ dados }: { dados: DadosConta }) {
                   confirmar.mutate();
                 }}
               >
-                <label className="block">
-                  <span className="label-xs">Código recebido</span>
+                <Campo rotulo="Código recebido" className="min-w-0 flex-1 basis-40">
                   <input className="campo tnum" inputMode="numeric" autoComplete="one-time-code" value={codigo} onChange={(e) => setCodigo(e.target.value)} />
-                </label>
+                </Campo>
                 <Button type="submit" disabled={confirmar.isPending || codigo.length < 6}>
                   Confirmar telefone
                 </Button>
@@ -847,13 +1027,14 @@ function CompletarConta({ dados }: { dados: DadosConta }) {
             ) : null}
           </div>
         ) : null}
+        {confirmarTelefone ? <ConfirmarTelefoneDaConta telefone={telefone} /> : null}
         {msg ? (
           <p role="status" className={msg.ok ? "text-green-deep" : "text-red"}>
             {msg.texto}
           </p>
         ) : null}
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -885,7 +1066,10 @@ function GoogleCard({ dados }: { dados: DadosConta }) {
         ) : (
           <>
             <p className="text-muted">Ligue sua conta Google para entrar sem digitar a senha.</p>
-            <a className="inline-flex items-center justify-center rounded-md border-2 border-green bg-white px-4 py-2 text-sm font-semibold text-green-deep hover:bg-green-soft" href="/api/public/conta/google/ligar?volta=/minhas-cotas%3Faba%3Dconta">
+            <a
+              className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.contorno}`}
+              href="/api/public/conta/google/ligar?volta=/minhas-cotas%3Faba%3Dconta"
+            >
               Ligar o Google
             </a>
           </>
@@ -896,9 +1080,18 @@ function GoogleCard({ dados }: { dados: DadosConta }) {
   );
 }
 
-function MinhaConta({ aoSair }: { aoSair: () => void }) {
+function MinhaConta({
+  aoSair,
+  telefone,
+  confirmarAqui,
+}: {
+  aoSair: () => void;
+  telefone: string;
+  confirmarAqui: boolean;
+}) {
   const qc = useQueryClient();
   const { data } = useQuery<DadosConta>({ queryKey: ["/api/public/conta"] });
+  const pendencias = usePendencias();
   const [atual, setAtual] = useState("");
   const [nova, setNova] = useState("");
   const [senhaExcluir, setSenhaExcluir] = useState("");
@@ -942,7 +1135,9 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
 
   return (
     <div className="mt-3 space-y-3">
-      {data.falta.length ? <CompletarConta dados={data} /> : null}
+      {pendencias.length ? (
+        <CompletarConta dados={data} pendencias={pendencias} telefone={telefone} confirmarAqui={confirmarAqui} />
+      ) : null}
       <PerfilPublicoCard />
       {data.temSenha || semSenhaMasConta ? (
         <VerificacaoCard
@@ -992,22 +1187,20 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
       <AvisosNoAparelho />
 
       <Card title="Privacidade">
-        <label className="flex items-start gap-3 p-4 text-sm">
-          <input
-            type="checkbox"
-            checked={data.perfilPublico}
-            disabled={publico.isPending}
-            onChange={(e) => publico.mutate(e.target.checked)}
-            className="mt-1"
-          />
-          <span>
-            Aparecer em "seguido por…" e em "quem também joga" nas rifas
-            <span className="block text-xs text-muted">
+        <Caixa
+          className="p-4"
+          marcada={data.perfilPublico}
+          disabled={publico.isPending}
+          aoMudar={(v) => publico.mutate(v)}
+          sub={
+            <>
               Em "seguido por…" vai só o primeiro nome; em "quem também joga" vão seu apelido e sua foto (precisa de apelido). Desligado,
               você conta como seguidor e participante, mas ninguém vê quem é.
-            </span>
-          </span>
-        </label>
+            </>
+          }
+        >
+          Aparecer em "seguido por…" e em "quem também joga" nas rifas
+        </Caixa>
       </Card>
 
       {msg ? (
@@ -1026,33 +1219,13 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           }}
         >
           {pedeAtual ? (
-            <div>
-              <label htmlFor="senha-atual" className="label-xs">
-                Senha atual
-              </label>
-              <input
-                id="senha-atual"
-                type="password"
-                autoComplete="current-password"
-                value={atual}
-                onChange={(e) => setAtual(e.target.value)}
-                className="campo text-sm"
-              />
-            </div>
+            <Campo rotulo="Senha atual">
+              <input type="password" autoComplete="current-password" value={atual} onChange={(e) => setAtual(e.target.value)} />
+            </Campo>
           ) : null}
-          <div>
-            <label htmlFor="senha-nova" className="label-xs">
-              Nova senha (mínimo 8 caracteres)
-            </label>
-            <input
-              id="senha-nova"
-              type="password"
-              autoComplete="new-password"
-              value={nova}
-              onChange={(e) => setNova(e.target.value)}
-              className="campo text-sm"
-            />
-          </div>
+          <Campo rotulo="Nova senha" dica="Mínimo de 8 caracteres.">
+            <input type="password" autoComplete="new-password" value={nova} onChange={(e) => setNova(e.target.value)} />
+          </Campo>
           <Button type="submit" disabled={trocar.isPending || nova.length < 8 || (pedeAtual && !atual)}>
             Salvar senha
           </Button>
@@ -1074,14 +1247,14 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
           {confirmaExcluir ? (
             <>
               {data.soGoogle || !data.sessaoConfirmada ? (
-                <input
-                  type={data.soGoogle ? "text" : "password"}
-                  aria-label={data.soGoogle ? "Digite EXCLUIR para confirmar" : "Senha para confirmar"}
-                  placeholder={data.soGoogle ? "digite EXCLUIR para confirmar" : "sua senha, para confirmar"}
-                  value={senhaExcluir}
-                  onChange={(e) => setSenhaExcluir(e.target.value)}
-                  className="w-full rounded-md border border-line-2 px-3 py-2 text-sm"
-                />
+                <Campo rotulo={data.soGoogle ? "Digite EXCLUIR para confirmar" : "Sua senha, para confirmar"}>
+                  <input
+                    type={data.soGoogle ? "text" : "password"}
+                    autoComplete={data.soGoogle ? "off" : "current-password"}
+                    value={senhaExcluir}
+                    onChange={(e) => setSenhaExcluir(e.target.value)}
+                  />
+                </Campo>
               ) : null}
               <div className="flex gap-2">
                 <Button
@@ -1097,7 +1270,7 @@ function MinhaConta({ aoSair }: { aoSair: () => void }) {
               </div>
             </>
           ) : (
-            <button type="button" onClick={() => setConfirmaExcluir(true)} className="text-xs text-red underline">
+            <button type="button" onClick={() => setConfirmaExcluir(true)} className="inline-flex min-h-6 items-center text-xs text-red underline">
               Quero excluir minha conta
             </button>
           )}
@@ -1157,7 +1330,7 @@ function ComprasPorRifa({
               <AvatarOrganizador nome={org} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">{org}</p>
-                <Link href={`/r/${c.slug}`} className="block truncate text-xs text-muted underline">
+                <Link href={`/r/${c.slug}`} className="block truncate text-xs leading-6 text-muted underline">
                   {c.title}
                 </Link>
               </div>
@@ -1198,18 +1371,18 @@ function ComprasPorRifa({
                     </span>
                     <span className="ml-auto flex gap-3">
                       {row.order.status === "paid" ? (
-                        <Link href={`/bilhete/${row.order.code}`} className="text-green-deep underline">
+                        <Link href={`/bilhete/${row.order.code}`} className="inline-flex min-h-6 items-center text-green-deep underline">
                           2ª via do bilhete
                         </Link>
                       ) : row.order.status === "pending" ? (
-                        <Link href={`/pedido/${row.order.code}`} className="text-yellow-deep underline">
+                        <Link href={`/pedido/${row.order.code}`} className="inline-flex min-h-6 items-center text-yellow-deep underline">
                           pagar
                         </Link>
                       ) : null}
                       {emAndamento.has(row.order.code) ? (
-                        <span className="text-yellow-deep">reembolso em andamento</span>
+                        <span className="inline-flex min-h-6 items-center text-yellow-deep">reembolso em andamento</span>
                       ) : podePedir(row) ? (
-                        <button type="button" onClick={() => pedir(row)} className="text-muted underline">
+                        <button type="button" onClick={() => pedir(row)} className="inline-flex min-h-6 items-center text-muted underline">
                           pedir reembolso
                         </button>
                       ) : null}
@@ -1302,19 +1475,15 @@ function MinhaRegiaoCard({ dados }: { dados: DadosConta }) {
             : "Informe seu CEP para ver primeiro as rifas perto de você."}
         </p>
         <div className="flex items-end gap-2">
-          <div>
-            <label htmlFor="conta-cep" className="label-xs block">
-              CEP
-            </label>
+          <Campo rotulo="CEP" className="w-36">
             <input
-              id="conta-cep"
               inputMode="numeric"
               autoComplete="postal-code"
               value={cep}
               onChange={(e) => setCep(maskCep(e.target.value))}
-              className="tnum mt-1 w-32 rounded-md border border-line-2 px-3 py-2 text-sm"
+              className="campo tnum text-sm"
             />
-          </div>
+          </Campo>
           <Button type="submit" variant="ghost" disabled={!cepValido(cep) || salvar.isPending}>
             Salvar
           </Button>

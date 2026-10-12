@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { PublicShell } from "@/components/AppShell";
+import { TextoDeLeitura } from "@/components/TextoDeLeitura";
 import { useTemplate } from "@/lib/template";
 import { EMPRESA_VAZIA, VIGENCIA_DOS_TERMOS, montarPrivacidade, montarTermosDeUso, type DadosDosTermos } from "@shared/legal";
 import type { Secao } from "@shared/regulamento";
@@ -28,8 +29,8 @@ function Documento({ titulo, secoes, outro }: { titulo: string; secoes: Secao[] 
   const [a, m, d] = VIGENCIA_DOS_TERMOS.split("-");
   return (
     <PublicShell>
-      <h1 className="font-display text-xl font-extrabold">{titulo}</h1>
-      <p className="text-xs text-muted">
+      <h1 className="font-display text-2xl font-extrabold">{titulo}</h1>
+      <p className="mt-[18px] text-[13px] leading-[18px] text-muted">
         Em vigor desde <span className="tnum">{`${d}/${m}/${a}`}</span> ·{" "}
         <Link href={outro.href} className="text-green-deep underline">
           {outro.rotulo}
@@ -39,19 +40,8 @@ function Documento({ titulo, secoes, outro }: { titulo: string; secoes: Secao[] 
           Central de ajuda
         </Link>
       </p>
-      {secoes ? null : <p className="mt-4 text-sm text-muted">Carregando…</p>}
-      <article className="mt-4 space-y-5 text-sm leading-relaxed [overflow-wrap:anywhere]">
-        {(secoes ?? []).map((s) => (
-          <section key={s.titulo}>
-            <h2 className="font-display text-base font-bold">{s.titulo}</h2>
-            {s.itens.map((i) => (
-              <p key={i} className="mt-1 text-ink-2">
-                {i}
-              </p>
-            ))}
-          </section>
-        ))}
-      </article>
+      {secoes ? null : <p className="mt-[18px] text-sm text-muted">Carregando…</p>}
+      <TextoDeLeitura secoes={secoes ?? []} />
     </PublicShell>
   );
 }

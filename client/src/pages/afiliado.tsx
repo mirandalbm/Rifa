@@ -745,7 +745,7 @@ export function AfiliadoSaques() {
                             <a href={`/api/affiliate/recibos/${p.recibo}/pdf`} className="inline-flex min-h-6 items-center text-green-deep underline">
                               recibo (PDF)
                             </a>
-                            <Link href={`/recibo/${p.recibo}`} className="inline-flex min-h-6 items-center text-green-deep underline">
+                            <Link href={`/recibo/${p.recibo}`} className="inline-flex min-h-6 items-center gap-1 text-green-deep underline">
                               conferir o recibo <span className="tnum">{p.recibo}</span>
                             </Link>
                           </>

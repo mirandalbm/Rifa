@@ -1981,8 +1981,10 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     const buyerId = req.session.buyer?.id;
     const t = await titularidadeDaSessao(req);
     const visiveis = await ordersByPhone(phone, t);
-    // Sobrou compra antiga que a conta ainda não provou ser dela? Só aí a
-    // tela oferece o código do WhatsApp — o caso raro de compra sem CPF.
+    // Sobrou compra antiga que a conta ainda não provou ser dela (o caso raro
+    // de compra sem CPF)? A tela avisa e oferece a confirmação do telefone da
+    // própria conta (`/conta/telefone/codigo` e `/confirmar`, sem trocar a
+    // sessão), que também está em "Complete sua conta".
     const [todas] = buyerId
       ? await db
           .select({ n: sql<number>`count(*)::int` })
@@ -2048,6 +2050,9 @@ publicRouter.post("/conta/cpf", async (req, res, next) => {
   }
 });
 
+// O telefone da conta: o provisório da conta do Google (o número vem do corpo)
+// ou o real ainda não confirmado (o código vai ao número gravado; o corpo é
+// ignorado). Confirmar grava sem trocar a sessão — ver `contaCompleta.ts`.
 publicRouter.post("/conta/telefone/codigo", async (req, res, next) => {
   try {
     const code = await pedirCodigoDoTelefone(req, String(req.body?.telefone ?? ""));

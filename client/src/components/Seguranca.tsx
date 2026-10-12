@@ -3,7 +3,7 @@ import { ComentariosDoSorteioDenunciados, ConversasDenunciadasDaPlataforma, Grup
 import { Janela } from "@/components/Janela";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, ShieldAlert, X } from "lucide-react";
+import { Flag, ShieldCheck, X } from "lucide-react";
 import { Button, Campo, Empty, Filtros, Pill } from "@/components/bits";
 import { CartaoDoPainel, MestreDetalhe } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
@@ -184,13 +184,24 @@ export function AprovarTelefone({
   );
 }
 
-/** O aviso perto do botão de comprar: só vale bilhete pago pela plataforma. */
-export function SoValePelaPlataforma({ rifa }: { rifa: string }) {
+/**
+ * O aviso perto do botão de comprar: só vale bilhete pago pela plataforma.
+ * Verde com o escudo (o desenho da loja); com a rifa, o link de denúncia —
+ * é o caminho contra o golpe do Pix por fora. No carrinho (várias rifas) vai
+ * sem o link.
+ */
+export function SoValePelaPlataforma({ rifa }: { rifa?: string }) {
   return (
-    <p className="flex items-start gap-2 rounded-md border border-line bg-mist px-3 py-2 text-xs text-ink-2">
-      <ShieldAlert size={16} aria-hidden className="mt-0.5 shrink-0" />
+    <p className="flex items-start gap-2 rounded-md bg-green-soft px-3 py-2 text-xs text-green-deep">
+      <ShieldCheck size={16} aria-hidden className="mt-0.5 shrink-0" />
       <span>
-        {PAGAMENTO_SO_PIX} {SO_VALE_PELA_PLATAFORMA} <BotaoDenunciar rifa={rifa} comoLink />
+        {PAGAMENTO_SO_PIX} {SO_VALE_PELA_PLATAFORMA}
+        {rifa ? (
+          <>
+            {" "}
+            <BotaoDenunciar rifa={rifa} comoLink />
+          </>
+        ) : null}
       </span>
     </p>
   );

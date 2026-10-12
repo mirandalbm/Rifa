@@ -145,7 +145,7 @@ arquitetura.
 | artes prontas para divulgar (Fase A: arte da rifa, cotas que faltam, data, resultado, cota premiada, nos três formatos) e o pacote para postar (Fase G: ZIP com os três formatos e a legenda) | `shared/artes.ts` (regras, textos e `legendaSugerida`), `server/services/zip.ts`, os textos do kit (`textosDoKit()` em `shared/afiliados.ts`), `server/services/arteDesenho.ts` (texto em contorno, QR, camada), `server/services/artes.ts` (dados da rifa, fundo, foto da organização), `server/routes/artesRotas.ts`, `/campaigns/:id/artes*` em `server/routes/admin.ts`, `/artes/:slug*` em `server/routes/affiliate.ts`, `client/src/components/ArtesParaDivulgar.tsx` (aba Publicação e Meus links), `scripts/artes-test.ts`, `tests/artes.test.ts` |
 | editor de imagem no navegador (Fase C: fundo, formato, figurinhas, conferência do texto, pôr no carrossel) | `shared/editorImagem.ts` (camadas como dados, enquadramento, régua), `server/services/editorImagem.ts`, `/campaigns/:id/editor*` em `server/routes/admin.ts` e `/editor/:slug*` em `server/routes/affiliate.ts` (o kit do afiliado), `client/src/lib/desenharArte.ts` (o canvas), `client/src/components/EditorDeImagem.tsx` (`AbrirEditorDeImagem` no cartão "Artes para divulgar" e em Meus links do afiliado), o assunto da foto (`server/services/foco.ts`, `focoDaFoto()`), `scripts/artes-test.ts`, `tests/editorImagem.test.ts` |
 | frases da imagem e legenda sugeridas pelo assistente (Fase C) | `shared/sugestaoIA.ts` (o pedido e a régua da volta), `sugerirComIA()` em `server/services/ia.ts`, `sugerirTexto()` em `server/services/editorImagem.ts`, `POST /campaigns/:id/sugerir` em `server/routes/admin.ts` e `/editor/:slug/sugerir` em `server/routes/affiliate.ts`, `client/src/components/SugestaoDoAssistente.tsx` (no editor e no `LegendaCard` de `Publicacao.tsx`), `scripts/ia-acoes-test.ts`, `tests/sugestaoIA.test.ts` |
-| conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, `scripts/conta-test.ts` |
+| conta do apostador (senha, confirmação, exclusão) | `shared/contaComprador.ts`, `server/services/contaComprador.ts`, a confirmação do telefone da própria conta sem trocar a sessão em `server/services/contaCompleta.ts` (`/conta/telefone/*`) e `ConfirmarTelefoneDaConta` em `client/src/pages/MinhasCotas.tsx`, `scripts/conta-test.ts` |
 | login com Google, completar CPF e telefone, ligar o Google | `shared/google.ts` (regras, claims, volta segura), `server/services/google.ts`, `server/services/contaCompleta.ts`, rotas `/conta/google/*`, `/conta/cpf` e `/conta/telefone/*` em `server/routes/public.ts`, `client/src/components/BotaoGoogle.tsx`, `CompletarConta`/`GoogleCard` em `client/src/pages/MinhasCotas.tsx`, `scripts/google-test.ts`, `tests/google.test.ts` |
 | de quem é o cliente (o que o organizador vê) | `shared/titularidade.ts` (regra) e `server/services/titularidade.ts` (SQL) |
 | contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts`; os anexos por modalidade (cláusula 7): `shared/contratoAnexos.ts` (modalidades e régua), `server/services/contratoAnexos.ts` (`anexosDaPublicacao`, `exigirAnexoNaRifa`), `/contrato-promotora/anexos*`, `AnexosDaOrganizacao`/`AnexosDaPlataforma` no mesmo cartão, `scripts/contrato-anexos-test.ts`, `tests/contratoAnexos.test.ts` |
@@ -410,7 +410,7 @@ arquitetura.
   qualquer endereço seria pôr página alheia dentro do site. **Flutuar**
   solta a tela da coluna (portal no `body`): arrasta pela barra, muda de
   tamanho pelo canto (livre, sempre 16:9), nunca sai da janela, e o Esc ou o
-  X a devolvem. Flutuando, "jogando agora" ocupa o espaço dela.
+  X a devolvem. Flutuando, "jogando agora" pode crescer no espaço dela (a seção é do tamanho da lista e rola quando não cabe — vazia, não estica).
   **Nenhuma rifa na tela do sorteio**: o sorteio pode ser de várias
   organizações, então o próximo sorteio (`proximo` de `/vitrine/ao-vivo`)
   traz só a hora, o vídeo e quem realiza (`realizadoPor`,
@@ -480,11 +480,11 @@ arquitetura.
     escuro, cantos arredondados como o carrossel de cima), tudo
     centralizado: "Próximo sorteio" (ou "Ao vivo agora") no alto, as quatro
     casas com o número grande (`text-2xl`) e a unidade escrita embaixo
-    (dias, horas, min, seg) e, por último, em negrito, quem realiza o
+    (dias, horas, min, seg), em negrito, quem realiza o
     sorteio (`quemRealizaOSorteio()` em `shared/sorteiosOficiais.ts`:
     "Sorteio realizado pela Loteria Federal"; o globo e as outras loterias
     do calendário com o nome delas; sem sorteio oficial, a Federal, que
-    apura as rifas). **Nunca o prêmio nem a rifa**: o sorteio é de várias
+    apura as rifas) e, por último, a data e a hora (onda 5, Figma 01). **Nunca o prêmio nem a rifa**: o sorteio é de várias
     organizações — nem na tela, nem no `aria-label`. É botão e abre a tela
     do sorteio. O tempo vai no `aria-label`; sem nenhum sorteio marcado
     (nem oficial nem de rifa), "Sorteios". **É só do celular**:
@@ -2174,6 +2174,19 @@ de outra pessoa e passa a ver — e pedir reembolso — das compras dela.
 - **Troca de senha, primeira prova do telefone e exclusão derrubam as outras
   sessões** da conta (`encerrarOutrasSessoes`). É assim que o dono de verdade
   expulsa quem criou a conta com o número dele.
+- **A conta confirma o próprio telefone sem trocar a sessão**
+  (`/conta/telefone/codigo` e `/confirmar`, `contaCompleta.ts`; "Complete sua
+  conta" e o aviso das compras antigas em Minhas compras). O código vai ao
+  telefone **gravado na conta** — o número do corpo é ignorado, e já
+  confirmado é 409 —, pelo mesmo antifraude (`guardOtp`, `guardOtpVerify`
+  antes de conferir o código). Confirmar exige que o número provado seja **o
+  da conta**: provar outro pelo `/my-quotas/request-code` e chamar aqui é 409,
+  nada gravado. Grava num `UPDATE` condicional (`telefone_confirmado_em IS
+  NULL`); o segundo clique com o mesmo código recebe o mesmo sucesso (também
+  provou o número, e um 409 deixaria a cópia dele da sessão apagar a marca de
+  confirmada). **Sem `regenerate`**: o "lembrar" e o resto da sessão ficam, ela
+  passa a valer como confirmada e as outras da conta saem. O
+  `/my-quotas/verify` segue sendo a entrada sem conta, que troca a sessão.
 - **Excluir é anonimizar** (LGPD): nome, telefone, CPF, e-mail e senha saem;
   o telefone vira `removido:<id>`; as mensagens enviadas perdem o número.
   Compras, bilhetes e recibos ficam, pelo prazo legal. Com reembolso em
@@ -4424,7 +4437,9 @@ conta que já existe.
   pelo código do WhatsApp neste número** (`/conta/telefone/codigo` e
   `/confirmar`, o mesmo antifraude e a mesma sessão de código do "Minhas
   cotas"); número que já é de outro cadastro é recusado antes de enviar, e
-  provar o número derruba as outras sessões da conta.
+  provar o número derruba as outras sessões da conta, sem trocar a que provou.
+  As mesmas rotas confirmam o telefone real da conta com senha (seção "Conta
+  do apostador"): ali o número é o gravado, nunca o do corpo.
 - **Excluir pede a palavra EXCLUIR** (não há senha) e apaga também o
   vínculo com o Google; o mesmo Google depois começa conta nova. Conta só
   do Google não desliga o Google (ficaria sem acesso).

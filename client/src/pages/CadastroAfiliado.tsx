@@ -1,8 +1,18 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button, Card } from "@/components/bits";
+import { Button, Caixa, Campo, Card } from "@/components/bits";
+import { CampoDeSenha } from "@/components/CampoDeSenha";
 import { apiRequest } from "@/lib/queryClient";
+
+const LINK = "text-green-deep underline";
+
+/** O cartão de 384 px no centro, sem casca, nas três larguras. */
+function NoCentro({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-[416px] flex-col justify-center px-4 py-8">{children}</main>
+  );
+}
 
 /**
  * Cadastro aberto de afiliado avulso: a conta entra na hora e adere a
@@ -37,93 +47,108 @@ export default function CadastroAfiliado() {
 
   if (done) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5">
+      <NoCentro>
         <Card title="Cadastro feito">
           <div className="space-y-3 p-4 text-sm">
             <p className="text-ink-2">
               Seu código de afiliado será <span className="tnum font-medium">{done.code}</span>.
             </p>
             <p className="text-muted">{done.message}</p>
-            <Link href="/entrar" className="inline-block text-green-deep underline">
+            <Link href="/entrar" className={`inline-block ${LINK}`}>
               ir para a entrada
             </Link>
           </div>
         </Card>
-      </div>
+      </NoCentro>
     );
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5">
-      <h1 className="font-display text-xl font-extrabold">Seja afiliado</h1>
-      <p className="mt-1 text-sm text-muted">
-        Divulgue as rifas com o seu link e receba comissão por venda paga, direto no Pix.
-      </p>
+    <NoCentro>
+      <div className="space-y-3.5">
+        <div>
+          <h1 className="font-display text-[26px] font-extrabold leading-[31px]">Seja afiliado</h1>
+          <p className="mt-3.5 text-[15px] leading-[21px] text-ink-2">
+            Divulgue as rifas com o seu link e receba comissão por venda paga, direto no Pix.
+          </p>
+        </div>
 
-      <form
-        className="mt-6 space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setError(null);
-          signup.mutate();
-        }}
-      >
-        {(
-          [
-            ["name", "Nome completo", "text", "name"],
-            ["email", "E-mail", "email", "email"],
-            ["phone", "WhatsApp", "tel", "tel"],
-            ["password", "Senha (mínimo 8 caracteres)", "password", "new-password"],
-          ] as const
-        ).map(([field, label, type, autoComplete]) => (
-          <div key={field}>
-            <label htmlFor={field} className="label-xs">
-              {label}
-            </label>
-            <input
-              id={field}
-              type={type}
-              autoComplete={autoComplete}
-              value={form[field]}
-              onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-              className={`campo text-sm ${
-                field === "phone" ? "tnum" : ""
-              }`}
-            />
-          </div>
-        ))}
-
-        {termo?.termo ? (
-          <div className="space-y-2 rounded-md border border-line p-3 text-sm">
-            <p className="font-semibold">
-              Termo de adesão de {termo.organizacao}{" "}
-              <span className="tnum font-normal text-muted">· versão {termo.termo.versao} · {termo.termo.comissaoPct}%</span>
-            </p>
-            <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-2 font-sans text-xs text-ink-2">
-              {termo.termo.texto}
-            </pre>
-            <label className="flex items-start gap-2 text-xs">
-              <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} className="mt-0.5" />
-              Li e aceito o termo de adesão de {termo.organizacao}.
-            </label>
-          </div>
-        ) : null}
-
-        {error ? (
-          <p className="rounded-md bg-red-soft px-3 py-2 text-sm text-red">{error}</p>
-        ) : null}
-
-        <Button type="submit" className="w-full" disabled={signup.isPending || (precisaAceitar && !aceito)}>
-          {signup.isPending ? "Enviando…" : "Quero ser afiliado"}
-        </Button>
-
-        <p className="text-center text-xs text-muted">
-          Já tem conta?{" "}
-          <Link href="/entrar" className="text-green-deep underline">
-            entrar
-          </Link>
+        {/* Antes do cadastro, para ninguém descobrir só no saque. */}
+        <p className="rounded-lg bg-mist-2 px-3 py-2.5 text-[13px] leading-[18px] text-ink-2">
+          A comissão é paga só a <strong className="font-semibold text-ink">MEI ou empresa</strong>: para sacar, você
+          vai precisar do cadastro fiscal aprovado com o CNPJ e da nota fiscal de cada saque. O cadastro de afiliado
+          entra na hora; isso pode ficar para depois.
         </p>
-      </form>
-    </div>
+
+        <form
+          className="space-y-3.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setError(null);
+            signup.mutate();
+          }}
+        >
+          {(
+            [
+              ["name", "Nome completo", "text", "name"],
+              ["email", "E-mail", "email", "email"],
+              ["phone", "WhatsApp", "tel", "tel"],
+            ] as const
+          ).map(([field, label, type, autoComplete]) => (
+            <Campo key={field} rotulo={label}>
+              <input
+                id={field}
+                type={type}
+                autoComplete={autoComplete}
+                value={form[field]}
+                onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                className={field === "phone" ? "campo tnum text-sm" : undefined}
+              />
+            </Campo>
+          ))}
+          <CampoDeSenha
+            id="password"
+            rotulo="Senha (mínimo 8 caracteres)"
+            autoComplete="new-password"
+            valor={form.password}
+            aoMudar={(password) => setForm({ ...form, password })}
+          />
+
+          {termo?.termo ? (
+            <div className="space-y-2 rounded-lg border border-line p-3 text-sm">
+              <p className="font-semibold">
+                Termo de adesão de {termo.organizacao}{" "}
+                <span className="tnum font-normal text-muted">
+                  · versão {termo.termo.versao} · {termo.termo.comissaoPct}%
+                </span>
+              </p>
+              <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded bg-mist p-2 font-sans text-xs text-ink-2">
+                {termo.termo.texto}
+              </pre>
+              <Caixa marcada={aceito} aoMudar={setAceito}>
+                Li e aceito o termo de adesão de {termo.organizacao}.
+              </Caixa>
+            </div>
+          ) : null}
+
+          {error ? (
+            <p role="alert" className="rounded-lg bg-red-soft px-3 py-2 text-sm text-red">
+              {error}
+            </p>
+          ) : null}
+
+          <Button type="submit" className="w-full" disabled={signup.isPending || (precisaAceitar && !aceito)}>
+            {signup.isPending ? "Enviando…" : "Quero ser afiliado"}
+          </Button>
+
+          <p className="text-center text-[13px] leading-[18px] text-ink-2">
+            Já tem conta?{" "}
+            <Link href="/entrar" className={LINK}>
+              entrar
+            </Link>
+          </p>
+        </form>
+      </div>
+    </NoCentro>
   );
 }

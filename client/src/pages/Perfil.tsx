@@ -6,7 +6,21 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { definirOrganizacaoDaPagina } from "@/lib/marketing";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { MoreVertical, Share2, MapPin, X, Copy, Check, Plus, Settings } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  CircleCheck,
+  Copy,
+  Link as IconeLink,
+  MapPin,
+  MoreVertical,
+  Plus,
+  Settings,
+  Ticket,
+  Trophy,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Money, Progress, Empty, Button } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
@@ -16,7 +30,7 @@ import { Denunciar } from "@/components/Seguranca";
 import { DestaqueOrg, LinksDoPerfil } from "@/components/DestaqueOrg";
 import { FotoComStory, VisualizadorDeStories, type AoVivoDaOrg } from "@/components/Stories";
 import { marcarOrigem } from "@/lib/origem";
-import { groupNumber, percent } from "@shared/format";
+import { groupNumber } from "@shared/format";
 import {
   contador,
   linkDeCompartilhar,
@@ -78,6 +92,27 @@ interface Perfil {
 
 const REDES: Rede[] = ["whatsapp", "telegram", "facebook", "instagram", "tiktok"];
 
+/** O círculo da foto e dos destaques com o anel: 76 px de foto e 10 de cada lado (a fileira de stories). */
+const CIRCULO_COM_ANEL = FOTO_COMO_NO_INSTAGRAM + 20;
+
+/**
+ * A bio automática (`bioAutomatica()` em `shared/perfil.ts`) vem com um emoji
+ * na frente de cada linha; na tela ele vira o ícone do kit (troféu,
+ * calendário, cota, autorização). Linha sem emoji conhecido vai como veio.
+ */
+const ICONES_DA_BIO: [string, LucideIcon][] = [
+  ["🏆", Trophy],
+  ["📅", Calendar],
+  ["🎟️", Ticket],
+  ["✅", CircleCheck],
+];
+function linhaDaBio(linha: string): { Icone: LucideIcon | null; texto: string } {
+  for (const [emoji, Icone] of ICONES_DA_BIO) {
+    if (linha.startsWith(emoji)) return { Icone, texto: linha.slice(emoji.length).trim() };
+  }
+  return { Icone: null, texto: linha };
+}
+
 /**
  * Perfil do organizador no formato do Instagram (`/o/:slug`). Cada rifa abre
  * dentro dele (`/o/:slug/r/:rifa`), e é daqui que o apostador segue e liga o
@@ -108,11 +143,17 @@ export default function PerfilPage() {
   if (error || !p) {
     return (
       <PublicShell>
-        <Empty>Perfil não encontrado.</Empty>
+        <Empty>
+          Perfil não encontrado.{" "}
+          <Link href="/" className="font-semibold text-marca underline">
+            Voltar ao início
+          </Link>
+        </Empty>
       </PublicShell>
     );
   }
 
+  const proprio = sessao?.organizacao?.slug === p.slug;
   const url = `${window.location.origin}/o/${p.slug}`;
   const texto = `Conheça as rifas de ${p.nome}`;
   const copiar = async () => {
@@ -151,11 +192,12 @@ export default function PerfilPage() {
       {/* No computador, duas colunas abaixo da capa: o cartão do perfil à
           esquerda, fixo na rolagem, e as rifas em grade à direita. No
           celular, a mesma ordem de sempre. */}
-      <div className="lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <div className="lg:sticky lg:top-[68px]">
-      {/* Topo: foto à esquerda; à direita, o nome e, embaixo dele, os contadores */}
-      <div className="flex items-end gap-4">
-        <span className="relative z-10 -mt-10 shrink-0 rounded-full bg-white p-1">
+      <div className="mt-4 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <div className="lg:sticky lg:top-4">
+      {/* O cartão do perfil, logo abaixo da capa (sem subir sobre ela): foto à
+          esquerda; à direita, o nome e, embaixo dele, os contadores. */}
+      <div className="flex items-center gap-4">
+        <span className="relative shrink-0">
           <FotoComStory
             slug={p.slug}
             nome={p.nome}
@@ -163,30 +205,31 @@ export default function PerfilPage() {
             ultimoStory={p.ultimoStory}
             aoVivo={p.aoVivo}
             tamanho={FOTO_COMO_NO_INSTAGRAM}
+            circulo={CIRCULO_COM_ANEL}
             onAbrir={() => setStories(true)}
           />
           {/* No próprio perfil, o "+" da foto posta no story, como no Instagram. */}
-          {sessao?.organizacao?.slug === p.slug ? (
+          {proprio ? (
             <Link
               href="/admin/stories"
               aria-label="Postar no seu story"
               title="Postar no seu story"
-              className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ink text-white"
+              className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ink text-white"
             >
               <Plus size={16} strokeWidth={3.25} aria-hidden />
             </Link>
           ) : null}
         </span>
-        <div className="min-w-0 flex-1 pt-2">
-          <h1 className="line-clamp-2 font-display text-lg font-extrabold leading-tight">
+        <div className="min-w-0 flex-1 space-y-2">
+          <h1 className="line-clamp-2 font-display text-xl font-bold leading-tight">
             {p.nome}
             {p.verificada ? (
               <span className="ml-1.5 inline-block">
-                <SeloVerificado sujeito="organizacao" tamanho={18} />
+                <SeloVerificado sujeito="organizacao" tamanho={16} />
               </span>
             ) : null}
           </h1>
-          <dl className="mt-2 grid grid-cols-3 text-center">
+          <dl className="flex items-start justify-between gap-2 text-center">
             <Contador rotulo="rifas realizadas" valor={contador(p.rifasRealizadas)} />
             <Contador rotulo="seguidores" valor={contador(p.seguidores)} />
             <div>
@@ -195,25 +238,25 @@ export default function PerfilPage() {
                 <button
                   type="button"
                   onClick={() => setPainel("compartilhar")}
-                  className="mx-auto flex h-7 min-w-6 items-center justify-center text-ink hover:text-marca"
+                  className="mx-auto flex h-6 min-w-6 items-center justify-center text-ink hover:text-marca"
                   aria-label="Compartilhar este perfil"
                 >
-                  <Share2 size={20} aria-hidden />
+                  <IconeLink size={18} aria-hidden />
                 </button>
               </dd>
-              <dd className="text-[11px] text-muted">compartilhar</dd>
+              <dd className="whitespace-nowrap text-[11px] text-muted">compartilhar</dd>
             </div>
           </dl>
         </div>
       </div>
 
-      {/* Ações: seguir, sino, ⋮ */}
-      <div className="mt-4 flex items-center gap-2">
+      {/* Ações: seguir (ou, no próprio perfil, editar e a engrenagem), sino, ⋮ */}
+      <div className="mt-3 flex items-center gap-2">
         {/* No próprio perfil, o organizador edita em vez de seguir. */}
-        {sessao?.organizacao?.slug === p.slug ? (
+        {proprio ? (
           <Link
             href="/admin/configuracoes"
-            className="rounded-md border border-line-2 px-4 py-1.5 text-sm font-semibold hover:bg-mist"
+            className="flex h-9 items-center rounded-[10px] border border-line-2 px-[18px] text-sm font-semibold hover:bg-mist"
           >
             Editar perfil
           </Link>
@@ -221,14 +264,14 @@ export default function PerfilPage() {
           <SeguirBotoes slug={p.slug} />
         )}
         {/* No próprio perfil, a engrenagem das configurações, como no Instagram. */}
-        {sessao?.organizacao?.slug === p.slug ? (
+        {proprio ? (
           <Link
             href="/perfil/configuracoes"
             aria-label="Configurações"
             title="Configurações"
-            className="flex h-8 w-9 items-center justify-center rounded-md border border-line-2 hover:bg-mist"
+            className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-line-2 hover:bg-mist"
           >
-            <Settings size={17} aria-hidden />
+            <Settings size={18} aria-hidden />
           </Link>
         ) : null}
         <div className="relative ml-auto">
@@ -238,9 +281,9 @@ export default function PerfilPage() {
             aria-expanded={menu}
             aria-label="Mais opções"
             onClick={() => setMenu(!menu)}
-            className="flex h-8 w-9 items-center justify-center rounded-md border border-line-2 hover:bg-mist"
+            className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-line-2 hover:bg-mist"
           >
-            <MoreVertical size={17} aria-hidden />
+            <MoreVertical size={18} aria-hidden />
           </button>
           {menu ? (
             <>
@@ -273,40 +316,56 @@ export default function PerfilPage() {
 
       {denunciando ? <Denunciar organizacao={p.slug} onFechar={() => setDenunciando(false)} /> : null}
 
-      {/* Bio: o texto do organizador e a rifa atual, escrita sozinha */}
-      <div className="mt-4 space-y-1 text-sm">
+      {/* A cidade, o texto do organizador e a rifa atual, escrita sozinha
+          (`bioAutomatica()`), cada linha com o seu ícone. */}
+      <div className="mt-3 space-y-3 text-[13px]">
         {p.local ? (
           <p className="flex items-center gap-1 text-muted">
-            <MapPin size={13} aria-hidden /> {p.local}
+            <MapPin size={14} aria-hidden className="shrink-0" /> {p.local}
           </p>
         ) : null}
-        {p.bio ? <p className="whitespace-pre-line font-semibold">{p.bio}</p> : null}
+        {p.bio ? <p className="whitespace-pre-line text-sm font-semibold">{p.bio}</p> : null}
         {p.bioAutomatica.length ? (
-          <div className="pt-1 text-[13px] font-semibold text-ink-2">
-            {p.bioAutomatica.map((l) => (
-              <p key={l}>{l}</p>
-            ))}
-          </div>
+          <ul className="space-y-1 font-semibold leading-[18px] text-ink-2">
+            {p.bioAutomatica.map((l) => {
+              const { Icone, texto } = linhaDaBio(l);
+              return (
+                <li key={l} className="flex items-start gap-1.5">
+                  {Icone ? <Icone size={14} aria-hidden className="mt-0.5 shrink-0 text-green-deep" /> : null}
+                  <span className="min-w-0">{texto}</span>
+                </li>
+              );
+            })}
+          </ul>
         ) : null}
         <LinksDoPerfil links={p.links} slug={p.slug} />
-        {p.seguidoPor ? <p className="pt-1 text-xs text-muted">{p.seguidoPor}</p> : null}
+        {p.seguidoPor ? <p className="text-xs text-muted">{p.seguidoPor}</p> : null}
       </div>
 
-      {/* Destaques: rifas já sorteadas */}
+      {/* Destaques: rifas já sorteadas. A capa com 76 px e o círculo com o
+          anel com 96, a medida da fileira de stories. */}
       {p.destaques.length ? (
-        <section aria-label="Rifas realizadas" className="-mx-4 mt-5 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
-          <ul className="flex gap-4 lg:flex-wrap">
+        <section aria-label="Rifas realizadas" className="relative -mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
+          <ul className="flex gap-3 lg:flex-wrap">
             {p.destaques.map((d) => (
-              <li key={d.slug} className="shrink-0 text-center" style={{ width: FOTO_COMO_NO_INSTAGRAM + 10 }}>
+              <li key={d.slug} className="shrink-0 text-center" style={{ width: CIRCULO_COM_ANEL }}>
                 <Link href={`/o/${p.slug}/r/${d.slug}`} onClick={() => marcarOrigem("perfil")} className="block">
                   <span
-                    className="mx-auto block overflow-hidden rounded-full border-2 border-marca p-[2px]"
-                    style={{ width: FOTO_COMO_NO_INSTAGRAM, height: FOTO_COMO_NO_INSTAGRAM }}
+                    className="mx-auto flex items-center justify-center rounded-full border-2 border-marca"
+                    style={{ width: CIRCULO_COM_ANEL, height: CIRCULO_COM_ANEL }}
                   >
                     {d.capa ? (
-                      <img src={d.capa} alt="" className="h-full w-full rounded-full object-cover" />
+                      <img
+                        src={d.capa}
+                        alt=""
+                        className="rounded-full object-cover"
+                        style={{ width: FOTO_COMO_NO_INSTAGRAM, height: FOTO_COMO_NO_INSTAGRAM }}
+                      />
                     ) : (
-                      <span className="flex h-full w-full items-center justify-center rounded-full bg-mist-2 text-[10px] text-muted">
+                      <span
+                        className="flex items-center justify-center rounded-full bg-mist-2 text-[11px] text-muted"
+                        style={{ width: FOTO_COMO_NO_INSTAGRAM, height: FOTO_COMO_NO_INSTAGRAM }}
+                      >
                         rifa
                       </span>
                     )}
@@ -330,7 +389,7 @@ export default function PerfilPage() {
           peça mais alta ao lado de cada peça mais baixa. */}
       <section
         aria-label="Rifas no ar"
-        className="mt-5 border-t border-line pt-4 md:columns-2 md:gap-4 lg:gap-6 lg:border-t-0 lg:pt-0"
+        className="-mx-4 mt-4 sm:mx-0 md:columns-2 md:gap-4 lg:mt-0 lg:gap-6"
       >
         {p.rifas.length === 0 ? (
           <div className="[column-span:all]">
@@ -432,8 +491,8 @@ function Contador({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div>
       <dt className="sr-only">{rotulo}</dt>
-      <dd className="tnum font-display text-lg font-bold">{valor}</dd>
-      <dd className="text-[11px] text-muted">{rotulo}</dd>
+      <dd className="tnum text-lg font-medium leading-tight">{valor}</dd>
+      <dd className="whitespace-nowrap text-[11px] text-muted">{rotulo}</dd>
     </div>
   );
 }
@@ -496,7 +555,6 @@ function Linha({ rotulo, valor, tnum }: { rotulo: string; valor: string; tnum?: 
 
 /** Uma rifa no perfil, como publicação: carrossel, ações, legenda e o resumo. */
 function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: RifaDoPerfil }) {
-  const pct = percent(rifa.soldCount, rifa.totalQuotas);
   const href = `/o/${org}/r/${rifa.slug}`;
   const [comentando, setComentando] = useState(false);
 
@@ -510,17 +568,22 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
         retratoNoCelular={Boolean(rifa.demonstracao)}
       />
       {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações, como no feed. */}
-      <Link href={href} onClick={() => marcarOrigem("perfil")} className="mx-3 mt-3 block space-y-2 rounded-xl border border-line p-3 hover:bg-mist">
+      <Link
+        href={href}
+        onClick={() => marcarOrigem("perfil")}
+        className="mx-3 mt-2 block space-y-2 rounded-[12px] border border-line px-3.5 py-3 hover:bg-mist"
+      >
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-display text-base font-extrabold leading-tight">{rifa.prizeTitle}</h3>
-          <Money cents={rifa.priceCents} className="shrink-0 text-sm font-bold text-green-deep" />
+          <h3 className="min-w-0 font-display text-base font-bold leading-tight">{rifa.prizeTitle}</h3>
+          <Money cents={rifa.priceCents} className="shrink-0 text-sm font-medium text-green-deep" />
         </div>
-        <Progress value={rifa.soldCount} total={rifa.totalQuotas} tone={pct >= 85 ? "yellow" : "green"} />
-        <p className="flex justify-between text-xs font-semibold text-ink-2">
-          <span className="tnum">
+        {/* A barra só aparece com venda: sem nenhuma, o "0 de N cotas" já diz. Azul é espera. */}
+        {rifa.soldCount > 0 ? <Progress value={rifa.soldCount} total={rifa.totalQuotas} tone="yellow" /> : null}
+        <p className="tnum flex justify-between gap-2 text-[11px] text-ink-2">
+          <span>
             {groupNumber(rifa.soldCount)} de {groupNumber(rifa.totalQuotas)} cotas
           </span>
-          <span className="tnum">
+          <span className="text-right">
             {rifa.status === "closed"
               ? "vendas encerradas"
               : rifa.drawAt

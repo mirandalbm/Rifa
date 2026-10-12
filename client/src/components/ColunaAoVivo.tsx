@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type PointerEvent as PE, type ReactNode, t
 import { createPortal } from "react-dom";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Maximize, MessageCircle, Minimize, PictureInPicture2, Radio, Settings, Trophy, Users, X } from "lucide-react";
+import { ExternalLink, Gamepad2, Maximize, MessageCircle, Minimize, PictureInPicture2, Radio, Settings, Trophy, X } from "lucide-react";
+import { Pill } from "@/components/bits";
 import { Comentarios } from "@/components/Comentarios";
 import { acimaDoConsole, useConfigDoApp } from "@/components/Console";
 import {
@@ -76,7 +77,7 @@ const haQuanto = (iso: string) => {
 /**
  * A coluna da direita da vitrine no tablet e no computador (o celular não a
  * tem): a tela do próximo sorteio no alto, os últimos ganhadores no meio e
- * quem está jogando agora embaixo, ocupando o resto. Fixa na rolagem. Só
+ * quem está jogando agora embaixo (do tamanho da lista; rola se não couber). Fixa na rolagem. Só
  * dado real, com nome curto — nada simulado.
  */
 export function ColunaAoVivo() {
@@ -92,7 +93,7 @@ export function ColunaAoVivo() {
       aria-label="Ao vivo"
       // Colada no feed, separada só pela linha de 1 px; ocupa a altura da
       // tela (no tablet, entre o topo e o console de baixo).
-      className="sticky top-[57px] hidden h-[calc(100vh-57px-var(--acima-do-console))] min-h-0 flex-col gap-3 self-start border-l border-line p-3 md:flex lg:top-0 lg:h-screen"
+      className="sticky top-[57px] hidden h-[calc(100vh-57px-var(--acima-do-console))] min-h-0 flex-col gap-4 self-start border-l border-line p-4 md:flex lg:top-0 lg:h-screen"
       style={{ ["--acima-do-console" as string]: acimaDoConsole }}
     >
       <TelaDoSorteio proximo={data?.proximo ?? null} flutuando={flutuando} onFlutuar={setFlutuando} />
@@ -542,9 +543,11 @@ function ConteudoDaTela({
     [falta.segundos, "seg"],
   ];
   return (
-    <div className="flex h-full flex-col justify-between p-3 text-branco">
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#8cc2ff]">
-        <Radio size={13} aria-hidden /> {falta.aoVivo ? "Sorteio agora" : "Próximo sorteio"}
+    // Como no Figma (01 Vitrine): tudo centralizado — o título, as quatro
+    // casas, quem realiza e a hora.
+    <div className="flex h-full flex-col items-center justify-center gap-2.5 p-3 text-center text-branco md:gap-1.5 md:p-2 lg:gap-2.5 lg:p-3">
+      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-green-bright">
+        <Radio size={14} aria-hidden /> {falta.aoVivo ? "Sorteio agora" : "Próximo sorteio"}
       </p>
       {falta.aoVivo || (aberta && proximo.video?.tipo === "link") ? (
         proximo.video?.tipo === "link" ? (
@@ -560,22 +563,20 @@ function ConteudoDaTela({
           <p className="text-center text-sm">A transmissão começa em instantes.</p>
         )
       ) : (
-        <div className="flex justify-center gap-2" role="timer" aria-label={`Faltam ${falta.dias} dias, ${falta.horas} horas e ${falta.minutos} minutos`}>
+        <div className="flex justify-center gap-2 md:gap-1.5 lg:gap-2" role="timer" aria-label={`Faltam ${falta.dias} dias, ${falta.horas} horas e ${falta.minutos} minutos`}>
           {casas.map(([n, rotulo]) => (
-            <span key={rotulo} className="min-w-[3.25rem] rounded-lg bg-branco/10 px-1.5 py-1 text-center">
-              <span className="tnum block text-xl font-bold leading-tight">{String(n).padStart(2, "0")}</span>
-              <span className="block text-[10px] text-branco/70">{rotulo}</span>
+            <span key={rotulo} className="w-14 rounded-[10px] bg-branco/10 py-1.5 text-center md:w-[3.25rem] md:py-1 lg:w-[3.875rem] lg:py-1.5">
+              <span className="tnum block text-2xl font-medium leading-tight md:text-xl lg:text-2xl">{String(n).padStart(2, "0")}</span>
+              <span className="block text-[11px] text-branco/70">{rotulo}</span>
             </span>
           ))}
         </div>
       )}
-      {semTitulo ? (
-        <span aria-hidden />
-      ) : (
+      {semTitulo ? null : (
         // Nunca o prêmio nem a rifa: o sorteio é de várias organizações.
-        <p className="text-xs font-semibold leading-snug">
+        <p className="max-w-full text-[13px] font-bold leading-snug md:text-xs lg:text-[13px]">
           {proximo.realizadoPor}
-          <span className="tnum block truncate text-[11px] font-normal text-branco/70">{hora}</span>
+          <span className="tnum mt-0.5 block truncate text-[11px] font-normal text-branco/70">{hora}</span>
         </p>
       )}
     </div>
@@ -672,9 +673,9 @@ function TelaFlutuante({ children, onFechar }: { children: ReactNode; onFechar: 
 
 export function Ganhadores({ lista }: { lista: AoVivo["ganhadores"] | undefined }) {
   return (
-    <section aria-label="Últimos ganhadores" className="shrink-0 rounded-xl border border-line p-3">
-      <h2 className="flex items-center gap-1.5 font-display text-sm font-bold">
-        <Trophy size={15} aria-hidden className="text-yellow-deep" /> Últimos ganhadores
+    <section aria-label="Últimos ganhadores" className="shrink-0 rounded-xl border border-line p-3.5">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+        <Trophy size={16} aria-hidden className="text-green-deep" /> Últimos ganhadores
       </h2>
       {!lista?.length ? (
         <p className="mt-2 text-xs text-muted">Os ganhadores aparecem aqui assim que saírem.</p>
@@ -685,9 +686,7 @@ export function Ganhadores({ lista }: { lista: AoVivo["ganhadores"] | undefined 
               <Link href={`/o/${g.rifa.organizacao}/r/${g.rifa.slug}`} className="block rounded-lg px-1 py-0.5 hover:bg-mist">
                 <span className="flex items-center gap-2 text-[13px]">
                   <span className="min-w-0 flex-1 truncate font-semibold">{g.nome}</span>
-                  <span className="shrink-0 rounded bg-yellow-soft px-1.5 text-[10px] font-semibold text-yellow-deep">
-                    {g.tipo === "sorteio" ? "Sorteio" : "Cota premiada"}
-                  </span>
+                  <Pill status="pending">{g.tipo === "sorteio" ? "Sorteio" : "Cota premiada"}</Pill>
                 </span>
                 <span className="block truncate text-xs text-ink-2">
                   {g.premio}
@@ -712,32 +711,30 @@ export function Ganhadores({ lista }: { lista: AoVivo["ganhadores"] | undefined 
 }
 
 function JogandoAgora({ lista }: { lista: AoVivo["jogando"] | undefined }) {
+  // Do tamanho da lista; se não couber na coluna, encolhe e a lista rola.
   return (
-    <section aria-label="Jogando agora" className="flex min-h-[8rem] flex-1 flex-col rounded-xl border border-line p-3">
-      <h2 className="flex items-center gap-1.5 font-display text-sm font-bold">
-        <Users size={15} aria-hidden className="text-green-deep" /> Jogando agora
+    <section aria-label="Jogando agora" className="flex min-h-0 flex-col rounded-xl border border-line p-3.5">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+        <Gamepad2 size={16} aria-hidden className="text-green-deep" /> Jogando agora
       </h2>
       {!lista?.length ? (
         <p className="mt-2 text-xs text-muted">As compras aparecem aqui assim que forem pagas.</p>
       ) : (
-        <ol className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto">
+        <ol className="mt-2.5 min-h-0 flex-1 space-y-2 overflow-y-auto">
           {lista.map((j) => (
             <li key={j.chave} className="entra-no-topo">
-              <Link href={`/o/${j.rifa.organizacao}/r/${j.rifa.slug}`} className="flex items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-mist">
-                <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-soft text-[11px] font-bold text-green-deep">
+              <Link href={`/o/${j.rifa.organizacao}/r/${j.rifa.slug}`} className="flex items-center gap-2.5 rounded-lg px-1 py-0.5 hover:bg-mist">
+                <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-yellow-soft text-[11px] font-semibold text-yellow-deep">
                   {j.nome.charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-semibold">{j.nome}</span>
                   <span className="block truncate text-[11px] text-muted">
                     {j.lugar ? `${j.lugar} · ` : ""}
-                    {j.rifa.premio}
+                    {j.rifa.premio} · {haQuanto(j.em)}
                   </span>
                 </span>
-                <span className="shrink-0 text-right">
-                  <span className="tnum block text-[12px] font-bold text-green-deep">+{j.quantidade}</span>
-                  <span className="block text-[10px] text-muted">{haQuanto(j.em)}</span>
-                </span>
+                <span className="tnum shrink-0 text-[12px] font-medium text-green-deep">+{j.quantidade}</span>
               </Link>
             </li>
           ))}

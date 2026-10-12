@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Lock } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { BilheteComoPublicacao, type BilheteDaConta } from "@/components/BilheteComoPublicacao";
-import { Empty } from "@/components/bits";
+import { Button, Empty } from "@/components/bits";
 import { useListaPaginada } from "@/lib/paginada";
 import { useSession } from "@/lib/session";
 
@@ -62,14 +62,9 @@ export default function MeusBilhetes() {
           </div>
           {lista.hasNextPage ? (
             <div className="py-6 text-center">
-              <button
-                type="button"
-                onClick={() => lista.fetchNextPage()}
-                disabled={lista.isFetchingNextPage}
-                className="inline-flex min-h-9 items-center rounded-md border-2 border-green px-4 text-sm font-semibold text-green-deep hover:bg-green-soft disabled:opacity-50"
-              >
+              <Button variant="contorno" onClick={() => lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
                 {lista.isFetchingNextPage ? "Carregando…" : "Ver mais bilhetes"}
-              </button>
+              </Button>
             </div>
           ) : (
             <p className="py-6 text-center text-xs text-muted">

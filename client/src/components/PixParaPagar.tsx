@@ -47,7 +47,10 @@ export function PrazoDaReserva({ expiresAt }: { expiresAt: string | null }) {
           estoque.
         </span>
       ) : (
-        <span>O prazo da reserva acabou: os números voltam ao estoque em instantes.</span>
+        <span>
+          O prazo da reserva acabou: os números voltam ao estoque em instantes. Não pague mais este Pix — se você já
+          pagou, o valor volta para a conta que pagou.
+        </span>
       )}
     </p>
   );
@@ -63,14 +66,19 @@ export function PixParaPagar({
   qr,
   copyPaste,
   amountCents,
+  expiresAt,
   pedidoParaSimular,
 }: {
   qr: string | null;
   copyPaste: string;
   amountCents: number;
+  /** Com o prazo zerado o Pix sai da tela: o pedido só vira vencido na próxima volta do relógio. */
+  expiresAt: string | null;
   pedidoParaSimular?: number;
 }) {
   const [copia, setCopia] = useState<"" | "copiado" | "falhou">("");
+  const { left } = useCountdown(expiresAt);
+  if (expiresAt && left === 0) return null;
   return (
     <section aria-label="Pague com Pix" className="rounded-xl border border-line bg-white p-4">
       {qr ? <img src={qr} alt="QR Code do Pix" className="mx-auto h-52 w-52 rounded-lg border border-line" /> : null}

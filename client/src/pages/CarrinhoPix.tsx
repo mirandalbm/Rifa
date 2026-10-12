@@ -56,6 +56,12 @@ export default function CarrinhoPix() {
 
         {pendente ? (
           <PrazoDaReserva expiresAt={data.expiresAt} />
+        ) : data.status === "paid" && data.pedidos.every((p) => p.status === "refunded") ? (
+          // A situação do carrinho é "paga" também quando todos os pedidos voltaram.
+          <div className="rounded-lg bg-mist px-3 py-3 text-center text-sm text-ink-2">
+            <p className="font-semibold text-ink">Pedidos estornados.</p>
+            <p className="mt-1">O valor deste Pix voltou para a conta que pagou.</p>
+          </div>
         ) : data.status === "paid" ? (
           <div className="rounded-lg bg-green-soft px-3 py-3 text-center text-sm text-green-deep">
             <p className="font-display text-lg font-bold">Pagamento confirmado!</p>
@@ -64,7 +70,8 @@ export default function CarrinhoPix() {
         ) : (
           <div className="rounded-lg bg-mist px-3 py-3 text-center text-sm text-ink-2">
             <p className="font-semibold text-ink">A reserva venceu.</p>
-            <p className="mt-1">Os números voltaram para as rifas e o Pix foi cancelado. Monte o carrinho de novo.</p>
+            <p className="mt-1">Os números voltaram para as rifas. Não pague mais este Pix: se você já pagou, o valor volta para a conta que pagou.
+              Monte o carrinho de novo.</p>
             <Link href="/" className="mt-2 inline-block min-h-6 font-semibold text-green-deep underline">
               Ver rifas no ar
             </Link>
@@ -76,6 +83,7 @@ export default function CarrinhoPix() {
             qr={data.pix.qr}
             copyPaste={data.pix.copyPaste}
             amountCents={data.totalCents}
+            expiresAt={data.expiresAt}
             pedidoParaSimular={data.pedidos[0]?.code}
           />
         ) : null}
@@ -110,8 +118,8 @@ export default function CarrinhoPix() {
           <p className="flex items-start gap-2.5 rounded-lg bg-green-soft px-3 py-3 text-[13px] leading-5 text-green-deep">
             <ShieldCheck size={16} aria-hidden className="mt-0.5 shrink-0" />
             <span>
-              O Pix é sempre da plataforma, nunca da organização. Assim que cair, os números de cada rifa aparecem aqui
-              e vão para o seu WhatsApp.
+              O Pix é sempre da plataforma, nunca da organização. Assim que cair, os números de cada rifa aparecem no
+              pedido dela e vão para o seu WhatsApp.
             </span>
           </p>
         ) : null}

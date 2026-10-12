@@ -689,21 +689,37 @@ export function Comentarios({
 
       <div className={`mt-4 ${dentroDoPainel ? "sticky bottom-0 bg-white pb-2" : ""}`}>
         {!data || soModerar ? null : !data.podeComentar ? (
-          <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
-            <Link href="/entrar" className="font-semibold text-marca">
-              Entre na sua conta
-            </Link>{" "}
-            para comentar e conversar com {data.organizacao.nome}.
-          </p>
+          <>
+            <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
+              <Link href="/entrar" className="font-semibold text-marca">
+                Entre na sua conta
+              </Link>{" "}
+              para comentar e conversar com {data.organizacao.nome}.
+            </p>
+            {/* Chegou pelo presente da pílula: o quadro aparece mesmo sem campo (ele mesmo pede a conta). */}
+            {presenteInicial && slug && !sorteioOficialId ? (
+              <div className="mt-2">
+                <Presentear slug={slug} />
+              </div>
+            ) : null}
+          </>
         ) : data.precisaApelido ? (
           // Conta antiga, de antes do apelido no cadastro: completa em Minha conta.
-          <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
-            Para comentar, complete seu cadastro com um apelido em{" "}
-            <Link href="/minhas-cotas?aba=conta" className="font-semibold text-marca">
-              Minha conta
-            </Link>
-            .
-          </p>
+          <>
+            <p className="rounded-xl border border-line bg-mist px-3 py-2 text-sm">
+              Para comentar, complete seu cadastro com um apelido em{" "}
+              <Link href="/minhas-cotas?aba=conta" className="font-semibold text-marca">
+                Minha conta
+              </Link>
+              .
+            </p>
+            {/* Mandar presente pede só conta, não apelido. */}
+            {presenteInicial && slug && !sorteioOficialId ? (
+              <div className="mt-2">
+                <Presentear slug={slug} />
+              </div>
+            ) : null}
+          </>
         ) : (
           <>
             {respondendo ? (

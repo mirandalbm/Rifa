@@ -118,7 +118,10 @@ export default function Pedido() {
         {order.status === "expired" ? (
           <div className="rounded-lg bg-mist px-3 py-3 text-center text-sm text-ink-2">
             <p className="font-semibold text-ink">A reserva venceu.</p>
-            <p className="mt-1">Os números voltaram para a rifa. Faça um novo pedido.</p>
+            <p className="mt-1">
+              Os números voltaram para a rifa. Não pague mais este Pix: se você já pagou, o valor volta para a conta que
+              pagou. Faça um novo pedido.
+            </p>
           </div>
         ) : null}
 
@@ -147,6 +150,7 @@ export default function Pedido() {
             qr={order.pix.qr}
             copyPaste={order.pix.copyPaste}
             amountCents={order.amountCents}
+            expiresAt={order.expiresAt}
             pedidoParaSimular={order.code}
           />
         ) : null}
@@ -217,8 +221,8 @@ export default function Pedido() {
 
         {order.status === "paid" ? (
           <p className="text-xs leading-[18px] text-muted">
-            Os seus números também vão para o seu WhatsApp, com o link deste pedido. Guarde o código do pedido para
-            consultar depois.
+            Os seus números (até 10 na mensagem) e o link deste pedido também vão para o seu WhatsApp. Guarde o código do
+            pedido para consultar depois.
           </p>
         ) : null}
 

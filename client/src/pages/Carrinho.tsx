@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { Button, Money, Pill } from "@/components/bits";
+import { Button, Money, Pill, TONS_DO_BOTAO } from "@/components/bits";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { ApiError, apiRequest } from "@/lib/queryClient";
@@ -59,11 +59,14 @@ export default function Carrinho() {
     placeholderData: (antes) => antes,
   });
 
-  // Rifa que saiu do ar (ou de promotora arquivada) sai do carrinho sozinha.
+  // Rifa que saiu do ar (ou de promotora arquivada) sai do carrinho sozinha
+  // — e a tela diz quantas saíram, para o carrinho não "encolher" calado.
+  const [saiu, setSaiu] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
-    data?.itens.forEach((i) => {
-      if (i.indisponivel) tirarDoCarrinho(i.slug);
-    });
+    const fora = (data?.itens ?? []).filter((i) => i.indisponivel).map((i) => i.slug);
+    if (!fora.length) return;
+    fora.forEach((slug) => tirarDoCarrinho(slug));
+    setSaiu((antes) => new Set([...antes, ...fora]));
   }, [data]);
 
   const validos = (data?.itens ?? []).filter((i): i is Item => !i.indisponivel && itens.some((x) => x.slug === i.slug));
@@ -78,11 +81,25 @@ export default function Carrinho() {
 
   return (
     <PublicShell larga>
-      <h1 className="font-display text-xl font-extrabold">Carrinho</h1>
+      <h1 className="font-display text-2xl font-extrabold">Carrinho</h1>
+      {saiu.size ? (
+        <p role="status" className="mt-2 rounded-lg bg-mist px-3 py-2 text-sm text-ink-2">
+          {saiu.size === 1 ? (
+            "Uma rifa saiu do carrinho: ela não está mais à venda."
+          ) : (
+            <>
+              <span className="tnum">{saiu.size}</span> rifas saíram do carrinho: elas não estão mais à venda.
+            </>
+          )}
+        </p>
+      ) : null}
       {itens.length === 0 ? (
         <div className="mt-8 text-center">
           <p className="text-sm text-muted">Seu carrinho está vazio.</p>
-          <Link href="/" className="mt-3 inline-block text-sm font-semibold text-green-deep underline">
+          <Link
+            href="/"
+            className={`mt-3 inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.primario}`}
+          >
             Ver rifas no ar
           </Link>
         </div>
@@ -162,7 +179,7 @@ function ItemDoCarrinho({ item: i, bilhetes: bilhetesGuardados }: { item: Item; 
           ) : null}
         </Link>
         <div className="min-w-0 flex-1">
-          <Link href={`/o/${i.organizacao.slug}/r/${i.slug}`} className="block text-sm font-semibold leading-tight">
+          <Link href={`/o/${i.organizacao.slug}/r/${i.slug}`} className="flex min-h-6 items-center text-sm font-semibold leading-tight">
             {i.prizeTitle}
           </Link>
           <p className="mt-0.5 text-xs text-muted">
@@ -314,7 +331,7 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
   });
 
   return (
-    <section aria-label="Seus dados" className="mt-4 space-y-3 rounded-xl border border-line p-3">
+    <section aria-label="Seus dados" className="mt-4 space-y-3 rounded-xl border border-line p-4">
       <h2 className="font-display text-base font-bold">Seus dados</h2>
       {naConta ? (
         <p className="rounded-md bg-green-soft px-3 py-2 text-sm text-green-deep">

@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 799 |
+| Cartões (componentes usados pelas telas) | 803 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 906 de 906 |
+| Destinos decididos | 910 de 910 |
 
 ## 1. Telas
 
@@ -957,6 +957,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Pill` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 06 Carrinho |
 
 ### `/carrinho/pix/:codigo` — CarrinhoPix
 
@@ -964,9 +965,10 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `Card` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
 | `Money` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
-| `Pill` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
 | `PixParaPagar` | manter · na tela 08 Pix do carrinho · onda 5 |
+| `PrazoDaReserva` | manter · na tela 08 Pix do carrinho · onda 5 |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 08 Pix do carrinho |
+| `SituacaoDoPedido` | manter · na tela 08 Pix do carrinho · onda 5 |
 
 ### `/conta/senha` — TrocarSenha
 
@@ -1136,9 +1138,11 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Button` | manter · peça do kit (onda 1) · na tela 07 Pedido |
 | `Card` | manter · peça do kit (onda 1) · na tela 07 Pedido |
 | `Money` | manter · peça do kit (onda 1) · na tela 07 Pedido |
-| `Pill` | manter · peça do kit (onda 1) · na tela 07 Pedido |
 | `PixParaPagar` | manter · na tela 07 Pedido · onda 5 |
+| `PrazoDaReserva` | manter · na tela 07 Pedido · onda 5 |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 07 Pedido |
+| `SituacaoDoPedido` | manter · na tela 07 Pedido · onda 5 |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 07 Pedido |
 
 ### `/perfil` — PerfilDoUsuario
 

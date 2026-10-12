@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
@@ -7,8 +7,8 @@ import { FotoDoPerfil } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { EmBreve } from "@/pages/EmBreve";
 import { useConfigDoApp } from "@/components/Console";
-import { Empty } from "@/components/bits";
-import { BUSCA_TEXTO_MAX, ORDENS_DA_BUSCA, type OrdemDaBusca } from "@shared/buscar";
+import { Button, Empty, Filtros } from "@/components/bits";
+import { BUSCA_TEXTO_MAX, ORDENS_DA_BUSCA, interpretarEstado, interpretarOrdem, type OrdemDaBusca } from "@shared/buscar";
 import { UFS } from "@shared/endereco";
 
 interface Capa {
@@ -43,8 +43,23 @@ function Buscar() {
   // Digitar não chama o servidor a cada letra: a busca sai quando a pessoa para.
   const [termo, setTermo] = useState("");
   // Escolhas da pessoa: a ordem e o estado (filtro explícito, como /estado/UF).
-  const [ordem, setOrdem] = useState<OrdemDaBusca>("novas");
-  const [estado, setEstado] = useState("");
+  // Moram na URL (`?ordem=curtidas&estado=SP`), só com valor conhecido — o
+  // endereço copiado abre a mesma grade, e voltar devolve a escolha.
+  const [, navegar] = useLocation();
+  const busca = new URLSearchParams(useSearch());
+  const ordem: OrdemDaBusca = interpretarOrdem(busca.get("ordem"));
+  const estado = interpretarEstado(busca.get("estado")) ?? "";
+  const escolher = (nova: { ordem?: OrdemDaBusca; estado?: string }) => {
+    const o = nova.ordem ?? ordem;
+    const e = nova.estado ?? estado;
+    const q = new URLSearchParams();
+    if (o !== "novas") q.set("ordem", o);
+    if (e) q.set("estado", e);
+    const s = q.toString();
+    navegar(s ? `/buscar?${s}` : "/buscar", { replace: true });
+  };
+  const setOrdem = (o: OrdemDaBusca) => escolher({ ordem: o });
+  const setEstado = (e: string) => escolher({ estado: e });
   useEffect(() => {
     const t = setTimeout(() => setTermo(texto.trim()), 350);
     return () => clearTimeout(t);
@@ -100,7 +115,7 @@ function Buscar() {
             id="buscar-campo"
             type="search"
             className="campo w-full pl-10"
-            placeholder="Buscar"
+            placeholder="Buscar rifas, organizações ou @apelido"
             maxLength={BUSCA_TEXTO_MAX}
             value={texto}
             autoComplete="off"
@@ -110,22 +125,16 @@ function Buscar() {
       </form>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Ordem das publicações" className="flex gap-1">
-          {(Object.keys(ORDENS_DA_BUSCA) as OrdemDaBusca[]).map((o) => (
-            <button
-              key={o}
-              type="button"
-              aria-pressed={ordem === o}
-              onClick={() => setOrdem(o)}
-              className={`min-h-6 rounded-full border px-3 py-1 text-xs font-semibold ${ordem === o ? "border-green bg-green-soft text-green-deep" : "border-line-2 text-ink-2 hover:bg-mist"}`}
-            >
-              {ORDENS_DA_BUSCA[o]}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-xs text-ink-2">
+        <Filtros
+          exclusivo
+          rotulo="Ordem das publicações"
+          ativa={ordem}
+          aoMudar={setOrdem}
+          opcoes={(Object.keys(ORDENS_DA_BUSCA) as OrdemDaBusca[]).map((o) => ({ valor: o, rotulo: ORDENS_DA_BUSCA[o] }))}
+        />
+        <label className="flex items-center gap-2 text-[13px] font-medium text-ink-2">
           <span>Estado</span>
-          <select value={estado} onChange={(e) => setEstado(e.target.value)} className="campo py-1 text-sm">
+          <select value={estado} onChange={(e) => setEstado(e.target.value)} className="campo mt-0 w-auto">
             <option value="">Todo o Brasil</option>
             {Object.entries(UFS).map(([uf, nome]) => (
               <option key={uf} value={uf}>
@@ -175,11 +184,28 @@ function Buscar() {
       ) : null}
 
       {lista.isLoading ? <p className="py-8 text-center text-sm text-muted">Carregando…</p> : null}
-      {vazio ? <Empty>{buscando || filtrando ? "Nada encontrado para essa busca." : "Ainda não há publicações."}</Empty> : null}
+      {vazio ? (
+        <div className="text-center">
+          <Empty>{buscando || filtrando ? "Nada encontrado para essa busca." : "Ainda não há publicações."}</Empty>
+          {buscando || filtrando ? (
+            <Button
+              variant="cinza"
+              className="-mt-4"
+              onClick={() => {
+                setTexto("");
+                setTermo("");
+                navegar("/buscar", { replace: true });
+              }}
+            >
+              Limpar a busca
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {rifas.length ? (
         <section aria-label={buscando ? "Rifas encontradas" : ordem === "curtidas" ? "Publicações mais curtidas" : "Publicações mais novas"}>
-          <ul className="grid grid-cols-3 gap-0.5 sm:gap-1 md:grid-cols-4 xl:grid-cols-6">
+          <ul className="grid grid-cols-3 gap-0.5 sm:gap-1 lg:grid-cols-6">
             {rifas.map((r) => (
               <li key={r.slug} className="min-w-0">
                 <Link href={r.caminho} className="group relative block aspect-square overflow-hidden bg-mist-2" aria-label={`${r.premio}, de ${r.organizacao}`}>
@@ -187,7 +213,7 @@ function Buscar() {
                     <img
                       src={r.capa.url}
                       srcSet={r.capa.srcSet ?? undefined}
-                      sizes="(min-width: 1024px) 25vw, 34vw"
+                      sizes="(min-width: 1024px) 17vw, 34vw"
                       alt=""
                       loading="lazy"
                       className="h-full w-full object-cover transition group-hover:brightness-90"
@@ -204,9 +230,9 @@ function Buscar() {
           {lista.isFetchingNextPage ? <p className="py-4 text-center text-xs text-muted">Carregando mais…</p> : null}
           {lista.hasNextPage && !lista.isFetchingNextPage ? (
             <div className="py-4 text-center">
-              <button type="button" onClick={() => void lista.fetchNextPage()} className="rounded-md px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-mist-2">
+              <Button variant="cinza" onClick={() => void lista.fetchNextPage()}>
                 Ver mais
-              </button>
+              </Button>
             </div>
           ) : null}
         </section>

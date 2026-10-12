@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { Button, Campo, Pill } from "@/components/bits";
+import { Button, Campo, Pill, TONS_DO_BOTAO } from "@/components/bits";
 import { FotosProprias, useFotosProprias } from "@/components/FotosProprias";
 import { CampoDeAgenda, aindaAgendado, paraCampoLocal, paraInstante, quandoCurto } from "@/components/CampoDeAgenda";
 import { apiRequest } from "@/lib/queryClient";
@@ -94,15 +94,28 @@ export default function Publicar() {
 
   return (
     <PublicShell>
-      <div className="px-4 py-4">
+      <div>
         <Link href="/perfil" className="mb-3 inline-flex items-center gap-1 text-sm text-ink-2">
           <ArrowLeft size={16} aria-hidden /> Voltar
         </Link>
-        <h1 className="font-display text-xl font-extrabold">Publicar sobre uma rifa</h1>
-        {!ligado ? (
-          <p className="mt-3 text-sm text-muted">
-            {sessao?.buyer?.conta ? "A publicação de apostadores ainda não está disponível." : "Entre na sua conta para publicar."}
-          </p>
+        <h1 className="font-display text-2xl font-extrabold">Publicar sobre uma rifa</h1>
+        {!publicarApostador ? (
+          // Desligado pela plataforma: a tela só explica — nenhum botão que não faz nada.
+          <>
+            <p className="mt-3 text-base text-ink-2">A publicação de apostadores ainda não está disponível.</p>
+            <p className="mt-3 text-sm text-muted">
+              Quando a plataforma ligar o interruptor, quem tem conta e apelido publica texto e até{" "}
+              <span className="tnum">{DIVULGACAO_FOTOS_MAX}</span> fotos sobre uma rifa em que tem compra paga; a peça passa pela
+              organização antes de ir ao ar.
+            </p>
+          </>
+        ) : !ligado ? (
+          <div className="mt-3 space-y-3">
+            <p className="text-base text-ink-2">Entre na sua conta para publicar.</p>
+            <Link href="/entrar?volta=/publicar" className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.primario}`}>
+              Entrar
+            </Link>
+          </div>
         ) : (
           <div className="mt-3 space-y-3 text-sm">
             <p className="text-muted">
@@ -110,7 +123,12 @@ export default function Publicar() {
               organização lê antes de aparecer; link, telefone e pedido de Pix por fora não são aceitos.
             </p>
             {rifas.length === 0 ? (
-              <p className="rounded-md bg-mist px-3 py-2 text-muted">Você precisa ter uma compra paga em uma rifa no ar para publicar sobre ela.</p>
+              <div className="rounded-lg bg-mist px-3 py-3 text-ink-2">
+                <p>Você precisa ter uma compra paga em uma rifa no ar para publicar sobre ela.</p>
+                <Link href="/" className="mt-1 inline-block font-semibold text-green-deep underline">
+                  Ver as rifas no ar
+                </Link>
+              </div>
             ) : (
               <>
                 <Campo rotulo="Rifa">
@@ -139,13 +157,13 @@ export default function Publicar() {
                   }}
                   dica="Vazio, aparece assim que a organização autorizar. Com data (até 30 dias), aparece a partir dessa hora — e só se ela já tiver autorizado."
                 />
-                {msg ? <p role="status" className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
+                {msg ? <p role="status" className={`rounded-lg px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p> : null}
                 <div className="flex flex-wrap gap-2">
                   <Button disabled={publicar.isPending || !slug || legenda.trim().length < 3} onClick={() => publicar.mutate()}>
                     {editando ? "Salvar edição" : "Enviar para autorização"}
                   </Button>
                   {editando ? (
-                    <Button variant="ghost" onClick={limpar}>
+                    <Button variant="cinza" onClick={limpar}>
                       Cancelar edição
                     </Button>
                   ) : null}
@@ -154,7 +172,7 @@ export default function Publicar() {
             )}
             {minhas.length ? (
               <section aria-label="Minhas publicações" className="pt-2">
-                <h2 className="font-display text-sm font-bold">Minhas publicações</h2>
+                <h2 className="font-display text-base font-bold">Minhas publicações</h2>
                 <ul className="mt-1 divide-y divide-line">
                   {minhas.map((m) => (
                     <li key={m.id} className="space-y-1 py-3">
@@ -181,10 +199,10 @@ export default function Publicar() {
                       {m.motivo ? <p className="text-xs text-muted">Motivo: {m.motivo}</p> : null}
                       {podeEditar(m.status) ? (
                         <div className="flex flex-wrap gap-2">
-                          <Button variant="ghost" className="px-3 py-1 text-xs" disabled={editando?.id === m.id} onClick={() => editar(m)}>
+                          <Button variant="contorno" disabled={editando?.id === m.id} onClick={() => editar(m)}>
                             Editar
                           </Button>
-                          <Button variant="ghost" className="px-3 py-1 text-xs" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
+                          <Button variant="cinza" disabled={retirar.isPending} onClick={() => retirar.mutate(m.id)}>
                             Retirar
                           </Button>
                         </div>

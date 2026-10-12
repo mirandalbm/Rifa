@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 810 |
+| Cartões (componentes usados pelas telas) | 819 |
 | Rotas da API | 477, das quais 473 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 61 |
 | Testes de regra (`tests/`) | 128 arquivos |
-| Destinos decididos | 917 de 917 |
+| Destinos decididos | 926 de 926 |
 
 ## 1. Telas
 
@@ -896,7 +896,9 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `Button` | manter · peça do kit (onda 1) · na tela 17 Buscar |
 | `Empty` | manter · peça do kit (onda 1) · na tela 17 Buscar |
+| `Filtros` | manter · peça do kit (onda 1) · na tela 17 Buscar |
 | `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 17 Buscar |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 17 Buscar |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 17 Buscar |
@@ -1006,7 +1008,11 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `Button` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `Caixa` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `Campo` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `Empty` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `Filtros` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `GrupoAberto` | manter · na tela 16 Mensagens · onda 5 |
 | `Janela` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
@@ -1014,12 +1020,17 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Pill` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 
 ### `/mensagens/:id` — Mensagens
 
 | Cartão | Destino |
 |---|---|
+| `Button` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `Caixa` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `Campo` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `Empty` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `Filtros` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `FotoDoPerfil` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `GrupoAberto` | manter · na tela 16 Mensagens · onda 5 |
 | `Janela` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
@@ -1027,6 +1038,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `Pill` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 16 Mensagens |
 
 ### `/minhas-compras` — MinhasCotas
 
@@ -1034,7 +1046,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BonusDoComprador` | manter · na tela 09 Minhas compras · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
-| `Caixa` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Campo` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Card` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `CartaoDoFeed` | manter · na tela 09 Minhas compras · onda 5 |
@@ -1045,7 +1056,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `PerfilPublicoCard` | manter · na tela 09 Minhas compras · onda 5 |
 | `Pill` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
-| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `VerificacaoCard` | manter · na tela 09 Minhas compras · onda 5 |
 
 ### `/minhas-cotas` — Minhas cotas
@@ -1054,7 +1064,6 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BonusDoComprador` | manter · na tela 09 Minhas compras · onda 5 |
 | `Button` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
-| `Caixa` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Campo` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `Card` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `CartaoDoFeed` | manter · na tela 09 Minhas compras · onda 5 |
@@ -1065,15 +1074,14 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `PerfilPublicoCard` | manter · na tela 09 Minhas compras · onda 5 |
 | `Pill` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
-| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 09 Minhas compras |
 | `VerificacaoCard` | manter · na tela 09 Minhas compras · onda 5 |
 
 ### `/notificacoes` — Notificacoes
 
 | Cartão | Destino |
 |---|---|
+| `Empty` | manter · peça do kit (onda 1) · na tela 10 Notificações |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 10 Notificações |
-| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 10 Notificações |
 
 ### `/o/:org` — Perfil
 
@@ -1154,17 +1162,14 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `FotoDoApostador` | manter · na tela 11 Perfil · onda 5 |
-| `IconeRepublicar` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `SeloVerificado` | manter · peça do kit (onda 1) · na tela 11 Perfil |
-| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 
 ### `/perfil/bilhetes` — MeusBilhetes
 
 | Cartão | Destino |
 |---|---|
 | `BilheteComoPublicacao` | manter · na tela 13 Meus bilhetes privados · onda 5 |
-| `Button` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
 | `Empty` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 13 Meus bilhetes privados |
 
@@ -1192,6 +1197,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `FotosProprias` | manter · na tela 14 Publicar · onda 5 |
 | `Pill` | manter · peça do kit (onda 1) · na tela 14 Publicar |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 14 Publicar |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 14 Publicar |
 
 ### `/r/:slug` — Rifa
 
@@ -1243,10 +1249,13 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BarraDeAcoes` | manter · na tela 15 Reels · onda 5 |
 | `BotaoDenunciar` | manter · na tela 15 Reels · onda 5 |
+| `Button` | manter · peça do kit (onda 1) · na tela 15 Reels |
 | `CabecalhoDaPublicacao` | manter · na tela 15 Reels · onda 5 |
+| `ConsoleDoApp` | manter · na tela 15 Reels · onda 5 |
 | `FigurinhasNaTela` | manter · na tela 15 Reels · onda 5 |
 | `Money` | manter · peça do kit (onda 1) · na tela 15 Reels |
 | `PainelDeComentarios` | manter · na tela 15 Reels · onda 5 |
+| `TONS_DO_BOTAO` | manter · peça do kit (onda 1) · na tela 15 Reels |
 
 ### `/seja-afiliado` — CadastroAfiliado
 

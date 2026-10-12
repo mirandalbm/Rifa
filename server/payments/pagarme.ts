@@ -677,14 +677,21 @@ async function comTravaDaCobranca<T>(chargeId: string, fn: () => Promise<T>): Pr
     } finally {
       try {
         await conexao.query("SELECT pg_advisory_unlock($1, hashtext($2))", [TRAVA_DA_COBRANCA_CLASSE, chargeId]);
-        // A conexão volta ao pool como veio: sem o prazo desta espera.
-        await conexao.query("RESET lock_timeout");
       } catch (err) {
         // Sem soltar, a conexão volta ao pool com a trava presa: descartada.
         estragada = err as Error;
       }
     }
   } finally {
+    // A conexão volta ao pool como veio, sem o prazo desta espera — também
+    // quando a espera estourou (lock_timeout) e o `unlock` nem chegou a rodar.
+    if (!estragada) {
+      try {
+        await conexao.query("RESET lock_timeout");
+      } catch (err) {
+        estragada = err as Error;
+      }
+    }
     conexao.release(estragada);
   }
 }

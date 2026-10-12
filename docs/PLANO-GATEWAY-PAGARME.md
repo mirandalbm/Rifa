@@ -184,7 +184,11 @@ provedor no painel):
 4. O campo `amount` no corpo do `DELETE /charges/{id}` para o estorno
    parcial (a documentação diz que pode ser parcial, mas o exemplo não veio).
 5. O nome do cabeçalho de idempotência do v5 (usamos `Idempotency-Key`) e
-   por quanto tempo a chave vale.
+   por quanto tempo a chave vale, e **se a resposta de erro também fica
+   guardada pela chave**. Se ficar, a recusa passageira (4xx) do estorno
+   volta igual em toda tentativa com a mesma chave — só a conferência "não
+   devolveu" troca a chave (`-t<n>`); nesse caso a recusa também precisa
+   trocar.
 6. O formato e o **fuso** do `expires_at` (a documentação mostra
    `YYYY-MM-DDThh:mm:ss`, UTC, sem o `Z`; mandamos assim). Conferir no
    primeiro Pix de teste: se o Pagar.me ler sem o `Z` como Brasília, o QR

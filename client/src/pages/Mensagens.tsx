@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useRoute, useSearch } from "wouter";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ban, Flag, ImagePlus, Send } from "lucide-react";
+import { ArrowLeft, Ban, Flag, ImagePlus, PenSquare, Send } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { Janela } from "@/components/Janela";
 import { FotoDoPerfil } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { EmBreve } from "@/pages/EmBreve";
-import { useConfigDoApp } from "@/components/Console";
-import { Empty, Pill } from "@/components/bits";
+import { acimaDoConsole, useConfigDoApp } from "@/components/Console";
+import { Button, Caixa, Campo, Empty, Filtros, Pill, TONS_DO_BOTAO } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { lerFoto } from "@/lib/anexo";
-import { GrupoAberto, ListaDeGrupos } from "@/components/Grupos";
+import { GrupoAberto, ListaDeGrupos, painelAberto } from "@/components/Grupos";
 import {
   MENSAGEM_MAX,
   MOTIVOS_DA_DENUNCIA_DE_MENSAGEM,
   ROTULO_ONLINE,
+  TRECHO_DA_DENUNCIA,
   type MotivoDaDenunciaDeMensagem,
   type TipoDeParticipante,
 } from "@shared/mensagens";
@@ -75,6 +76,13 @@ interface PaginaDaConversa {
 
 const ROTULO_DO_TIPO: Record<TipoDeParticipante, string> = { comprador: "Apostador", organizacao: "Organização", afiliado: "Afiliado" };
 
+/**
+ * A altura da caixa no celular e no tablet: a tela menos o topo (57 px), o
+ * respiro de cima da página (16) e o console — a conversa tem a rolagem dela e o
+ * campo de escrever fica sempre à vista. No computador, a tela menos o respiro.
+ */
+const ALTURA_DA_CAIXA = { ["--altura-da-caixa" as string]: `calc(100svh - 73px - ${acimaDoConsole})` };
+
 const hora = (iso: string) => {
   const d = new Date(iso);
   const hoje = new Date();
@@ -102,9 +110,9 @@ export default function MensagensPagina() {
     return (
       <PublicShell>
         <section className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
-          <h1 className="font-display text-xl font-extrabold">Mensagens</h1>
+          <h1 className="font-display text-2xl font-extrabold">Mensagens</h1>
           <p className="max-w-sm text-sm text-ink-2">Entre na sua conta para conversar com apostadores, organizações e afiliados.</p>
-          <Link href="/entrar?volta=/mensagens" className="rounded-lg bg-green px-4 py-2 text-sm font-semibold text-on-green">
+          <Link href="/entrar?volta=/mensagens" className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-[13px] font-semibold ${TONS_DO_BOTAO.primario}`}>
             Entrar
           </Link>
         </section>
@@ -115,12 +123,23 @@ export default function MensagensPagina() {
   const grupoAberto = !aberta && grupo && /^[0-9a-f-]{36}$/i.test(grupo) ? grupo : null;
   return (
     <PublicShell larga>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <div className={aberta || grupoAberto ? "hidden min-w-0 lg:block" : "min-w-0"}>
+      {/* Celular e tablet: a lista, e a conversa por cima dela (no lugar dela, com o
+          "Voltar"). Computador: a lista de 340 px e a conversa ao lado, na altura da tela. */}
+      <div
+        style={ALTURA_DA_CAIXA}
+        className="-mx-4 -mb-8 grid grid-cols-1 lg:mx-0 lg:mb-0 lg:h-[calc(100svh-3rem)] lg:grid-cols-[340px_minmax(0,1fr)] lg:overflow-hidden lg:rounded-xl lg:border lg:border-line"
+      >
+        <div className={`min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:border-r lg:border-line ${aberta || grupoAberto ? "hidden" : ""}`}>
           <ListaDeConversas ativa={aberta} grupoAtivo={grupoAberto} />
         </div>
-        <div className={aberta || grupoAberto ? "min-w-0" : "hidden min-w-0 lg:block"}>
-          {grupoAberto ? <GrupoAberto id={grupoAberto} /> : aberta ? <Conversa id={aberta} /> : <p className="hidden rounded-xl border border-line p-8 text-center text-sm text-muted lg:block">Escolha uma conversa ou comece uma nova.</p>}
+        <div className={`min-w-0 lg:min-h-0 ${aberta || grupoAberto ? "" : "hidden lg:block"}`}>
+          {grupoAberto ? (
+            <GrupoAberto id={grupoAberto} />
+          ) : aberta ? (
+            <Conversa id={aberta} />
+          ) : (
+            <p className="hidden h-full items-center justify-center p-8 text-center text-sm text-muted lg:flex">Escolha uma conversa ou comece uma nova.</p>
+          )}
         </div>
       </div>
     </PublicShell>
@@ -134,8 +153,7 @@ export default function MensagensPagina() {
 /** A bolinha com o texto ao lado: o estado nunca vai só na cor. */
 function OnlineAgora() {
   return (
-    <span className="ml-1">
-      {" · "}
+    <span>
       <span aria-hidden className="mr-1 inline-block h-2 w-2 rounded-full bg-green align-middle" />
       {ROTULO_ONLINE}
     </span>
@@ -157,24 +175,52 @@ function MostrarOnline() {
     },
   });
   return (
-    <label className="flex cursor-pointer items-start gap-2 border-b border-line px-4 py-2 text-xs text-ink-2">
-      <input
-        type="checkbox"
-        className="mt-0.5 h-4 w-4"
-        checked={data?.mostrar === true}
-        disabled={!data || alternar.isPending}
-        onChange={(e) => alternar.mutate(e.target.checked)}
-      />
-      <span>
-        <span className="font-semibold text-ink">Mostrar quando estou online</span>
-        <span className="block text-muted">Só aparece "{ROTULO_ONLINE}" para quem também mostra o dele, nas conversas aceitas. Nunca o horário.</span>
-      </span>
-    </label>
+    <Caixa
+      className="border-t border-line px-4 py-3"
+      marcada={data?.mostrar === true}
+      disabled={!data || alternar.isPending}
+      aoMudar={(v) => alternar.mutate(v)}
+      sub={`Só aparece "${ROTULO_ONLINE}" para quem também mostra o dele, nas conversas aceitas. Nunca o horário.`}
+    >
+      <span className="font-semibold">Mostrar quando estou online</span>
+    </Caixa>
   );
 }
 
+/** Quem está online agora entre as conversas aceitas (o servidor só manda quando os dois mostram). */
+function FileiraOnline({ itens }: { itens: ItemDaLista[] }) {
+  if (!itens.length) return null;
+  return (
+    <section aria-labelledby="fileira-online" className="border-b border-line px-4 pb-3">
+      <h2 id="fileira-online" className="font-mono text-[11px] uppercase tracking-wider text-ink-2">
+        {ROTULO_ONLINE}
+      </h2>
+      <ul className="relative mt-2 flex gap-3 overflow-x-auto">
+        {itens.map((c) => (
+          <li key={c.id} className="w-16 shrink-0">
+            <Link href={`/mensagens/${c.id}`} className="flex flex-col items-center gap-1 rounded-lg p-0.5 hover:bg-mist">
+              <span className="relative">
+                <FotoDoPerfil nome={c.com.nome} foto={c.com.foto} tamanho={52} />
+                <span aria-hidden className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green" />
+              </span>
+              <span className="w-full truncate text-center text-[11px] text-ink-2">{c.com.nome}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+type AbaDaCaixa = "conversas" | "pedidos" | "grupos";
+
 function ListaDeConversas({ ativa, grupoAtivo }: { ativa: string | null; grupoAtivo: string | null }) {
-  const [aba, setAba] = useState<"conversas" | "pedidos" | "grupos">(grupoAtivo ? "grupos" : "conversas");
+  const [aba, setAba] = useState<AbaDaCaixa>(grupoAtivo ? "grupos" : "conversas");
+  // Quem chega de um botão "Mensagem" (`?para=` ou `?rifa=`) já abre a nova conversa.
+  const [nova, setNova] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    return q.has("para") || q.has("rifa");
+  });
   const lista = useInfiniteQuery<PaginaDaLista>({
     queryKey: ["/api/public/mensagens/conversas", aba],
     initialPageParam: "",
@@ -195,74 +241,100 @@ function ListaDeConversas({ ativa, grupoAtivo }: { ativa: string | null; grupoAt
   });
   const temPedido = (pedidos?.itens.length ?? 0) > 0;
   return (
-    <section aria-label="Conversas" className="rounded-xl border border-line bg-white">
-      <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-        <h1 className="font-display text-lg font-extrabold">Mensagens</h1>
-        <NovaConversaBotao />
+    <section aria-label="Conversas" className="bg-white lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+      <div className="flex items-center justify-between gap-2 px-4 pb-2 lg:pt-3">
+        <h1 className="font-display text-2xl font-extrabold">Mensagens</h1>
+        <button
+          type="button"
+          onClick={() => setNova(true)}
+          aria-label="Nova conversa"
+          title="Nova conversa"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-mist"
+        >
+          <PenSquare size={22} aria-hidden />
+        </button>
+      </div>
+      {aba === "conversas" ? <FileiraOnline itens={itens.filter((c) => c.online)} /> : null}
+      <Filtros
+        exclusivo
+        rotulo="Caixa de mensagens"
+        className="border-b border-line px-3 py-2"
+        ativa={aba}
+        aoMudar={setAba}
+        opcoes={[
+          { valor: "conversas", rotulo: "Conversas" },
+          { valor: "pedidos", rotulo: temPedido ? "Pedidos (novos)" : "Pedidos" },
+          { valor: "grupos", rotulo: "Grupos" },
+        ]}
+      />
+      <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+        {aba === "grupos" ? <ListaDeGrupos ativo={grupoAtivo} /> : null}
+        {aba !== "grupos" && lista.isLoading ? <Empty>Carregando…</Empty> : null}
+        {aba !== "grupos" && lista.isError ? <Empty>Não foi possível carregar as conversas.</Empty> : null}
+        {aba !== "grupos" && !lista.isLoading && !lista.isError && itens.length === 0 ? (
+          aba === "pedidos" ? (
+            <Empty>Nenhum pedido de mensagem.</Empty>
+          ) : (
+            <div className="px-4 pb-6 text-center">
+              <Empty>Nenhuma conversa ainda.</Empty>
+              <Button icone={<PenSquare />} className="-mt-4" onClick={() => setNova(true)}>
+                Nova conversa
+              </Button>
+            </div>
+          )
+        ) : null}
+        <ul className={aba === "grupos" ? "hidden" : "divide-y divide-line"}>
+          {itens.map((c) => {
+            const pedidoParaMim = c.situacao === "pedido" && !c.euIniciei;
+            const marcas = [c.bloqueada ? "bloqueada" : null, c.situacao === "pedido" && c.euIniciei ? "pedido enviado" : null].filter(Boolean);
+            return (
+              <li key={c.id}>
+                <Link
+                  href={`/mensagens/${c.id}`}
+                  aria-current={ativa === c.id ? "page" : undefined}
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-mist ${ativa === c.id ? "bg-mist" : ""}`}
+                >
+                  <FotoDoPerfil nome={c.com.nome} foto={c.com.foto} tamanho={48} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1 text-[15px] font-semibold">
+                      <span className="truncate">{c.com.nome}</span>
+                      {c.com.verificado ? <SeloVerificado sujeito={c.com.tipo === "organizacao" ? "organizacao" : c.com.tipo === "afiliado" ? "afiliado" : "apostador"} tamanho={14} /> : null}
+                    </span>
+                    <span className={`line-clamp-2 break-words text-sm ${c.naoLidas ? "font-semibold text-ink" : "text-ink-2"}`}>
+                      {pedidoParaMim ? `Pedido de mensagem${c.previa ? ` · ${c.previa}` : ""}` : (c.previa ?? "Sem mensagens")}
+                    </span>
+                    {c.online || marcas.length ? (
+                      <span className="block text-[11px] text-muted">
+                        {c.online ? <OnlineAgora /> : null}
+                        {c.online && marcas.length ? " · " : ""}
+                        {marcas.join(" · ")}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1 self-start pt-1">
+                    <span className="tnum text-[11px] text-muted">{hora(c.ultimaEm)}</span>
+                    {c.naoLidas ? (
+                      <span className="tnum min-w-[18px] rounded-full bg-green px-1.5 text-center text-[11px] font-bold leading-[15px] text-on-green">
+                        <span className="sr-only">{c.naoLidas} não lida(s)</span>
+                        <span aria-hidden>{c.naoLidas > 99 ? "99+" : c.naoLidas}</span>
+                      </span>
+                    ) : null}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        {aba !== "grupos" && lista.hasNextPage ? (
+          <div className="p-3 text-center">
+            <Button variant="cinza" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
+              {lista.isFetchingNextPage ? "Carregando…" : "Ver mais"}
+            </Button>
+          </div>
+        ) : null}
       </div>
       <MostrarOnline />
-      <div role="tablist" aria-label="Caixa" className="flex gap-1 border-b border-line px-3 py-2">
-        {(["conversas", "pedidos", "grupos"] as const).map((a) => (
-          <button
-            key={a}
-            type="button"
-            role="tab"
-            aria-selected={aba === a}
-            onClick={() => setAba(a)}
-            className={aba === a ? "rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green" : "rounded-md px-3 py-1.5 text-sm text-ink-2 hover:bg-mist-2"}
-          >
-            {a === "conversas" ? "Conversas" : a === "grupos" ? "Grupos" : temPedido ? "Pedidos (novos)" : "Pedidos"}
-          </button>
-        ))}
-      </div>
-      {aba === "grupos" ? <ListaDeGrupos ativo={grupoAtivo} /> : null}
-      {aba !== "grupos" && lista.isLoading ? <Empty>Carregando…</Empty> : null}
-      {aba !== "grupos" && lista.isError ? <Empty>Não foi possível carregar as conversas.</Empty> : null}
-      {aba !== "grupos" && !lista.isLoading && !lista.isError && itens.length === 0 ? (
-        <Empty>{aba === "pedidos" ? "Nenhum pedido de mensagem." : "Nenhuma conversa ainda. Use \"Nova\" para começar."}</Empty>
-      ) : null}
-      <ul className={aba === "grupos" ? "hidden" : "divide-y divide-line"}>
-        {itens.map((c) => (
-          <li key={c.id}>
-            <Link
-              href={`/mensagens/${c.id}`}
-              aria-current={ativa === c.id ? "page" : undefined}
-              className={`flex items-center gap-3 px-4 py-3 hover:bg-mist ${ativa === c.id ? "bg-mist" : ""}`}
-            >
-              <FotoDoPerfil nome={c.com.nome} foto={c.com.foto} tamanho={44} />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 text-sm font-semibold">
-                  <span className="truncate">{c.com.nome}</span>
-                  {c.com.verificado ? <SeloVerificado sujeito={c.com.tipo === "organizacao" ? "organizacao" : c.com.tipo === "afiliado" ? "afiliado" : "apostador"} tamanho={14} /> : null}
-                  <span className="ml-auto shrink-0 text-xs font-normal text-muted">{hora(c.ultimaEm)}</span>
-                </span>
-                <span className={`block truncate text-sm ${c.naoLidas ? "font-semibold text-ink" : "text-ink-2"}`}>
-                  {c.previa ?? "Sem mensagens"}
-                </span>
-                <span className="text-[11px] text-muted">
-                  {ROTULO_DO_TIPO[c.com.tipo]}
-                  {c.online ? <OnlineAgora /> : null}
-                  {c.bloqueada ? " · bloqueada" : ""}
-                  {c.situacao === "pedido" && c.euIniciei ? " · pedido enviado" : ""}
-                </span>
-              </span>
-              {c.naoLidas ? (
-                <span className="tnum min-w-[22px] rounded-full bg-marca px-1.5 py-0.5 text-center text-xs font-bold text-white">
-                  <span className="sr-only">{c.naoLidas} não lida(s)</span>
-                  <span aria-hidden>{c.naoLidas > 99 ? "99+" : c.naoLidas}</span>
-                </span>
-              ) : null}
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {aba !== "grupos" && lista.hasNextPage ? (
-        <div className="p-3 text-center">
-          <button type="button" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage} className="rounded-md px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-mist-2">
-            {lista.isFetchingNextPage ? "Carregando…" : "Ver mais"}
-          </button>
-        </div>
-      ) : null}
+      {nova ? <NovaConversa aoFechar={() => setNova(false)} /> : null}
     </section>
   );
 }
@@ -270,21 +342,6 @@ function ListaDeConversas({ ativa, grupoAtivo }: { ativa: string | null; grupoAt
 /* ------------------------------------------------------------------ *
  * Nova conversa
  * ------------------------------------------------------------------ */
-
-function NovaConversaBotao() {
-  const [aberta, setAberta] = useState(() => {
-    const q = new URLSearchParams(window.location.search);
-    return q.has("para") || q.has("rifa");
-  });
-  return (
-    <>
-      <button type="button" onClick={() => setAberta(true)} className="rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green hover:brightness-95">
-        Nova
-      </button>
-      {aberta ? <NovaConversa aoFechar={() => setAberta(false)} /> : null}
-    </>
-  );
-}
 
 function NovaConversa({ aoFechar }: { aoFechar: () => void }) {
   const [, navegar] = useLocation();
@@ -332,21 +389,18 @@ function NovaConversa({ aoFechar }: { aoFechar: () => void }) {
     <Janela onFechar={aoFechar} rotulo="Nova conversa" className="p-4">
       <h2 className="font-display text-lg font-extrabold">Nova conversa</h2>
       <form
-        className="mt-3 flex gap-2"
+        className="mt-3 flex items-start gap-2"
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
           if (busca.trim()) procurar.mutate(busca.trim());
         }}
       >
-        <div className="min-w-0 flex-1">
-          <label htmlFor="msg-busca" className="label-xs">
-            Para quem
-          </label>
-          <input id="msg-busca" className="campo mt-1 w-full" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="@apelido, endereço da organização ou código" autoComplete="off" />
-        </div>
-        <button type="submit" disabled={procurar.isPending} className="mt-5 rounded-md border border-line px-3 text-sm font-semibold hover:bg-mist">
+        <Campo className="min-w-0 flex-1" rotulo="Para quem" dica="O @apelido, o endereço da organização ou o código do afiliado, exatos.">
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off" />
+        </Campo>
+        <Button type="submit" variant="cinza" disabled={procurar.isPending} className="mt-[22px] shrink-0">
           Buscar
-        </button>
+        </Button>
       </form>
       {alvo ? (
         <form
@@ -363,21 +417,17 @@ function NovaConversa({ aoFechar }: { aoFechar: () => void }) {
               <p className="text-xs text-muted">{ROTULO_DO_TIPO[alvo.com.tipo]}</p>
             </div>
           </div>
-          {rifa ? <p className="rounded-md bg-mist px-3 py-2 text-xs text-ink-2">O cartão da rifa vai junto com a mensagem.</p> : null}
-          <div>
-            <label htmlFor="msg-texto" className="label-xs">
-              Mensagem{rifa ? " (opcional)" : ""}
-            </label>
-            <textarea id="msg-texto" className="campo mt-1 w-full" rows={3} maxLength={MENSAGEM_MAX} value={texto} onChange={(e) => setTexto(e.target.value)} />
-            <p className="mt-1 text-xs text-muted">Sem link e sem telefone. Quem não segue você recebe um pedido de mensagem.</p>
-          </div>
-          <button type="submit" disabled={enviar.isPending || (!texto.trim() && !rifa)} className="w-full rounded-md bg-green px-4 py-2 text-sm font-semibold text-on-green disabled:opacity-50">
+          {rifa ? <p className="rounded-lg bg-mist px-3 py-2 text-xs text-ink-2">O cartão da rifa vai junto com a mensagem.</p> : null}
+          <Campo rotulo={`Mensagem${rifa ? " (opcional)" : ""}`} dica="Sem link e sem telefone. Quem não segue você recebe um pedido de mensagem.">
+            <textarea rows={3} maxLength={MENSAGEM_MAX} value={texto} onChange={(e) => setTexto(e.target.value)} />
+          </Campo>
+          <Button type="submit" className="w-full" disabled={enviar.isPending || (!texto.trim() && !rifa)}>
             {enviar.isPending ? "Enviando…" : "Enviar"}
-          </button>
+          </Button>
         </form>
       ) : null}
       {erro ? (
-        <p role="alert" className="mt-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+        <p role="alert" className="mt-3 rounded-lg bg-red-soft px-3 py-2 text-sm text-red">
           {erro}
         </p>
       ) : null}
@@ -462,19 +512,19 @@ function Conversa({ id }: { id: string }) {
     onError: (e: Error) => setErro(e.message),
   });
 
-  if (pagina.isError) return <p role="alert" className="rounded-xl border border-line p-6 text-center text-sm text-red">{(pagina.error as Error).message}</p>;
-  if (!c) return <p className="rounded-xl border border-line p-6 text-center text-sm text-muted">Carregando…</p>;
+  if (pagina.isError) return <p role="alert" className="p-6 text-center text-sm text-red">{(pagina.error as Error).message}</p>;
+  if (!c) return <p className="p-6 text-center text-sm text-muted">Carregando…</p>;
 
   const pedidoParaMim = c.situacao === "pedido" && !c.euIniciei;
   return (
-    <section aria-label={`Conversa com ${c.com.nome}`} className="flex flex-col rounded-xl border border-line bg-white">
-      <header className="flex items-center gap-3 border-b border-line px-3 py-3">
-        <Link href="/mensagens" aria-label="Voltar para a lista" className="rounded-md p-1 hover:bg-mist lg:hidden">
+    <section aria-label={`Conversa com ${c.com.nome}`} className={painelAberto}>
+      <header className="flex items-center gap-3 border-b border-line px-3 py-3 lg:px-4">
+        <Link href="/mensagens" aria-label="Voltar para a lista" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-mist lg:hidden">
           <ArrowLeft size={22} aria-hidden />
         </Link>
         <FotoDoPerfil nome={c.com.nome} foto={c.com.foto} tamanho={40} />
         <div className="min-w-0 flex-1 text-sm">
-          <p className="flex items-center gap-1 font-semibold">
+          <p className="flex items-center gap-1 text-[15px] font-semibold">
             {c.com.href ? (
               <Link href={c.com.href} className="truncate hover:underline">
                 {c.com.nome}
@@ -485,8 +535,13 @@ function Conversa({ id }: { id: string }) {
             {c.com.verificado ? <SeloVerificado sujeito={c.com.tipo === "organizacao" ? "organizacao" : c.com.tipo === "afiliado" ? "afiliado" : "apostador"} tamanho={14} /> : null}
           </p>
           <p className="text-xs text-muted">
-            {ROTULO_DO_TIPO[c.com.tipo]}
-            {c.online ? <OnlineAgora /> : null}
+            {c.online ? (
+              <span className="text-green-deep">
+                <OnlineAgora />
+              </span>
+            ) : (
+              ROTULO_DO_TIPO[c.com.tipo]
+            )}
             {c.encerrada ? " · encerrada pela plataforma" : c.bloqueada ? " · bloqueada" : ""}
           </p>
         </div>
@@ -494,7 +549,7 @@ function Conversa({ id }: { id: string }) {
           type="button"
           onClick={() => bloquear.mutate(!c.bloqueadaPorMim)}
           disabled={bloquear.isPending || (c.bloqueada && !c.bloqueadaPorMim) || c.encerrada}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-md text-xs text-ink-2 hover:bg-mist disabled:opacity-40 sm:w-auto sm:px-2"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-lg text-[13px] font-medium text-ink-2 hover:bg-mist disabled:opacity-40 sm:w-auto sm:px-2"
         >
           <Ban size={16} aria-hidden />
           {/* No celular só o ícone: o nome de quem fala é o que precisa de espaço. */}
@@ -503,7 +558,7 @@ function Conversa({ id }: { id: string }) {
         <button
           type="button"
           onClick={() => setDenunciando(true)}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-md text-xs text-ink-2 hover:bg-mist sm:w-auto sm:px-2"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-lg text-[13px] font-medium text-ink-2 hover:bg-mist sm:w-auto sm:px-2"
         >
           <Flag size={16} aria-hidden />
           <span className="sr-only sm:not-sr-only">Denunciar</span>
@@ -516,12 +571,12 @@ function Conversa({ id }: { id: string }) {
             <strong>{c.com.nome}</strong> quer conversar com você. Só você decide se aceita; responder também aceita.
           </p>
           <div className="flex gap-2">
-            <button type="button" onClick={() => pedido.mutate("aceitar")} disabled={pedido.isPending} className="rounded-md bg-green px-3 py-1.5 text-sm font-semibold text-on-green">
+            <Button onClick={() => pedido.mutate("aceitar")} disabled={pedido.isPending}>
               Aceitar
-            </button>
-            <button type="button" onClick={() => pedido.mutate("recusar")} disabled={pedido.isPending} className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink">
+            </Button>
+            <Button variant="cinza" onClick={() => pedido.mutate("recusar")} disabled={pedido.isPending}>
               Recusar
-            </button>
+            </Button>
           </div>
         </div>
       ) : c.situacao === "pedido" && c.euIniciei ? (
@@ -530,20 +585,20 @@ function Conversa({ id }: { id: string }) {
         </p>
       ) : null}
 
-      <div className="max-h-[60vh] min-h-[240px] space-y-2 overflow-y-auto px-4 py-4" aria-live="polite">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4" aria-live="polite">
         {pagina.hasNextPage ? (
           <div className="text-center">
-            <button type="button" onClick={() => void pagina.fetchNextPage()} disabled={pagina.isFetchingNextPage} className="rounded-md px-3 py-1.5 text-xs font-semibold text-ink-2 hover:bg-mist-2">
+            <Button variant="cinza" onClick={() => void pagina.fetchNextPage()} disabled={pagina.isFetchingNextPage}>
               {pagina.isFetchingNextPage ? "Carregando…" : "Mensagens anteriores"}
-            </button>
+            </Button>
           </div>
         ) : null}
         {todas.length === 0 ? <Empty>Sem mensagens.</Empty> : null}
         {todas.map((m) => (
           <div key={m.id} className={`flex ${m.minha ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${m.minha ? "bg-marca text-white" : "bg-mist-2 text-ink"}`}>
+            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm lg:max-w-[388px] ${m.minha ? "bg-green text-on-green" : "bg-mist-2 text-ink"}`}>
               {m.rifa ? (
-                <Link href={m.rifa.caminho} className={`mb-1 block rounded-lg border px-3 py-2 text-xs font-semibold ${m.minha ? "border-white/60" : "border-line bg-white"}`}>
+                <Link href={m.rifa.caminho} className={`mb-1 block rounded-lg border px-3 py-2 text-xs font-semibold ${m.minha ? "border-current" : "border-line bg-white"}`}>
                   Rifa · {m.rifa.titulo}
                 </Link>
               ) : null}
@@ -553,7 +608,7 @@ function Conversa({ id }: { id: string }) {
                 </a>
               ) : null}
               {m.texto ? <p className="whitespace-pre-wrap break-words">{m.texto}</p> : null}
-              <p className={`tnum mt-0.5 text-right text-[10px] ${m.minha ? "text-white/80" : "text-muted"}`}>{hora(m.em)}</p>
+              <p className={`tnum mt-0.5 text-right text-[10px] ${m.minha ? "opacity-80" : "text-muted"}`}>{hora(m.em)}</p>
             </div>
           </div>
         ))}
@@ -562,7 +617,7 @@ function Conversa({ id }: { id: string }) {
 
       {c.podeEnviar ? (
         <form
-          className="flex items-end gap-2 border-t border-line p-3"
+          className="flex items-center gap-2 border-t border-line px-3 py-3 lg:px-4"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             if (texto.trim()) enviar.mutate();
@@ -588,9 +643,9 @@ function Conversa({ id }: { id: string }) {
                 onClick={() => escolherFoto.current?.click()}
                 disabled={enviarFoto.isPending}
                 aria-label={enviarFoto.isPending ? "Enviando a foto…" : "Enviar uma foto"}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line-2 text-ink-2 hover:bg-mist disabled:opacity-50"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-mist disabled:opacity-50"
               >
-                <ImagePlus size={18} aria-hidden />
+                <ImagePlus size={22} aria-hidden />
               </button>
             </>
           ) : null}
@@ -600,7 +655,7 @@ function Conversa({ id }: { id: string }) {
             </label>
             <textarea
               id="msg-resposta"
-              className="campo w-full resize-none"
+              className="campo mt-0 resize-none rounded-full px-4"
               rows={1}
               maxLength={MENSAGEM_MAX}
               value={texto}
@@ -615,15 +670,20 @@ function Conversa({ id }: { id: string }) {
               }}
             />
           </div>
-          <button type="submit" disabled={enviar.isPending || !texto.trim()} aria-label="Enviar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green text-on-green disabled:opacity-50">
-            <Send size={18} aria-hidden />
+          <button
+            type="submit"
+            disabled={enviar.isPending || !texto.trim()}
+            aria-label="Enviar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-green-deep hover:bg-green-soft disabled:opacity-40"
+          >
+            <Send size={22} aria-hidden />
           </button>
         </form>
       ) : (
         <p className="border-t border-line px-4 py-3 text-center text-sm text-ink-2">{c.impedimento}</p>
       )}
       {erro ? (
-        <p role="alert" className="mx-3 mb-3 rounded-md bg-red-soft px-3 py-2 text-sm text-red">
+        <p role="alert" className="mx-3 mb-3 rounded-lg bg-red-soft px-3 py-2 text-sm text-red">
           {erro}
         </p>
       ) : null}
@@ -638,40 +698,37 @@ function DenunciarConversa({ id, aoFechar }: { id: string; aoFechar: () => void 
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const enviar = useMutation({
     mutationFn: async () => (await (await apiRequest("POST", `/api/public/mensagens/conversas/${id}/denuncia`, { motivo, texto })).json()) as { protocolo: string },
-    onSuccess: (r) => setAviso({ ok: true, texto: `Denúncia registrada — protocolo ${r.protocolo}. A plataforma vai analisar as últimas mensagens.` }),
+    onSuccess: (r) => setAviso({ ok: true, texto: `Denúncia registrada — protocolo ${r.protocolo}. A plataforma vai analisar as últimas ${TRECHO_DA_DENUNCIA} mensagens.` }),
     onError: (e: Error) => setAviso({ ok: false, texto: e.message }),
   });
   return (
     <Janela onFechar={aoFechar} rotulo="Denunciar conversa" className="p-4">
       <h2 className="font-display text-lg font-extrabold">Denunciar conversa</h2>
-      <p className="mt-1 text-xs text-muted">Só as últimas mensagens vão para a plataforma. A outra pessoa não vê quem denunciou.</p>
+      <p className="mt-1 text-xs text-muted">
+        Só as últimas <span className="tnum">{TRECHO_DA_DENUNCIA}</span> mensagens vão para a plataforma — ela nunca lê a conversa inteira. A outra
+        pessoa não vê quem denunciou.
+      </p>
       <div className="mt-3 space-y-3">
-        <div>
-          <label htmlFor="den-motivo" className="label-xs">
-            Motivo
-          </label>
-          <select id="den-motivo" className="campo mt-1 w-full" value={motivo} onChange={(e) => setMotivo(e.target.value as MotivoDaDenunciaDeMensagem)}>
+        <Campo rotulo="Motivo">
+          <select value={motivo} onChange={(e) => setMotivo(e.target.value as MotivoDaDenunciaDeMensagem)}>
             {(Object.entries(MOTIVOS_DA_DENUNCIA_DE_MENSAGEM) as [MotivoDaDenunciaDeMensagem, string][]).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label htmlFor="den-texto" className="label-xs">
-            Quer explicar? (opcional)
-          </label>
-          <textarea id="den-texto" className="campo mt-1 w-full" rows={3} maxLength={1000} value={texto} onChange={(e) => setTexto(e.target.value)} />
-        </div>
-        {aviso ? <p role="status" className={`rounded-md px-3 py-2 text-sm ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{aviso.texto}</p> : null}
+        </Campo>
+        <Campo rotulo="Quer explicar? (opcional)">
+          <textarea rows={3} maxLength={1000} value={texto} onChange={(e) => setTexto(e.target.value)} />
+        </Campo>
+        {aviso ? <p role="status" className={`rounded-lg px-3 py-2 text-sm ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{aviso.texto}</p> : null}
         <div className="flex gap-2">
-          <button type="button" onClick={() => enviar.mutate()} disabled={enviar.isPending || aviso?.ok} className="flex-1 rounded-md bg-green px-4 py-2 text-sm font-semibold text-on-green disabled:opacity-50">
+          <Button className="flex-1" onClick={() => enviar.mutate()} disabled={enviar.isPending || aviso?.ok}>
             Denunciar
-          </button>
-          <button type="button" onClick={aoFechar} className="rounded-md border border-line px-4 py-2 text-sm font-semibold">
+          </Button>
+          <Button variant="cinza" onClick={aoFechar}>
             {aviso?.ok ? "Fechar" : "Cancelar"}
-          </button>
+          </Button>
         </div>
       </div>
     </Janela>

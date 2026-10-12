@@ -3,11 +3,11 @@ import { Link } from "wouter";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Flag, Send, Users } from "lucide-react";
 import { Janela } from "@/components/Janela";
-import { Empty } from "@/components/bits";
+import { Button, Campo, Empty } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { useConfigDoApp } from "@/components/Console";
-import { GRUPO_MAX_MEMBROS, GRUPO_NOME_MAX, MOTIVOS_DA_DENUNCIA_DE_GRUPO, type MotivoDaDenunciaDeGrupo } from "@shared/grupos";
+import { GRUPO_MAX_MEMBROS, GRUPO_NOME_MAX, GRUPO_TRECHO_DA_DENUNCIA, MOTIVOS_DA_DENUNCIA_DE_GRUPO, type MotivoDaDenunciaDeGrupo } from "@shared/grupos";
 import { MENSAGEM_MAX } from "@shared/mensagens";
 
 /**
@@ -32,6 +32,14 @@ interface DoGrupo {
   pessoas: { apelido: string; eu: boolean }[];
   itens: { id: string; minha: boolean; de: string; texto: string; em: string }[];
 }
+
+/**
+ * O painel aberto da caixa (conversa ou grupo): no celular e no tablet ocupa o
+ * lugar da lista, na altura da tela (`--altura-da-caixa`, posta pela página);
+ * no computador, a coluna da direita. As mensagens rolam por dentro e o campo
+ * de escrever fica sempre à vista.
+ */
+export const painelAberto = "flex h-[var(--altura-da-caixa)] min-h-[360px] flex-col bg-white lg:h-full lg:min-h-0";
 
 const hora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
@@ -66,30 +74,30 @@ export function ListaDeGrupos({ ativo }: { ativo: string | null }) {
                 <Users size={20} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 text-sm font-semibold">
-                  <span className="truncate">{g.nome}</span>
-                  <span className="ml-auto shrink-0 text-xs font-normal text-muted">{hora(g.ultimaEm)}</span>
-                </span>
+                <span className="block truncate text-[15px] font-semibold">{g.nome}</span>
                 <span className={`block truncate text-sm ${g.naoLidas ? "font-semibold text-ink" : "text-ink-2"}`}>{g.previa || "Sem mensagens"}</span>
-                <span className="text-[11px] text-muted">
+                <span className="block truncate text-[11px] text-muted">
                   Rifa {g.rifa} · <span className="tnum">{g.membros}</span> pessoa(s){g.encerrado ? " · encerrado" : ""}
                 </span>
               </span>
-              {g.naoLidas ? (
-                <span className="tnum min-w-[22px] rounded-full bg-marca px-1.5 py-0.5 text-center text-xs font-bold text-white">
-                  <span className="sr-only">{g.naoLidas} não lida(s)</span>
-                  <span aria-hidden>{g.naoLidas > 99 ? "99+" : g.naoLidas}</span>
-                </span>
-              ) : null}
+              <span className="flex shrink-0 flex-col items-end gap-1 self-start pt-1">
+                <span className="tnum text-[11px] text-muted">{hora(g.ultimaEm)}</span>
+                {g.naoLidas ? (
+                  <span className="tnum min-w-[18px] rounded-full bg-green px-1.5 text-center text-[11px] font-bold leading-[15px] text-on-green">
+                    <span className="sr-only">{g.naoLidas} não lida(s)</span>
+                    <span aria-hidden>{g.naoLidas > 99 ? "99+" : g.naoLidas}</span>
+                  </span>
+                ) : null}
+              </span>
             </Link>
           </li>
         ))}
       </ul>
       {lista.hasNextPage ? (
         <div className="p-3 text-center">
-          <button type="button" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage} className="rounded-md px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-mist-2">
+          <Button variant="cinza" onClick={() => void lista.fetchNextPage()} disabled={lista.isFetchingNextPage}>
             {lista.isFetchingNextPage ? "Carregando…" : "Ver mais"}
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
@@ -140,17 +148,20 @@ export function GrupoAberto({ id }: { id: string }) {
     },
     onError: (e: Error) => setErro(e.message),
   });
-  if (pagina.isError) return <p role="alert" className="rounded-xl border border-line p-6 text-center text-sm text-red">{(pagina.error as Error).message}</p>;
-  if (!pagina.data || !g) return <p className="rounded-xl border border-line p-6 text-center text-sm text-muted">Carregando…</p>;
+  if (pagina.isError) return <p role="alert" className="p-6 text-center text-sm text-red">{(pagina.error as Error).message}</p>;
+  if (!pagina.data || !g) return <p className="p-6 text-center text-sm text-muted">Carregando…</p>;
   const mensagens = [...pagina.data.itens].reverse();
   return (
-    <section aria-label={`Grupo ${g.nome}`} className="flex flex-col rounded-xl border border-line bg-white">
-      <header className="flex items-center gap-3 border-b border-line px-3 py-3">
-        <Link href="/mensagens" aria-label="Voltar para a lista" className="rounded-md p-1 hover:bg-mist lg:hidden">
+    <section aria-label={`Grupo ${g.nome}`} className={painelAberto}>
+      <header className="flex items-center gap-3 border-b border-line px-3 py-3 lg:px-4">
+        <Link href="/mensagens" aria-label="Voltar para a lista" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-mist lg:hidden">
           <ArrowLeft size={22} aria-hidden />
         </Link>
+        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mist-2 text-ink-2">
+          <Users size={18} />
+        </span>
         <div className="min-w-0 flex-1 text-sm">
-          <p className="truncate font-semibold">{g.nome}</p>
+          <p className="truncate text-[15px] font-semibold">{g.nome}</p>
           <p className="text-xs text-muted">
             <Link href={`/r/${g.slug}`} className="hover:underline">
               Rifa {g.rifa}
@@ -158,25 +169,25 @@ export function GrupoAberto({ id }: { id: string }) {
             · <span className="tnum">{g.membros}</span> de <span className="tnum">{g.max}</span> pessoas{g.encerrado ? " · encerrado pela plataforma" : ""}
           </p>
         </div>
-        <button type="button" onClick={() => setDenunciando(true)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-md text-xs text-ink-2 hover:bg-mist sm:w-auto sm:px-2">
+        <button type="button" onClick={() => setDenunciando(true)} className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-lg text-[13px] font-medium text-ink-2 hover:bg-mist sm:w-auto sm:px-2">
           <Flag size={16} aria-hidden />
           <span className="sr-only sm:not-sr-only">Denunciar</span>
         </button>
-        <button type="button" onClick={() => sair.mutate()} disabled={sair.isPending} className="rounded-md px-2 py-1.5 text-xs text-ink-2 hover:bg-mist">
+        <button type="button" onClick={() => sair.mutate()} disabled={sair.isPending} className="inline-flex h-10 shrink-0 items-center rounded-lg px-2 text-[13px] font-medium text-ink-2 hover:bg-mist">
           Sair do grupo
         </button>
       </header>
       <p className="border-b border-line px-4 py-2 text-xs text-muted">
         <span className="font-semibold text-ink-2">Quem está aqui:</span> {pagina.data.pessoas.map((p) => `@${p.apelido}${p.eu ? " (você)" : ""}`).join(", ")}
       </p>
-      <div className="max-h-[60vh] min-h-[240px] space-y-2 overflow-y-auto px-4 py-4" aria-live="polite">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4" aria-live="polite">
         {mensagens.length === 0 ? <Empty>Sem mensagens. Comece a conversa.</Empty> : null}
         {mensagens.map((m) => (
           <div key={m.id} className={`flex ${m.minha ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${m.minha ? "bg-marca text-white" : "bg-mist-2 text-ink"}`}>
+            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm lg:max-w-[388px] ${m.minha ? "bg-green text-on-green" : "bg-mist-2 text-ink"}`}>
               {m.minha ? null : <p className="text-xs font-semibold">@{m.de}</p>}
               <p className="whitespace-pre-wrap break-words">{m.texto}</p>
-              <p className={`tnum mt-0.5 text-right text-[10px] ${m.minha ? "text-white/80" : "text-muted"}`}>{hora(m.em)}</p>
+              <p className={`tnum mt-0.5 text-right text-[10px] ${m.minha ? "opacity-80" : "text-muted"}`}>{hora(m.em)}</p>
             </div>
           </div>
         ))}
@@ -184,7 +195,7 @@ export function GrupoAberto({ id }: { id: string }) {
       </div>
       {g.podeEscrever ? (
         <form
-          className="flex items-end gap-2 border-t border-line p-3"
+          className="flex items-center gap-2 border-t border-line px-3 py-3 lg:px-4"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             if (texto.trim()) enviar.mutate();
@@ -196,7 +207,7 @@ export function GrupoAberto({ id }: { id: string }) {
             </label>
             <textarea
               id="grupo-texto"
-              className="campo w-full resize-none"
+              className="campo mt-0 resize-none rounded-full px-4"
               rows={1}
               maxLength={MENSAGEM_MAX}
               placeholder="Escreva para o grupo…"
@@ -211,8 +222,13 @@ export function GrupoAberto({ id }: { id: string }) {
               }}
             />
           </div>
-          <button type="submit" disabled={!texto.trim() || enviar.isPending} aria-label="Enviar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green text-on-green disabled:opacity-50">
-            <Send size={18} aria-hidden />
+          <button
+            type="submit"
+            disabled={!texto.trim() || enviar.isPending}
+            aria-label="Enviar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-green-deep hover:bg-green-soft disabled:opacity-40"
+          >
+            <Send size={22} aria-hidden />
           </button>
         </form>
       ) : (
@@ -230,34 +246,41 @@ function DenunciarGrupo({ id, aoFechar }: { id: string; aoFechar: () => void }) 
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const enviar = useMutation({
     mutationFn: () => apiRequest("POST", `/api/public/mensagens/grupos/${id}/denuncia`, { motivo, texto }),
-    onSuccess: async (r) => setAviso({ ok: true, texto: `Denúncia enviada. Protocolo ${(await r.json()).protocolo}. A plataforma lê só as últimas mensagens do grupo.` }),
+    onSuccess: async (r) =>
+      setAviso({ ok: true, texto: `Denúncia enviada. Protocolo ${(await r.json()).protocolo}. A plataforma lê só as últimas ${GRUPO_TRECHO_DA_DENUNCIA} mensagens do grupo.` }),
     onError: (e: Error) => setAviso({ ok: false, texto: e.message }),
   });
   return (
     <Janela onFechar={aoFechar} rotulo="Denunciar o grupo" className="p-4">
       <h2 className="font-display text-lg font-extrabold">Denunciar o grupo</h2>
+      <p className="mt-1 text-xs text-muted">
+        Só as últimas <span className="tnum">{GRUPO_TRECHO_DA_DENUNCIA}</span> mensagens do grupo vão para a plataforma — ela nunca lê o grupo inteiro.
+        Quem escreveu não sabe quem denunciou.
+      </p>
       <div className="mt-3 space-y-3 text-sm">
         <fieldset>
           <legend className="label-xs">Motivo</legend>
           <div className="mt-1 space-y-1">
             {(Object.keys(MOTIVOS_DA_DENUNCIA_DE_GRUPO) as MotivoDaDenunciaDeGrupo[]).map((m) => (
               <label key={m} className="flex items-center gap-2">
-                <input type="radio" name="motivo-grupo" checked={motivo === m} onChange={() => setMotivo(m)} />
+                <input type="radio" name="motivo-grupo" className="h-4 w-4 accent-green" checked={motivo === m} onChange={() => setMotivo(m)} />
                 {MOTIVOS_DA_DENUNCIA_DE_GRUPO[m]}
               </label>
             ))}
           </div>
         </fieldset>
-        <div>
-          <label htmlFor="grupo-denuncia-texto" className="label-xs">
-            Quer contar mais? (opcional)
-          </label>
-          <textarea id="grupo-denuncia-texto" className="campo w-full" rows={3} maxLength={500} value={texto} onChange={(e) => setTexto(e.target.value)} />
+        <Campo rotulo="Quer contar mais? (opcional)">
+          <textarea id="grupo-denuncia-texto" rows={3} maxLength={500} value={texto} onChange={(e) => setTexto(e.target.value)} />
+        </Campo>
+        {aviso ? <p role="status" className={`rounded-lg px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{aviso.texto}</p> : null}
+        <div className="flex gap-2">
+          <Button className="flex-1" onClick={() => enviar.mutate()} disabled={enviar.isPending || aviso?.ok === true}>
+            Enviar denúncia
+          </Button>
+          <Button variant="cinza" onClick={aoFechar}>
+            {aviso?.ok ? "Fechar" : "Cancelar"}
+          </Button>
         </div>
-        {aviso ? <p role="status" className={`rounded-md px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{aviso.texto}</p> : null}
-        <button type="button" onClick={() => enviar.mutate()} disabled={enviar.isPending || aviso?.ok === true} className="rounded-md bg-green px-4 py-2 font-semibold text-on-green disabled:opacity-50">
-          Enviar denúncia
-        </button>
       </div>
     </Janela>
   );

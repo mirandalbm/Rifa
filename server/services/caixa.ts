@@ -7,7 +7,7 @@ import { MOTIVOS_DA_DENUNCIA_DE_GRUPO } from "@shared/grupos";
 import { MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO } from "@shared/sorteioDenuncias";
 import { LOTERIAS } from "@shared/sorteiosOficiais";
 import { aConferirSql } from "./chamados";
-import { ACAO_CONTESTACAO_A_CONFERIR } from "../payments/provider";
+import { contestacaoPendenteSql } from "./contestacoes";
 
 /**
  * A caixa de entrada da plataforma: o que espera decisão, de todas as filas,
@@ -130,15 +130,16 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
        WHERE ${aConferirSql("ch")}
        ORDER BY ch.estornado_em LIMIT 200`),
     // A contestação (MED, chargeback) que o provedor avisou sem cobrir o pago:
-    // uma linha por cobrança, nos últimos 30 dias (não há botão de resolver —
-    // some sozinha). Só o pedido e a organização, nunca o comprador.
+    // uma linha por cobrança, até a plataforma registrar a decisão
+    // (`pagamento.contestacao.conferida`, em Pedidos) — nunca some sozinha.
+    // Só o pedido e a organização, nunca o comprador.
     db.execute(sql`
       SELECT DISTINCT ON (a.entity_id) a.entity_id AS cobranca, a.created_at AS desde,
              (SELECT string_agg(ord.code::text, ', ') FROM orders ord WHERE ord.psp_charge_id = a.entity_id) AS pedidos,
              (SELECT min(org.name) FROM orders ord JOIN campaigns c ON c.id = ord.campaign_id
                 JOIN organizations org ON org.id = c.organization_id WHERE ord.psp_charge_id = a.entity_id) AS org
         FROM audit_log a
-       WHERE a.action = ${ACAO_CONTESTACAO_A_CONFERIR} AND a.created_at > now() - interval '30 days'
+       WHERE ${contestacaoPendenteSql("a")}
        ORDER BY a.entity_id, a.created_at DESC LIMIT 200`),
   ]);
 

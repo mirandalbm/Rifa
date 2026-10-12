@@ -254,6 +254,7 @@ import {
   disputasAbertas,
 } from "../services/chamados";
 import { validarConferencia } from "@shared/chamados";
+import { cobrancaValida, contestacoesAConferir, marcarContestacaoConferida } from "../services/contestacoes";
 import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
 import { painelDoMarketing, salvarMarketing } from "../services/marketing";
 import {
@@ -3315,12 +3316,41 @@ adminRouter.post("/chamados/:id/disputa/decidir", async (req, res, next) => {
 });
 
 /**
+ * A contestação do Pix que o provedor avisou sem cobrir o pago (MED,
+ * chargeback): a lista e o registro da decisão da plataforma. Só a
+ * plataforma (403 para organizador); cobrança fora do formato é 404.
+ */
+adminRouter.get("/contestacoes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await contestacoesAConferir());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/contestacoes/:cobranca/conferida", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    if (!cobrancaValida(req.params.cobranca)) return res.status(404).json({ message: "Contestação não encontrada." });
+    res.json(
+      await marcarContestacaoConferida(req, req.params.cobranca, typeof req.body?.observacao === "string" ? req.body.observacao : ""),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * A devolução a conferir no provedor: a plataforma diz se o dinheiro voltou
  * (com o que conferiu). Só a plataforma (403 para organizador).
  */
 adminRouter.post("/chamados/:id/conferencia", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Id fora do formato não chega ao banco (o Postgres recusaria com 500).
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Chamado não encontrado." });
     const entrada = validarConferencia(req.body);
     if (typeof entrada === "string") return res.status(400).json({ message: entrada });
     const { chamado, refund } = await resolverConferencia(req, req.params.id, entrada);

@@ -21,6 +21,7 @@ import { ChevronRight, Image as ImagemIcone, LayoutGrid, List, MoreVertical, Per
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { PixTardios } from "@/components/PixTardios";
+import { ContestacoesAConferir } from "@/components/ContestacoesAConferir";
 import { ReelsDaRifa } from "@/components/ReelsDaRifa";
 import { MediaManager } from "@/components/MediaManager";
 import { CampaignExtras } from "@/components/CampaignExtras";
@@ -1252,6 +1253,7 @@ export function AdminPedidos() {
   return (
     <PanelShell title="Pedidos">
       {sessao?.role === "admin" && !codigo && !cliente ? <PixTardios /> : null}
+      {sessao?.role === "admin" && !codigo && !cliente ? <ContestacoesAConferir /> : null}
       <p className="mb-3 text-xs text-muted">
         Reembolso não se faz por aqui: o comprador pede em "Minhas cotas", com o print do
         bilhete, e a organização decide em Atendimento.

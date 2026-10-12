@@ -49,7 +49,7 @@ export function destinoDaPendencia(p: Pick<PendenciaDaCaixa, "tipo">): string {
     case "estorno_a_conferir":
       return "/admin/atendimento?status=a_conferir";
     case "contestacao":
-      return "/admin/pedidos";
+      return "/admin/pedidos#contestacoes";
     case "edicao":
     case "adiamento":
       return "/admin/atendimento?aba=rifas";

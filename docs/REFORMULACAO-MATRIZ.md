@@ -7,7 +7,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 845 |
-| Rotas da API | 477, das quais 473 citadas por alguma prova |
+| Rotas da API | 478, das quais 474 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 62 |
 | Testes de regra (`tests/`) | 130 arquivos |
 | Destinos decididos | 952 de 952 |
@@ -1317,7 +1317,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 A API não muda de lugar na reformulação. Aqui está para que a tela nova não deixe rota sem prova: "—" quer dizer que nenhum arquivo de `scripts/` ou `tests/` cita o caminho.
 
-### `server/routes/admin.ts` — /api/admin (264 rotas, 263 com prova)
+### `server/routes/admin.ts` — /api/admin (265 rotas, 264 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
@@ -1441,7 +1441,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PUT | `/plataforma` | `bonus-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +4 |
 | GET | `/comissao` | `guarda-test.ts` |
 | PUT | `/comissao` | `guarda-test.ts` |
-| GET | `/chamados` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
+| GET | `/chamados` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` +1 |
 | GET | `/chamados/pendentes` | `chamados-test.ts`, `disputa-test.ts`, `divulgacao-test.ts` +2 |
 | GET | `/avisos` | `isolation-test.ts` |
 | POST | `/avisos/vistos` | `acessos-test.ts` |
@@ -1450,6 +1450,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/chamados/:id/mensagens` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
 | POST | `/chamados/:id/concluir` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` |
 | POST | `/chamados/:id/disputa/decidir` | `disputa-test.ts`, `isolation-test.ts` |
+| POST | `/chamados/:id/conferencia` | `isolation-test.ts`, `pagarme-test.ts` |
 | POST | `/chamados/:id/estornar` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` +1 |
 | GET | `/reembolso` | `chamados-test.ts` |
 | PUT | `/reembolso` | `chamados-test.ts` |
@@ -1475,7 +1476,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/payment-methods` | `isolation-test.ts` |
 | PUT | `/payment-methods` | `isolation-test.ts` |
 | GET | `/finance` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
-| POST | `/finance/release` | `guarda-test.ts` |
+| POST | `/finance/release` | `guarda-test.ts`, `pagarme-test.ts` |
 | GET | `/payouts/:id/nota` | `fiscal-test.ts`, `isolation-test.ts` |
 | POST | `/payouts/:id/paid` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
 | GET | `/template` | `aparencia-test.ts`, `contrato-promotora-test.ts`, `isolation-test.ts` |
@@ -1580,7 +1581,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/verificacoes/:id/documentos/:tipo` | `isolation-test.ts` |
 | GET | `/verificacoes/:id/foto` | `isolation-test.ts`, `verificacao-test.ts` |
 | POST | `/verificacoes/:id/decidir` | `isolation-test.ts`, `verificacao-test.ts` |
-| GET | `/caixa-de-entrada` | `banner-divulgacao-test.ts`, `banner-pago-test.ts`, `grupos-test.ts` +6 |
+| GET | `/caixa-de-entrada` | `banner-divulgacao-test.ts`, `banner-pago-test.ts`, `grupos-test.ts` +7 |
 | GET | `/fiscal` | `fiscal-test.ts`, `isolation-test.ts` |
 | GET | `/fiscal/:affiliateId` | `fiscal-test.ts`, `isolation-test.ts` |
 | GET | `/fiscal/:affiliateId/documentos/:tipo` | `fiscal-test.ts`, `isolation-test.ts` |
@@ -1843,7 +1844,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
-- `server/routes/admin.ts` (1 de 264): PUT `/media/raw`
+- `server/routes/admin.ts` (1 de 265): PUT `/media/raw`
 - `server/routes/affiliate.ts` (1 de 36): GET `/divulgacoes/:id/video`
 - `server/routes/public.ts` (2 de 149): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 

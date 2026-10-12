@@ -35,6 +35,9 @@ import {
   organizations,
   platformCharges,
   chamados,
+  affiliates,
+  commissions,
+  platformCharges as taxasDaPlataforma,
   quotaAlloc,
   users,
   webhookEvents,
@@ -59,6 +62,7 @@ const ORG_SLUG = "pagarme-teste-promotora";
 const TELEFONES = [
   "11973330001", "11973330002", "11973330003", "11973330004", "11973330005", "11973330006",
   "11973330007", "11973330008", "11973330009", "11973330010", "11973330011", "11973330012",
+  "11973330013", "11973330014",
 ];
 const RESTRICAO_DE_FALHA = "pagarme_teste_falha_do_banco";
 const EMAIL_ORG = "pagarme-org@teste.rifa";
@@ -216,6 +220,7 @@ async function limpar() {
   if (ids.length) {
     const ps = await db.select({ id: orders.id }).from(orders).where(inArray(orders.campaignId, ids));
     if (ps.length) {
+      await db.execute(sql`delete from audit_log where entity = 'chamado' and entity_id in (select id::text from chamados where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)}))`);
       await db.execute(sql`delete from chamados where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
       await db.execute(sql`delete from pix_tardios where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
       await db.execute(sql`delete from commissions where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
@@ -233,6 +238,8 @@ async function limpar() {
   await db.execute(sql`delete from patrocinio_lancamentos where organization_id in (select id from organizations where slug = ${ORG_SLUG})`).catch(() => {});
   await db.delete(users).where(eq(users.email, EMAIL_ORG));
   await db.execute(sql`delete from rate_events where bucket like 'order:%' or bucket like 'login:%'`);
+  await db.execute(sql`delete from audit_log where action = 'pagamento.contestacao.a_conferir' and entity_id like 'ch_%TESTE'`);
+  await db.execute(sql`delete from audit_log where entity = 'chamado' and diff->>'protocolo' like 'PAGTESTE-%'`);
   await db.execute(sql`delete from pix_volume_mensal where organization_id in (select id from organizations where slug = ${ORG_SLUG})`).catch(() => {});
   await db.delete(organizations).where(eq(organizations.slug, ORG_SLUG));
 }
@@ -527,6 +534,13 @@ async function main() {
     st = await webhook({ id: hookId(), type: "charge.chargedback", data: { id: chC } }, SEGREDO);
     situacao = await statusDoCarrinho();
     checa("contestação parcial na API (o contestado não cobre o pago): ignorada", st === 200 && situacao === "paid,paid", `HTTP ${st} ${situacao}`);
+    r = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    const naCaixa = (r.json as any[] | null)?.find((x) => x.chave === `contestacao:${chC}`);
+    checa(
+      "…e vai para a Caixa de entrada da plataforma (sem dado do comprador)",
+      Boolean(naCaixa) && !JSON.stringify(naCaixa).includes("Comprador") && !JSON.stringify(naCaixa).includes(CPF) && !JSON.stringify(naCaixa).includes(TELEFONES[4]),
+      JSON.stringify(naCaixa ?? null),
+    );
     cC.canceled_amount = cC.paid_amount ?? cC.amount;
     st = await webhook({ id: hookId(), type: "charge.chargedback", data: { id: chC } }, SEGREDO);
     situacao = await statusDoCarrinho();
@@ -663,6 +677,90 @@ async function main() {
     r = await admin.req("POST", `/api/admin/chamados/${chamado.id}/estornar`, {});
     [chDepois] = await db.select().from(chamados).where(eq(chamados.id, chamado.id));
     checa("o segundo clique não devolve de novo (409, um DELETE só)", r.status === 409 && deletesDoChamado() === 1, `HTTP ${r.status} DELETEs ${deletesDoChamado()}`);
+
+    console.log("\n  a devolução a conferir: a saída da plataforma");
+    const [audConferir] = (await db.execute(sql`select count(*)::int as n from audit_log where action = 'chamado.estorno.conferir' and entity_id = ${chamado.id}`)).rows as { n: number }[];
+    checa("a marca entrou na auditoria (chamado.estorno.conferir)", audConferir.n === 1, `${audConferir.n}`);
+    r = await admin.req("GET", "/api/admin/caixa-de-entrada");
+    const linhaConferir = (r.json as any[] | null)?.find((x) => x.chave === `estorno_a_conferir:${chamado.id}`);
+    checa(
+      "o caso aparece na Caixa de entrada, sem dado do comprador",
+      Boolean(linhaConferir) && !JSON.stringify(linhaConferir).includes("Comprador") && !JSON.stringify(linhaConferir).includes(CPF) && !JSON.stringify(linhaConferir).includes(TELEFONES[10]),
+      JSON.stringify(linhaConferir ?? null),
+    );
+    r = await admin.req("GET", "/api/admin/chamados?status=a_conferir");
+    checa("e na fila \"a conferir no provedor\" do Atendimento", (r.json as any[] | null)?.some((x) => x.id === chamado.id) === true, `HTTP ${r.status}`);
+    // Chamado novo do mesmo pedido: o índice parcial recusa.
+    let indiceRecusou = false;
+    try {
+      await db.insert(chamados).values({ protocolo: `PAGTESTE-NOVO-${pCh!.code}`, organizationId: org.id, orderId: pCh!.id, buyerId: compradorCh.id, motivo: "outro pedido do mesmo bilhete" });
+    } catch (err) {
+      indiceRecusou = String((err as { cause?: { constraint?: string }; constraint?: string }).cause?.constraint ?? (err as { constraint?: string }).constraint ?? (err as Error).message).includes("uq_chamados_pedido_aberto");
+    }
+    checa("chamado novo do mesmo pedido: recusado pelo índice (uq_chamados_pedido_aberto)", indiceRecusou);
+    // A comissão do pedido espera a conferência, mesmo com a carência vencida.
+    const [afiliado] = await db.select().from(affiliates).limit(1);
+    await db.insert(commissions).values({ affiliateId: afiliado.id, orderId: pCh!.id, campaignId: a.id, amountCents: 50, pct: 10, status: "pending", availableAt: new Date(Date.now() - 86_400_000) });
+    r = await admin.req("POST", "/api/admin/finance/release", {});
+    let [comissao] = await db.select().from(commissions).where(eq(commissions.orderId, pCh!.id));
+    checa("a comissão com a carência vencida não é liberada enquanto a conferir", comissao.status === "pending", `HTTP ${r.status} ${comissao.status}`);
+    r = await dono.req("POST", `/api/admin/chamados/${chamado.id}/conferencia`, { devolveu: true, observacao: "conferido pela organização" });
+    checa("a organização não resolve (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/chamados/${chamado.id}/conferencia`, { devolveu: true, observacao: "" });
+    checa("sem a observação: 400", r.status === 400, `HTTP ${r.status}`);
+    const vendidasAntes = (await statsDe(a.id)).soldCount;
+    const [dois1, dois2] = await Promise.all([
+      admin.req("POST", `/api/admin/chamados/${chamado.id}/conferencia`, { devolveu: true, observacao: "Conferi no painel do Pagar.me: voltou." }),
+      admin.req("POST", `/api/admin/chamados/${chamado.id}/conferencia`, { devolveu: true, observacao: "Conferi no painel do Pagar.me: voltou." }),
+    ]);
+    const codigos = [dois1.status, dois2.status].sort();
+    const pedidoConferido = await pedidoPorCodigo(pCh!.code);
+    [chDepois] = await db.select().from(chamados).where(eq(chamados.id, chamado.id));
+    [comissao] = await db.select().from(commissions).where(eq(commissions.orderId, pCh!.id));
+    const [taxaConferida] = await db.select().from(taxasDaPlataforma).where(eq(taxasDaPlataforma.orderId, pCh!.id));
+    checa("dois cliques \"devolveu\": um 200 e um 409", codigos[0] === 200 && codigos[1] === 409, codigos.join(","));
+    checa(
+      "devolveu: pedido desfeito (cota, contador, comissão e taxa) e a forma passa ao provedor",
+      pedidoConferido.status === "refunded" &&
+        (await statsDe(a.id)).soldCount === vendidasAntes - pCh!.quantity &&
+        comissao.status === "reversed" &&
+        (!taxaConferida || taxaConferida.status === "cancelada" || taxaConferida.vendaCents === 0) &&
+        chDepois.status === "estornado" &&
+        chDepois.formaDevolucao === "pagarme",
+      `${pedidoConferido.status} comissão ${comissao.status} taxa ${taxaConferida?.status ?? "sem"} forma ${chDepois.formaDevolucao}`,
+    );
+    const [audDecisao] = (await db.execute(sql`select count(*)::int as n from audit_log where action = 'chamado.estorno.conferido.devolveu' and entity_id = ${chamado.id}`)).rows as { n: number }[];
+    checa("a decisão entrou na auditoria uma vez", audDecisao.n === 1, `${audDecisao.n}`);
+
+    // "Não devolveu": volta a aprovado e se estorna de novo pelo caminho de sempre.
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(12, { cpf: CPF, email: EMAIL }) });
+    const pNao = await pedidoPorCodigo(r.json?.code ?? 0);
+    const cNao = cobrancas.get(pNao!.pspChargeId!)!;
+    cNao.status = "paid";
+    cNao.paid_amount = cNao.amount;
+    await webhook(evPago(hookId(), cNao.id), SEGREDO);
+    const [compradorNao] = await db.select().from(buyers).where(eq(buyers.phone, TELEFONES[12]));
+    const [chamadoNao] = await db
+      .insert(chamados)
+      .values({ protocolo: `PAGTESTE-${pNao!.code}`, organizationId: org.id, orderId: pNao!.id, buyerId: compradorNao.id, status: "aprovado", motivo: "Prova do Pagar.me: não devolveu", devolverCents: pNao!.amountCents - 100, taxaCents: 100, taxaPct: 10, tipoReembolso: "com_taxa" })
+      .returning();
+    deleteSemCancelado = true;
+    r = await admin.req("POST", `/api/admin/chamados/${chamadoNao.id}/estornar`, {});
+    deleteSemCancelado = false;
+    r = await admin.req("POST", `/api/admin/chamados/${chamadoNao.id}/conferencia`, { devolveu: false, observacao: "Conferi no painel: a devolução não saiu." });
+    let [naoDepois] = await db.select().from(chamados).where(eq(chamados.id, chamadoNao.id));
+    checa(
+      "não devolveu: o chamado volta a aprovado e o pedido segue pago",
+      r.status === 200 && naoDepois.status === "aprovado" && naoDepois.formaDevolucao === null && (await pedidoPorCodigo(pNao!.code)).status === "paid",
+      `HTTP ${r.status} ${naoDepois.status} ${naoDepois.formaDevolucao}`,
+    );
+    r = await admin.req("POST", `/api/admin/chamados/${chamadoNao.id}/estornar`, {});
+    [naoDepois] = await db.select().from(chamados).where(eq(chamados.id, chamadoNao.id));
+    checa(
+      "…e se devolve de novo pelo caminho de sempre",
+      r.status === 200 && naoDepois.status === "estornado" && naoDepois.formaDevolucao === "pagarme" && (await pedidoPorCodigo(pNao!.code)).status === "refunded",
+      `HTTP ${r.status} ${naoDepois.status} ${naoDepois.formaDevolucao} ${r.json?.message ?? ""}`,
+    );
 
     console.log("\n  dois estornos parciais da mesma cobrança ao mesmo tempo:");
     r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(11, { cpf: CPF, email: EMAIL }) });

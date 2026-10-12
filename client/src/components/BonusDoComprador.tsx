@@ -129,9 +129,16 @@ export function BonusDoComprador({ dados }: { dados: EstadoBonus }) {
                 <p className="text-xs text-muted">
                   {m.descricao} → <span className="tnum">{m.recompensa}</span> cota(s)
                 </p>
-                {/* A barra do kit, no azul do prêmio; o número vai em texto logo embaixo. */}
-                <Progress value={m.feito} total={m.alvo} tone="yellow" />
-                <p className="tnum text-xs text-muted">
+                {/* A barra do kit, no azul do prêmio; o número vai em texto logo embaixo e,
+                    para o leitor de tela, na própria barra ("3 de 5"), não só o percentual. */}
+                <Progress
+                  value={m.feito}
+                  total={m.alvo}
+                  tone="yellow"
+                  rotulo={`Progresso da meta ${m.titulo}`}
+                  texto={`${m.feito} de ${m.alvo}`}
+                />
+                <p aria-hidden className="tnum text-xs text-muted">
                   {m.feito} de {m.alvo}
                 </p>
               </li>

@@ -9,7 +9,7 @@ import { Button, Caixa, Campo, Card, Money, Pill, Empty, TONS_DO_BOTAO } from "@
 import { usePendencias } from "@/components/Console";
 import { Conversa, type Mensagem } from "@/components/Conversa";
 import { BonusDoComprador, type EstadoBonus } from "@/components/BonusDoComprador";
-import { apiRequest, ApiError } from "@/lib/queryClient";
+import { apiRequest, ApiError, getQueryFn } from "@/lib/queryClient";
 import { lerImagem } from "@/lib/anexo";
 import { PerfilPublicoCard } from "@/components/PerfilDoApostador";
 import { VerificacaoCard } from "@/components/Verificacao";
@@ -74,11 +74,15 @@ interface Conta {
   taxaReembolsoPct?: number;
   /**
    * Sobrou compra antiga, feita só pelo telefone e sem CPF gravado, que a
-   * conta ainda não provou ser dela. É o único caso em que a tela oferece o
-   * código do WhatsApp.
+   * conta ainda não provou ser dela. A tela avisa e oferece a confirmação do
+   * telefone da própria conta (`ConfirmarTelefoneDaConta`: o código vai ao
+   * número gravado e a sessão não troca) — a mesma de "Complete sua conta".
    */
   comprasAntigasOcultas?: boolean;
 }
+
+/** A lista de Minhas compras: confirmar o telefone e resgatar bônus a invalidam. */
+const MINHAS_COMPRAS = ["/api/public/my-quotas"];
 
 interface ChamadoResumo {
   id: string;
@@ -93,17 +97,23 @@ interface ChamadoResumo {
 
 /** Sem senha: telefone + código de acesso. */
 export default function MinhasCotas() {
-  const [conta, setConta] = useState<Conta | null>(null);
-  const [restaurando, setRestaurando] = useState(true);
-
-  // Quem já confirmou o telefone nesta sessão não digita o código de novo.
-  useEffect(() => {
-    apiRequest("GET", "/api/public/my-quotas")
-      .then((r) => r.json())
-      .then((c: Conta) => setConta(c))
-      .catch(() => undefined)
-      .finally(() => setRestaurando(false));
-  }, []);
+  const qc = useQueryClient();
+  // Quem já confirmou o telefone nesta sessão não digita o código de novo. É
+  // uma consulta (não um efeito solto): confirmar o telefone ou resgatar bônus
+  // a invalida e a lista se refaz — com as compras antigas e a taxa do reembolso.
+  const { data, isPending, isFetching } = useQuery<Conta | null>({
+    queryKey: MINHAS_COMPRAS,
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchOnMount: "always",
+  });
+  const conta = data ?? null;
+  const restaurando = isPending || (isFetching && !conta);
+  const setConta = (c: Conta | null) => {
+    qc.setQueryData(MINHAS_COMPRAS, c);
+    // A resposta de quem acabou de entrar não traz tudo o que a lista traz
+    // (`comprasAntigasOcultas`, `taxaReembolsoPct`): a tela busca de novo.
+    if (c) qc.invalidateQueries({ queryKey: MINHAS_COMPRAS });
+  };
 
   return (
     <PublicShell>
@@ -132,17 +142,13 @@ export default function MinhasCotas() {
   );
 }
 
-function Entrar({
-  aoEntrar,
-  telefoneFixo,
-  rotulo = "Confirmar",
-}: {
-  aoEntrar: (c: Conta) => void;
-  /** Confirmação do telefone da própria conta: o número não se escolhe. */
-  telefoneFixo?: string;
-  rotulo?: string;
-}) {
-  const [phone, setPhone] = useState(telefoneFixo ?? "");
+/**
+ * Entrar sem conta, pelo telefone e o código do WhatsApp (a sessão nasce de
+ * novo). A conta que já entrou confirma o telefone dela por
+ * `ConfirmarTelefoneDaConta`, que não troca a sessão.
+ */
+function Entrar({ aoEntrar }: { aoEntrar: (c: Conta) => void }) {
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -173,13 +179,12 @@ function Entrar({
   return (
     <Card>
       <div className="space-y-3 p-4">
-        {/* Sem `id` fixo: o mesmo formulário aparece no aviso das compras antigas e no "Complete sua conta". */}
         <Campo rotulo="WhatsApp">
           <input
             value={phone}
             inputMode="tel"
             autoComplete="tel"
-            disabled={step === "code" || Boolean(telefoneFixo)}
+            disabled={step === "code"}
             onChange={(e) => setPhone(e.target.value)}
             className="campo tnum text-sm disabled:bg-mist"
           />
@@ -208,10 +213,99 @@ function Entrar({
           disabled={request.isPending || verify.isPending}
           onClick={() => (step === "phone" ? request.mutate() : verify.mutate())}
         >
-          {step === "phone" ? "Receber código" : rotulo}
+          {step === "phone" ? "Receber código" : "Confirmar"}
         </Button>
       </div>
     </Card>
+  );
+}
+
+/**
+ * Confirmar o telefone da própria conta (`/conta/telefone/codigo` e
+ * `/confirmar`): o código vai ao número gravado na conta — não há campo de
+ * número — e a sessão continua a mesma (o "lembrar" fica). Confirmado, a
+ * lista de Minhas compras se refaz e as compras antigas aparecem.
+ */
+function ConfirmarTelefoneDaConta({ telefone }: { telefone: string }) {
+  const qc = useQueryClient();
+  const [codigo, setCodigo] = useState("");
+  const [enviado, setEnviado] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const erro = (e: Error) => setMsg({ ok: false, texto: e.message });
+  const pedir = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/public/conta/telefone/codigo", {})).json() as Promise<{ devCode?: string }>,
+    onSuccess: (r) => {
+      setEnviado(true);
+      setDevCode(r.devCode ?? null);
+      setMsg({ ok: true, texto: "Enviamos um código pelo WhatsApp." });
+    },
+    onError: erro,
+  });
+  const confirmar = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/public/conta/telefone/confirmar", { codigo }),
+    onSuccess: () => {
+      setEnviado(false);
+      setCodigo("");
+      setDevCode(null);
+      setMsg({ ok: true, texto: "Telefone confirmado." });
+      qc.invalidateQueries({ queryKey: MINHAS_COMPRAS });
+      qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
+      qc.invalidateQueries({ queryKey: ["/api/public/conta/perfil"] });
+      qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+    onError: erro,
+  });
+  return (
+    <div className="space-y-2">
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMsg(null);
+          pedir.mutate();
+        }}
+      >
+        <p className="min-w-0 flex-1 basis-48 text-ink-2">
+          O código vai para o WhatsApp da conta, <strong className="tnum whitespace-nowrap">{maskPhone(telefone)}</strong>.
+        </p>
+        <Button type="submit" variant={enviado ? "contorno" : "primario"} disabled={pedir.isPending}>
+          {enviado ? "Enviar de novo" : "Enviar código"}
+        </Button>
+      </form>
+      {enviado ? (
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            confirmar.mutate();
+          }}
+        >
+          <Campo
+            rotulo="Código de 6 dígitos"
+            className="min-w-0 flex-1 basis-40"
+            dica={devCode ? <span className="tnum">desenvolvimento — seu código é {devCode}</span> : undefined}
+          >
+            <input
+              className="campo tnum"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
+            />
+          </Campo>
+          <Button type="submit" disabled={confirmar.isPending || codigo.length < 6}>
+            Confirmar telefone
+          </Button>
+        </form>
+      ) : null}
+      {msg ? (
+        <p role={msg.ok ? "status" : "alert"} className={msg.ok ? "text-green-deep" : "text-red"}>
+          {msg.texto}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -320,13 +414,23 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
             Foram feitas antes da conta e sem CPF, então não dá para provar que são suas pelo
             cadastro. Confirme o número pelo código do WhatsApp e elas aparecem aqui.
           </p>
-          <div className="mt-2">
-            <Entrar aoEntrar={aoMudar} telefoneFixo={conta.phone} rotulo="Confirmar telefone" />
-          </div>
+          {conta.phone ? (
+            <div className="mt-2 rounded-lg bg-white p-3 text-ink">
+              <ConfirmarTelefoneDaConta telefone={conta.phone} />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`}>
+      {/* A aba aberta pela URL pode não estar na fileira (o Bônus com o programa
+          desligado): aí o painel leva o nome em texto, nunca um id que não existe. */}
+      <div
+        role="tabpanel"
+        id={`painel-${aba}`}
+        {...(abasDaConta.some(([v]) => v === aba)
+          ? { "aria-labelledby": `aba-${aba}` }
+          : { "aria-label": aba === "bonus" ? "Bônus" : "Minhas compras" })}
+      >
       {aba === "salvos" ? (
         <Salvos />
       ) : aba === "conta" ? (
@@ -335,7 +439,6 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
           telefone={conta.phone}
           // O aviso das compras antigas, acima, já traz a confirmação do telefone.
           confirmarAqui={!conta.comprasAntigasOcultas}
-          aoConfirmar={aoMudar}
         />
       ) : aba === "bonus" ? (
         bonus?.ligado ? <BonusDoComprador dados={bonus} /> : <Empty>O programa de bônus não está ativo.</Empty>
@@ -804,22 +907,21 @@ function Salvos() {
 /**
  * "Complete sua conta": a mesma lista do ponto na foto do perfil
  * (`pendenciasDaConta()`, por `usePendencias()`), e o que dá para fazer aqui
- * mesmo — o CPF e o telefone da conta do Google, a confirmação do telefone
- * pelo código do WhatsApp. O apelido mora em "Meu perfil público", logo abaixo.
+ * mesmo — o CPF e o telefone da conta do Google, e a confirmação do telefone
+ * da conta pelo código do WhatsApp (`ConfirmarTelefoneDaConta`, sem trocar a
+ * sessão). O apelido mora em "Meu perfil público", logo abaixo.
  */
 function CompletarConta({
   dados,
   pendencias,
   telefone,
   confirmarAqui,
-  aoConfirmar,
 }: {
   dados: DadosConta;
   pendencias: string[];
-  /** O telefone da sessão: o código vai para ele, nunca para outro número. */
+  /** O telefone da conta: o código vai para ele, nunca para outro número. */
   telefone: string;
   confirmarAqui: boolean;
-  aoConfirmar: (c: Conta) => void;
 }) {
   const qc = useQueryClient();
   const { data: sessao } = useSession();
@@ -832,6 +934,7 @@ function CompletarConta({
     qc.invalidateQueries({ queryKey: ["/api/public/conta"] });
     qc.invalidateQueries({ queryKey: ["/api/public/conta/perfil"] });
     qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    qc.invalidateQueries({ queryKey: MINHAS_COMPRAS });
   };
   const erro = (e: Error) => setMsg({ ok: false, texto: e.message });
   const salvarCpf = useMutation({
@@ -861,7 +964,8 @@ function CompletarConta({
     onError: erro,
   });
   const faltaTelefoneDoGoogle = dados.falta.includes("telefone");
-  const confirmarTelefone = confirmarAqui && !faltaTelefoneDoGoogle && Boolean(telefone) && !sessao?.buyer?.confirmado;
+  const confirmarTelefone =
+    confirmarAqui && !faltaTelefoneDoGoogle && Boolean(telefone) && !dados.telefoneConfirmado && !sessao?.buyer?.confirmado;
   return (
     <section aria-labelledby="titulo-completar" className="rounded-xl border border-green bg-green-soft p-3.5 text-sm">
       <h2 id="titulo-completar" className="font-bold text-green-deep">
@@ -923,16 +1027,7 @@ function CompletarConta({
             ) : null}
           </div>
         ) : null}
-        {confirmarTelefone ? (
-          <Entrar
-            aoEntrar={(c) => {
-              atualizar();
-              aoConfirmar(c);
-            }}
-            telefoneFixo={telefone}
-            rotulo="Confirmar telefone"
-          />
-        ) : null}
+        {confirmarTelefone ? <ConfirmarTelefoneDaConta telefone={telefone} /> : null}
         {msg ? (
           <p role="status" className={msg.ok ? "text-green-deep" : "text-red"}>
             {msg.texto}
@@ -989,12 +1084,10 @@ function MinhaConta({
   aoSair,
   telefone,
   confirmarAqui,
-  aoConfirmar,
 }: {
   aoSair: () => void;
   telefone: string;
   confirmarAqui: boolean;
-  aoConfirmar: (c: Conta) => void;
 }) {
   const qc = useQueryClient();
   const { data } = useQuery<DadosConta>({ queryKey: ["/api/public/conta"] });
@@ -1043,7 +1136,7 @@ function MinhaConta({
   return (
     <div className="mt-3 space-y-3">
       {pendencias.length ? (
-        <CompletarConta dados={data} pendencias={pendencias} telefone={telefone} confirmarAqui={confirmarAqui} aoConfirmar={aoConfirmar} />
+        <CompletarConta dados={data} pendencias={pendencias} telefone={telefone} confirmarAqui={confirmarAqui} />
       ) : null}
       <PerfilPublicoCard />
       {data.temSenha || semSenhaMasConta ? (

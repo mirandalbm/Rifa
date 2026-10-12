@@ -9,10 +9,16 @@ export function Progress({
   value,
   total,
   tone = "green",
+  rotulo,
+  texto,
 }: {
   value: number;
   total: number;
   tone?: "green" | "yellow";
+  /** O nome da barra para o leitor de tela (ex.: "Progresso da meta …"). */
+  rotulo?: string;
+  /** O número em texto para o leitor de tela (ex.: "3 de 5"); sem ele, só o percentual. */
+  texto?: string;
 }) {
   const pct = percent(value, total);
   return (
@@ -22,6 +28,8 @@ export function Progress({
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
+      aria-valuetext={texto}
+      aria-label={rotulo}
     >
       <div
         className={`h-full rounded-full ${tone === "yellow" ? "bg-yellow" : "bg-green"}`}

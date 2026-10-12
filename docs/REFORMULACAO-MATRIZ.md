@@ -1760,8 +1760,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta/google/ligar` | `google-test.ts` |
 | GET | `/conta/google/retorno` | `google-test.ts` |
 | POST | `/conta/cpf` | `google-test.ts` |
-| POST | `/conta/telefone/codigo` | `google-test.ts` |
-| POST | `/conta/telefone/confirmar` | `google-test.ts` |
+| POST | `/conta/telefone/codigo` | `conta-test.ts`, `google-test.ts` |
+| POST | `/conta/telefone/confirmar` | `conta-test.ts`, `google-test.ts` |
 | DELETE | `/conta/google` | `google-test.ts` |
 | POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +15 |
 | POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `telas.ts` |

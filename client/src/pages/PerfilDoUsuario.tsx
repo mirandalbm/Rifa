@@ -307,7 +307,7 @@ function PerfilDoApostadorDaConta() {
   ];
   const abas: Aba[] = [
     { chave: "bilhetes", rotulo: "Bilhetes", icone: (ativa) => <List size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
-    { chave: "republicacoes", rotulo: "Republicações", icone: () => <IconeRepublicar tamanho={22} /> },
+    { chave: "republicacoes", rotulo: "Republicações", icone: (ativa) => <IconeRepublicar tamanho={22} aceso={ativa} /> },
     // O Figma desenha a sacola; a sacola é o Carrinho do console, então Salvos segue com o marcador.
     { chave: "salvos", rotulo: "Salvos", icone: (ativa) => <Bookmark size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
   ];

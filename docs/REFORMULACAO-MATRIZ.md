@@ -1570,7 +1570,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/patrocinio/reembolsos/:id/mensagens` | `patrocinio-test.ts` |
 | POST | `/patrocinio/reembolsos/:id/decisao` | `isolation-test.ts`, `patrocinio-test.ts`, `retencao-test.ts` |
 | POST | `/patrocinio/reembolsos/:id/pago` | `isolation-test.ts`, `patrocinio-test.ts`, `retencao-test.ts` |
-| POST | `/patrocinio/recargas` | `patrocinio-test.ts` |
+| POST | `/patrocinio/recargas` | `pagarme-test.ts`, `patrocinio-test.ts` |
 | PUT | `/patrocinio/config` | `isolation-test.ts`, `patrocinio-test.ts` |
 | POST | `/patrocinio/ajustes` | `banner-pago-test.ts`, `isolation-test.ts`, `patrocinio-test.ts` |
 | GET | `/marketing` | `marketing-test.ts` |

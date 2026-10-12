@@ -34,9 +34,13 @@ import {
   orders,
   organizations,
   platformCharges,
+  quotaAlloc,
+  users,
   webhookEvents,
 } from "../shared/schema";
 import { PagarmeProvider, autorizacaoBasic } from "../server/payments/pagarme";
+import { expirarReservas } from "../server/services/reservasVencidas";
+import { hashPassword } from "../server/auth";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -51,7 +55,10 @@ const URL_PAGARME = process.env.PAGARME_API_URL?.trim() ?? "";
 
 const PREFIXO = "pagarme-teste-";
 const ORG_SLUG = "pagarme-teste-promotora";
-const TELEFONES = ["11973330001", "11973330002", "11973330003", "11973330004", "11973330005"];
+const TELEFONES = ["11973330001", "11973330002", "11973330003", "11973330004", "11973330005", "11973330006", "11973330007", "11973330008", "11973330009"];
+const EMAIL_ORG = "pagarme-org@teste.rifa";
+/** Celular de 11 algarismos sem o 9: o Pagar.me não aceita (o nosso formulário sim). */
+const TELEFONE_FORA = "11873330008";
 const CPF = "52998224725";
 const EMAIL = "comprador.pagarme@exemplo.com.br";
 
@@ -71,7 +78,13 @@ interface Cobranca {
   amount: number;
   paid_amount: number | null;
   canceled_amount: number;
+  /** A consulta responde sem `canceled_amount` (o campo que pode faltar). */
+  semCancelado?: boolean;
 }
+/** O Pagar.me de mentira que ignora o `amount` do estorno e devolve tudo. */
+let ignoraAmount = false;
+/** O Pagar.me de mentira que recusa o pedido (500). */
+let recusaPedidos = false;
 const cobrancas = new Map<string, Cobranca>();
 let seq = 0;
 const novoId = (p: string) => `${p}_${Date.now().toString(36)}${(++seq).toString(36)}TESTE`;
@@ -102,6 +115,7 @@ function servidorDeMentira(porta: number, prefixo: string) {
       if (req.headers.authorization !== autorizacaoBasic(CHAVE)) return responde(401, { message: "Authorization has been denied for this request." });
       const caminho = url.replace(prefixo, "");
       if (req.method === "POST" && caminho === "/orders") {
+        if (recusaPedidos) return responde(500, { message: "Internal error." });
         const valor = corpo?.items?.[0]?.amount;
         const id = novoId("ch");
         cobrancas.set(id, { id, status: "pending", amount: valor, paid_amount: null, canceled_amount: 0 });
@@ -130,13 +144,18 @@ function servidorDeMentira(porta: number, prefixo: string) {
       const m = /^\/charges\/(ch_[A-Za-z0-9]+)$/.exec(caminho);
       const c = m ? cobrancas.get(m[1]) : undefined;
       if (m && !c) return responde(404, { message: "Charge not found." });
-      if (req.method === "GET" && c) return responde(200, { ...c, payment_method: "pix" });
+      const comoA = (x: Cobranca) => {
+        const { semCancelado, ...resto } = x;
+        return semCancelado ? { ...resto, canceled_amount: undefined } : resto;
+      };
+      if (req.method === "GET" && c) return responde(200, { ...comoA(c), payment_method: "pix" });
       if (req.method === "DELETE" && c) {
         if (c.status === "pending") {
           c.status = "canceled";
           return responde(200, c);
         }
-        const valor = typeof corpo?.amount === "number" ? corpo.amount : (c.paid_amount ?? c.amount) - c.canceled_amount;
+        const resto = (c.paid_amount ?? c.amount) - c.canceled_amount;
+        const valor = typeof corpo?.amount === "number" && !ignoraAmount ? corpo.amount : resto;
         c.canceled_amount += valor;
         if (c.canceled_amount >= (c.paid_amount ?? c.amount)) c.status = "refunded";
         return responde(200, c);
@@ -174,17 +193,21 @@ async function limpar() {
   if (ids.length) {
     const ps = await db.select({ id: orders.id }).from(orders).where(inArray(orders.campaignId, ids));
     if (ps.length) {
+      await db.execute(sql`delete from pix_tardios where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
       await db.execute(sql`delete from commissions where order_id in (${sql.join(ps.map((p) => sql`${p.id}`), sql`, `)})`);
       await db.delete(platformCharges).where(inArray(platformCharges.orderId, ps.map((p) => p.id)));
     }
     await db.delete(campaigns).where(inArray(campaigns.id, ids));
   }
-  const gente = await db.select({ id: buyers.id }).from(buyers).where(inArray(buyers.phone, TELEFONES));
+  const gente = await db.select({ id: buyers.id }).from(buyers).where(inArray(buyers.phone, [...TELEFONES, TELEFONE_FORA]));
   if (gente.length) {
     await db.delete(carrinhoPedidos).where(inArray(carrinhoPedidos.buyerId, gente.map((g) => g.id)));
     await db.delete(buyers).where(inArray(buyers.id, gente.map((g) => g.id))).catch(() => {});
   }
   await db.delete(webhookEvents).where(and(eq(webhookEvents.provider, "pagarme"), like(webhookEvents.externalId, "hook_PAGTESTE%")));
+  await db.execute(sql`delete from patrocinio_recargas where organization_id in (select id from organizations where slug = ${ORG_SLUG})`).catch(() => {});
+  await db.execute(sql`delete from patrocinio_lancamentos where organization_id in (select id from organizations where slug = ${ORG_SLUG})`).catch(() => {});
+  await db.delete(users).where(eq(users.email, EMAIL_ORG));
   await db.execute(sql`delete from rate_events where bucket like 'order:%' or bucket like 'login:%'`);
   await db.execute(sql`delete from pix_volume_mensal where organization_id in (select id from organizations where slug = ${ORG_SLUG})`).catch(() => {});
   await db.delete(organizations).where(eq(organizations.slug, ORG_SLUG));
@@ -195,12 +218,14 @@ const pedidoPorCodigo = async (code: number) => (await db.select().from(orders).
 
 let hookSeq = 0;
 const hookId = () => `hook_PAGTESTE${Date.now().toString(36)}${++hookSeq}`;
+let ultimoRetryAfter: string | null = null;
 async function webhook(corpo: unknown, t: string | null) {
   const r = await fetch(`${URL}/api/webhooks/pagarme${t === null ? "" : `?t=${encodeURIComponent(t)}`}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(corpo),
   });
+  ultimoRetryAfter = r.headers.get("retry-after");
   return r.status;
 }
 
@@ -327,17 +352,42 @@ async function main() {
     checa("…e nenhum dos dois consultou o Pagar.me", consultasAntes === 0);
     st = await webhook(evPago(hookId(), ch1), SEGREDO);
     let p1 = await pedidoPorCodigo(pedido1!.code);
-    checa("o corpo diz pago, a API diz pendente: nada pago (e o Pagar.me tenta de novo)", st === 400 && p1.status === "pending", `HTTP ${st} ${p1.status}`);
+    checa(
+      "o corpo diz pago, a API diz pendente: nada pago, 503 com Retry-After (o Pagar.me tenta de novo)",
+      st === 503 && ultimoRetryAfter !== null && Number(ultimoRetryAfter) > 0 && p1.status === "pending",
+      `HTTP ${st} Retry-After ${ultimoRetryAfter} ${p1.status}`,
+    );
     checa("o status veio da consulta à cobrança", pedidos.some((p) => p.metodo === "GET" && p.url.endsWith(`/charges/${ch1}`)));
 
     const c1 = cobrancas.get(ch1)!;
     c1.status = "paid";
     c1.paid_amount = c1.amount;
     const hookPago = hookId();
-    st = await webhook(evPago(hookPago, ch1), SEGREDO);
+    // O corpo de verdade traz a cobrança inteira, com o cliente: nada disso pode ficar guardado.
+    st = await webhook(
+      {
+        ...evPago(hookPago, ch1),
+        data: { id: ch1, status: "paid", customer: { name: "Comprador Pagarme 1", email: EMAIL, document: CPF, phones: { mobile_phone: { area_code: "11", number: "973330002" } } } },
+      },
+      SEGREDO,
+    );
     p1 = await pedidoPorCodigo(pedido1!.code);
     const vendidasDepois = (await statsDe(a.id)).soldCount;
     checa("com a cobrança paga na API: o pedido é pago", st === 200 && p1.status === "paid" && vendidasDepois === 4, `HTTP ${st} ${p1.status} vendidas ${vendidasDepois}`);
+    const [guardado] = await db.select().from(webhookEvents).where(and(eq(webhookEvents.provider, "pagarme"), eq(webhookEvents.externalId, hookPago)));
+    const textoGuardado = JSON.stringify(guardado?.payload ?? null);
+    checa(
+      "o evento guardado tem só o id, o tipo e a cobrança — sem o cliente",
+      // O jsonb do Postgres reordena as chaves: confere campo a campo.
+      Object.keys((guardado?.payload ?? {}) as object).sort().join(",") === "data,id,type" &&
+        (guardado?.payload as any)?.id === hookPago &&
+        (guardado?.payload as any)?.type === "charge.paid" &&
+        JSON.stringify((guardado?.payload as any)?.data) === JSON.stringify({ id: ch1 }) &&
+        !textoGuardado.includes(EMAIL) &&
+        !textoGuardado.includes(CPF) &&
+        !textoGuardado.includes("Comprador"),
+      textoGuardado,
+    );
     st = await webhook(evPago(hookPago, ch1), SEGREDO);
     checa("o mesmo evento de novo: 200, nada a mais", st === 200 && (await statsDe(a.id)).soldCount === 4);
     st = await webhook(evPago(hookId(), ch1), SEGREDO);
@@ -379,10 +429,25 @@ async function main() {
     c2.status = "paid";
     c2.paid_amount = c2.amount;
     let antesDel = pedidos.filter((p) => p.metodo === "DELETE").length;
-    await prov.cancelCharge(ch2);
+    const resultado = await prov.cancelCharge(ch2);
     checa(
-      "cobrança paga: só consulta, nada é cancelado (o Pix tardio segue para a fila)",
-      pedidos.filter((p) => p.metodo === "DELETE").length === antesDel && c2.status === "paid" && c2.canceled_amount === 0,
+      "cobrança paga: só consulta, nada é cancelado, e quem chamou fica sabendo (\"paga\")",
+      resultado === "paga" && pedidos.filter((p) => p.metodo === "DELETE").length === antesDel && c2.status === "paid" && c2.canceled_amount === 0,
+    );
+    // O relógio da reserva vencida, sem nenhum webhook: a reserva vence, e a
+    // cobrança paga no Pagar.me vai para a fila do Pix tardio.
+    await db.update(quotaAlloc).set({ reservedUntil: new Date(Date.now() - 60_000) }).where(eq(quotaAlloc.orderId, p2!.id));
+    await expirarReservas();
+    let tardio: { motivo: string }[] = [];
+    for (let i = 0; i < 20 && !tardio.length; i++) {
+      tardio = (await db.execute(sql`select motivo from pix_tardios where order_id = ${p2!.id}`)).rows as { motivo: string }[];
+      if (!tardio.length) await new Promise((ok) => setTimeout(ok, 250));
+    }
+    const p2Depois = await pedidoPorCodigo(p2!.code);
+    checa(
+      "reserva vencida com a cobrança paga e sem webhook: o relógio a põe na fila do Pix tardio",
+      p2Depois.status === "expired" && tardio[0]?.motivo === "reserva_vencida",
+      `${p2Depois.status} ${tardio[0]?.motivo ?? "sem linha"}`,
     );
     r = await new Cliente().req("POST", "/api/public/orders", { campaignId: b.id, quantity: 1, buyer: comprador(3, { cpf: CPF, email: EMAIL }) });
     const p3 = await pedidoPorCodigo(r.json?.code ?? 0);
@@ -420,6 +485,99 @@ async function main() {
     st = await webhook(evPago(hookId(), chC), SEGREDO);
     const pagos = await db.select().from(orders).where(eq(orders.carrinhoId, carrinho!.id));
     checa("o Pix pago paga as duas rifas", st === 200 && pagos.length === 2 && pagos.every((o) => o.status === "paid"), `HTTP ${st} ${pagos.map((o) => o.status).join(",")}`);
+
+    console.log("\n  estorno e contestação avisados pelo Pagar.me:");
+    const statusDoCarrinho = async () => (await db.select().from(orders).where(eq(orders.carrinhoId, carrinho!.id))).map((o) => o.status).join(",");
+    cC.status = "refunded";
+    cC.semCancelado = true;
+    st = await webhook({ id: hookId(), type: "charge.refunded", data: { id: chC } }, SEGREDO);
+    let situacao = await statusDoCarrinho();
+    checa("\"estornada\" sem o valor cancelado na API: não desfaz o carrinho (na dúvida, nada)", st === 200 && situacao === "paid,paid", `HTTP ${st} ${situacao}`);
+    cC.status = "paid";
+    cC.semCancelado = false;
+    st = await webhook({ id: hookId(), type: "charge.chargedback", data: { id: chC } }, SEGREDO);
+    situacao = await statusDoCarrinho();
+    checa("contestação avisada com a cobrança ainda paga na API: nada", st === 200 && situacao === "paid,paid", `HTTP ${st} ${situacao}`);
+    cC.status = "chargedback";
+    st = await webhook({ id: hookId(), type: "charge.chargedback", data: { id: chC } }, SEGREDO);
+    situacao = await statusDoCarrinho();
+    checa("contestação confirmada pela API: os dois pedidos do carrinho são estornados", st === 200 && situacao === "refunded,refunded", `HTTP ${st} ${situacao}`);
+
+    console.log("\n  pago a mais e pago a menos:");
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(5, { cpf: CPF, email: EMAIL }) });
+    const pMais = await pedidoPorCodigo(r.json?.code ?? 0);
+    const cMais = cobrancas.get(pMais!.pspChargeId!)!;
+    cMais.status = "overpaid";
+    cMais.paid_amount = cMais.amount + 1;
+    st = await webhook({ id: hookId(), type: "charge.overpaid", data: { id: cMais.id } }, SEGREDO);
+    checa("overpaid (entrou pelo menos o valor): paga", st === 200 && (await pedidoPorCodigo(pMais!.code)).status === "paid", `HTTP ${st}`);
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: a.id, quantity: 2, buyer: comprador(6, { cpf: CPF, email: EMAIL }) });
+    const pMenos = await pedidoPorCodigo(r.json?.code ?? 0);
+    const cMenos = cobrancas.get(pMenos!.pspChargeId!)!;
+    cMenos.status = "underpaid";
+    cMenos.paid_amount = cMenos.amount - 1;
+    st = await webhook({ id: hookId(), type: "charge.underpaid", data: { id: cMenos.id } }, SEGREDO);
+    let menos = await pedidoPorCodigo(pMenos!.code);
+    checa("underpaid avisado: ignorado (200), o pedido segue esperando", st === 200 && menos.status === "pending", `HTTP ${st} ${menos.status}`);
+    st = await webhook(evPago(hookId(), cMenos.id), SEGREDO);
+    menos = await pedidoPorCodigo(pMenos!.code);
+    checa("\"pago\" com a API dizendo underpaid: não paga", st === 200 && menos.status === "pending", `HTTP ${st} ${menos.status}`);
+
+    console.log("\n  estorno parcial que viraria total:");
+    ignoraAmount = true;
+    let erroParcial = "";
+    try {
+      await prov.refund(cMais.id, 100, `pedido-${pMais!.code}`);
+    } catch (err) {
+      erroParcial = (err as Error).message;
+    }
+    ignoraAmount = false;
+    checa("o Pagar.me ignorou o amount e devolveu tudo: o estorno parcial falha", /no lugar de 100/.test(erroParcial), erroParcial || "não falhou");
+
+    console.log("\n  quem paga, antes de reservar:");
+    const chamadas2 = pedidos.length;
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: b.id, quantity: 1, buyer: { name: "Comprador Pagarme 7", phone: TELEFONE_FORA, cpf: CPF, email: EMAIL } });
+    checa("telefone fora do formato do Pagar.me (celular sem o 9): 400", r.status === 400 && /WhatsApp/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    const longo = `${"a".repeat(60)}@exemplo.com`;
+    r = await new Cliente().req("POST", "/api/public/orders", { campaignId: b.id, quantity: 1, buyer: comprador(7, { cpf: CPF, email: longo }) });
+    checa("e-mail acima de 64 letras: 400, nunca cortado", r.status === 400 && /até 64/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await new Cliente().req("POST", "/api/public/carrinho/checkout", { itens: [{ slug: b.slug, quantidade: 1 }], buyer: comprador(7, { cpf: CPF, email: longo }) });
+    checa("…também no carrinho", r.status === 400 && /até 64/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+    const semPedido7 = (await db.select({ id: buyers.id }).from(buyers).where(inArray(buyers.phone, [TELEFONE_FORA, TELEFONES[7]]))).length === 0;
+    checa("nada reservado, nenhum comprador gravado e o Pagar.me não foi chamado", semPedido7 && pedidos.length === chamadas2);
+
+    console.log("\n  recarga do patrocínio:");
+    await db.update(organizations).set({ cnpj: "11222333000181" }).where(eq(organizations.id, org.id));
+    await db.insert(users).values({ role: "organizer", organizationId: org.id, name: "Org Pagarme", email: EMAIL_ORG, passwordHash: await hashPassword("senha-pagarme-1") });
+    const dono = new Cliente();
+    r = await dono.req("POST", "/api/auth/login", { email: EMAIL_ORG, password: "senha-pagarme-1" });
+    checa("o organizador entra", r.status === 200, `HTTP ${r.status}`);
+    const recargas = async () => Number(((await db.execute(sql`select count(*)::int as n from patrocinio_recargas where organization_id = ${org.id}`)).rows[0] as { n: number }).n);
+    const chamadas3 = pedidos.length;
+    r = await dono.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 5000 });
+    checa(
+      "sem WhatsApp no acesso nem telefone aprovado: 400 antes de gravar a recarga",
+      r.status === 400 && /WhatsApp/.test(r.json?.message ?? "") && (await recargas()) === 0 && pedidos.length === chamadas3,
+      `HTTP ${r.status} ${r.json?.message ?? ""}`,
+    );
+    await db.update(organizations).set({ telefoneOrganizador: "11973339999", telefoneConfirmadoEm: new Date(), telefoneAprovadoEm: new Date() }).where(eq(organizations.id, org.id));
+    recusaPedidos = true;
+    r = await dono.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 5000 });
+    recusaPedidos = false;
+    const depoisDaRecusa = await recargas();
+    checa("o Pagar.me recusou o Pix: a recarga não fica órfã", r.status >= 400 && depoisDaRecusa === 0, `HTTP ${r.status} recargas ${depoisDaRecusa}`);
+    r = await dono.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 5000 });
+    const criacaoRecarga = pedidos.filter((p) => p.metodo === "POST" && p.url.endsWith("/orders")).at(-1);
+    checa(
+      "com o telefone aprovado da organização: Pix da recarga com ele, o e-mail do acesso e o CNPJ",
+      r.status === 201 &&
+        criacaoRecarga?.corpo?.customer?.phones?.mobile_phone?.number === "973339999" &&
+        criacaoRecarga.corpo.customer.email === EMAIL_ORG &&
+        criacaoRecarga.corpo.customer.document === "11222333000181" &&
+        criacaoRecarga.corpo.customer.type === "company" &&
+        (await recargas()) === 1,
+      `HTTP ${r.status} ${r.json?.message ?? ""}`,
+    );
 
     checa("a chave nunca foi para uma URL", pedidos.every((p) => !p.url.includes(CHAVE)));
   } finally {

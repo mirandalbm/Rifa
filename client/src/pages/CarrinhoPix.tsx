@@ -1,9 +1,9 @@
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { ShieldCheck } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { Card, Money, Pill } from "@/components/bits";
-import { PixParaPagar, useCountdown } from "@/components/PixParaPagar";
-import { agruparPorOrganizacao } from "@shared/carrinho";
+import { Card, Money } from "@/components/bits";
+import { PixParaPagar, PrazoDaReserva, SituacaoDoPedido } from "@/components/PixParaPagar";
 
 interface PedidoDoCarrinho {
   code: number;
@@ -26,7 +26,8 @@ interface CarrinhoView {
 /**
  * O Pix do carrinho: um só, para todas as rifas. Pergunta a cada 4 s até o
  * webhook chegar; pago, cada rifa mostra o seu pedido, com os números e o
- * bilhete — a compra continua sendo pedido a pedido.
+ * bilhete — a compra continua sendo pedido a pedido. Tudo o que aparece
+ * (valores, situação, prazo) vem do servidor.
  */
 export default function CarrinhoPix() {
   const { codigo } = useParams<{ codigo: string }>();
@@ -34,7 +35,6 @@ export default function CarrinhoPix() {
     queryKey: [`/api/public/carrinho/pedidos/${codigo}`],
     refetchInterval: (q) => (q.state.data?.status === "pending" ? 4000 : false),
   });
-  const countdown = useCountdown(data?.status === "pending" ? data.expiresAt : null);
 
   if (!data) {
     return (
@@ -44,66 +44,78 @@ export default function CarrinhoPix() {
     );
   }
 
-  const grupos = agruparPorOrganizacao(data.pedidos.map((p) => ({ ...p, organizacao: p.organizacao })));
+  const pendente = data.status === "pending";
 
   return (
     <PublicShell>
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl font-extrabold">Carrinho</h1>
-        <span className="tnum text-xs text-muted">#{data.codigo}</span>
+      <div className="space-y-3.5">
+        <div className="flex items-baseline justify-between gap-3">
+          <h1 className="min-w-0 font-display text-2xl font-extrabold">{pendente ? "Pague com Pix" : "Carrinho"}</h1>
+          <span className="tnum shrink-0 font-mono text-xs text-muted">carrinho #{data.codigo}</span>
+        </div>
+
+        {pendente ? (
+          <PrazoDaReserva expiresAt={data.expiresAt} />
+        ) : data.status === "paid" ? (
+          <div className="rounded-lg bg-green-soft px-3 py-3 text-center text-sm text-green-deep">
+            <p className="font-display text-lg font-bold">Pagamento confirmado!</p>
+            <p className="mt-1">Os números de cada rifa estão no pedido dela, logo abaixo. Boa sorte.</p>
+          </div>
+        ) : (
+          <div className="rounded-lg bg-mist px-3 py-3 text-center text-sm text-ink-2">
+            <p className="font-semibold text-ink">A reserva venceu.</p>
+            <p className="mt-1">Os números voltaram para as rifas e o Pix foi cancelado. Monte o carrinho de novo.</p>
+            <Link href="/" className="mt-2 inline-block min-h-6 font-semibold text-green-deep underline">
+              Ver rifas no ar
+            </Link>
+          </div>
+        )}
+
+        {pendente && data.pix.copyPaste ? (
+          <PixParaPagar
+            qr={data.pix.qr}
+            copyPaste={data.pix.copyPaste}
+            amountCents={data.totalCents}
+            pedidoParaSimular={data.pedidos[0]?.code}
+          />
+        ) : null}
+
+        <Card title={pendente ? "Neste Pix" : `Rifas (${data.pedidos.length})`}>
+          <ul className="divide-y divide-line px-4">
+            {data.pedidos.map((p) => (
+              <li key={p.code} className="flex items-center gap-3 py-3 text-sm">
+                <Link href={`/pedido/${p.code}`} className="min-w-0 flex-1">
+                  <span className="block font-medium leading-snug">
+                    {p.rifa.titulo} · <span className="tnum">{p.quantity}</span> cota{p.quantity === 1 ? "" : "s"}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {p.organizacao.nome} · pedido <span className="tnum">#{p.code}</span>
+                  </span>
+                </Link>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Money cents={p.amountCents} className="font-medium" />
+                  {/* No Pix ainda em aberto todos esperam juntos; depois, cada pedido diz a sua situação. */}
+                  {pendente ? null : <SituacaoDoPedido status={p.status} />}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-between border-t border-line px-4 py-3 text-sm font-semibold">
+            <span>{pendente ? "Total" : "Total do Pix"}</span>
+            <Money cents={data.totalCents} className="text-green-deep" />
+          </div>
+        </Card>
+
+        {pendente ? (
+          <p className="flex items-start gap-2.5 rounded-lg bg-green-soft px-3 py-3 text-[13px] leading-5 text-green-deep">
+            <ShieldCheck size={16} aria-hidden className="mt-0.5 shrink-0" />
+            <span>
+              O Pix é sempre da plataforma, nunca da organização. Assim que cair, os números de cada rifa aparecem aqui
+              e vão para o seu WhatsApp.
+            </span>
+          </p>
+        ) : null}
       </div>
-
-      {data.status === "pending" ? (
-        <div className="mt-3 rounded-md bg-yellow-soft px-3 py-2 text-center font-mono text-sm text-yellow-deep">
-          reserva garantida por <b className="font-medium">{countdown.label}</b>
-        </div>
-      ) : data.status === "paid" ? (
-        <div className="mt-3 rounded-md bg-green-soft px-3 py-3 text-center text-sm text-green-deep">
-          <p className="font-display text-base font-bold">Pagamento confirmado!</p>
-          <p className="mt-1">Os números de cada rifa estão no pedido dela, logo abaixo. Boa sorte.</p>
-        </div>
-      ) : (
-        <div className="mt-3 rounded-md bg-red-soft px-3 py-3 text-center text-sm text-red">
-          A reserva expirou e os números voltaram para as rifas. Monte o carrinho de novo.
-        </div>
-      )}
-
-      {data.status === "pending" && data.pix.copyPaste ? (
-        <PixParaPagar
-          qr={data.pix.qr}
-          copyPaste={data.pix.copyPaste}
-          amountCents={data.totalCents}
-          pedidoParaSimular={data.pedidos[0]?.code}
-        />
-      ) : null}
-
-      <Card title={`Rifas (${data.pedidos.length})`}>
-        <div className="divide-y divide-line">
-          {grupos.map((g) => (
-            <section key={g.slug} aria-label={g.itens[0].organizacao.nome} className="px-4 py-3">
-              <p className="text-xs font-semibold text-muted">{g.itens[0].organizacao.nome}</p>
-              <ul className="mt-1 space-y-2">
-                {g.itens.map((p) => (
-                  <li key={p.code} className="flex items-center gap-2 text-sm">
-                    <Link href={`/pedido/${p.code}`} className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{p.rifa.titulo}</span>
-                      <span className="tnum text-xs text-muted">
-                        {p.quantity} cota(s) · pedido #{p.code}
-                      </span>
-                    </Link>
-                    <Money cents={p.amountCents} className="text-sm" />
-                    <Pill status={p.status} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-        <div className="flex justify-between border-t border-line px-4 py-3 text-sm font-medium">
-          <span>Total do Pix</span>
-          <Money cents={data.totalCents} className="text-green-deep" />
-        </div>
-      </Card>
     </PublicShell>
   );
 }

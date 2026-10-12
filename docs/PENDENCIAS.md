@@ -108,12 +108,35 @@ senha); **[código]** é trabalho no repositório.
   contrato da promotora sobre o repasse (prazo: depois do sorteio; forma:
   Pix com comprovante e recibo; o que se desconta: taxa, comissão guardada,
   estornos, MED e contestação). O repasse no código espera essa resposta.
-- [ ] **[código]** Integrar o Pagar.me (`server/payments/`, `PaymentProvider`)
-  com o recebedor de cada organização no lugar da carteira do Asaas: plano
-  em `docs/PLANO-GATEWAY-PAGARME.md` (documentação lida em 10/10/2026). O
-  Asaas e o Mercado Pago (abaixo) ficam no código até a troca. Pela busca,
-  o Asaas põe loterias como "uso restrito" (empresa, com documentos), e não
-  como proibidas: vale perguntar a ele também.
+- [x] **[código]** Provedor Pagar.me, fase 1 do gateway, **sem split**
+  (12/10/2026): `server/payments/pagarme.ts` (Pix pela API v5 com o cliente
+  completo e o QR vencendo com a reserva; webhook com o segredo no endereço
+  e o status sempre da consulta à cobrança; estorno total e parcial com a
+  chave de idempotência; cancelamento só da cobrança pendente), o e-mail de
+  quem paga exigido no servidor antes de reservar (`EXIGE_EMAIL`, também no
+  carrinho, na recarga do patrocínio e no Pix do assistente). `npm run
+  pagarme` prova contra um Pagar.me de mentira; `tests/pagarme.test.ts` as
+  regras. O que ficou **a confirmar** com o Pagar.me está em
+  `docs/PLANO-GATEWAY-PAGARME.md`, seção 6.
+- [ ] **[código]** **O campo de e-mail na tela de compra** (página da rifa e
+  carrinho, só quando o provedor em uso exige) ficou fora do PR do Pagar.me:
+  o registro de `docs/VERSOES.md` já tinha 10 mudanças `aguardando leva`, e a
+  próxima mudança de tela é a leva. Entra logo depois dela. **Até lá, não
+  escolha o Pagar.me em Configurações → Pagamentos**: sem o campo, o
+  comprador sem conta (e a conta sem e-mail) recebe "Informe um e-mail
+  válido" e não compra.
+- [ ] **[você]** Pagar.me no Railway: `PAGARME_SECRET_KEY` (a chave secreta
+  `sk_…` da conta) e `PAGARME_WEBHOOK_TOKEN` (um segredo longo, gerado por
+  você); no painel do Pagar.me, cadastrar o webhook
+  `https://<site>/api/webhooks/pagarme?t=<o mesmo segredo>` com os eventos
+  `charge.paid`, `charge.refunded` e `charge.partial_canceled`. Fazer um Pix
+  de teste no ambiente de teste (sdx) antes de escolher o provedor no painel,
+  conferindo os itens "a confirmar" do plano.
+- [ ] **[código]** Repasse à promotora (a fase que substitui o split): espera
+  a resposta do advogado (item acima). Asaas e Mercado Pago (abaixo) ficam no
+  código até o Pagar.me estar em produção. Pela busca, o Asaas põe loterias
+  como "uso restrito" (empresa, com documentos), e não como proibidas: vale
+  perguntar a ele também.
   - Mercado Pago: `MP_ACCESS_TOKEN` e `MP_WEBHOOK_SECRET` no Railway.
   - Asaas: `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` no Railway; cadastrar o
     webhook `/api/webhooks/asaas` no painel do Asaas; cadastrar a carteira

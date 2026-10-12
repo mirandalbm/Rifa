@@ -93,7 +93,7 @@ arquitetura.
 | mexer em reserva/alocação | `server/services/quotas.ts` |
 | cartelas da compra rápida e mapa de números | `sugerirCartelas()` em `server/services/quotas.ts`, `client/src/components/Cartelas.tsx`, `client/src/pages/Rifa.tsx`, o quadriculado em `client/src/lib/quadro.ts` e `.quadro` em `client/src/index.css` |
 | mexer no fluxo do pedido | `server/services/orders.ts` |
-| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`) |
+| trocar o provedor de pagamento | `server/payments/` — implemente `PaymentProvider`; a escolha é do painel (`shared/plataforma.ts`: `PROVEDORES_PIX`, `CREDENCIAIS_PROVEDOR`, `EXIGE_CPF`, `EXIGE_EMAIL`); o Pagar.me (fase 1, sem split) em `server/payments/pagarme.ts`, `scripts/pagarme-test.ts` (`npm run pagarme`), `tests/pagarme.test.ts`, `docs/PLANO-GATEWAY-PAGARME.md` |
 | regras de publicação e mídia | `server/services/campaigns.ts`, `server/routes/admin.ts` |
 | sorteio | `server/services/draw.ts` (a conta), `server/services/sortear.ts` (`executarSorteio`: travas, recusas, avisos — o botão do painel e o sorteio automático), `entropiaDoSorteio()` em `shared/sorteio.ts` |
 | segundo fator (e o segredo selado no cofre) | `server/services/totp.ts`, `server/services/segundoFator.ts`, `scripts/senha-test.ts` |
@@ -1776,6 +1776,42 @@ permite cobrar dela depois, e o aceite é a prova.
   devolução) conclui o evento — repetir daria o mesmo. Cada passo do
   processamento é idempotente por si, por isso retomar nunca cobra, credita ou
   estorna duas vezes. `npm run webhook` prova, inclusive a retomada.
+
+- **Pagar.me (fase 1 do gateway, sem split)** (`server/payments/pagarme.ts`,
+  `docs/PLANO-GATEWAY-PAGARME.md`): a plataforma recebe o Pix inteiro — o
+  provedor **ignora o `split`** e nunca diz `splitAplicado` (a taxa segue
+  devida no livro; o repasse à promotora é outra fase). API v5 com Basic da
+  `PAGARME_SECRET_KEY` **só no cabeçalho** (nunca em URL, log, resposta ou
+  erro), prazo de 10 s por chamada, `PAGARME_API_URL` só fora de produção
+  (`baseDoPagarme()`, para a prova). O Pix leva o cliente completo (nome,
+  e-mail, CPF ou CNPJ e telefone) e **vence com a reserva** (`expires_at`); o
+  pedido guarda a cobrança `ch_…`, e o QR é desenhado aqui do copia e cola.
+  - **O webhook leva o segredo no endereço** (a autenticação do Pagar.me
+    não está documentada): `/api/webhooks/pagarme?t=<PAGARME_WEBHOOK_TOKEN>`,
+    comparado em tempo constante — sem ele ou errado, **401** (o roteador
+    passa a consulta ao provedor e responde 401 só ao erro com esse status).
+    O status vem **sempre da consulta** (`GET /charges/{id}`): `charge.paid`
+    com a cobrança ainda pendente na API é recusado (400, o Pagar.me tenta de
+    novo; nada é pago), `charge.refunded` só estorna com a cobrança estornada
+    inteira, e `charge.partial_canceled` e o resto são ignorados (a devolução
+    parcial é sempre nossa, pelo chamado). A chave é o id do evento (`hook_…`).
+  - **Cancelar é a mesma rota do estorno** (`DELETE /charges/{id}`): por isso
+    `cancelCharge` consulta antes e **só cancela a cobrança pendente** — a
+    paga fica, e o Pix que chegou tarde vai para a fila de devolução. O
+    estorno manda o valor em centavos quando é parcial e a chave de
+    idempotência derivada da chave do caso e do valor.
+  - **E-mail obrigatório quando o provedor exige** (`EXIGE_EMAIL`, como o
+    `EXIGE_CPF`): conferido no servidor **antes de reservar** (pedido avulso
+    e carrinho, `conferirEmailDoPix()` em `services/orders.ts`) e antes de
+    gravar a recarga do patrocínio e o Pix do assistente (o e-mail do acesso).
+    Dentro da conta, vale o e-mail dela. `GET /api/public/checkout` diz
+    `exigeEmail` e só se a conta já tem e-mail (`contaTemEmail`), nunca o
+    e-mail. **O campo na tela de compra espera a leva** (`docs/VERSOES.md`
+    estava com 10 aguardando): até ele entrar, o Pagar.me não deve ser
+    escolhido no painel (`docs/PENDENCIAS.md`).
+  - O que não teve fonte oficial está marcado **a confirmar** no código e na
+    seção 6 do plano. `npm run pagarme` prova tudo isso contra um Pagar.me de
+    mentira (porta 5095) e `tests/pagarme.test.ts` as regras.
 
 - **Duas funções, dois papéis.** `activePaymentProvider()` escolhe quem gera
   o Pix das vendas novas (escolha do painel, ou `PAYMENT_PROVIDER`);

@@ -1,8 +1,9 @@
 # Plano: gateway Pagar.me (Stone) — rascunho para aprovação (10/10/2026)
 
 Decisão do dono (10/10/2026): o gateway provável é o **Pagar.me**, porque,
-pela pesquisa dele, Asaas e Mercado Pago não aceitam rifa. Nada daqui está no
-código. A documentação foi lida pelo pesquisador de integração em 10/10/2026
+pela pesquisa dele, Asaas e Mercado Pago não aceitam rifa. **A fase 1 (o
+provedor, sem split) está no código desde 12/10/2026** — seção 6; o resto
+daqui ainda não. A documentação foi lida pelo pesquisador de integração em 10/10/2026
 (Context7 com a cópia do `docs.pagar.me`, o SDK oficial no GitHub e trechos de
 busca); daqui, os domínios do Pagar.me não abrem. O que não teve fonte oficial
 está marcado **a confirmar**.
@@ -103,3 +104,63 @@ já está pronto. O **Mercado Pago** proíbe rifas, pela citação de terceiros.
 - O que fazer com o dinheiro de recebedor recusado depois de vender.
 
 Até lá, a recomendação é não mandar a parte da promotora no split com o recebedor fora de `active`.
+
+## 6. Fase 1 feita (12/10/2026): o provedor, sem split
+
+No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
+`server/payments/index.ts` e em `shared/plataforma.ts` — `PROVEDORES_PIX`,
+`NOME_PROVEDOR`, `CREDENCIAIS_PROVEDOR` com `PAGARME_SECRET_KEY` e
+`PAGARME_WEBHOOK_TOKEN`, `EXIGE_CPF` e o novo `EXIGE_EMAIL`).
+
+- **Pix**: `POST /orders` (Basic com a chave secreta, centavos), um item com
+  o total, o cliente com nome, e-mail, CPF ou CNPJ e o celular
+  (`phones.mobile_phone`), o pagamento Pix com `expires_at` = o vencimento da
+  reserva e o código do pedido no `code` e no `metadata`. **Nunca `split`**: o
+  parâmetro é ignorado e o Pix nunca diz `splitAplicado` (a taxa segue devida
+  no livro; o repasse é outra fase). O pedido guarda o id da **cobrança**
+  (`ch_…`). O QR é desenhado no nosso servidor a partir do copia e cola
+  (`qrcode`), sem depender do `qr_code_url` de lá.
+- **Webhook**: `/api/webhooks/pagarme?t=<PAGARME_WEBHOOK_TOKEN>`, o segredo
+  comparado em tempo constante (sem ele ou errado, **401**). O status vem
+  sempre de `GET /charges/{id}`: `charge.paid` só paga com a cobrança `paid`
+  (pendente na API: a entrega é recusada, 400, para o Pagar.me tentar de
+  novo — nada pago); `charge.refunded` só estorna com a cobrança estornada
+  inteira; o resto (inclusive `charge.partial_canceled`) é ignorado. A chave
+  da idempotência é o id do evento (`hook_…`).
+- **Estorno**: `DELETE /charges/{id}`, total sem corpo e parcial com
+  `{ amount }` em centavos, com a chave `estorno-<cobrança>-<quem>-<valor>`.
+- **Cancelamento da reserva vencida**: consulta a cobrança e só cancela a
+  `pending`; a paga fica como está (o Pix tardio segue para a fila de
+  devolução).
+- **E-mail obrigatório** com o Pagar.me: conferido no servidor antes de
+  reservar (pedido e carrinho) e antes de gravar (recarga do patrocínio e Pix
+  do assistente, com o e-mail do acesso). O campo na tela de compra espera a
+  leva de `docs/VERSOES.md` (`docs/PENDENCIAS.md`).
+- **Prova**: `npm run pagarme` (Pagar.me de mentira na porta 5095) e
+  `tests/pagarme.test.ts`.
+
+**A confirmar** com o Pagar.me (sem fonte oficial na documentação lida pelo
+Context7 em 12/10/2026 — conferir no ambiente de teste antes de escolher o
+provedor no painel):
+
+1. O formato do corpo do webhook (`id` `hook_…`, `type`, a cobrança em
+   `data`) — a documentação traz a lista de eventos, não um exemplo do corpo.
+2. Os nomes na resposta do Pix: `charges[].last_transaction.qr_code` e
+   `expires_at`; e a lista de status da **cobrança** (`pending`, `paid`,
+   `canceled`, `refunded`…) — a documentação lida traz os status da
+   *transação* Pix (`waiting_payment`, `paid`, `pending_refund`, `refunded`).
+3. O status da cobrança Pix paga depois do estorno total (`refunded` ou
+   `canceled`) e se `canceled_amount` vem preenchido; e se o estorno total
+   depois de um parcial devolve só o que restava.
+4. O campo `amount` no corpo do `DELETE /charges/{id}` para o estorno
+   parcial (a documentação diz que pode ser parcial, mas o exemplo não veio).
+5. O nome do cabeçalho de idempotência do v5 (usamos `Idempotency-Key`) e
+   por quanto tempo a chave vale.
+6. O formato do `expires_at` (a documentação mostra `YYYY-MM-DDThh:mm:ss`,
+   UTC, sem o `Z`; mandamos assim).
+7. `phones.mobile_phone` (o exemplo do Pix usa `home_phone`) e o tamanho
+   máximo de `code`, `name` e `email`.
+8. Se o Pagar.me reenvia o webhook quando a resposta não é 2xx, e por quanto
+   tempo — a recusa do "pago com a cobrança pendente" depende disso.
+9. A autenticação do webhook (seção 3, item 6): se vier assinatura, ela
+   entra junto com o segredo do endereço.

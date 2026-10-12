@@ -74,7 +74,7 @@ export default function ReciboPage() {
         <div className="mt-4">
           <Empty>Recibo não encontrado. Confira o código.</Empty>
           <p className="-mt-4 text-center text-sm">
-            <Link href="/ajuda" className="text-green-deep underline">
+            <Link href="/ajuda" className="inline-flex min-h-6 items-center text-green-deep underline">
               Central de ajuda
             </Link>
           </p>

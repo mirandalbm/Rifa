@@ -34,7 +34,7 @@ export default function Regulamento() {
       <PublicShell>
         <Empty>Regulamento não encontrado.</Empty>
         <p className="-mt-4 text-center text-sm">
-          <Link href="/" className="text-green-deep underline">
+          <Link href="/" className="inline-flex min-h-6 items-center text-green-deep underline">
             Ver as rifas no ar
           </Link>
         </p>
@@ -45,7 +45,7 @@ export default function Regulamento() {
   const voltar = data.organizacao ? `/o/${data.organizacao.slug}/r/${data.rifa.slug}` : `/r/${data.rifa.slug}`;
   return (
     <PublicShell>
-      <Link href={voltar} className="inline-flex items-center gap-1.5 text-sm text-green-deep hover:underline">
+      <Link href={voltar} className="inline-flex min-h-6 items-center gap-1.5 text-sm text-green-deep hover:underline">
         <ArrowLeft size={14} aria-hidden />
         voltar para a rifa
       </Link>

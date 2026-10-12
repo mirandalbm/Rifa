@@ -20,12 +20,25 @@ export interface PixCharge {
   splitAplicado?: boolean;
 }
 
+/**
+ * Ação do `audit_log` para a contestação (MED, chargeback) que o provedor
+ * avisou sem cobrir o pago: o sistema não a desfaz sozinho, e a Caixa de
+ * entrada da plataforma a lista (uma por cobrança, 30 dias).
+ */
+export const ACAO_CONTESTACAO_A_CONFERIR = "pagamento.contestacao.a_conferir";
+
 export interface WebhookResult {
   /** Identificador do evento no provedor — a chave da idempotência. */
   externalId: string;
   chargeId: string;
   event: "paid" | "expired" | "refunded" | "ignored";
   amountCents?: number;
+  /**
+   * O que a plataforma precisa olhar e o evento não resolve sozinho (hoje,
+   * a contestação parcial): o roteador grava no `audit_log` com `acao`, e a
+   * Caixa de entrada lista. Só id de cobrança e valores — nunca o cliente.
+   */
+  aviso?: { acao: typeof ACAO_CONTESTACAO_A_CONFERIR; chargeId: string; dados: Record<string, unknown> };
 }
 
 export interface PaymentProvider {

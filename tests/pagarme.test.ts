@@ -271,6 +271,9 @@ describe("Pagar.me: a consulta fora do ar", () => {
     expect(consultaIndisponivel(semResposta)).toBe(true);
     expect(consultaIndisponivel(de500)).toBe(true);
     expect(consultaIndisponivel(de404)).toBe(false);
+    const de429 = new ErroDoPagarme("429");
+    de429.httpStatus = 429;
+    expect(consultaIndisponivel(de429)).toBe(true);
     expect(consultaIndisponivel(new Error("outro"))).toBe(false);
     expect(new ErroDoPagarme("x").depoisDeChamar).toBe(false);
   });

@@ -29,7 +29,7 @@
  */
 import { timingSafeEqual } from "node:crypto";
 import QRCode from "qrcode";
-import type { PaymentProvider, PixCharge, WebhookResult } from "./provider";
+import { ACAO_CONTESTACAO_A_CONFERIR, type PaymentProvider, type PixCharge, type WebhookResult } from "./provider";
 import { cnpjValido, cpfValido, emailValido } from "@shared/format";
 
 export const PAGARME_PADRAO = "https://api.pagar.me/core/v5";
@@ -161,13 +161,15 @@ function depoisDeChamar(err: ErroDoPagarme): ErroDoPagarme {
 }
 
 /**
- * A consulta ao Pagar.me no webhook não respondeu (rede, prazo) ou respondeu
- * erro do lado de lá (5xx): o webhook responde 503 com `Retry-After`, para o
- * Pagar.me reenviar — um 400 ali podia encerrar os reenvios de um pagamento.
+ * A consulta ao Pagar.me no webhook não respondeu (rede, prazo), respondeu
+ * erro do lado de lá (5xx) ou pediu para esperar (429): o webhook responde
+ * 503 com `Retry-After`, para o Pagar.me reenviar — um 400 ali podia
+ * encerrar os reenvios de um pagamento.
  */
 export function consultaIndisponivel(err: unknown): boolean {
   if (!(err instanceof ErroDoPagarme)) return false;
-  return err.semResposta || (err.httpStatus !== undefined && err.httpStatus >= 500);
+  // 429: o Pagar.me pediu para esperar — também é "tente de novo".
+  return err.semResposta || (err.httpStatus !== undefined && (err.httpStatus >= 500 || err.httpStatus === 429));
 }
 
 export interface DadosDoPix {
@@ -544,7 +546,12 @@ export class PagarmeProvider implements PaymentProvider {
       }
       throw err;
     }
-    if (c.status === "chargedback" && !contestacaoInteira(c)) {
+    // A contestação que não cobre o pago (ou sem o valor) não desfaz nada
+    // sozinha: vai para a Caixa de entrada (o `aviso`, gravado no
+    // `audit_log` pelo roteador), além do log.
+    const contestacaoParcial =
+      (EVENTOS_DE_DEVOLUCAO as readonly string[]).includes(tipo) && c.status === "chargedback" && !contestacaoInteira(c);
+    if (contestacaoParcial) {
       console.warn(`[pagarme] cobrança ${c.id} contestada em parte (${c.canceladoCents} de ${c.pagoCents ?? c.amountCents}): ignorada, conferir à mão.`);
     }
     if (c.status === "underpaid") {
@@ -564,6 +571,15 @@ export class PagarmeProvider implements PaymentProvider {
       chargeId: c.id,
       event: evento,
       amountCents: c.pagoCents ?? c.amountCents,
+      ...(contestacaoParcial
+        ? {
+            aviso: {
+              acao: ACAO_CONTESTACAO_A_CONFERIR,
+              chargeId: c.id,
+              dados: { contestadoCents: c.canceladoCents, pagoCents: c.pagoCents ?? c.amountCents, evento: tipo },
+            },
+          }
+        : {}),
     };
   }
 
@@ -634,8 +650,13 @@ export class PagarmeProvider implements PaymentProvider {
   }
 }
 
+/** A classe da trava por cobrança (a primeira das duas chaves), fora dos números dos relógios. */
+export const TRAVA_DA_COBRANCA_CLASSE = 811_901;
+/** Quanto um estorno espera a trava da mesma cobrança antes de desistir (`lock_timeout`). */
+export const TRAVA_DA_COBRANCA_ESPERA_MS = 15_000;
+
 /**
- * Trava de sessão do Postgres por cobrança (`pagarme:<id>`), numa conexão do
+ * Trava de sessão do Postgres por cobrança (duas chaves: a classe e o hash do id), numa conexão do
  * `poolDasTravas` — nunca do `pool` comum (CLAUDE.md, a regra das travas):
  * a trava fica presa enquanto o trabalho fala com o Pagar.me. Solta no
  * `finally`. O banco entra só aqui, carregado na hora: as regras puras deste
@@ -644,16 +665,27 @@ export class PagarmeProvider implements PaymentProvider {
 async function comTravaDaCobranca<T>(chargeId: string, fn: () => Promise<T>): Promise<T> {
   const { poolDasTravas } = await import("../db");
   const conexao = await poolDasTravas.connect();
-  const chave = `pagarme:${chargeId}`;
+  let estragada: Error | undefined;
   try {
-    await conexao.query("SELECT pg_advisory_lock(hashtext($1))", [chave]);
+    // Esperar a trava tem prazo: um estorno preso não segura o próximo para sempre.
+    await conexao.query(`SET lock_timeout = '${TRAVA_DA_COBRANCA_ESPERA_MS}ms'`);
+    // Duas chaves (a classe e o hash): nunca colide com as travas de uma chave
+    // só dos relógios (`LOCK_EXPIRACAO` e as outras de `server/jobs`).
+    await conexao.query("SELECT pg_advisory_lock($1, hashtext($2))", [TRAVA_DA_COBRANCA_CLASSE, chargeId]);
     try {
       return await fn();
     } finally {
-      await conexao.query("SELECT pg_advisory_unlock(hashtext($1))", [chave]);
+      try {
+        await conexao.query("SELECT pg_advisory_unlock($1, hashtext($2))", [TRAVA_DA_COBRANCA_CLASSE, chargeId]);
+        // A conexão volta ao pool como veio: sem o prazo desta espera.
+        await conexao.query("RESET lock_timeout");
+      } catch (err) {
+        // Sem soltar, a conexão volta ao pool com a trava presa: descartada.
+        estragada = err as Error;
+      }
     }
   } finally {
-    conexao.release();
+    conexao.release(estragada);
   }
 }
 

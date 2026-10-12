@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db";
-import { webhookEvents } from "@shared/schema";
+import { auditLog, webhookEvents } from "@shared/schema";
 import { paymentProviderByName, PROVEDORES_CONHECIDOS } from "../payments";
 import type { WebhookResult } from "../payments/provider";
 import { OrderError, markOrderPaid, refundByChargeId } from "../services/orders";
@@ -102,6 +102,19 @@ webhookRouter.post("/:provider", async (req, res) => {
           .catch(() => {});
         throw err;
       }
+    }
+
+    // O que o evento não resolve sozinho vai para quem olha (a Caixa de
+    // entrada lista pela ação do `audit_log`), antes de concluir o evento.
+    if (event.aviso) {
+      await db.insert(auditLog).values({
+        actorId: null,
+        actorRole: "sistema",
+        action: event.aviso.acao,
+        entity: "cobranca",
+        entityId: event.aviso.chargeId,
+        diff: { provedor: providerName, ...event.aviso.dados },
+      });
     }
 
     await db

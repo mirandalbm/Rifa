@@ -650,3 +650,22 @@ devido? Sem saldo, não há "saldo de taxa" para debitar.
 vale com o gateway novo, com a conta de recebimento obrigatória da
 promotora; (2) sem saldo guardado e com a guarda da comissão desligada, o
 parecer bancário pode esperar.
+
+## Decisões do dono (13/10/2026): subdomínio, selo, carteira e contenção
+
+Registro das respostas do dono às perguntas da análise do contrato. Cada
+item vira código, texto ou pergunta, conforme indicado.
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A2 | Modelos de tráfego | Os **dois modelos (A e B) ficam disponíveis**; a análise é caso a caso | Os dois continuam no código; a escolha é por campanha |
+| A3 | Agregador do Google e destino | **Subdomínio por organização e por afiliado**; a divulgação sai como white label | `shared/subdominio.ts` (PR #257); o domínio base é de configuração. Site novo a comprar: loteriasnacional.com ou .com.br |
+| A4 | Globo sem manifestação | Nada é dito sobre o globo antes da homologação; **selo "em aberto"** que vira selo quando o documento sobe; **nenhum recurso é travado** pelo selo; auditoria técnica da plataforma | Estado novo do selo, sem bloqueio. **Ajuste:** o selo aparece na tela de vídeo do globo quando ele está **ao vivo** |
+| A5 | Diretrizes no contrato de concordância | As regras do serviço são copiadas para o termo de aceite; o Lucky faz análise periódica | Painel de análise para o advogado (página publicada) |
+| A12 | Portal (Taboola, Outbrain, UOL, portais) | A verificar por análise com IA | Pendente |
+| A13 | Carteira do usuário | **Cada usuário tem uma carteira**; de lá direciona créditos ou dinheiro para os serviços (tráfego, campanhas, banners e outros). No painel do organizador, um **painel de hierarquia** lista todos os serviços cobrados por ali | Modelo de carteira, a definir com o advogado (ver perguntas) |
+| A15 | Saldo na rescisão ou banimento | O saldo dos serviços da plataforma é **sacável proporcionalmente** ao restante. O que for de plataforma de terceiros é tratado **diretamente** pela promotora | Conflito com a retenção cautelar no banimento (ver perguntas) |
+| A16 | Taxa e erro | Erro **comprovado da plataforma**: o valor pode ser solicitado. Erro do usuário: vale o que o contrato aceito prevê | Pedido de devolução com prova |
+| A17 | Carência do Pix | Entra no **fechamento como os demais recursos** | Contabilização (contador) |
+| A18 | Excedente | A plataforma **não cobra excedente**; deve existir **mecanismo de contenção**: não ultrapassa o saldo e **sempre deixa um mínimo** | Contenção no tráfego (código a construir, ver perguntas) |
+| Item 7 | Taxa de gestão | Taxa sobre o valor total da verba, debitada integralmente; repassada à plataforma; sobra vira **crédito, não dinheiro** | Já é o comportamento do código |

@@ -921,3 +921,5 @@ A Parte 1 segue aberta. A cláusula de saldo negativo só entra no contrato depo
 | 4 | Juros | **Sem juros** | X.13(c) sem juros. A multa de 2% segue a sugestão do advogado, a confirmar pelo dono |
 
 Redação das cláusulas: `scratchpad/redacao-clausulas.md`, entregue ao dono. Pendências que sobram: valor do teto, item do ISS (texto oficial da LC 116/2003), perda esperada do saldo a receber (CPC 48, técnica do contador) e a assinatura com CNPJ e CRC.
+
+**Ajuste do dono (13/10/2026, rodada 12):** a margem de R$ 5,00 e o saldo negativo valem **só para promotora com CNPJ**. Versão 2 da redação em `scratchpad/redacao-clausulas-v2.md`. A sobra do crédito de uso vale para todas as promotoras; o risco do CDC, art. 51 segue para decisão do dono sobre o MEI (manter a baixa ou devolver em dinheiro).

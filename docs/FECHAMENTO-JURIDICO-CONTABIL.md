@@ -650,3 +650,278 @@ devido? Sem saldo, não há "saldo de taxa" para debitar.
 vale com o gateway novo, com a conta de recebimento obrigatória da
 promotora; (2) sem saldo guardado e com a guarda da comissão desligada, o
 parecer bancário pode esperar.
+
+## Decisões do dono (13/10/2026): subdomínio, selo, carteira e contenção
+
+Registro das respostas do dono às perguntas da análise do contrato. Cada
+item vira código, texto ou pergunta, conforme indicado.
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A2 | Modelos de tráfego | Os **dois modelos (A e B) ficam disponíveis**; a análise é caso a caso | Os dois continuam no código; a escolha é por campanha |
+| A3 | Agregador do Google e destino | **Subdomínio por organização e por afiliado**; a divulgação sai como white label | `shared/subdominio.ts` (PR #257); o domínio base é de configuração. Site novo a comprar: loteriasnacional.com ou .com.br |
+| A4 | Globo sem manifestação | Nada é dito sobre o globo antes da homologação; **selo "em aberto"** que vira selo quando o documento sobe; **nenhum recurso é travado** pelo selo; auditoria técnica da plataforma | Estado novo do selo, sem bloqueio. **Ajuste:** o selo aparece na tela de vídeo do globo quando ele está **ao vivo** |
+| A5 | Diretrizes no contrato de concordância | As regras do serviço são copiadas para o termo de aceite; o Lucky faz análise periódica | Painel de análise para o advogado (página publicada) |
+| A12 | Portal (Taboola, Outbrain, UOL, portais) | A verificar por análise com IA | Pendente |
+| A13 | Carteira do usuário | **Cada usuário tem uma carteira**; de lá direciona créditos ou dinheiro para os serviços (tráfego, campanhas, banners e outros). No painel do organizador, um **painel de hierarquia** lista todos os serviços cobrados por ali | Modelo de carteira, a definir com o advogado (ver perguntas) |
+| A15 | Saldo na rescisão ou banimento | O saldo dos serviços da plataforma é **sacável proporcionalmente** ao restante. O que for de plataforma de terceiros é tratado **diretamente** pela promotora | Conflito com a retenção cautelar no banimento (ver perguntas) |
+| A16 | Taxa e erro | Erro **comprovado da plataforma**: o valor pode ser solicitado. Erro do usuário: vale o que o contrato aceito prevê | Pedido de devolução com prova |
+| A17 | Carência do Pix | Entra no **fechamento como os demais recursos** | Contabilização (contador) |
+| A18 | Excedente | A plataforma **não cobra excedente**; deve existir **mecanismo de contenção**: não ultrapassa o saldo e **sempre deixa um mínimo** | Contenção no tráfego (código a construir, ver perguntas) |
+| Item 7 | Taxa de gestão | Taxa sobre o valor total da verba, debitada integralmente; repassada à plataforma; sobra vira **crédito, não dinheiro** | Já é o comportamento do código |
+
+## Decisões do dono (13/10/2026, rodada 2): créditos, mínimo, selo e pipeline
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A4 | Selo do globo | **Sim**: o selo aparece sobre a tela de vídeo do globo quando ele estiver **ao vivo** | Selo na tela do vídeo, só com o globo no ar; nunca bloqueia recurso |
+| A13 | Carteira | **Não é carteira com dinheiro real**. O usuário tem **créditos** que usa nos serviços que quiser (tráfego, campanhas, banners e outros). O painel do organizador mostra a hierarquia de todos os serviços cobrados por esse painel | Modelo de créditos de uso, sem resgate em dinheiro. Ver perguntas ao advogado |
+| A14 | Medidas provisórias | No painel do admin, cada caso traz as **opções acima** para o responsável do setor escolher, conforme a análise | Ações por caso no painel do admin, com as opções (a), (b) e (c) já descritas |
+| A15 | Saldo na rescisão ou banimento | (decisão anterior) saque proporcional dos serviços da plataforma | Sem mudança |
+| A18 | Mínimo da contenção | **R$ 5,00** sempre sem gastar | Valor fixo de contenção no tráfego |
+| Pipeline | Análise de documentos | **Pipeline simples**: entrada do documento → análise → revisão do advogado → **recusado** ou **concluído** | Fluxo de estados para documentos (contrato, anexos e outros), com o advogado na etapa de revisão |
+
+## Decisões do dono (13/10/2026, rodada 3): wallet de créditos, saque, contenção e pipeline
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A13 | Wallet | **Wallet de créditos para serviços**, sem fluxo de dinheiro. O usuário usa os créditos nos serviços da plataforma | Modelo de crédito de uso, sem saque como regra de negócio. O saque tem regra própria (A15) |
+| A15 | Cálculo do saque na rescisão ou banimento | Valor = **saldo da carteira + taxa de saque** (sinal a confirmar, ver perguntas) | Cálculo do saque proporcional |
+| A16 | Erro da plataforma | Estorno **integral** para o usuário | Devolução integral quando o erro for comprovado da plataforma |
+| A18 | Contenção | A plataforma **arca com o custo + R$ 5,00**; o valor vira **saldo negativo da promotora**, debitado automaticamente quando ela repõe o saldo | Mecanismo de dívida automática (ver perguntas: conflito com "sem excedente") |
+| A14 | Medidas provisórias | Sem risco jurídico: a avaliação vem direto do advogado, que determina o que é resolvido. O admin escolhe, por caso, a opção da análise | Ações por caso no painel do admin |
+| Pipeline | Análise de casos | Recebe contratos, quebras de contrato, contabilidade, problemas técnicos e financeiros. Uma pessoa ou a IA analisa o caso e **direciona para o setor certo**. O status é atualizado para o solicitante. **Não é atendimento ao vivo**: a resolução pode levar tempo. Liga **todos os setores** da plataforma | Fluxo de status por caso, com triagem e direcionamento |
+| Nome do site | Domínio | Só depois de ver a disponibilidade | Pendente |
+| Setores (A1 e A3 de perfis) | Equipe | Os seis setores já listados e aceitos: Atendimento, Financeiro, Verificação, Gestão da plataforma, Marketing e Contador | Sem mudança |
+| Receita de créditos não usados (item 8) | Contabilização | Entra na **conta central como receita**, com os impostos descontados normalmente | Contador confirma o tratamento |
+| ISS do sobra (item 10) | Tributação | Se já foi tributado uma vez, **não é tributado de novo** | Regra de não bis in idem na sobra |
+| Sobra do tráfego (item 11) | Sobra | **Volta como crédito**; o usuário pode pedir o saldo em dinheiro, respeitando as regras | Resolve o conflito B1 × item 7 |
+| Serviços dos créditos (item 12) | Escopo | **Todos os serviços já existentes** no sistema e no cronograma | Sem mudança |
+| Carência do Pix (item 9) | Advogado e contador | O **advogado** recomenda carência de 7 dias para o estorno do Pix antes de o saldo pagar a rede, e cláusula de reposição do saldo em caso de estorno. Nas notas do contador, o Pix estornado após o pagamento à rede é prejuízo da plataforma | Carência de 7 dias para o saldo valer |
+
+## Decisões do dono (13/10/2026, rodada 4): saque, contenção com prejuízo, triagem e conflito de ISS
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A15 | Cálculo do saque | **Saldo da carteira − taxa de saque** ("descontado") | Fórmula do saque proporcional |
+| A18 | Margem e inadimplência | A plataforma dá a **margem de R$ 5,00** sobre o custo. Se a promotora não pagar, **a plataforma arca com o prejuízo**, registrado na contabilidade e no fechamento de Caixa. O saldo negativo da promotora é debitado quando ela repõe o saldo | Prejuízo de inadimplência como despesa da plataforma; saldo negativo recuperável |
+| Pipeline (triagem) | Quem triagem | **Humano e IA**, para ninguém sobrecarregar. A IA pode ter direcionamento automático ou só com supervisão humana (ainda a definir). Precisa de **mecanismo de folga** para o humano, sem acúmulo de casos | Fila de triagem com regra de cobertura e escalonamento (ver perguntas) |
+| Item 8 | Créditos não usados | **Contador**: entra como receita na conta central, tributada normalmente | Confirmado pelo contador |
+| Item 10 | Sobra já tributada | **Conflito**: o dono decidiu que não é tributada de novo. O contador afirma que a Prefeitura de São Paulo trata a apropriação do crédito como **novo fato gerador de ISS** e cita Lei 13.701/2003 (arts. 1º e 14) e Solução de Consulta SF/DEJUG 41/2013. **Citações ainda não conferidas**. Antes de fechar, o advogado confirma o texto da lei e da solução de consulta | Pendente de confirmação; não aplicar a regra de não bis in idem até decidir |
+| Maior receita própria | CNAE | Contador espera a confirmação do dono: taxa de gestão ou comissão de rifas | Pendente do dono |
+| Domínio | Site | O dono verifica hoje | Pendente |
+
+## Decisões do dono (13/10/2026, rodada 5): ISS da sobra, triagem com interruptor e receita principal
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| Item 10 | ISS da sobra já tributada | **Vale o que o contador disse**: a apropriação do crédito não usado é novo fato gerador de ISS. As citações (Lei 13.701/2003, arts. 1º e 14; SF/DEJUG 41/2013) ainda devem ser conferidas pelo advogado antes de virar cláusula | Sobra com ISS na apropriação; a regra "não tributar de novo" sai |
+| Triagem (item 2) | Modo de atendimento | **Interruptor**: o humano aciona a **IA autônoma** ou a **IA supervisionada** conforme a demanda. Com muita demanda, o usuário troca o fluxo para manter o equilíbrio. Há **vários atendentes** disponíveis | Interruptor de modo de triagem no painel; regra de quais casos a IA pode decidir sozinha ainda a definir |
+| Receita principal | CNAE e item de serviço | A **maior receita é da rifa**, porque a gestão é opcional | Pergunta ao advogado e ao contador sobre o item de serviço (ver perguntas) |
+| Item 3 | Não respondido | Em branco na resposta | Pendente |
+
+## Parecer do advogado sobre as perguntas de 13/10/2026 (rodada 6)
+
+O advogado respondeu as perguntas 1 a 9. A 10 (competência do ISS na
+apropriação) é do contador e não veio. As perguntas 11 a 19 não têm resposta.
+**Nenhuma fonte citada nesta resposta foi conferida no texto oficial.** O que
+está como "aceito" é a tese; a citação só vale depois de lida.
+
+| # | Tema | O que o advogado respondeu | Veredito | Motivo e o que falta |
+|---|---|---|---|---|
+| 1 | Compensação automática do saldo negativo | Sim, se o contrato prevê (CC, art. 368). Para promotora consumidora (MEI ou associação), ressalva do CDC, art. 51, IV, com notificação e 5 dias antes do débito | **Aceito como rascunho** | Redação sugerida para o contrato. Depende da pergunta 5 (a promotora é consumidora?) |
+| 2 | Título executivo | Não: contrato sem duas testemunhas não é título (CPC, art. 784, III). Caminho: confissão de dívida prévia no contrato | **Aceito** | Cláusula de confissão de dívida no contrato da promotora |
+| 3 | Juros, correção e multa | 1% ao mês (CC, art. 406; Lei 14.905/2024), IPCA, multa de 2% (CDC, art. 52, §1º, e CC, art. 413) | **Pendente de correção** | Três erros de citação: (a) o CC, art. 406, depois da Lei 14.905/2024, é a taxa legal (Selic menos IPCA), não 1%; (b) o CDC, art. 52, §1º, limita a 2% a multa de mora, não os juros; (c) o CC, art. 413 trata de redução de multa excessiva, não de base para multa. **Conflita com a nota anterior de que X.13(c) "está correto"**: a cláusula X foi aprovada em 10/10, então os números precisam ser confirmados antes da próxima versão publicada |
+| 4 | Bloqueio por inadimplência | CC, art. 476. Suspende só novas publicações, com notificação e 10 dias; rifas no ar seguem | **Aceito como rascunho** | Igual à X.13 (a). Ressalva do CDC, art. 51, IV, se a promotora for consumidora |
+| 5 | Teto de exposição e reincidência | Teto de R$ [valor] por promotora; 10 dias de regularização; rescisão na segunda notificação | **Pendente do dono** | Falta o valor do teto. O advogado diz que é gestão de risco, não limite de responsabilidade |
+| 6 | Natureza da margem de R$ 5,00 | Liberalidade (sem receita, sem ISS) ou taxa (receita com ISS e PIS/COFINS). "Na dúvida, liberalidade" | **Pendente do dono, com conflito** | A decisão A18 (rodada 4) diz que a margem é cobrada, e o saldo negativo é debitado da promotora. Liberalidade não casa com isso. Escolher uma redação e pedir ao advogado que a confirme |
+| 7 | Prejuízo absorvido pela plataforma | Não cria obrigação perante a promotora nem o fisco; registrar como despesa operacional; não perdoar a dívida (CC, art. 385; Lei 6.404, art. 187) | **Aceito, com ressalva de citação** | Registro: despesa mais saldo negativo ainda recuperável (A18). A Lei 6.404 vale para S.A.; confirmar se a plataforma é LTDA. O art. 385 trata de remissão por documento particular; confirmar a aplicação |
+| 8 | Citações do ISS da sobra (Lei 13.701/2003; SF/DEJUG 41/2013) | Lei 13.701/2003, arts. 1º e 14. A SF/DEJUG 41/2013 "não foi localizada"; cita a 41/2018 como "existente", mas diz que ela trata de fundos. Sugere a SF/DEJUG 13/2013 para os itens 10.08 e 17.06 | **Não aceito: citações pendentes** | O próprio parecer se contradiz sobre a 41. A Lei 13.701/2003 é lei municipal de São Paulo, não federal; o parecer a trata como norma geral. Item 10.08: pelo que consigo verificar, o agenciamento de publicidade da LC 116/2003 é o 10.05; conferir na lista. Precisa do texto oficial lido antes de a regra da sobra ir ao contrato |
+| 9 | Prazo de uso do crédito | Sem vencimento para consumidor; para empresa, 5 anos (CTN, arts. 173 e 174) | **Não aceito: respondeu outra coisa** | O parecer tratou o crédito como crédito tributário de ISS. O crédito de uso (a carteira) não é crédito tributário. CTN 173 e 174 são decadência e prescrição do fisco. A decisão B2 (rodada 2) já fixou 12 meses, com aviso 30 dias antes. Refazer a pergunta sobre a validade do crédito de uso |
+
+### Correções para devolver ao advogado (uma rodada)
+
+1. **Juros e multa (3):** corrigir CC, art. 406 (Lei 14.905/2024), CDC, art. 52, §1º, e CC, art. 413, com o texto de cada um.
+2. **ISS da sobra (8):** texto oficial da Lei 13.701/2003, dizendo se é municipal; SF/DEJUG 41/2013 ou 41/2018, a que existir de fato; item de serviço na LC 116/2003 (10.05 ou 10.08).
+3. **Validade do crédito de uso (9):** responder de novo, separando crédito de uso de crédito tributário.
+4. **Margem (6):** dizer qual redação vale com a decisão A18 e as consequências de cada uma.
+5. **Promotora consumidora ou não (1 e 4):** MEI e associação são consumidores para o CDC? Isso muda a ressalva de compensação e de bloqueio.
+6. **Citações de empresa (7):** aplicabilidade da Lei 6.404 e do CC, art. 385 a LTDA.
+
+### Decisões do dono necessárias
+
+- **Margem de R$ 5,00 (6):** cobrada (receita, com ISS e PIS/COFINS) ou liberalidade. A decisão A18 pressupõe cobrança.
+- **Valor do teto de exposição (5):** a definir por promotora.
+- **Validade do crédito de uso (9):** confirmar os 12 meses da B2 antes de o advogado responder de novo.
+- **Domínio (18 e 19):** verificar hoje e informar o nome final.
+- **Item 3 da sua lista:** em branco na mensagem. Preciso que você diga qual era.
+
+### Sem resposta nesta rodada
+
+- **10 (contador):** competência do ISS na apropriação e o que acontece com a nota.
+- **11 e 12:** taxa de saque, com base legal e limite; o saque como atividade regulada (depende do parecer bancário, A13).
+- **13 a 15 (triagem com IA):** casos que a IA pode decidir sozinha (LGPD, art. 20), resposta ao solicitante e prazo de guarda do histórico.
+- **16 e 17:** item de serviço (10.08 ou 17.06, com a rifa como receita principal) e CNAE principal.
+
+### Efeito
+
+- Nada do código muda agora.
+- A compensação (1) e a confissão de dívida (2) entram no rascunho do contrato da promotora como cláusula nova. Isso vira nova versão, que só se publica com juros e multa corrigidos (3).
+- O teto (5), a margem (6) e a validade do crédito (9) ficam pendentes; sem eles não há regra de saldo negativo nem de carteira para construir.
+- Triagem, carteira e contenção seguem esperando o parecer e as decisões acima.
+
+## Resposta do contador às perguntas 10 a 17 (13/10/2026, rodada 7)
+
+A resposta vem **sem assinatura válida**: traz `{{RAZAO_SOCIAL}}`, `{{CNPJ}}` e
+`{{CRC}}` sem preencher. O conteúdo fica registrado, mas a parte contábil só
+fecha com assinatura e CRC reais. O CNPJ e a razão social são pendência do
+dono até depois do lançamento.
+
+| # | Tema | O que o contador respondeu | Veredito | Motivo e o que falta |
+|---|---|---|---|---|
+| 10 | Competência da apropriação | Mês do vencimento do crédito (prazo de 12 meses); NFS-e no mesmo mês, sem nota retroativa. Lançamento: Adiantamento (D) / Receita de créditos não utilizados (C). Tributos como "despesa" de ISS, PIS, COFINS, IRPJ e CSLL, "conforme alíquotas" | **Pendente de fonte e de classificação** | O fundamento é a Lei 13.701/2003, art. 1º, que ainda não foi conferida (pergunta 8 da rodada anterior). ISS, PIS e COFINS sobre receita, em regra, são deduções da receita bruta, não despesa. IRPJ e CSLL não se lançam por alíquota nesse evento. **Falta dizer qual serviço é prestado na apropriação**: o crédito não usado não corresponde a serviço entregue, e o fato gerador do ISS é a prestação de serviço. Falta também o regime tributário da plataforma, que não consta no documento |
+| 11 | Taxa de saque | Receita própria, tributada (ISS, PIS/COFINS, IRPJ/CSLL); item a definir ("10.08 ou item financeiro") | **Parcial** | Base legal e limite são do advogado. "Item financeiro" não foi identificado. A cobrança depende de decisão do dono |
+| 12 | Saque do crédito e conta de pagamento | Atividade regulada, dependente do parecer bancário | **Pendente** | Depende de contratar o parecer (A13); o dono ainda não contratou |
+| 13 | Decisão automatizada (LGPD, art. 20) | Remete ao advogado | **Pendente do advogado** | — |
+| 14 | Comunicação ao solicitante | Remete ao advogado | **Pendente do advogado** | — |
+| 15 | Guarda dos casos e logs | Histórico de 5 anos "alinhado ao CTN, arts. 173 e 174"; registros de acesso de 6 meses (Marco Civil); log interno de 12 meses | **Não aceito o fundamento** | CTN 173 e 174 tratam de decadência e prescrição do fisco; não fixam prazo de guarda de caso de atendimento. O mesmo erro da rodada anterior (pergunta 9). O Marco Civil, art. 15 (6 meses), vale para registros de acesso a aplicações: confirmar o texto. O log de 12 meses não tem base. O prazo de guarda de dado pessoal precisa de base na LGPD (art. 16 e finalidade), a confirmar pelo advogado |
+| 16 | Item de serviço | 17.06 não cabe; 10.02 se intermedeia bilhete; 10.08 se só gestão de tráfego; decisão conjunta com o advogado, com a operação real informada pelo dono | **Pendente do dono e do advogado** | Depende de a plataforma só gerir tráfego ou também intermediar bilhete, o que o dono ainda não descreveu. **Conferir os códigos no texto da LC 116/2003**: o contador indica 10.08 como "agenciamento de publicidade"; pelo que consigo verificar, esse agenciamento é o 10.05. A descrição do 10.02 também precisa de leitura do texto antes de qualquer NFS-e |
+| 17 | CNAE principal | Definido pela maior receita; com rifa, não é o 73.19-0/99; 92.00-3/00 fora; intermediação de bilhete sem CNAE específico | **Conflito com decisões anteriores** | A decisão K-CNAE (10/10) escolheu principal **63.11-9/00** (software), com secundários 74.90-1/04 e **73.19-0/99**. A rodada 5 (13/10) disse que a maior receita é da rifa. O contador tirou o 73.19-0/99 da lista que a decisão K-CNAE mantinha. O dono escolhe entre as duas posições antes de o CNAE ser informado à Receita |
+
+Os pontos 18 e 19 (nome do site e domínio) não são do contador: seguem como
+pendências do dono.
+
+### Correções para devolver ao contador (uma rodada)
+
+1. **Pergunta 10:** qual serviço é prestado na apropriação (fato gerador); ISS, PIS e COFINS como dedução da receita; IRPJ e CSLL fora do lançamento do evento; regime tributário da plataforma.
+2. **Pergunta 15:** retirar CTN 173 e 174 como base dos prazos; fundamentar a guarda pela LGPD (art. 16 e finalidade) e o Marco Civil (art. 15) com o texto lido.
+3. **Pergunta 16:** conferir no texto da LC 116/2003 os códigos 10.02, 10.05 e 10.08, e apontar o que cabe.
+4. **Pergunta 17:** resolver o conflito com a decisão K-CNAE.
+5. **Assinatura:** reenviar com nome, CRC e CNPJ (ou protocolo da alteração em andamento).
+
+### Decisões do dono necessárias
+
+- **Operação real:** só gestão de tráfego (publicidade) ou também intermediação de bilhete. Define o item de serviço (pergunta 16).
+- **Receita principal para o CNAE:** software (decisão K-CNAE) ou rifa (rodada 5). Não dá para ter as duas.
+- **Taxa de saque:** existe ou não. O contador já tributa, mas a cobrança é decisão do dono.
+- **Parecer bancário (A13):** contratar, para a pergunta 12 avançar.
+- **Assinatura com CNPJ:** o contador precisa de CNPJ e razão social para assinar a parte contábil, e o dono deixou isso para depois do lançamento. Escolher: usar o CNPJ da alteração em andamento ou esperar.
+
+### Efeito
+
+- Nada no código muda agora.
+- A apropriação (10) só entra no fechamento depois de o contador dizer o fato gerador e a classificação, e de o advogado confirmar a Lei 13.701/2003.
+- A guarda de casos e logs (15) fica sem prazo fixo até a LGPD e o advogado fundamentarem.
+- O item de serviço (16) e o CNAE (17) bloqueiam a emissão de NFS-e e a abertura do CNPJ alterado.
+
+## Decisão do dono (13/10/2026, rodada 8): margem da plataforma sem burocracia e sem cobrança judicial
+
+| # | Decisão | O que muda |
+|---|---|---|
+| D8.1 | A plataforma disponibiliza o custo **mais R$ 5,00 da parte dela**. Não queremos burocracia na cobrança da promotora | A margem sai da cobrança à promotora: é aporte da plataforma, não taxa cobrada. Leitura nossa, a confirmar com o dono: a pergunta 6 (natureza da margem) fica resolvida como **liberalidade**, sem ISS e sem receita, e o conflito com a A18 some |
+| D8.2 | Se a promotora não pagar esse valor, o **saldo negativo fica registrado na conta** e **não é cobrado judicialmente pela plataforma** | Muda as perguntas 2 e 5 (título executivo e teto com cobrança), e a 3 (juros) só se o dono quiser juros sobre o saldo registrado. Continua valendo a compensação automática quando a promotora repõe o saldo (pergunta 1) |
+
+### O que cada pergunta vira
+
+| # | Pergunta | Situação com a D8 |
+|---|---|---|
+| 1 | Compensação automática | **Continua valendo**: o saldo negativo é debitado quando a promotora repõe. Redação precisa dizer que o registro é o único efeito de inadimplência |
+| 2 | Título executivo e confissão de dívida | **Não é mais necessário**, porque a plataforma não cobra judicialmente. Sai do contrato, a menos que o advogado veja outra razão |
+| 3 | Juros e correção | **Só se o dono quiser juros sobre o saldo registrado.** Se não quiser, a correção dos números de X.13(c) muda de tamanho: a cláusula pode ficar sem juros e multa. Continua pendente a citação errada |
+| 4 | Bloqueio por inadimplência | **Continua**: é a única consequência que a plataforma aplica. Precisa de aceite, porque é a única forma de cobrança |
+| 5 | Teto de exposição | **Vira teto do saldo negativo registrado**, sem cobrança. Falta o valor |
+| 6 | Natureza da margem | **Resolvida como aporte da plataforma (liberalidade), a confirmar** |
+| 7 | Prejuízo absorvido | Com a D8.2 o saldo negativo não é perdido: fica registrado até a reposição. O prejuízo só se confirma se a promotora deixar de repor. **Falta o contador definir a perda esperada e o registro contábil** |
+
+### Para devolver ao advogado (rodada curta)
+
+1. A renúncia à cobrança judicial do saldo negativo registrado é válida no contrato com a promotora? Redação da cláusula, com o aceite.
+2. Sem cobrança judicial, o registro do saldo negativo basta como efeito de inadimplência? Ou a plataforma precisa de algo mais para manter o direito de compensar quando a promotora repõe?
+3. Juros sobre o saldo registrado: se o dono quiser, qual base (art. 406 pós-Lei 14.905/2024, ou sem juros)?
+4. A margem como aporte da plataforma: a redação "liberalidade" e a regra de que não há receita. Confirmar sem dúvida de natureza.
+
+### Para o contador
+
+1. Como registrar o saldo negativo que a plataforma não cobra: perda esperada (provisão) desde o aporte, ou só quando a promotora deixar de repor?
+2. O aporte de custo mais R$ 5,00 pela plataforma é receita, ou é despesa de contenção? Hoje o documento diz que a margem é aporte, então não deveria ser receita.
+3. Conferir se a decisão K-CNAE e o item de serviço continuam valendo, já que a margem deixa de ser cobrança.
+
+### Para o dono
+
+- **Juros:** o saldo registrado tem juros, ou não?
+- **Valor do teto:** o teto do saldo negativo registrado por promotora. Continua em aberto.
+- **Confirmação:** a leitura de D8.1 (margem como aporte da plataforma, não cobrada) está certa?
+
+### Efeito no sistema
+
+- Nada muda no código agora. Quando o parecer chegar, o saldo negativo vira um registro com teto e compensação automática, sem fluxo de cobrança judicial, e o bloqueio por inadimplência fica como consequência.
+- A contenção no tráfego (A18) continua com o mínimo de R$ 5,00, agora como aporte da plataforma e sem cobrança.
+
+## Fechamento das decisões do dono (13/10/2026, rodada 9)
+
+| Ponto | Decisão do dono | Efeito |
+|---|---|---|
+| Margem (D8.1) | Ok: aporte da plataforma (custo mais R$ 5,00), não cobrado da promotora | Pergunta 6 resolvida como liberalidade, a confirmar pelo advogado |
+| Cobrança | Ok: sem cobrança judicial pela plataforma | Perguntas 2 e 5 saem do escopo de cobrança |
+| Teto | Ok como mecanismo. **Valor por promotora ainda não informado** | Pendência do dono |
+| Juros | **Não haverá**, porque não há cobrança | Pergunta 3 encerrada; X.13(c) sem juros, multa a confirmar pelo advogado |
+| Mantidos | Ok: compensação automática e bloqueio por inadimplência | Continuam como cláusula |
+
+**Ainda não fechado:** a Parte 1 segue aberta. Faltam as respostas do advogado e do contador, a assinatura do contador (campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}` e `{{CRC}}` em aberto), o valor do teto, o domínio, o CNAE principal e o parecer bancário. O pacote de envio está em `scratchpad/pacote-fechamento.md`, entregue ao dono.
+
+## Respostas revisadas do advogado e do contador (13/10/2026, rodada 10): veredito
+
+### Advogado
+
+| Item | Resposta | Veredito | Problema |
+|---|---|---|---|
+| A. Cláusula de saldo negativo | Três opções: (a) compensar, (b) cobrar judicialmente, (c) renunciar; a renúncia vira despesa operacional. Cita CC, art. 385 e Lei 6.404, art. 187 | **Aceito com correção** | A opção (b) contraria a decisão do dono (sem cobrança judicial): sai da cláusula. Lei 6.404 vale para S.A.; confirmar o tipo societário |
+| B. Multa da X.13(c) | CDC, art. 52, §1º (2%) e CC, art. 413, com o texto citado | **Parcial** | A redação sugerida **mantém juros de 1% ao mês**, contra a decisão do dono (sem juros). Os textos citados batem com o que conheço, mas não foram conferidos na fonte oficial |
+| C. Margem de R$ 5,00 | Renúncia como liberalidade, sem receita; cita CC, art. 385 | **Aceito com ressalva** | CC, art. 385 trata de perdão de dívida. Margem não cobrada não é dívida perdoada: a citação não se aplica. **Conflita com o contador** (ver abaixo) |
+| D. Crédito de uso × crédito tributário | 12 meses, baixa como receita com aviso de 30 dias. Crédito tributário com 5 anos (CTN, arts. 173 e 174) | **Prazo aceito; baixa como receita não aceita** | A decisão do dono (rodada 3, item 11) diz que a sobra volta como crédito e o usuário pode pedir o saldo em dinheiro. A cláusula tira esse direito e pode ser questionada no CDC, art. 51. CTN 173 e 174 de novo usados como prazo de validade, o erro já apontado |
+| E. ISS da sobra | Lei 13.701/2003, arts. 1º e 14, com texto citado; SC SF/DEJUG 42/2013 e 26/2016 | **Não aceito: fontes sem cópia** | A ementa da SC 42/2013 citada contradiz a própria cláusula de ISS (incide ou não sobre veiculação). Sem cópia do texto de cada norma e solução, não entra |
+| F. MEI e associação | MEI é consumidor como destinatário final; associação depende do uso; na dúvida, tratar como consumidora | **Aceito como orientação** | "MEI equiparado a consumidor" não é equiparação legal (CDC, art. 2º, parágrafo único, trata de coletividade). O REsp 476.428/SC não foi conferido |
+| G. Triagem com IA (LGPD, art. 20) | Aviso com triagem automatizada e revisão humana; resposta em 15 dias | **Aceito como redação** | O prazo de 15 dias é política da plataforma, não exigência do art. 20 |
+
+### Contador
+
+| Item | Resposta | Veredito | Problema |
+|---|---|---|---|
+| 1. Fato gerador do ISS | Serviço é a própria apropriação (gestão de saldo), item 10.05 (intermediação de bens móveis ou imóveis) | **Não aceito** | "Gestão de saldo" não é item da lista da LC 116/2003. O 10.05 descrito como bens contradiz a rodada 7, em que o contador indicou 10.08. A Lei 13.701/2003, art. 1º ainda não foi lida |
+| 1. Classificação e regime | Receita própria; **Lucro Real**, "conforme você definiu" | **Não aceito** | **O dono não definiu o regime tributário.** O Lucro Real foi suposto. IRPJ, CSLL, PIS e COFINS dependem dessa decisão |
+| 2. Provisão do saldo negativo | Provisão quando a perda é provável, pela NBC TG 25 | **Parcial: norma errada** | O saldo negativo é ativo financeiro. A referência é a CPC 48 / NBC TG 48 (perda de crédito esperada), não a TG 25 (provisões). Conferir |
+| 3. Margem como aporte | Débito Caixa, crédito Capital Social (ou AFAC); fora do resultado | **Não aceito: lançamento incoerente** | Aporte de capital é o sócio pondo dinheiro na sociedade. Aqui o dinheiro da plataforma vai para a promotora. Capital social não é a conta. **Conflita com a cláusula C do advogado**, que manda registrar como despesa |
+| 4. Guarda de casos e logs | Marco Civil, art. 15 para logs de 12 meses; LGPD, art. 16, II | **Não aceito: citações erradas** | Marco Civil, art. 15 fixa 6 meses, não 12. LGPD, art. 16, II trata de estudo por órgão de pesquisa; a obrigação legal é o inciso I. Log de 12 meses sem base |
+| 5. Códigos do item de serviço | 10.08 publicidade; 10.05 bens; 10.02 contratos quaisquer | **Pendente de texto** | Advogado e contador descrevem o 10.05 e o 10.08 de forma diferente nesta mesma troca. Exigir o texto da lista da LC 116/2003 antes de qualquer NFS-e |
+| 6. Assinatura | Campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}` e `{{CRC}}` em aberto | **Pendente** | Sem CNPJ, CRC e nome, não assina |
+
+### Decisões que faltam para fechar o veredito
+
+1. **Regime tributário:** o dono define (Lucro Real, Presumido ou outro). Sem isso, nenhum cálculo de IRPJ, CSLL, PIS ou COFINS vale.
+2. **Margem de R$ 5,00:** despesa operacional (advogado), capital (contador, mas com lançamento errado) ou ativo a receber da promotora. Advogado e contador precisam chegar a uma só. O dono confirma qual.
+3. **Sobra do crédito de uso:** volta como crédito com pedido em dinheiro (decisão da rodada 3), ou baixa como receita (cláusula D do advogado)? As duas não cabem juntas.
+4. **Juros:** a X.13(c) sai sem juros, como decidido em rodada 9. O advogado corrige a redação.
+
+### Pedido de correção (uma rodada, com fonte)
+
+- **Advogado:** retirar a opção (b) da cláusula de saldo negativo; retirar os juros da X.13(c); conferir as fontes das normas e soluções de consulta (texto oficial, com cópia); revisar a citação do CC, art. 385 na margem; a sobra conforme a decisão da rodada 3.
+- **Contador:** dizer o fato gerador do ISS com item da lista da LC 116/2003 lido; trocar a norma da provisão para CPC 48; corrigir a citação do Marco Civil (art. 15, 6 meses) e da LGPD (art. 16, I); corrigir o lançamento da margem conforme a decisão de (2); aguardar o regime.
+
+### Efeito
+
+A Parte 1 segue aberta. A cláusula de saldo negativo só entra no contrato depois do pedido de correção acima. A margem e a sobra dependem das decisões 1 a 3.
+
+## Decisões finais do dono (13/10/2026, rodada 11): regime, margem, sobra e juros
+
+| # | Tema | Decisão | Efeito |
+|---|---|---|---|
+| 1 | Regime tributário | **Lucro Real** | Refazer a apuração de IRPJ, CSLL, PIS e COFINS (não cumulativo) |
+| 2 | Margem de R$ 5,00 e saldo negativo | **Margem é despesa operacional. Saldo negativo é saldo a receber** | Lançamentos separados (ver `scratchpad/redacao-clausulas.md`) |
+| 3 | Sobra do crédito de uso | **Segue a sugestão do advogado**: baixa como receita, com aviso de 30 dias. **Substitui a decisão da rodada 3** (devolução em dinheiro) | Cláusula de crédito de uso; risco de CDC, art. 51 registrado |
+| 4 | Juros | **Sem juros** | X.13(c) sem juros. A multa de 2% segue a sugestão do advogado, a confirmar pelo dono |
+
+Redação das cláusulas: `scratchpad/redacao-clausulas.md`, entregue ao dono. Pendências que sobram: valor do teto, item do ISS (texto oficial da LC 116/2003), perda esperada do saldo a receber (CPC 48, técnica do contador) e a assinatura com CNPJ e CRC.
+
+**Ajuste do dono (13/10/2026, rodada 12):** a margem de R$ 5,00 e o saldo negativo valem **só para promotora com CNPJ**. Versão 2 da redação em `scratchpad/redacao-clausulas-v2.md`. A sobra do crédito de uso vale para todas as promotoras; o risco do CDC, art. 51 segue para decisão do dono sobre o MEI (manter a baixa ou devolver em dinheiro).
+
+**Decisão do dono (13/10/2026, rodada 13): taxa de saque.** Existe só quando há saque de saldo, e é igual ao custo bancário da transferência, sem margem. A plataforma não tem lucro com ela. Substitui o padrão "não cobrar" adotado no documento de padrões (item A6). Efeito: cláusula de taxa de saque pelo custo comprovado; contador define se o repasse entra como receita ou como reembolso de custo, sem lucro.

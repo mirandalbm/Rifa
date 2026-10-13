@@ -89,6 +89,12 @@ describe("bilhete para a impressora térmica", () => {
     expect(texto).not.toMatch(/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/);
   });
 
+  it("troca o º e o ª ordinais por letra, que o NFD não tira", () => {
+    const ordinal = escPosTicket({ ...BILHETE, sorteio: { ...BILHETE.sorteio, metodo: "1º ao 5º prêmio, ª" } });
+    expect(ordinal).toContain("1o ao 5o premio, a");
+    expect(ordinal).not.toMatch(/[ºª]/);
+  });
+
   it("não manda espaço não-quebrável, que sai como caractere estranho", () => {
     expect(texto).not.toMatch(/[\u00a0\u202f]/);
   });

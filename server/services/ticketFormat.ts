@@ -106,6 +106,8 @@ function quebrarDe(largura: number, texto: string): string[] {
 function paraBobina(texto: string): string {
   return texto
     .replace(/[  ]/g, " ")
+    .replace(/º/g, "o")
+    .replace(/ª/g, "a")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
 }

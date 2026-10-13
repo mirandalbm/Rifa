@@ -923,3 +923,5 @@ A Parte 1 segue aberta. A cláusula de saldo negativo só entra no contrato depo
 Redação das cláusulas: `scratchpad/redacao-clausulas.md`, entregue ao dono. Pendências que sobram: valor do teto, item do ISS (texto oficial da LC 116/2003), perda esperada do saldo a receber (CPC 48, técnica do contador) e a assinatura com CNPJ e CRC.
 
 **Ajuste do dono (13/10/2026, rodada 12):** a margem de R$ 5,00 e o saldo negativo valem **só para promotora com CNPJ**. Versão 2 da redação em `scratchpad/redacao-clausulas-v2.md`. A sobra do crédito de uso vale para todas as promotoras; o risco do CDC, art. 51 segue para decisão do dono sobre o MEI (manter a baixa ou devolver em dinheiro).
+
+**Decisão do dono (13/10/2026, rodada 13): taxa de saque.** Existe só quando há saque de saldo, e é igual ao custo bancário da transferência, sem margem. A plataforma não tem lucro com ela. Substitui o padrão "não cobrar" adotado no documento de padrões (item A6). Efeito: cláusula de taxa de saque pelo custo comprovado; contador define se o repasse entra como receita ou como reembolso de custo, sem lucro.

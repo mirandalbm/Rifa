@@ -680,3 +680,21 @@ item vira código, texto ou pergunta, conforme indicado.
 | A15 | Saldo na rescisão ou banimento | (decisão anterior) saque proporcional dos serviços da plataforma | Sem mudança |
 | A18 | Mínimo da contenção | **R$ 5,00** sempre sem gastar | Valor fixo de contenção no tráfego |
 | Pipeline | Análise de documentos | **Pipeline simples**: entrada do documento → análise → revisão do advogado → **recusado** ou **concluído** | Fluxo de estados para documentos (contrato, anexos e outros), com o advogado na etapa de revisão |
+
+## Decisões do dono (13/10/2026, rodada 3): wallet de créditos, saque, contenção e pipeline
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A13 | Wallet | **Wallet de créditos para serviços**, sem fluxo de dinheiro. O usuário usa os créditos nos serviços da plataforma | Modelo de crédito de uso, sem saque como regra de negócio. O saque tem regra própria (A15) |
+| A15 | Cálculo do saque na rescisão ou banimento | Valor = **saldo da carteira + taxa de saque** (sinal a confirmar, ver perguntas) | Cálculo do saque proporcional |
+| A16 | Erro da plataforma | Estorno **integral** para o usuário | Devolução integral quando o erro for comprovado da plataforma |
+| A18 | Contenção | A plataforma **arca com o custo + R$ 5,00**; o valor vira **saldo negativo da promotora**, debitado automaticamente quando ela repõe o saldo | Mecanismo de dívida automática (ver perguntas: conflito com "sem excedente") |
+| A14 | Medidas provisórias | Sem risco jurídico: a avaliação vem direto do advogado, que determina o que é resolvido. O admin escolhe, por caso, a opção da análise | Ações por caso no painel do admin |
+| Pipeline | Análise de casos | Recebe contratos, quebras de contrato, contabilidade, problemas técnicos e financeiros. Uma pessoa ou a IA analisa o caso e **direciona para o setor certo**. O status é atualizado para o solicitante. **Não é atendimento ao vivo**: a resolução pode levar tempo. Liga **todos os setores** da plataforma | Fluxo de status por caso, com triagem e direcionamento |
+| Nome do site | Domínio | Só depois de ver a disponibilidade | Pendente |
+| Setores (A1 e A3 de perfis) | Equipe | Os seis setores já listados e aceitos: Atendimento, Financeiro, Verificação, Gestão da plataforma, Marketing e Contador | Sem mudança |
+| Receita de créditos não usados (item 8) | Contabilização | Entra na **conta central como receita**, com os impostos descontados normalmente | Contador confirma o tratamento |
+| ISS do sobra (item 10) | Tributação | Se já foi tributado uma vez, **não é tributado de novo** | Regra de não bis in idem na sobra |
+| Sobra do tráfego (item 11) | Sobra | **Volta como crédito**; o usuário pode pedir o saldo em dinheiro, respeitando as regras | Resolve o conflito B1 × item 7 |
+| Serviços dos créditos (item 12) | Escopo | **Todos os serviços já existentes** no sistema e no cronograma | Sem mudança |
+| Carência do Pix (item 9) | Advogado e contador | O **advogado** recomenda carência de 7 dias para o estorno do Pix antes de o saldo pagar a rede, e cláusula de reposição do saldo em caso de estorno. Nas notas do contador, o Pix estornado após o pagamento à rede é prejuízo da plataforma | Carência de 7 dias para o saldo valer |

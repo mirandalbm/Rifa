@@ -698,3 +698,15 @@ item vira código, texto ou pergunta, conforme indicado.
 | Sobra do tráfego (item 11) | Sobra | **Volta como crédito**; o usuário pode pedir o saldo em dinheiro, respeitando as regras | Resolve o conflito B1 × item 7 |
 | Serviços dos créditos (item 12) | Escopo | **Todos os serviços já existentes** no sistema e no cronograma | Sem mudança |
 | Carência do Pix (item 9) | Advogado e contador | O **advogado** recomenda carência de 7 dias para o estorno do Pix antes de o saldo pagar a rede, e cláusula de reposição do saldo em caso de estorno. Nas notas do contador, o Pix estornado após o pagamento à rede é prejuízo da plataforma | Carência de 7 dias para o saldo valer |
+
+## Decisões do dono (13/10/2026, rodada 4): saque, contenção com prejuízo, triagem e conflito de ISS
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A15 | Cálculo do saque | **Saldo da carteira − taxa de saque** ("descontado") | Fórmula do saque proporcional |
+| A18 | Margem e inadimplência | A plataforma dá a **margem de R$ 5,00** sobre o custo. Se a promotora não pagar, **a plataforma arca com o prejuízo**, registrado na contabilidade e no fechamento de Caixa. O saldo negativo da promotora é debitado quando ela repõe o saldo | Prejuízo de inadimplência como despesa da plataforma; saldo negativo recuperável |
+| Pipeline (triagem) | Quem triagem | **Humano e IA**, para ninguém sobrecarregar. A IA pode ter direcionamento automático ou só com supervisão humana (ainda a definir). Precisa de **mecanismo de folga** para o humano, sem acúmulo de casos | Fila de triagem com regra de cobertura e escalonamento (ver perguntas) |
+| Item 8 | Créditos não usados | **Contador**: entra como receita na conta central, tributada normalmente | Confirmado pelo contador |
+| Item 10 | Sobra já tributada | **Conflito**: o dono decidiu que não é tributada de novo. O contador afirma que a Prefeitura de São Paulo trata a apropriação do crédito como **novo fato gerador de ISS** e cita Lei 13.701/2003 (arts. 1º e 14) e Solução de Consulta SF/DEJUG 41/2013. **Citações ainda não conferidas**. Antes de fechar, o advogado confirma o texto da lei e da solução de consulta | Pendente de confirmação; não aplicar a regra de não bis in idem até decidir |
+| Maior receita própria | CNAE | Contador espera a confirmação do dono: taxa de gestão ou comissão de rifas | Pendente do dono |
+| Domínio | Site | O dono verifica hoje | Pendente |

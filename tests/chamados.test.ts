@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
+  FORMA_A_CONFERIR,
+  FORMA_DEVOLVENDO,
+  NOME_STATUS_CHAMADO,
+  devolucaoAConferir,
+  situacaoDoChamado,
+  validarConferencia,
   gerarCodigoCliente,
   gerarProtocolo,
   bloqueioDoReembolso,
@@ -165,5 +171,24 @@ describe("bloqueioDaDisputa", () => {
   it("motivo precisa explicar", () => {
     expect(problemaNaDisputa("não gostei")).toMatch(/20 caracteres/);
     expect(problemaNaDisputa("A organização disse que não comprei, mas tenho o comprovante.")).toBeNull();
+  });
+});
+
+describe("devolução a conferir no provedor", () => {
+  it("estornado com a marca não é 'devolvido' para ninguém", () => {
+    const c = { status: "estornado" as const, formaDevolucao: FORMA_A_CONFERIR };
+    expect(devolucaoAConferir(c)).toBe(true);
+    expect(situacaoDoChamado(c).rotulo).toBe("Devolução a conferir no provedor");
+    expect(situacaoDoChamado(c, "comprador").rotulo).toBe("devolução em conferência");
+    expect(situacaoDoChamado({ status: "estornado", formaDevolucao: FORMA_DEVOLVENDO }).rotulo).toBe("Devolução a conferir no provedor");
+    expect(situacaoDoChamado({ status: "estornado", formaDevolucao: "pagarme" }).rotulo).toBe(NOME_STATUS_CHAMADO.estornado);
+    expect(devolucaoAConferir({ status: "aprovado", formaDevolucao: FORMA_A_CONFERIR })).toBe(false);
+  });
+  it("a decisão leva sim ou não e a observação", () => {
+    expect(validarConferencia({ devolveu: true, observacao: "Conferi no painel: voltou." })).toEqual({ devolveu: true, observacao: "Conferi no painel: voltou." });
+    expect(typeof validarConferencia({ devolveu: "sim", observacao: "Conferi no painel" })).toBe("string");
+    expect(typeof validarConferencia({ devolveu: false, observacao: "ok" })).toBe("string");
+    expect(typeof validarConferencia({ devolveu: false, observacao: "x".repeat(1001) })).toBe("string");
+    expect(typeof validarConferencia(null)).toBe("string");
   });
 });

@@ -12,10 +12,10 @@ import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import { formatBRL } from "@shared/format";
 import {
-  NOME_STATUS_CHAMADO,
   NOME_STATUS_DISPUTA,
-  PILL_CHAMADO,
   PILL_DISPUTA,
+  situacaoDoChamado,
+  devolucaoAConferir,
   type StatusChamado,
   type StatusDisputa,
 } from "@shared/chamados";
@@ -32,6 +32,7 @@ interface Linha {
   nome: string;
   prazoEstornoAte: string | null;
   disputa: StatusDisputa | null;
+  formaDevolucao: string | null;
   createdAt: string;
   organizacao: string;
 }
@@ -75,7 +76,7 @@ interface Detalhe {
     /** Falso: cliente da plataforma — o organizador o vê só pelo ID. */
     completo: boolean;
   };
-  historico: { protocolo: string; status: StatusChamado }[];
+  historico: { protocolo: string; status: StatusChamado; formaDevolucao: string | null }[];
   mensagens: Mensagem[];
 }
 
@@ -83,15 +84,19 @@ const FILTROS: { valor: string; rotulo: string }[] = [
   { valor: "aberto", rotulo: "em análise" },
   { valor: "aprovado", rotulo: "aguardando devolução" },
   { valor: "estornado", rotulo: "devolvidos" },
+  // O pedido de devolução saiu e o provedor não confirmou: a plataforma confere.
+  { valor: "a_conferir", rotulo: "a conferir no provedor" },
   { valor: "recusado", rotulo: "recusados" },
   // Levados à plataforma pelo comprador: a palavra final é dela.
   { valor: "disputa", rotulo: "em disputa" },
   { valor: "", rotulo: "todos" },
 ];
 
-function StatusPill({ s, disputa }: { s: StatusChamado; disputa?: StatusDisputa | null }) {
+function StatusPill({ s, disputa, forma }: { s: StatusChamado; disputa?: StatusDisputa | null; forma?: string | null }) {
   if (disputa === "aberta") return <Pill status={PILL_DISPUTA.aberta}>{NOME_STATUS_DISPUTA.aberta}</Pill>;
-  return <Pill status={PILL_CHAMADO[s]}>{NOME_STATUS_CHAMADO[s]}</Pill>;
+  // "Devolução a conferir no provedor", nunca "devolvido", enquanto ninguém conferiu.
+  const situacao = situacaoDoChamado({ status: s, formaDevolucao: forma });
+  return <Pill status={situacao.pill}>{situacao.rotulo}</Pill>;
 }
 
 /** Prazo de devolução: quantos dias faltam, ou há quantos venceu. */
@@ -116,7 +121,11 @@ export function AdminAtendimento() {
   const { data: sessao } = useSession();
   const daPlataforma = sessao?.role === "admin";
   // A plataforma abre na fila que só ela resolve.
-  const [escolhido, setFiltro] = useState<string | null>(null);
+  // A Caixa de entrada leva direto a uma fila (`?status=a_conferir`); só valor conhecido.
+  const [escolhido, setFiltro] = useState<string | null>(() => {
+    const daUrl = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("status") : null;
+    return FILTROS.some((f) => f.valor === daUrl) ? daUrl : null;
+  });
   const filtro = escolhido ?? (daPlataforma ? "disputa" : "aberto");
   const [aberto, setAberto] = useState<string | null>(null);
 
@@ -237,7 +246,7 @@ function ListaDeChamados({
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="tnum text-sm font-semibold">{c.protocolo}</span>
-                      <StatusPill s={c.status} disputa={c.disputa} />
+                      <StatusPill s={c.status} disputa={c.disputa} forma={c.formaDevolucao} />
                     </div>
                     {/* A plataforma vê todas as organizações: na lista, quem pediu vai só pelo ID do cliente (o nome, ao abrir). */}
                     <p className="mt-1 text-sm">
@@ -342,7 +351,7 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
   const emAndamento = chamado.status === "aberto" || chamado.status === "aprovado" || emDisputa;
 
   return (
-    <CartaoDoPainel titulo={`Chamado ${chamado.protocolo}`} acao={<StatusPill s={chamado.status} disputa={chamado.disputa} />}>
+    <CartaoDoPainel titulo={`Chamado ${chamado.protocolo}`} acao={<StatusPill s={chamado.status} disputa={chamado.disputa} forma={chamado.formaDevolucao} />}>
       <div className="space-y-3 border-b border-t border-line px-5 py-4 text-sm">
         {aviso ? (
           <p className={`rounded-md px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>
@@ -420,7 +429,7 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
         {data.historico.length ? (
           <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
             Este cliente já tem {data.historico.length} outro(s) pedido(s) de reembolso:{" "}
-            {data.historico.map((h) => `${h.protocolo} (${NOME_STATUS_CHAMADO[h.status]})`).join(", ")}.
+            {data.historico.map((h) => `${h.protocolo} (${situacaoDoChamado(h).rotulo})`).join(", ")}.
           </p>
         ) : null}
         {chamado.status === "aprovado" ? <Prazo ate={chamado.prazoEstornoAte} /> : null}
@@ -506,10 +515,83 @@ function DetalheChamado({ id, aoMudar, daPlataforma }: { id: string; aoMudar: ()
         </div>
       ) : null}
 
+      {devolucaoAConferir(chamado) ? (
+        <ConferenciaDaDevolucao id={id} daPlataforma={daPlataforma} provedor={pedido.provedor} aoDecidir={recarregar} />
+      ) : null}
+
       {chamado.decisao && !emAndamento ? (
         <p className="border-t border-line px-5 py-3 text-xs text-muted">Decisão: {chamado.decisao}</p>
       ) : null}
     </CartaoDoPainel>
+  );
+}
+
+/**
+ * A devolução a conferir no provedor: o pedido de devolução saiu e o provedor
+ * não confirmou o valor. Só a plataforma decide, depois de olhar o painel do
+ * provedor, com a observação do que conferiu; a organização só lê.
+ */
+function ConferenciaDaDevolucao({
+  id,
+  daPlataforma,
+  provedor,
+  aoDecidir,
+}: {
+  id: string;
+  daPlataforma: boolean;
+  provedor: string | null;
+  aoDecidir: () => void;
+}) {
+  const [observacao, setObservacao] = useState("");
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
+  const decidir = useMutation({
+    mutationFn: async (devolveu: boolean) =>
+      (await (await apiRequest("POST", `/api/admin/chamados/${id}/conferencia`, { devolveu, observacao })).json()) as {
+        status: string;
+        cotasLiberadas: number;
+      },
+    onSuccess: (r, devolveu) => {
+      setObservacao("");
+      setAviso({
+        ok: true,
+        texto: devolveu
+          ? `Devolução confirmada: o pedido foi desfeito no sistema (${r.cotasLiberadas} cota(s) voltaram ao estoque).`
+          : "Devolução não saiu: o chamado voltou a aprovado e pode ser devolvido de novo.",
+      });
+      aoDecidir();
+    },
+    onError: (e: Error) => setAviso({ ok: false, texto: e.message }),
+  });
+  return (
+    <div className="space-y-2 border-t border-line px-5 py-4 text-sm">
+      <p className="rounded-md bg-yellow-soft px-3 py-2 text-xs text-yellow-deep">
+        O pedido de devolução saiu{provedor ? ` para o ${provedor}` : ""}, mas o provedor não confirmou o valor. Nada foi
+        desfeito no sistema e a comissão do pedido está segura até a conferência.
+        {daPlataforma ? " Confira a cobrança no painel do provedor e diga o que viu." : " A plataforma confere no provedor e decide."}
+      </p>
+      {aviso ? (
+        <p className={`rounded-md px-3 py-2 ${aviso.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{aviso.texto}</p>
+      ) : null}
+      {daPlataforma ? (
+        <>
+          <Campo rotulo="O que você conferiu no provedor (obrigatório)">
+            <textarea id="conferencia" rows={2} value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+          </Campo>
+          <p className="text-[13px] text-muted">
+            "Não voltou" reabre a devolução, e a próxima sai como uma devolução nova no provedor: só escolha depois de
+            conferir que nada voltou para o comprador, senão o valor sai duas vezes.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => decidir.mutate(true)} disabled={observacao.trim().length < 5 || decidir.isPending}>
+              O dinheiro voltou: desfazer o pedido
+            </Button>
+            <Button variant="cinza" onClick={() => decidir.mutate(false)} disabled={observacao.trim().length < 5 || decidir.isPending}>
+              Não voltou: reabrir a devolução
+            </Button>
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }
 

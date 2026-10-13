@@ -6,6 +6,8 @@ import { MOTIVOS_DA_DENUNCIA_DE_MENSAGEM } from "@shared/mensagens";
 import { MOTIVOS_DA_DENUNCIA_DE_GRUPO } from "@shared/grupos";
 import { MOTIVOS_DA_DENUNCIA_DE_COMENTARIO_DO_SORTEIO } from "@shared/sorteioDenuncias";
 import { LOTERIAS } from "@shared/sorteiosOficiais";
+import { aConferirSql } from "./chamados";
+import { contestacaoPendenteSql } from "./contestacoes";
 
 /**
  * A caixa de entrada da plataforma: o que espera decisão, de todas as filas,
@@ -14,7 +16,7 @@ import { LOTERIAS } from "@shared/sorteiosOficiais";
  * afiliado ou apelido — nunca telefone, CPF ou nome de comprador.
  */
 export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
-  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio, retencoes, entidades, trafego] = await Promise.all([
+  const [chamados, solicitacoes, denuncias, verificacoes, fiscais, telefones, banners, conversas, gruposDenunciados, pixTardios, comentariosDoSorteio, retencoes, entidades, trafego, aConferir, contestacoes] = await Promise.all([
     db.execute(sql`
       SELECT ch.id, ch.disputa, ch.created_at AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
         FROM chamados ch
@@ -119,6 +121,26 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
         JOIN campaigns c ON c.id = t.campaign_id
        WHERE t.status IN ('em_analise', 'encerrando')
        ORDER BY 3 LIMIT 200`),
+    // A devolução que saiu para o provedor e ninguém confirmou (ou parou no meio).
+    db.execute(sql`
+      SELECT ch.id, ch.estornado_em AS desde, o.name AS org, ch.protocolo, ord.code AS pedido
+        FROM chamados ch
+        JOIN organizations o ON o.id = ch.organization_id
+        JOIN orders ord ON ord.id = ch.order_id
+       WHERE ${aConferirSql("ch")}
+       ORDER BY ch.estornado_em LIMIT 200`),
+    // A contestação (MED, chargeback) que o provedor avisou sem cobrir o pago:
+    // uma linha por cobrança, até a plataforma registrar a decisão
+    // (`pagamento.contestacao.conferida`, em Pedidos) — nunca some sozinha.
+    // Só o pedido e a organização, nunca o comprador.
+    db.execute(sql`
+      SELECT DISTINCT ON (a.entity_id) a.entity_id AS cobranca, a.created_at AS desde,
+             (SELECT string_agg(ord.code::text, ', ') FROM orders ord WHERE ord.psp_charge_id = a.entity_id) AS pedidos,
+             (SELECT min(org.name) FROM orders ord JOIN campaigns c ON c.id = ord.campaign_id
+                JOIN organizations org ON org.id = c.organization_id WHERE ord.psp_charge_id = a.entity_id) AS org
+        FROM audit_log a
+       WHERE ${contestacaoPendenteSql("a")}
+       ORDER BY a.entity_id, a.created_at DESC LIMIT 200`),
   ]);
 
   const iso = (d: unknown) => new Date(d as string | Date).toISOString();
@@ -182,6 +204,24 @@ export async function caixaDeEntrada(): Promise<PendenciaDaCaixa[]> {
   }
   for (const r of banners.rows as any[]) {
     linhas.push({ chave: `banner:${r.id}`, tipo: "banner", quem: r.org, oQue: `Arte de banner pago esperando aprovação — rifa ${r.rifa}, ${r.dias} dia(s)`, desde: iso(r.desde) });
+  }
+  for (const r of aConferir.rows as any[]) {
+    linhas.push({
+      chave: `estorno_a_conferir:${r.id}`,
+      tipo: "estorno_a_conferir",
+      quem: r.org,
+      oQue: `Devolução a conferir no provedor — protocolo ${r.protocolo}, pedido ${r.pedido}`,
+      desde: iso(r.desde),
+    });
+  }
+  for (const r of contestacoes.rows as any[]) {
+    linhas.push({
+      chave: `contestacao:${r.cobranca}`,
+      tipo: "contestacao",
+      quem: r.org ?? "Plataforma",
+      oQue: `Contestação parcial avisada pelo provedor (não desfeita) — pedido(s) ${r.pedidos ?? "sem pedido"}`,
+      desde: iso(r.desde),
+    });
   }
   for (const r of trafego.rows as any[]) {
     linhas.push({

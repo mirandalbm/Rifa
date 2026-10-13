@@ -24,6 +24,7 @@ import { orgOf } from "./orgs";
 import { CampaignRuleError, excluirRifa, publishBlockers, publishCampaign } from "./campaigns";
 import { salvarLegenda } from "./publicacao";
 import { executarEstorno } from "./chamados";
+import { FORMA_A_CONFERIR, FORMA_DEVOLVENDO, devolucaoAConferir } from "@shared/chamados";
 import { getPlataforma } from "./settings";
 import { avisarRifaNova, emSegundoPlano } from "./push";
 import { estadoFiscal } from "./fiscal";
@@ -108,7 +109,8 @@ export async function executarLeitura(req: Request, titular: TitularDaIA, e: Ent
       const est = await db.execute(sql`
         SELECT COUNT(*) AS n, COALESCE(SUM(ch.devolver_cents), 0) AS devolvido
         FROM chamados ch
-        WHERE ch.status = 'estornado' AND ch.estornado_em >= ${inicio} ${filtroDaOrg(req, "ch.organization_id")}
+        WHERE ch.status = 'estornado' AND ch.estornado_em >= ${inicio}
+          AND coalesce(ch.forma_devolucao, '') NOT IN (${FORMA_DEVOLVENDO}, ${FORMA_A_CONFERIR}) ${filtroDaOrg(req, "ch.organization_id")}
       `);
       const v = linhas<Record<string, unknown>>(r)[0] ?? {};
       const s = linhas<Record<string, unknown>>(est)[0] ?? {};
@@ -295,7 +297,15 @@ export async function prepararGravacao(req: Request, titular: TitularDaIA, e: En
         .limit(1);
       if (!ch) throw new AcaoRecusada("Não achei esse chamado no seu painel.");
       if (ch.status !== "aprovado") {
-        throw new AcaoRecusada(ch.status === "estornado" ? "Este reembolso já foi feito." : "Só chamado aprovado pode ser estornado.");
+        // A devolução a conferir no provedor não é do assistente: só a
+        // plataforma resolve, no Atendimento, depois de olhar o provedor.
+        throw new AcaoRecusada(
+          devolucaoAConferir(ch)
+            ? "A devolução deste chamado está a conferir no provedor: só a plataforma resolve, no Atendimento."
+            : ch.status === "estornado"
+              ? "Este reembolso já foi feito."
+              : "Só chamado aprovado pode ser estornado.",
+        );
       }
       if (!(await getPlataforma()).estornoManual) throw new AcaoRecusada("O estorno está desligado nas configurações da plataforma.");
       const [ctx] = await db

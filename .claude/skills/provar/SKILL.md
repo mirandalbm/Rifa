@@ -33,6 +33,7 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 |---|---|
 | reserva, alocação, cartelas (`services/quotas.ts`) | `load` |
 | pedido, preço, webhook (`services/orders.ts`) | `load`, `refund`, `pix-tardio`, `cobranca` |
+| provedor do Pix (`server/payments/`, `EXIGE_CPF`/`EXIGE_EMAIL` em `shared/plataforma.ts`, `server/routes/webhooks.ts`) | `pagarme` (com `PAGARME_SECRET_KEY`, `PAGARME_WEBHOOK_TOKEN` e `PAGARME_API_URL=http://127.0.0.1:5095/core/v5` no servidor e no script: a prova sobe o Pagar.me de mentira), `webhook`, `carrinho`, `chamados`, `pix-tardio`, `tests/pagarme.test.ts` |
 | cobrança da plataforma (`shared/cobranca.ts`, `shared/billing.ts`, `services/billing.ts`, a fotografia em `publishCampaign()`, `/cobranca/tabela`, a tabela agendada, a taxa Pix no estorno, a falta de pagamento (`shared/inadimplencia.ts`, `services/inadimplencia.ts`), `adminCobranca.tsx`, `CobrancaDaRifa.tsx`) | `cobranca`, `carrinho`, `presente`, `refund`, `chamados`, `retencao`, `isolation`, `tests/avisos.test.ts`, `tests/cobranca.test.ts`, `tests/inadimplencia.test.ts`, `tests/billing.test.ts`, `tests/split.test.ts`; mexeu na tela, `telas` |
 | estorno | `refund`, `presente`, `bonus` |
 | chamado de reembolso, disputa | `chamados`, `disputa` |

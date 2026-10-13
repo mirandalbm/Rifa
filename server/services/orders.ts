@@ -54,6 +54,7 @@ import { normalizePhone } from "@shared/format";
 import { users, organizations } from "@shared/schema";
 import {
   EXIGE_CPF,
+  EXIGE_EMAIL,
   comissaoInicial,
   percentualDoPromotor,
   type ProvedorPix,
@@ -74,7 +75,7 @@ import { conferirReservaAberta, guardOrder, type RequestIdentity } from "./antif
 import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
-import { formatBRL, formatQuota, cpfValido } from "@shared/format";
+import { formatBRL, formatQuota, cpfValido, emailValido } from "@shared/format";
 import { isUniqueViolation } from "../pgError";
 import { avaliarMetas, confirmarIndicacao, desfazerMetasNoEstorno, estornarIndicacao, registrarIndicacao, travarPessoasDoEstorno } from "./bonus";
 import { registrarPixTardio } from "./pixTardio";
@@ -263,6 +264,24 @@ async function reservaAbertaNaTransacao(tx: Tx, buyerId: string, quantidade: num
 }
 
 /**
+ * O provedor do Pix em uso exige mais de quem paga: o e-mail
+ * (`EXIGE_EMAIL`) e, no Pagar.me, o e-mail até 64 letras e o telefone com
+ * DDD no formato dele (`problemaNoPagador`). Conferido **antes de reservar**
+ * e do antifraude, como o CPF — descobrir na hora do Pix deixaria a cota
+ * presa numa reserva sem cobrança.
+ */
+function conferirPagadorDoPix(
+  provider: { name: string; problemaNoPagador?: (p: { email?: string | null; phone?: string | null }) => string | null },
+  pagador: { email?: string | null; phone?: string | null },
+) {
+  if (EXIGE_EMAIL[provider.name as ProvedorPix] && !emailValido(pagador.email ?? "")) {
+    throw new OrderError("Informe um e-mail válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
+  }
+  const problema = provider.problemaNoPagador?.(pagador);
+  if (problema) throw new OrderError(problema, 400);
+}
+
+/**
  * Tudo que o pedido precisa antes de gravar: confere a rifa, os limites, o
  * CPF e o antifraude, resolve comprador e afiliado e calcula o preço. É a
  * mesma régua para a compra avulsa (`createOrder`) e para cada rifa do
@@ -294,6 +313,8 @@ async function prepararPedido(
         name: conta.name,
         phone: conta.phone,
         cpf: conta.cpf ?? input.buyer.cpf,
+        // O e-mail da conta vale primeiro; sem ele, o que a tela pediu.
+        email: conta.email ?? input.buyer.email,
       },
     };
   }
@@ -366,6 +387,8 @@ async function prepararPedido(
       throw new OrderError("Informe um CPF válido de quem está comprando: ele é exigido para gerar o Pix.", 400);
     }
   }
+  // O e-mail e o telefone, pela mesma régua: o Pix do Pagar.me não sai sem eles.
+  if (provider) conferirPagadorDoPix(provider, { email: input.buyer.email, phone: input.buyer.phone });
 
   // 9.4: na rifa autorizada a promotora e a plataforma não concorrem — nem
   // pela maquininha. Antes de qualquer gravação, como o antifraude.
@@ -649,6 +672,8 @@ export async function createOrder(
       name: buyer.name,
       phone: buyer.phone,
       cpf: buyer.cpf ?? input.buyer.cpf ?? undefined,
+      // O que veio no pedido (a conta já pôs o dela), senão o do cadastro.
+      email: input.buyer.email ?? buyer.email ?? undefined,
     },
     expiresAt,
     split: splitDaParte(parte),
@@ -801,12 +826,18 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
 
   // Dentro da conta, quem compra é a conta — o telefone do antifraude também.
   let telefone = input.buyer.phone;
+  let email = input.buyer.email;
   if (ctx.contaId) {
-    const [conta] = await db.select({ phone: buyers.phone, cpf: buyers.cpf, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, ctx.contaId));
+    const [conta] = await db.select({ phone: buyers.phone, cpf: buyers.cpf, email: buyers.email, excluidoEm: buyers.excluidoEm }).from(buyers).where(eq(buyers.id, ctx.contaId));
     if (!conta || conta.excluidoEm) throw new OrderError("Entre de novo na sua conta.", 401);
     if (faltaNaContaGoogle(conta).length) throw new OrderError(MSG_COMPLETE, 409);
     telefone = conta.phone;
+    email = conta.email ?? email;
   }
+  // O e-mail e o telefone que o provedor exige, antes do antifraude e de
+  // qualquer linha: erro de preenchimento não gasta a tentativa (cada rifa
+  // confere de novo).
+  conferirPagadorDoPix(await activePaymentProvider(), { email, phone: telefone });
 
   // Antes de qualquer linha: o carrinho inteiro é uma tentativa de compra.
   const identity = ctx.identity ?? { ipHash: null, deviceHash: null };
@@ -894,7 +925,12 @@ export async function createCartOrder(input: CarrinhoCheckoutInput, ctx: CreateO
       orderCode: carrinho.codigo,
       amountCents: total,
       description: `Carrinho — ${pedidos.length} rifa(s)`,
-      payer: { name: buyer.name, phone: buyer.phone, cpf: buyer.cpf ?? preparos[0].input.buyer.cpf ?? undefined },
+      payer: {
+        name: buyer.name,
+        phone: buyer.phone,
+        cpf: buyer.cpf ?? preparos[0].input.buyer.cpf ?? undefined,
+        email: preparos[0].input.buyer.email ?? buyer.email ?? undefined,
+      },
       expiresAt,
       split: split.length ? split : undefined,
     });
@@ -1648,8 +1684,16 @@ export interface RefundResult {
  *
  * Idempotente: só age sobre pedido `paid`, e o `UPDATE` condicional garante
  * que duas chamadas simultâneas não dupliquem nada.
+ *
+ * `opcoes.naTransacao` roda **dentro** da transação do estorno, antes de
+ * mexer no pedido: é como a conferência da devolução (`resolverConferencia`)
+ * tira a marca do chamado no mesmo commit — se ela lançar, nada é desfeito.
+ * Pedido que já não está pago não chega a abrir a transação (volta `null`).
  */
-export async function refundOrder(orderId: string): Promise<RefundResult | null> {
+export async function refundOrder(
+  orderId: string,
+  opcoes: { naTransacao?: (tx: Tx) => Promise<void> } = {},
+): Promise<RefundResult | null> {
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
   if (!order) throw new OrderError("Pedido não encontrado.", 404);
   if (order.status !== "paid") {
@@ -1665,6 +1709,7 @@ export async function refundOrder(orderId: string): Promise<RefundResult | null>
   // "Quando completar": o estorno que tira a rifa de cheia desfaz a antecipação.
   let desmarcouSorteio = false;
   return db.transaction(async (tx) => {
+    if (opcoes.naTransacao) await opcoes.naTransacao(tx);
     // O sorteio congela o quadro. Basta ter sido executado uma vez. Lido aqui
     // dentro, com a linha do sorteio travada (`FOR SHARE`): o sorteio em
     // andamento espera este estorno, ou este espera o sorteio — nunca os dois

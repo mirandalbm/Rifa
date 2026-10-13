@@ -46,7 +46,8 @@ import {
   type ResumoCobrancaIA,
 } from "@shared/iaCobranca";
 import type { TitularDaIA } from "@shared/ia";
-import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
+import { EXIGE_CPF, EXIGE_EMAIL, type ProvedorPix } from "@shared/plataforma";
+import { emailValido } from "@shared/format";
 import { activePaymentProvider } from "../payments";
 import { isUniqueViolation } from "../pgError";
 import { hit } from "./antifraude";
@@ -334,24 +335,42 @@ export async function pedirPagamento(
     );
 
   const [u] = await db
-    .select({ nome: users.name, phone: users.phone })
+    .select({ nome: users.name, phone: users.phone, email: users.email })
     .from(users)
     .where(eq(users.id, userId));
   let nome = u?.nome ?? "Assinante";
   let documento: string | null = documentoDoPagador(corpo.documento);
+  // Quem paga: o acesso que pede (o afiliado, o do cadastro dele); na
+  // organização, sem WhatsApp no acesso, o telefone aprovado dela.
+  let telefone = u?.phone ?? "";
   if (p.tipo === "organizacao") {
     const [o] = await db
-      .select({ nome: organizations.name, cnpj: organizations.cnpj })
+      .select({
+        nome: organizations.name,
+        cnpj: organizations.cnpj,
+        telefoneOrganizador: organizations.telefoneOrganizador,
+        telefoneAprovadoEm: organizations.telefoneAprovadoEm,
+      })
       .from(organizations)
       .where(eq(organizations.id, p.id));
     nome = o?.nome ?? nome;
     documento = documentoDoPagador(o?.cnpj ?? "") ?? documento;
+    if (!telefone && o?.telefoneAprovadoEm && o.telefoneOrganizador) telefone = o.telefoneOrganizador;
   }
   const provider = await activePaymentProvider();
   if (EXIGE_CPF[provider.name as ProvedorPix] && !documento) {
     throw new CobrancaIAError(
       "Informe o CPF ou o CNPJ de quem paga para gerar o Pix.",
     );
+  }
+  // O Pagar.me exige o e-mail de quem paga: o do acesso de quem pede, antes de gravar.
+  if (EXIGE_EMAIL[provider.name as ProvedorPix] && !emailValido(u?.email ?? "")) {
+    throw new CobrancaIAError("Cadastre um e-mail válido no seu acesso para gerar o Pix.");
+  }
+  // E o telefone no formato do Pagar.me: conferido antes de gravar a linha.
+  const problemaNoPagador = provider.problemaNoPagador?.({ email: u?.email, phone: telefone });
+  if (problemaNoPagador) {
+    throw new CobrancaIAError(`${problemaNoPagador} Valem o e-mail e o WhatsApp do seu acesso.`);
   }
 
   const agora = new Date();
@@ -403,7 +422,7 @@ export async function pedirPagamento(
       orderCode: linha.codigo,
       amountCents: valorCents,
       description: descricao,
-      payer: { name: nome, phone: u?.phone ?? "", cpf: documento ?? undefined },
+      payer: { name: nome, phone: telefone, cpf: documento ?? undefined, email: u?.email ?? undefined },
       expiresAt,
     });
   } catch (err) {

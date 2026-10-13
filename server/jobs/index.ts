@@ -24,9 +24,9 @@ import { posterDosVideosAntigos } from "../services/posterRetroativo";
 import { enviarEventosPendentes } from "../services/marketing";
 import { migrarAfiliadosAntigos } from "../services/afiliados";
 import { medirImagensDeExemplo } from "../services/demonstracao";
-import { releaseExpired } from "../services/quotas";
+import { expirarReservas } from "../services/reservasVencidas";
+import { comissaoSemDevolucaoAConferirSql } from "../services/chamados";
 import { sortearRifasPendentesDosSorteiosOficiais } from "../services/sortear";
-import { paymentProviderByName } from "../payments";
 import { log } from "../vite";
 import { poolDasTravas } from "../db";
 import { LocalDiskStorage, storage } from "../services/storage";
@@ -148,24 +148,6 @@ async function lembrarReservasVencendo() {
 }
 
 /**
- * Cobrança de reserva vencida precisa deixar de valer no provedor: o Pix do
- * Asaas vale até o fim do dia, e pagar uma reserva já devolvida ao estoque
- * seria dinheiro sem cota. Melhor esforço — falha aqui não trava o relógio;
- * se o pagamento ainda assim chegar, o webhook recusa o pedido expirado e o
- * caso aparece no log para devolução.
- */
-async function cancelarCobrancas(cobrancas: { provider: string; chargeId: string }[]) {
-  for (const c of cobrancas) {
-    try {
-      const provider = paymentProviderByName(c.provider);
-      await provider.cancelCharge?.(c.chargeId);
-    } catch (err) {
-      console.error(`[jobs] não cancelou a cobrança ${c.chargeId} (${c.provider}):`, (err as Error).message);
-    }
-  }
-}
-
-/**
  * Dois relógios. A expiração de reserva é o que devolve número ao estoque —
  * sem ela, cota reservada e não paga some da rifa.
  */
@@ -176,9 +158,11 @@ export function startJobs() {
   setInterval(async () => {
     try {
       await withLock(LOCK_EXPIRACAO, async () => {
-        const { liberadas, cobrancas } = await releaseExpired();
+        // Devolve as cotas e fecha a cobrança; a que o provedor diz já paga
+        // vai para a fila do Pix tardio (`expirarReservas`).
+        const { liberadas, pagas } = await expirarReservas();
         if (liberadas > 0) log(`${liberadas} cota(s) voltaram ao estoque`, "jobs");
-        await cancelarCobrancas(cobrancas);
+        if (pagas > 0) log(`${pagas} cobrança(s) de reserva vencida já estavam pagas: fila do Pix tardio`, "jobs");
       });
     } catch (err) {
       console.error("[jobs] expiração de reservas:", err);
@@ -524,7 +508,13 @@ export function startJobs() {
           .update(commissions)
           .set({ status: "available" })
           .where(
-            and(eq(commissions.status, "pending"), sql`${commissions.availableAt} <= now()`),
+            and(
+              eq(commissions.status, "pending"),
+              sql`${commissions.availableAt} <= now()`,
+              // Devolução no meio do caminho ou a conferir no provedor: o
+              // dinheiro pode ter voltado, a comissão espera a conferência.
+              comissaoSemDevolucaoAConferirSql(),
+            ),
           )
           .returning({ id: commissions.id });
         if (rows.length > 0) log(`${rows.length} comissão(ões) liberadas`, "jobs");

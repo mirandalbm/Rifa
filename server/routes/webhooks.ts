@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db";
-import { webhookEvents } from "@shared/schema";
+import { auditLog, webhookEvents } from "@shared/schema";
 import { paymentProviderByName, PROVEDORES_CONHECIDOS } from "../payments";
 import type { WebhookResult } from "../payments/provider";
 import { OrderError, markOrderPaid, refundByChargeId } from "../services/orders";
@@ -29,14 +29,20 @@ webhookRouter.post("/:provider", async (req, res) => {
     }
     const provider = paymentProviderByName(providerName);
 
-    const event = await provider.verifyWebhook(req.headers as Record<string, unknown>, raw);
+    // A consulta do endereço vai junto: o Pagar.me não assina o webhook, e o
+    // segredo dele vem no endereço cadastrado (`?t=`). Os outros a ignoram.
+    const event = await provider.verifyWebhook(req.headers as Record<string, unknown>, raw, {
+      query: req.query as Record<string, unknown>,
+    });
 
     const inserted = await db
       .insert(webhookEvents)
       .values({
         provider: providerName,
         externalId: event.externalId,
-        payload: JSON.parse(raw || "{}"),
+        // O provedor pode guardar menos que o corpo inteiro (o Pagar.me traz o
+        // cliente na cobrança: nome, e-mail, documento, telefone).
+        payload: provider.payloadParaGuardar ? provider.payloadParaGuardar(raw) : JSON.parse(raw || "{}"),
       })
       .onConflictDoNothing()
       .returning({ id: webhookEvents.id });
@@ -98,6 +104,19 @@ webhookRouter.post("/:provider", async (req, res) => {
       }
     }
 
+    // O que o evento não resolve sozinho vai para quem olha (a Caixa de
+    // entrada lista pela ação do `audit_log`), antes de concluir o evento.
+    if (event.aviso) {
+      await db.insert(auditLog).values({
+        actorId: null,
+        actorRole: "sistema",
+        action: event.aviso.acao,
+        entity: "cobranca",
+        entityId: event.aviso.chargeId,
+        diff: { provedor: providerName, ...event.aviso.dados },
+      });
+    }
+
     await db
       .update(webhookEvents)
       .set({ processedAt: new Date() })
@@ -107,7 +126,15 @@ webhookRouter.post("/:provider", async (req, res) => {
   } catch (err) {
     // 4xx faz o provedor reenviar; é o que queremos em falha de assinatura.
     console.error("[webhook]", err);
-    res.status(400).json({ message: "Webhook recusado." });
+    // Segredo do endereço ausente ou errado (Pagar.me): 401. O provedor que
+    // avisa um pagamento que a API ainda não mostra (Pagar.me): 503 com
+    // `Retry-After`, como o "em andamento" — o reenvio não pode parar. O resto, 400.
+    const codigo = (err as { status?: number })?.status;
+    if (codigo === 503) {
+      res.setHeader("Retry-After", String(PRAZO_DO_PROCESSAMENTO_S));
+      return res.status(503).json({ message: "Pagamento ainda não confirmado pelo provedor. Tente de novo." });
+    }
+    res.status(codigo === 401 ? 401 : 400).json({ message: "Webhook recusado." });
   }
 });
 

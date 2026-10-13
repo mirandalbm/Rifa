@@ -9,7 +9,7 @@ import { SeloVerificado } from "@/components/SeloVerificado";
 import { ApiError, apiRequest } from "@/lib/queryClient";
 import { esquecerCartela, porNoCarrinho, tirarBilheteDoCarrinho, tirarDoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { agruparPorOrganizacao, bilhetesDoItem, quantidadeNaFaixa } from "@shared/carrinho";
-import { cpfValido, formatBRL, formatQuota, maskCpf, maskPhone } from "@shared/format";
+import { cpfValido, emailValido, formatBRL, formatQuota, maskCpf, maskPhone } from "@shared/format";
 import { corDaCasa } from "@/lib/quadro";
 import { useSession } from "@/lib/session";
 import { lerOrigem } from "@/lib/origem";
@@ -285,7 +285,7 @@ function ItemDoCarrinho({ item: i, bilhetes: bilhetesGuardados }: { item: Item; 
 
 /**
  * Seus dados e o botão de pagamento — o único do carrinho: nome, WhatsApp
- * e (se o provedor pedir) CPF, como na página da rifa. Vão rifa e
+ * e (se o provedor pedir) CPF e e-mail, como na página da rifa. Vão rifa e
  * quantidade — o preço é do servidor, que reserva tudo ou nada e devolve o
  * Pix da plataforma para o carrinho inteiro.
  */
@@ -293,24 +293,36 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
   const [, navegar] = useLocation();
   const { data: sessao } = useSession();
   const naConta = Boolean(sessao?.buyer?.conta);
-  const { data: checkout } = useQuery<{ exigeCpf: boolean; reembolso?: { aceita: boolean; taxaPct: number } }>({
+  const { data: checkout } = useQuery<{
+    exigeCpf: boolean;
+    exigeEmail?: boolean;
+    contaTemEmail?: boolean;
+    reembolso?: { aceita: boolean; taxaPct: number };
+  }>({
     queryKey: ["/api/public/checkout"],
   });
   const exigeCpf = (checkout?.exigeCpf ?? false) && !naConta;
-  const [dados, setDados] = useState({ name: "", phone: "", cpf: "" });
+  // O e-mail (o Pagar.me exige): a conta que já tem o dela não digita.
+  const exigeEmail = (checkout?.exigeEmail ?? false) && !(naConta && checkout?.contaTemEmail);
+  const [dados, setDados] = useState({ name: "", phone: "", cpf: "", email: "" });
   const [erro, setErro] = useState<string | null>(null);
   const comprador = naConta
     ? { name: sessao!.buyer!.name || "Conta", phone: sessao!.buyer!.phone }
     : { name: dados.name, phone: dados.phone };
   const cpfOk = !exigeCpf || cpfValido(dados.cpf);
-  const pronto = comprador.name.trim().length >= 2 && comprador.phone.replace(/\D/g, "").length >= 10 && cpfOk;
+  const emailOk = !exigeEmail || emailValido(dados.email);
+  const pronto = comprador.name.trim().length >= 2 && comprador.phone.replace(/\D/g, "").length >= 10 && cpfOk && emailOk;
 
   const pagar = useMutation({
     mutationFn: async () =>
       (
         await apiRequest("POST", "/api/public/carrinho/checkout", {
           itens: itens.map((i) => ({ slug: i.slug, quantidade: i.quantidade, ...(i.numeros?.length ? { numeros: i.numeros } : {}) })),
-          buyer: { ...comprador, ...(exigeCpf ? { cpf: dados.cpf.replace(/\D/g, "") } : {}) },
+          buyer: {
+            ...comprador,
+            ...(exigeCpf ? { cpf: dados.cpf.replace(/\D/g, "") } : {}),
+            ...(exigeEmail ? { email: dados.email.trim() } : {}),
+          },
           origem: lerOrigem(),
           indicacao: lerIndicacao(),
           utm: lerUtm(),
@@ -381,7 +393,28 @@ function PagarCarrinho({ itens, total }: { itens: Item[]; total: number }) {
           {dados.cpf.replace(/\D/g, "").length === 11 && !cpfOk ? (
             <p className="mt-1 text-[11px] text-red">CPF inválido. Confira os números.</p>
           ) : (
-            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Não aparece para ninguém.</p>
+            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Só a plataforma, o banco e, se você ganhar, a promotora veem.</p>
+          )}
+        </div>
+      ) : null}
+      {exigeEmail ? (
+        <div>
+          <label htmlFor="carrinho-email" className="label-xs">
+            E-mail
+          </label>
+          <input
+            id="carrinho-email"
+            type="email"
+            value={dados.email}
+            inputMode="email"
+            autoComplete="email"
+            onChange={(e) => setDados({ ...dados, email: e.target.value })}
+            className="campo text-sm"
+          />
+          {dados.email.includes("@") && dados.email.includes(".") && !emailOk ? (
+            <p className="mt-1 text-[11px] text-red">E-mail inválido. Confira o endereço.</p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted">Exigido pelo banco para gerar o Pix. Só a plataforma, o banco e, se você ganhar, a promotora veem.</p>
           )}
         </div>
       ) : null}

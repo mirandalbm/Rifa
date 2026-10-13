@@ -110,6 +110,17 @@ export function maskCpf(entrada: string): string {
     .replace(/\.(\d{3})(\d{1,2})$/, ".$1-$2");
 }
 
+/**
+ * E-mail no formato de e-mail (algo@domínio.tld, sem espaço, até 254
+ * letras). Não prova que a caixa existe — só pega o erro de digitação antes
+ * de o provedor do Pix recusar a cobrança. A mesma régua da conta do
+ * apostador (`problemaNoCadastro`).
+ */
+export function emailValido(entrada: string): boolean {
+  const t = String(entrada ?? "").trim();
+  return t.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(t);
+}
+
 /** CNPJ com os dois dígitos verificadores conferidos. */
 export function cnpjValido(entrada: string): boolean {
   const d = entrada.replace(/\D/g, "");

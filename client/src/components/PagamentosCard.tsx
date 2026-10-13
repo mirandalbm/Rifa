@@ -4,10 +4,11 @@ import { Card, Button, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Provedor {
-  id: "mercadopago" | "asaas";
+  id: "mercadopago" | "asaas" | "pagarme";
   nome: string;
   faltando: string[];
   exigeCpf: boolean;
+  exigeEmail?: boolean;
   webhook: string;
 }
 
@@ -114,7 +115,9 @@ export function PagamentosCard() {
                 <span className="block text-xs text-muted">
                   {p.id === "asaas"
                     ? "Divide na origem: a parte do promotor cai direto na carteira Asaas da organização. Pede CPF do comprador."
-                    : "Tudo entra na conta da plataforma; o rateio fica no controle do painel."}
+                    : p.id === "pagarme"
+                      ? "Tudo entra na conta da plataforma, sem divisão; o rateio fica no controle do painel. Pede CPF, e-mail e telefone do comprador."
+                      : "Tudo entra na conta da plataforma; o rateio fica no controle do painel."}
                 </span>
                 {p.faltando.length ? (
                   <span className="block text-xs text-red">
@@ -130,6 +133,12 @@ export function PagamentosCard() {
           <div className="rounded-md bg-mist px-3 py-2 text-xs text-ink-2">
             Cadastre no painel do {escolhido.nome} o webhook:
             <span className="tnum mt-1 block break-all text-ink">{escolhido.webhook}</span>
+            {escolhido.id === "pagarme" ? (
+              <span className="mt-1 block">
+                O Pagar.me não assina o aviso: troque o trecho entre &lt; &gt; pelo valor de PAGARME_WEBHOOK_TOKEN do
+                Railway. Sem ele, o aviso é recusado.
+              </span>
+            ) : null}
           </div>
         ) : null}
 

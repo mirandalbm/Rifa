@@ -94,13 +94,58 @@ senha); **[código]** é trabalho no repositório.
   comercial com autorização SPA/MF; (b) conta com split (recebedor por
   promotora) para Pix; (c) como o estorno e a devolução por MED se dividem
   entre os recebedores; (d) o prazo em que o Pix fica disponível para o
-  recebedor; (e) as tarifas.
-- [ ] **[código]** Integrar o Pagar.me (`server/payments/`, `PaymentProvider`)
-  com o recebedor de cada organização no lugar da carteira do Asaas: plano
-  em `docs/PLANO-GATEWAY-PAGARME.md` (documentação lida em 10/10/2026). O
-  Asaas e o Mercado Pago (abaixo) ficam no código até a troca. Pela busca,
-  o Asaas põe loterias como "uso restrito" (empresa, com documentos), e não
-  como proibidas: vale perguntar a ele também.
+  recebedor; (e) as tarifas. **Conta aberta na Stone em 12/10/2026**:
+  confirmar que ela dá o painel e as chaves de API do Pagar.me. Com a
+  decisão "sem split" (abaixo), o (b) e o (c) deixam de importar; seguem
+  valendo o (a), a tarifa, a validade do QR, a autenticação do webhook e a
+  idempotência (`docs/PLANO-GATEWAY-PAGARME.md`, seção 3).
+- [ ] **[você → advogado]** **Sem split, a plataforma recebe e repassa**
+  (decisão de 12/10/2026, com o aval do advogado e do contador para a parte
+  fiscal: valor a repassar, não receita). Falta o advogado confirmar por
+  escrito que a conclusão do item 1.2 (a plataforma **não é
+  subcredenciadora**, Resolução BCB 150/2021, art. 2º, V) continua valendo:
+  ela se apoiava no provedor receber e dividir o Pix. E a cláusula do
+  contrato da promotora sobre o repasse (prazo: depois do sorteio; forma:
+  Pix com comprovante e recibo; o que se desconta: taxa, comissão guardada,
+  estornos, MED e contestação). O repasse no código espera essa resposta.
+- [x] **[código]** Provedor Pagar.me, fase 1 do gateway, **sem split**
+  (12/10/2026): `server/payments/pagarme.ts` (Pix pela API v5 com o cliente
+  completo e o QR vencendo com a reserva; webhook com o segredo no endereço
+  e o status sempre da consulta à cobrança; estorno total e parcial com a
+  chave de idempotência; cancelamento só da cobrança pendente), o e-mail de
+  quem paga exigido no servidor antes de reservar (`EXIGE_EMAIL`, também no
+  carrinho, na recarga do patrocínio e no Pix do assistente). `npm run
+  pagarme` prova contra um Pagar.me de mentira; `tests/pagarme.test.ts` as
+  regras. O que ficou **a confirmar** com o Pagar.me está em
+  `docs/PLANO-GATEWAY-PAGARME.md`, seção 6.
+- [x] **[código]** **O campo de e-mail na tela de compra** (página da rifa e
+  carrinho, só quando o provedor em uso exige; a conta que já tem e-mail não
+  digita) e a explicação do Pagar.me em Configurações → Pagamentos (#253).
+- [ ] **[você]** Pagar.me no Railway: `PAGARME_SECRET_KEY` (a chave secreta
+  `sk_…` da conta) e `PAGARME_WEBHOOK_TOKEN` (um segredo longo, gerado por
+  você); no painel do Pagar.me, cadastrar o webhook
+  `https://<site>/api/webhooks/pagarme?t=<o mesmo segredo>` com os eventos
+  `charge.paid`, `charge.refunded` e `charge.partial_canceled`. Fazer um Pix
+  de teste no ambiente de teste (sdx) antes de escolher o provedor no painel,
+  conferindo os itens "a confirmar" do plano.
+  **Conferir o fuso do `expires_at`** nesse primeiro Pix: mandamos sem o `Z`,
+  como a documentação mostra (UTC); se o Pagar.me o ler como Brasília, o QR
+  vive 3 h a mais que a reserva. Se a documentação aceitar o `Z`, passe a
+  mandar com ele (`venceEmDoPagarme()` em `server/payments/pagarme.ts`).
+- [x] **[código]** A devolução **a conferir no provedor** tem saída: a
+  plataforma confere no painel do Pagar.me e decide no Atendimento
+  (`POST /chamados/:id/conferencia`; devolveu → desfaz o pedido, não
+  devolveu → volta a aprovado), com a Caixa de entrada, o contador, o
+  índice que barra outro chamado do mesmo pedido e a comissão segura.
+- [x] **[código]** A **contestação parcial** do Pix (MED, chargeback que não
+  cobre o pago) fica na Caixa de entrada até a plataforma registrar a
+  decisão (Pedidos → "Contestações do Pix a conferir"). O que fazer com o
+  pedido segue pelos caminhos de sempre; não há estorno automático.
+- [ ] **[código]** Repasse à promotora (a fase que substitui o split): espera
+  a resposta do advogado (item acima). Asaas e Mercado Pago (abaixo) ficam no
+  código até o Pagar.me estar em produção. Pela busca, o Asaas põe loterias
+  como "uso restrito" (empresa, com documentos), e não como proibidas: vale
+  perguntar a ele também.
   - Mercado Pago: `MP_ACCESS_TOKEN` e `MP_WEBHOOK_SECRET` no Railway.
   - Asaas: `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` no Railway; cadastrar o
     webhook `/api/webhooks/asaas` no painel do Asaas; cadastrar a carteira

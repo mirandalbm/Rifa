@@ -246,11 +246,15 @@ import {
   concluirChamado,
   detalheDoChamado,
   executarEstorno,
+  resolverConferencia,
+  comissaoSemDevolucaoAConferirSql,
   listarChamados,
   respostaDaOrganizacao,
   decidirDisputa,
   disputasAbertas,
 } from "../services/chamados";
+import { validarConferencia } from "@shared/chamados";
+import { cobrancaValida, contestacoesAConferir, marcarContestacaoConferida } from "../services/contestacoes";
 import { alterarMeta, criarMeta, painelDoBonus } from "../services/bonus";
 import { painelDoMarketing, salvarMarketing } from "../services/marketing";
 import {
@@ -285,6 +289,7 @@ import {
   NOME_PROVEDOR,
   CREDENCIAIS_PROVEDOR,
   EXIGE_CPF,
+  EXIGE_EMAIL,
   validarFundoDaConversa,
   validarCanaisDasLoterias,
 } from "@shared/plataforma";
@@ -3086,7 +3091,10 @@ adminRouter.get("/plataforma", async (req, res, next) => {
         nome: NOME_PROVEDOR[p],
         faltando: CREDENCIAIS_PROVEDOR[p].filter((v) => !process.env[v]),
         exigeCpf: EXIGE_CPF[p],
-        webhook: `${base.replace(/\/$/, "")}/api/webhooks/${p}`,
+        exigeEmail: EXIGE_EMAIL[p],
+        // O Pagar.me não assina o webhook: o segredo vai no endereço. A tela
+        // mostra só o nome da variável, nunca o valor.
+        webhook: `${base.replace(/\/$/, "")}/api/webhooks/${p}${p === "pagarme" ? "?t=<valor de PAGARME_WEBHOOK_TOKEN>" : ""}`,
       })),
     });
   } catch (err) {
@@ -3302,6 +3310,58 @@ adminRouter.post("/chamados/:id/disputa/decidir", async (req, res, next) => {
       prazoEstornoAte: feito.prazoEstornoAte,
     });
     res.json(feito);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * A contestação do Pix que o provedor avisou sem cobrir o pago (MED,
+ * chargeback): a lista e o registro da decisão da plataforma. Só a
+ * plataforma (403 para organizador); cobrança fora do formato é 404.
+ */
+adminRouter.get("/contestacoes", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await contestacoesAConferir());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post("/contestacoes/:cobranca/conferida", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    if (!cobrancaValida(req.params.cobranca)) return res.status(404).json({ message: "Contestação não encontrada." });
+    res.json(
+      await marcarContestacaoConferida(req, req.params.cobranca, typeof req.body?.observacao === "string" ? req.body.observacao : ""),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * A devolução a conferir no provedor: a plataforma diz se o dinheiro voltou
+ * (com o que conferiu). Só a plataforma (403 para organizador).
+ */
+adminRouter.post("/chamados/:id/conferencia", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    // Id fora do formato não chega ao banco (o Postgres recusaria com 500).
+    if (!ehUuid(req.params.id)) return res.status(404).json({ message: "Chamado não encontrado." });
+    const entrada = validarConferencia(req.body);
+    if (typeof entrada === "string") return res.status(400).json({ message: entrada });
+    const { chamado, refund } = await resolverConferencia(req, req.params.id, entrada);
+    res.json({
+      protocolo: chamado.protocolo,
+      status: chamado.status,
+      forma: chamado.formaDevolucao,
+      cotasLiberadas: refund?.liberadas.length ?? 0,
+      cotasCongeladas: refund ? refund.liberadas.length === 0 : false,
+      comissaoJaPagaCents: refund?.comissaoJaPagaCents ?? 0,
+    });
   } catch (err) {
     next(err);
   }
@@ -3904,6 +3964,8 @@ adminRouter.post("/finance/release", async (req, res, next) => {
         and(
           eq(commissions.status, "pending"),
           sql`${commissions.availableAt} <= now()`,
+          // Devolução a conferir no provedor: a comissão espera a conferência.
+          comissaoSemDevolucaoAConferirSql(),
           // Liberar comissão é liberar dinheiro. O organizador libera a dele.
           org
             ? sql`${commissions.campaignId} IN (

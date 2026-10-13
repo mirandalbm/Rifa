@@ -136,7 +136,7 @@ import { getPaymentMethods } from "../services/settings";
 import { identify, guardOtp, guardOtpVerify, hit, lookupBlocked, recordLookupMiss } from "../services/antifraude";
 import { paymentSummary } from "@shared/payments";
 import { activePaymentProvider } from "../payments";
-import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
+import { EXIGE_CPF, EXIGE_EMAIL, type ProvedorPix } from "@shared/plataforma";
 import { getPlataforma } from "../services/settings";
 import { buscar } from "../services/buscar";
 import {
@@ -1705,15 +1705,27 @@ publicRouter.post("/track-click", async (req, res, next) => {
 /* ---------------- pedido ---------------- */
 
 /**
- * O que a tela de compra precisa saber antes de montar o formulário. Hoje, só
- * se o CPF é obrigatório — depende do provedor do Pix em uso.
+ * O que a tela de compra precisa saber antes de montar o formulário: se o CPF
+ * e o e-mail são obrigatórios — depende do provedor do Pix em uso.
  */
-publicRouter.get("/checkout", async (_req, res, next) => {
+publicRouter.get("/checkout", async (req, res, next) => {
   try {
     const provider = await activePaymentProvider();
     const plataforma = await getPlataforma();
+    const exigeEmail = EXIGE_EMAIL[provider.name as ProvedorPix] ?? false;
+    // Dentro da conta, o e-mail dela vale (o servidor usa o da conta): a tela
+    // só pede quando a conta não tem. Só o "tem ou não" — o e-mail nunca sai.
+    let contaTemEmail = false;
+    if (exigeEmail && req.session.buyer?.id) {
+      const [conta] = await db.select({ email: buyers.email }).from(buyers).where(eq(buyers.id, req.session.buyer.id));
+      contaTemEmail = Boolean(conta?.email);
+    }
+    // Depende da sessão: nunca em cache compartilhado.
+    res.setHeader("Cache-Control", "private, no-store");
     res.json({
       exigeCpf: EXIGE_CPF[provider.name as ProvedorPix] ?? false,
+      exigeEmail,
+      contaTemEmail,
       // A regra de reembolso aparece antes da compra (CDC): quem compra
       // precisa saber a taxa antes de pagar.
       reembolso: { aceita: plataforma.estornoManual, taxaPct: plataforma.taxaReembolsoPct },

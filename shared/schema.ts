@@ -1456,13 +1456,17 @@ export const chamados = pgTable(
   },
   (t) => [
     uniqueIndex("uq_chamados_protocolo").on(t.protocolo),
-    // Em andamento também é o recusado em disputa: senão um chamado novo
-    // para o mesmo pedido correria em paralelo com a decisão da plataforma.
-    // (Nome novo de propósito: o `db:push` não troca o filtro de um índice
-    // existente, mas apaga o antigo e cria este.)
-    uniqueIndex("uq_chamados_pedido_em_andamento")
+    // Em andamento também é o recusado em disputa (senão um chamado novo
+    // para o mesmo pedido correria em paralelo com a decisão da plataforma)
+    // e a devolução no meio do caminho ou a conferir no provedor (o dinheiro
+    // pode ter voltado: outro chamado seria a segunda devolução).
+    // (Nome novo de propósito, a cada filtro novo: o `db:push` não troca o
+    // filtro de um índice existente, mas apaga o antigo e cria este.)
+    uniqueIndex("uq_chamados_pedido_aberto")
       .on(t.orderId)
-      .where(sql`status in ('aberto', 'aprovado') or disputa = 'aberta'`),
+      .where(
+        sql`status in ('aberto', 'aprovado') or disputa = 'aberta' or forma_devolucao in ('devolvendo_no_provedor', 'conferir_no_provedor')`,
+      ),
     index("idx_chamados_org").on(t.organizationId, t.status, t.createdAt),
     index("idx_chamados_disputa").on(t.disputa, t.disputaAbertaEm),
   ],

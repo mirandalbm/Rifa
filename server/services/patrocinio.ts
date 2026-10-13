@@ -24,7 +24,7 @@ import { ehUuid } from "@shared/uuid";
 import { comprovanteConfere } from "./ticketDoClique";
 import { randomInt, randomUUID } from "node:crypto";
 import type { Request } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   campaigns,
@@ -52,7 +52,8 @@ import {
   type Alcance,
   type ConfigPatrocinio,
 } from "@shared/patrocinio";
-import { EXIGE_CPF, type ProvedorPix } from "@shared/plataforma";
+import { EXIGE_CPF, EXIGE_EMAIL, type ProvedorPix } from "@shared/plataforma";
+import { emailValido } from "@shared/format";
 import { UFS } from "@shared/endereco";
 import { diaNoFuso, serieDiaria } from "@shared/resultados";
 import { activePaymentProvider } from "../payments";
@@ -490,13 +491,32 @@ export async function pedirRecarga(req: Request, valorCents: number) {
   const problema = problemaNaRecarga(valorCents, cfg.patrocinio.recargaMinimaCents);
   if (problema) throw new PatrocinioError(problema);
 
-  const [org] = await db.select({ nome: organizations.name, cnpj: organizations.cnpj }).from(organizations).where(eq(organizations.id, orgId));
+  const [org] = await db
+    .select({
+      nome: organizations.name,
+      cnpj: organizations.cnpj,
+      telefoneOrganizador: organizations.telefoneOrganizador,
+      telefoneAprovadoEm: organizations.telefoneAprovadoEm,
+    })
+    .from(organizations)
+    .where(eq(organizations.id, orgId));
   const provider = await activePaymentProvider();
   const documento = (org?.cnpj ?? "").replace(/\D/g, "");
   if (EXIGE_CPF[provider.name as ProvedorPix] && documento.length !== 14 && documento.length !== 11) {
     throw new PatrocinioError("Cadastre o CNPJ da organização para gerar o Pix da recarga.", 400);
   }
-  const [u] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, req.user!.id));
+  const [u] = await db.select({ phone: users.phone, email: users.email }).from(users).where(eq(users.id, req.user!.id));
+  // Quem paga: o acesso que pede a recarga; sem WhatsApp no acesso, o
+  // telefone aprovado da organização.
+  const telefone = u?.phone || (org?.telefoneAprovadoEm ? org.telefoneOrganizador : null) || "";
+  // O Pagar.me exige o e-mail e o telefone no formato dele: conferidos antes de gravar.
+  if (EXIGE_EMAIL[provider.name as ProvedorPix] && !emailValido(u?.email ?? "")) {
+    throw new PatrocinioError("Cadastre um e-mail válido no seu acesso para gerar o Pix da recarga.", 400);
+  }
+  const problemaNoPagador = provider.problemaNoPagador?.({ email: u?.email, phone: telefone });
+  if (problemaNoPagador) {
+    throw new PatrocinioError(`${problemaNoPagador} Para a recarga valem o e-mail e o WhatsApp do seu acesso (sem WhatsApp, o telefone aprovado da organização).`, 400);
+  }
   const expiresAt = new Date(Date.now() + 30 * 60_000);
 
   // Faixa própria (9 dígitos): não colide com os códigos de pedido (8 dígitos).
@@ -510,13 +530,23 @@ export async function pedirRecarga(req: Request, valorCents: number) {
       throw err;
     }
     // Chamada externa fora de transação; sem split: o dinheiro é da plataforma.
-    const charge = await provider.createPixCharge({
-      orderCode: codigo,
-      amountCents: valorCents,
-      description: `Recarga de rifas patrocinadas — ${org?.nome ?? "organização"}`,
-      payer: { name: org?.nome ?? "Organização", phone: u?.phone ?? "", cpf: documento || undefined },
-      expiresAt,
-    });
+    let charge;
+    try {
+      charge = await provider.createPixCharge({
+        orderCode: codigo,
+        amountCents: valorCents,
+        description: `Recarga de rifas patrocinadas — ${org?.nome ?? "organização"}`,
+        payer: { name: org?.nome ?? "Organização", phone: telefone, cpf: documento || undefined, email: u?.email ?? undefined },
+        expiresAt,
+      });
+    } catch (err) {
+      // O provedor recusou: a recarga sem Pix ficaria órfã ("esperando o Pix" para sempre).
+      await db
+        .delete(patrocinioRecargas)
+        .where(and(eq(patrocinioRecargas.id, recarga.id), isNull(patrocinioRecargas.chargeId)))
+        .catch((e) => console.error(`[patrocinio] recarga ${codigo} sem Pix não apagada:`, (e as Error).message));
+      throw err;
+    }
     const [comPix] = await db
       .update(patrocinioRecargas)
       .set({ provider: charge.provider, chargeId: charge.chargeId, pixQr: charge.qr, pixCopyPaste: charge.copyPaste })

@@ -1,11 +1,40 @@
 # Plano: gateway Pagar.me (Stone) — rascunho para aprovação (10/10/2026)
 
 Decisão do dono (10/10/2026): o gateway provável é o **Pagar.me**, porque,
-pela pesquisa dele, Asaas e Mercado Pago não aceitam rifa. Nada daqui está no
-código. A documentação foi lida pelo pesquisador de integração em 10/10/2026
+pela pesquisa dele, Asaas e Mercado Pago não aceitam rifa. **A fase 1 (o
+provedor, sem split) está no código desde 12/10/2026** — seção 6; o resto
+daqui ainda não. A documentação foi lida pelo pesquisador de integração em 10/10/2026
 (Context7 com a cópia do `docs.pagar.me`, o SDK oficial no GitHub e trechos de
 busca); daqui, os domínios do Pagar.me não abrem. O que não teve fonte oficial
 está marcado **a confirmar**.
+
+## 0. Decisões de 12/10/2026 (o dono, com o advogado e o contador)
+
+- **Sem split, sempre.** A plataforma recebe o Pix inteiro e repassa a
+  parte de cada promotora. O advogado e o contador disseram ao dono que,
+  mesmo com a conta recebendo tudo, a documentação mostra que é dinheiro de
+  repasse (valor a repassar, não receita). Sem split, somem o contrato PSP,
+  o recebedor por promotora e a prova de vida (a antiga fase 2).
+- **O repasse é liberado depois do sorteio**, como a carência da comissão:
+  o arrependimento fecha 2 h antes do sorteio, e depois dele sobra o risco
+  de MED e de contestação.
+- **O repasse é pago por Pix manual com baixa e comprovante**, com recibo,
+  como o saque do afiliado. Transferência automática pela API fica para
+  depois, se o Pagar.me fizer.
+- **Em aberto, antes de construir o repasse**: o parecer de 07/10 (item 1.2
+  de `docs/PENDENCIAS.md`) concluiu que a plataforma **não é
+  subcredenciadora** (Resolução BCB 150/2021, art. 2º, V) *porque* o
+  provedor recebia e dividia o Pix, e a plataforma não liquidava para
+  recebedores. Sem split, a plataforma liquida para as promotoras. O
+  advogado precisa confirmar por escrito que a conclusão continua valendo
+  (ou o que muda), além da parte fiscal. A decisão B3 de
+  `docs/FECHAMENTO-JURIDICO-CONTABIL.md` ("a plataforma nunca segura
+  dinheiro de rifa") deixa de valer se ele confirmar.
+- **Efeito no sistema** (quando o repasse entrar): a taxa da venda online
+  fica sempre retida (como hoje com `taxa_retida_no_split`), a notificação
+  de falta de pagamento passa a valer só para o cambista, a retenção
+  cautelar alcança o dinheiro das vendas, e o MED e a contestação saem do
+  saldo a repassar da promotora.
 
 ## 1. O que a documentação confirma
 
@@ -22,6 +51,11 @@ está marcado **a confirmar**.
 | Webhook | eventos `charge.paid`, `charge.refunded`, `charge.partial_canceled`, `order.*`, `recipient.updated`, `chargeback.received`; id `hook_…`; **a autenticação não está documentada** | O status vem sempre da consulta à API (regra de hoje), com segredo no endereço do webhook e a assinatura assimétrica, se vier |
 
 ## 2. Fases (cada uma é um PR, com o revisor de invariantes)
+
+Reordenadas em 12/10/2026 pela decisão "sem split": a fase 1 segue (sem as
+regras de split), a 2 (recebedor da promotora) sai, e o **repasse à
+promotora** entra no lugar dela, depois da resposta do advogado (seção 0).
+A lista abaixo é a de 10/10, para registro.
 
 1. **Provedor Pagar.me**:
    - o Pix com split em centavos (promotora, plataforma e, com a guarda ligada, a comissão do lado da plataforma);
@@ -70,3 +104,111 @@ já está pronto. O **Mercado Pago** proíbe rifas, pela citação de terceiros.
 - O que fazer com o dinheiro de recebedor recusado depois de vender.
 
 Até lá, a recomendação é não mandar a parte da promotora no split com o recebedor fora de `active`.
+
+## 6. Fase 1 feita (12/10/2026): o provedor, sem split
+
+No código: `server/payments/pagarme.ts` (`PagarmeProvider`, registrado em
+`server/payments/index.ts` e em `shared/plataforma.ts` — `PROVEDORES_PIX`,
+`NOME_PROVEDOR`, `CREDENCIAIS_PROVEDOR` com `PAGARME_SECRET_KEY` e
+`PAGARME_WEBHOOK_TOKEN`, `EXIGE_CPF` e o novo `EXIGE_EMAIL`).
+
+- **Pix**: `POST /orders` (Basic com a chave secreta, centavos), um item com
+  o total, o cliente com nome, e-mail, CPF ou CNPJ e o celular
+  (`phones.mobile_phone`), o pagamento Pix com `expires_at` = o vencimento da
+  reserva e o código do pedido no `code` e no `metadata`. **Nunca `split`**: o
+  parâmetro é ignorado e o Pix nunca diz `splitAplicado` (a taxa segue devida
+  no livro; o repasse é outra fase). O pedido guarda o id da **cobrança**
+  (`ch_…`). O QR é desenhado no nosso servidor a partir do copia e cola
+  (`qrcode`), sem depender do `qr_code_url` de lá.
+- **Webhook**: `/api/webhooks/pagarme?t=<PAGARME_WEBHOOK_TOKEN>`, o segredo
+  comparado em tempo constante (sem ele ou errado, **401**). O status vem
+  sempre de `GET /charges/{id}`: `charge.paid`/`charge.overpaid` só pagam com
+  a cobrança `paid` ou `overpaid` (pendente na API: **503 com
+  `Retry-After`**, para o Pagar.me tentar de novo — nada pago); `underpaid`
+  vai ao log e é ignorado; `charge.refunded` só estorna com a cobrança
+  estornada inteira (com `canceled_amount` cobrindo o pago — sem o valor,
+  nada); `charge.chargedback` com a API dizendo `chargedback` e o
+  contestado cobrindo o pago vira estorno (MED e contestação são
+  registrados sempre; a parcial, ou sem o valor, não desfaz nada e vai para
+  a Caixa de entrada, tipo `contestacao`, pelo `audit_log`, até a plataforma
+  registrar a decisão em Pedidos → "Contestações do Pix a conferir"); a consulta fora
+  do ar (rede, prazo, 5xx, 429) também é 503 com `Retry-After`; o resto (inclusive
+  `charge.partial_canceled`) é ignorado. A chave da idempotência é o id do
+  evento (`hook_…`), e `webhook_events` guarda só `{ id, type, data: { id } }`
+  — o `data` de lá traz o cliente.
+- **Estorno**: `DELETE /charges/{id}`, total sem corpo e parcial com
+  `{ amount }` em centavos, com a chave `estorno-<cobrança>-<quem>-<valor>`.
+  O parcial lê o `canceled_amount` antes e o da resposta: devolveu outro
+  valor (ou tudo), é erro e nada é desfeito aqui. O erro de depois de
+  chamar (sem resposta, 5xx, valor que não confere) não volta o chamado a
+  aprovado: ele fica estornado, marcado `conferir_no_provedor`, sem nova
+  devolução, sem outro chamado do mesmo pedido e com a comissão segura, até
+  a plataforma conferir no painel do Pagar.me e decidir no Atendimento
+  (`POST /chamados/:id/conferencia`: devolveu → desfaz o pedido; não
+  devolveu → volta a aprovado, com a regra do adiamento de hoje, e a nova
+  tentativa vai com outra chave de idempotência, `-t<n>`). O par consulta → `DELETE` corre com a
+  cobrança travada (trava de sessão de duas chaves no `poolDasTravas`, com
+  `lock_timeout` de 15 s).
+- **Cancelamento da reserva vencida**: consulta a cobrança e só cancela a
+  `pending`; a paga fica como está e volta `"paga"` — o relógio
+  (`expirarReservas()`) a anota (`cobrancas_pagas_a_conferir` em
+  `app_settings`) e leva o pedido vencido à fila do Pix tardio, mesmo sem o
+  webhook; a anotação só sai com o Pix na fila (o banco que falhar no meio
+  tem a volta seguinte). Se nem a anotação gravar, ela fica só na memória
+  daquele processo e some no deploy (aí vale o reenvio do webhook).
+- **Quem paga, antes de reservar**: o e-mail (até 64 letras, nunca cortado)
+  e o telefone no formato do Pagar.me, no pedido, no carrinho, na recarga e
+  no Pix do assistente (sem WhatsApp no acesso, o telefone aprovado da
+  organização); a recarga recusada pelo provedor não fica órfã.
+- **E-mail obrigatório** com o Pagar.me: conferido no servidor antes de
+  reservar (pedido e carrinho) e antes de gravar (recarga do patrocínio e Pix
+  do assistente, com o e-mail do acesso). A tela de compra (página da rifa e
+  carrinho) pede o e-mail só quando o provedor exige; a conta com e-mail não
+  digita.
+- **Prova**: `npm run pagarme` (Pagar.me de mentira na porta 5095) e
+  `tests/pagarme.test.ts`.
+
+**A confirmar** com o Pagar.me (sem fonte oficial na documentação lida pelo
+Context7 em 12/10/2026 — conferir no ambiente de teste antes de escolher o
+provedor no painel):
+
+1. O formato do corpo do webhook (`id` `hook_…`, `type`, a cobrança em
+   `data`) — a documentação traz a lista de eventos, não um exemplo do corpo.
+2. Os nomes na resposta do Pix: `charges[].last_transaction.qr_code` e
+   `expires_at`; e a lista de status da **cobrança** (`pending`, `paid`,
+   `canceled`, `refunded`…) — a documentação lida traz os status da
+   *transação* Pix (`waiting_payment`, `paid`, `pending_refund`, `refunded`).
+3. O status da cobrança Pix paga depois do estorno total (`refunded` ou
+   `canceled`) e se `canceled_amount` vem preenchido; e se o estorno total
+   depois de um parcial devolve só o que restava.
+4. O campo `amount` no corpo do `DELETE /charges/{id}` para o estorno
+   parcial (a documentação diz que pode ser parcial, mas o exemplo não veio).
+5. O nome do cabeçalho de idempotência do v5 (usamos `Idempotency-Key`) e
+   por quanto tempo a chave vale, e **se a resposta de erro também fica
+   guardada pela chave**. Se ficar, a recusa passageira (4xx) do estorno
+   volta igual em toda tentativa com a mesma chave — só a conferência "não
+   devolveu" troca a chave (`-t<n>`); nesse caso a recusa também precisa
+   trocar.
+6. O formato e o **fuso** do `expires_at` (a documentação mostra
+   `YYYY-MM-DDThh:mm:ss`, UTC, sem o `Z`; mandamos assim). Conferir no
+   primeiro Pix de teste: se o Pagar.me ler sem o `Z` como Brasília, o QR
+   vive **3 h a mais que a reserva** (e o Pix pago nesse tempo vai para a
+   fila do Pix tardio). Se a documentação disser que aceita o `Z`, mandar com
+   ele.
+7. `phones.mobile_phone` (o exemplo do Pix usa `home_phone`) e o tamanho
+   máximo de `code`, `name` e `email` (o e-mail acima de 64 é recusado antes
+   de reservar: `EMAIL_MAX_DO_PAGARME`).
+8. Se o Pagar.me reenvia o webhook quando a resposta não é 2xx, e por quanto
+   tempo — a recusa do "pago com a cobrança pendente" depende disso.
+9. A autenticação do webhook (seção 3, item 6): se vier assinatura, ela
+   entra junto com o segredo do endereço.
+10. A contestação: o nome do evento (`charge.chargedback`, que a
+    documentação diz dar lugar a `chargeback.received`, cujo corpo traz a
+    contestação e não a cobrança), o status `chargedback` da cobrança e em
+    que campo vem o valor contestado (usamos `canceled_amount`; sem ele, a
+    contestação é ignorada e vai ao log).
+11. `overpaid` e `underpaid` numa cobrança Pix (o valor é fixo no QR): o
+    `overpaid` paga, o `underpaid` vai ao log (`[pagarme]`) e espera a
+    devolução à mão.
+12. A resposta do `DELETE` (o `canceled_amount` e o `last_transaction.amount`
+    da devolução), que o estorno parcial confere.

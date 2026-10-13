@@ -28,9 +28,8 @@ import { useSession } from "@/lib/session";
 import {
   DISPUTA_PRAZO_DIAS,
   DIREITO_DO_CONSUMIDOR,
-  NOME_STATUS_CHAMADO,
   NOME_STATUS_DISPUTA,
-  PILL_CHAMADO,
+  situacaoDoChamado,
   PILL_DISPUTA,
   bloqueioDoReembolso,
   problemaNaDisputa,
@@ -491,7 +490,7 @@ function Painel({ conta, aoMudar }: { conta: Conta; aoMudar: (c: Conta | null) =
                         {c.disputa ? (
                           <Pill status={PILL_DISPUTA[c.disputa]}>{NOME_STATUS_DISPUTA[c.disputa]}</Pill>
                         ) : (
-                          <Pill status={PILL_CHAMADO[c.status]}>{NOME_STATUS_CHAMADO[c.status]}</Pill>
+                          <Pill status={situacaoDoChamado(c, "comprador").pill}>{situacaoDoChamado(c, "comprador").rotulo}</Pill>
                         )}
                       </div>
                       <p className="text-xs text-muted">
@@ -686,6 +685,7 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
   const { data } = useQuery<{
     protocolo: string;
     status: StatusChamado;
+    formaDevolucao?: string | null;
     pedido: number;
     rifa: string;
     decisao: string | null;
@@ -721,7 +721,7 @@ function ChamadoDoComprador({ id, voltar }: { id: string; voltar: () => void }) 
           data.disputa ? (
             <Pill status={PILL_DISPUTA[data.disputa]}>{NOME_STATUS_DISPUTA[data.disputa]}</Pill>
           ) : (
-            <Pill status={PILL_CHAMADO[data.status]}>{NOME_STATUS_CHAMADO[data.status]}</Pill>
+            <Pill status={situacaoDoChamado(data, "comprador").pill}>{situacaoDoChamado(data, "comprador").rotulo}</Pill>
           )
         }
       >
@@ -773,6 +773,7 @@ function Disputa({
   id: string;
   dados: {
     status: StatusChamado;
+    formaDevolucao?: string | null;
     disputa: StatusDisputa | null;
     disputaDecisao: string | null;
     podeDisputar: boolean;

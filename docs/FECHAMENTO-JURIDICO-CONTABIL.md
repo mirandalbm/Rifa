@@ -868,3 +868,45 @@ pendências do dono.
 | Mantidos | Ok: compensação automática e bloqueio por inadimplência | Continuam como cláusula |
 
 **Ainda não fechado:** a Parte 1 segue aberta. Faltam as respostas do advogado e do contador, a assinatura do contador (campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}` e `{{CRC}}` em aberto), o valor do teto, o domínio, o CNAE principal e o parecer bancário. O pacote de envio está em `scratchpad/pacote-fechamento.md`, entregue ao dono.
+
+## Respostas revisadas do advogado e do contador (13/10/2026, rodada 10): veredito
+
+### Advogado
+
+| Item | Resposta | Veredito | Problema |
+|---|---|---|---|
+| A. Cláusula de saldo negativo | Três opções: (a) compensar, (b) cobrar judicialmente, (c) renunciar; a renúncia vira despesa operacional. Cita CC, art. 385 e Lei 6.404, art. 187 | **Aceito com correção** | A opção (b) contraria a decisão do dono (sem cobrança judicial): sai da cláusula. Lei 6.404 vale para S.A.; confirmar o tipo societário |
+| B. Multa da X.13(c) | CDC, art. 52, §1º (2%) e CC, art. 413, com o texto citado | **Parcial** | A redação sugerida **mantém juros de 1% ao mês**, contra a decisão do dono (sem juros). Os textos citados batem com o que conheço, mas não foram conferidos na fonte oficial |
+| C. Margem de R$ 5,00 | Renúncia como liberalidade, sem receita; cita CC, art. 385 | **Aceito com ressalva** | CC, art. 385 trata de perdão de dívida. Margem não cobrada não é dívida perdoada: a citação não se aplica. **Conflita com o contador** (ver abaixo) |
+| D. Crédito de uso × crédito tributário | 12 meses, baixa como receita com aviso de 30 dias. Crédito tributário com 5 anos (CTN, arts. 173 e 174) | **Prazo aceito; baixa como receita não aceita** | A decisão do dono (rodada 3, item 11) diz que a sobra volta como crédito e o usuário pode pedir o saldo em dinheiro. A cláusula tira esse direito e pode ser questionada no CDC, art. 51. CTN 173 e 174 de novo usados como prazo de validade, o erro já apontado |
+| E. ISS da sobra | Lei 13.701/2003, arts. 1º e 14, com texto citado; SC SF/DEJUG 42/2013 e 26/2016 | **Não aceito: fontes sem cópia** | A ementa da SC 42/2013 citada contradiz a própria cláusula de ISS (incide ou não sobre veiculação). Sem cópia do texto de cada norma e solução, não entra |
+| F. MEI e associação | MEI é consumidor como destinatário final; associação depende do uso; na dúvida, tratar como consumidora | **Aceito como orientação** | "MEI equiparado a consumidor" não é equiparação legal (CDC, art. 2º, parágrafo único, trata de coletividade). O REsp 476.428/SC não foi conferido |
+| G. Triagem com IA (LGPD, art. 20) | Aviso com triagem automatizada e revisão humana; resposta em 15 dias | **Aceito como redação** | O prazo de 15 dias é política da plataforma, não exigência do art. 20 |
+
+### Contador
+
+| Item | Resposta | Veredito | Problema |
+|---|---|---|---|
+| 1. Fato gerador do ISS | Serviço é a própria apropriação (gestão de saldo), item 10.05 (intermediação de bens móveis ou imóveis) | **Não aceito** | "Gestão de saldo" não é item da lista da LC 116/2003. O 10.05 descrito como bens contradiz a rodada 7, em que o contador indicou 10.08. A Lei 13.701/2003, art. 1º ainda não foi lida |
+| 1. Classificação e regime | Receita própria; **Lucro Real**, "conforme você definiu" | **Não aceito** | **O dono não definiu o regime tributário.** O Lucro Real foi suposto. IRPJ, CSLL, PIS e COFINS dependem dessa decisão |
+| 2. Provisão do saldo negativo | Provisão quando a perda é provável, pela NBC TG 25 | **Parcial: norma errada** | O saldo negativo é ativo financeiro. A referência é a CPC 48 / NBC TG 48 (perda de crédito esperada), não a TG 25 (provisões). Conferir |
+| 3. Margem como aporte | Débito Caixa, crédito Capital Social (ou AFAC); fora do resultado | **Não aceito: lançamento incoerente** | Aporte de capital é o sócio pondo dinheiro na sociedade. Aqui o dinheiro da plataforma vai para a promotora. Capital social não é a conta. **Conflita com a cláusula C do advogado**, que manda registrar como despesa |
+| 4. Guarda de casos e logs | Marco Civil, art. 15 para logs de 12 meses; LGPD, art. 16, II | **Não aceito: citações erradas** | Marco Civil, art. 15 fixa 6 meses, não 12. LGPD, art. 16, II trata de estudo por órgão de pesquisa; a obrigação legal é o inciso I. Log de 12 meses sem base |
+| 5. Códigos do item de serviço | 10.08 publicidade; 10.05 bens; 10.02 contratos quaisquer | **Pendente de texto** | Advogado e contador descrevem o 10.05 e o 10.08 de forma diferente nesta mesma troca. Exigir o texto da lista da LC 116/2003 antes de qualquer NFS-e |
+| 6. Assinatura | Campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}` e `{{CRC}}` em aberto | **Pendente** | Sem CNPJ, CRC e nome, não assina |
+
+### Decisões que faltam para fechar o veredito
+
+1. **Regime tributário:** o dono define (Lucro Real, Presumido ou outro). Sem isso, nenhum cálculo de IRPJ, CSLL, PIS ou COFINS vale.
+2. **Margem de R$ 5,00:** despesa operacional (advogado), capital (contador, mas com lançamento errado) ou ativo a receber da promotora. Advogado e contador precisam chegar a uma só. O dono confirma qual.
+3. **Sobra do crédito de uso:** volta como crédito com pedido em dinheiro (decisão da rodada 3), ou baixa como receita (cláusula D do advogado)? As duas não cabem juntas.
+4. **Juros:** a X.13(c) sai sem juros, como decidido em rodada 9. O advogado corrige a redação.
+
+### Pedido de correção (uma rodada, com fonte)
+
+- **Advogado:** retirar a opção (b) da cláusula de saldo negativo; retirar os juros da X.13(c); conferir as fontes das normas e soluções de consulta (texto oficial, com cópia); revisar a citação do CC, art. 385 na margem; a sobra conforme a decisão da rodada 3.
+- **Contador:** dizer o fato gerador do ISS com item da lista da LC 116/2003 lido; trocar a norma da provisão para CPC 48; corrigir a citação do Marco Civil (art. 15, 6 meses) e da LGPD (art. 16, I); corrigir o lançamento da margem conforme a decisão de (2); aguardar o regime.
+
+### Efeito
+
+A Parte 1 segue aberta. A cláusula de saldo negativo só entra no contrato depois do pedido de correção acima. A margem e a sobra dependem das decisões 1 a 3.

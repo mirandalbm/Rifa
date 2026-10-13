@@ -1309,8 +1309,10 @@ function ComprasPorRifa({
   emAndamento: Set<number>;
   pedir: (row: OrderRow) => void;
 }) {
+  // Só compra paga: a pendente fica no carrinho até ser paga ou vencer.
   const grupos = new Map<string, OrderRow[]>();
   for (const o of orders) {
+    if (o.order.status !== "paid") continue;
     const g = grupos.get(o.campaign.slug) ?? [];
     g.push(o);
     grupos.set(o.campaign.slug, g);
@@ -1371,15 +1373,9 @@ function ComprasPorRifa({
                       {row.order.quantity} cota(s) · <Money cents={row.order.amountCents} />
                     </span>
                     <span className="ml-auto flex gap-3">
-                      {row.order.status === "paid" ? (
-                        <Link href={`/bilhete/${row.order.code}`} className="inline-flex min-h-6 items-center text-green-deep underline">
-                          2ª via do bilhete
-                        </Link>
-                      ) : row.order.status === "pending" ? (
-                        <Link href={`/pedido/${row.order.code}`} className="inline-flex min-h-6 items-center text-yellow-deep underline">
-                          pagar
-                        </Link>
-                      ) : null}
+                      <Link href={`/bilhete/${row.order.code}`} className="inline-flex min-h-6 items-center text-green-deep underline">
+                        2ª via do bilhete
+                      </Link>
                       {emAndamento.has(row.order.code) ? (
                         <span className="inline-flex min-h-6 items-center text-yellow-deep">reembolso em andamento</span>
                       ) : podePedir(row) ? (

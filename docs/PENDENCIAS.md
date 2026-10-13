@@ -1510,6 +1510,14 @@ Na ordem de entrega do plano:
   seis papéis, 390/820/1440 px) e o guia `docs/VERSOES.md` — regras entre as
   versões, mapa de cada tela e o registro das mudanças do celular (leva a
   cada 10).
+- [ ] **[código]** Leva das versões: o registro de `docs/VERSOES.md` está com 10
+  linhas "aguardando leva" (limite do teste). A mudança da impressão do bilhete
+  (PR #256, `Bilhete.tsx` e `ticketFormat.ts`) ainda não tem linha no registro:
+  entra na próxima leva, com `npm run telas` rodando contra o banco (aqui não há
+  Postgres). Antes disso, a linha não cabe sem quebrar `tests/versoes.test.ts`.
+  **[você]** Imprimir o bilhete de teste numa bobina de 58 mm e outra de 80 mm
+  (no Chrome e no Android) e confirmar o tamanho do papel no diálogo.
+
 - [x] **[código]** Segurança, para depois (`docs/SEGURANCA.md`): política de
   conteúdo (CSP) em modo relatório, segredo do segundo fator no cofre, custo
   do scrypt (a senha antiga é refeita no login), clique patrocinado só com o

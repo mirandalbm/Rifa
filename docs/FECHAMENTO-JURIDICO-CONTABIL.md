@@ -813,3 +813,46 @@ pendências do dono.
 - A apropriação (10) só entra no fechamento depois de o contador dizer o fato gerador e a classificação, e de o advogado confirmar a Lei 13.701/2003.
 - A guarda de casos e logs (15) fica sem prazo fixo até a LGPD e o advogado fundamentarem.
 - O item de serviço (16) e o CNAE (17) bloqueiam a emissão de NFS-e e a abertura do CNPJ alterado.
+
+## Decisão do dono (13/10/2026, rodada 8): margem da plataforma sem burocracia e sem cobrança judicial
+
+| # | Decisão | O que muda |
+|---|---|---|
+| D8.1 | A plataforma disponibiliza o custo **mais R$ 5,00 da parte dela**. Não queremos burocracia na cobrança da promotora | A margem sai da cobrança à promotora: é aporte da plataforma, não taxa cobrada. Leitura nossa, a confirmar com o dono: a pergunta 6 (natureza da margem) fica resolvida como **liberalidade**, sem ISS e sem receita, e o conflito com a A18 some |
+| D8.2 | Se a promotora não pagar esse valor, o **saldo negativo fica registrado na conta** e **não é cobrado judicialmente pela plataforma** | Muda as perguntas 2 e 5 (título executivo e teto com cobrança), e a 3 (juros) só se o dono quiser juros sobre o saldo registrado. Continua valendo a compensação automática quando a promotora repõe o saldo (pergunta 1) |
+
+### O que cada pergunta vira
+
+| # | Pergunta | Situação com a D8 |
+|---|---|---|
+| 1 | Compensação automática | **Continua valendo**: o saldo negativo é debitado quando a promotora repõe. Redação precisa dizer que o registro é o único efeito de inadimplência |
+| 2 | Título executivo e confissão de dívida | **Não é mais necessário**, porque a plataforma não cobra judicialmente. Sai do contrato, a menos que o advogado veja outra razão |
+| 3 | Juros e correção | **Só se o dono quiser juros sobre o saldo registrado.** Se não quiser, a correção dos números de X.13(c) muda de tamanho: a cláusula pode ficar sem juros e multa. Continua pendente a citação errada |
+| 4 | Bloqueio por inadimplência | **Continua**: é a única consequência que a plataforma aplica. Precisa de aceite, porque é a única forma de cobrança |
+| 5 | Teto de exposição | **Vira teto do saldo negativo registrado**, sem cobrança. Falta o valor |
+| 6 | Natureza da margem | **Resolvida como aporte da plataforma (liberalidade), a confirmar** |
+| 7 | Prejuízo absorvido | Com a D8.2 o saldo negativo não é perdido: fica registrado até a reposição. O prejuízo só se confirma se a promotora deixar de repor. **Falta o contador definir a perda esperada e o registro contábil** |
+
+### Para devolver ao advogado (rodada curta)
+
+1. A renúncia à cobrança judicial do saldo negativo registrado é válida no contrato com a promotora? Redação da cláusula, com o aceite.
+2. Sem cobrança judicial, o registro do saldo negativo basta como efeito de inadimplência? Ou a plataforma precisa de algo mais para manter o direito de compensar quando a promotora repõe?
+3. Juros sobre o saldo registrado: se o dono quiser, qual base (art. 406 pós-Lei 14.905/2024, ou sem juros)?
+4. A margem como aporte da plataforma: a redação "liberalidade" e a regra de que não há receita. Confirmar sem dúvida de natureza.
+
+### Para o contador
+
+1. Como registrar o saldo negativo que a plataforma não cobra: perda esperada (provisão) desde o aporte, ou só quando a promotora deixar de repor?
+2. O aporte de custo mais R$ 5,00 pela plataforma é receita, ou é despesa de contenção? Hoje o documento diz que a margem é aporte, então não deveria ser receita.
+3. Conferir se a decisão K-CNAE e o item de serviço continuam valendo, já que a margem deixa de ser cobrança.
+
+### Para o dono
+
+- **Juros:** o saldo registrado tem juros, ou não?
+- **Valor do teto:** o teto do saldo negativo registrado por promotora. Continua em aberto.
+- **Confirmação:** a leitura de D8.1 (margem como aporte da plataforma, não cobrada) está certa?
+
+### Efeito no sistema
+
+- Nada muda no código agora. Quando o parecer chegar, o saldo negativo vira um registro com teto e compensação automática, sem fluxo de cobrança judicial, e o bloqueio por inadimplência fica como consequência.
+- A contenção no tráfego (A18) continua com o mínimo de R$ 5,00, agora como aporte da plataforma e sem cobrança.

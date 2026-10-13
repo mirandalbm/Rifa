@@ -93,6 +93,7 @@ export default function Carrinho() {
           )}
         </p>
       ) : null}
+      <AguardandoPagamento />
       {itens.length === 0 ? (
         <div className="mt-8 text-center">
           <p className="text-sm text-muted">Seu carrinho está vazio.</p>
@@ -150,6 +151,67 @@ export default function Carrinho() {
         </div>
       )}
     </PublicShell>
+  );
+}
+
+interface PedidoAberto {
+  order: { code: number; quantity: number; amountCents: number; status: string; expiresAt: string | null };
+  campaign: { title: string; slug: string };
+  organizador: { nome: string | null } | null;
+}
+
+/** "mm:ss" do que falta da reserva. */
+function faltaDaReserva(ateMs: number, agoraMs: number): string {
+  const s = Math.max(0, Math.floor((ateMs - agoraMs) / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/**
+ * Reservas que esperam o Pix: ficam no carrinho com o prazo da reserva até
+ * serem pagas (aí saem para "Minhas compras") ou vencerem (aí os números
+ * voltam ao estoque e a reserva some daqui).
+ */
+function AguardandoPagamento() {
+  const { data } = useQuery<{ orders: PedidoAberto[] }>({
+    queryKey: ["/api/public/my-quotas"],
+    retry: false,
+    refetchInterval: 30_000,
+  });
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const abertos = (data?.orders ?? []).filter(
+    (r) => r.order.status === "pending" && r.order.expiresAt !== null && Date.parse(r.order.expiresAt) > agora,
+  );
+  if (!abertos.length) return null;
+
+  return (
+    <section aria-label="Aguardando pagamento" className="mt-4 rounded-xl border border-line p-3">
+      <h2 className="font-display text-base font-bold">Aguardando pagamento</h2>
+      <p className="mt-1 text-xs text-muted">
+        Seus números ficam reservados até o prazo. Sem o Pix pago até lá, eles voltam ao estoque.
+      </p>
+      <ul className="mt-2 divide-y divide-line">
+        {abertos.map((r) => {
+          const ate = Date.parse(r.order.expiresAt!);
+          return (
+            <li key={r.order.code} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
+              <span className="min-w-0 flex-1 truncate font-semibold">{r.campaign.title}</span>
+              <span className="tnum text-xs text-muted">
+                {r.order.quantity} cota(s) · <Money cents={r.order.amountCents} />
+              </span>
+              <span className="tnum text-xs text-yellow-deep">vence em {faltaDaReserva(ate, agora)}</span>
+              <Link href={`/pedido/${r.order.code}`} className="inline-flex min-h-6 items-center font-semibold text-green-deep underline">
+                Pagar
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

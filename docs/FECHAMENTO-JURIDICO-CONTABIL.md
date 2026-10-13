@@ -910,3 +910,14 @@ pendências do dono.
 ### Efeito
 
 A Parte 1 segue aberta. A cláusula de saldo negativo só entra no contrato depois do pedido de correção acima. A margem e a sobra dependem das decisões 1 a 3.
+
+## Decisões finais do dono (13/10/2026, rodada 11): regime, margem, sobra e juros
+
+| # | Tema | Decisão | Efeito |
+|---|---|---|---|
+| 1 | Regime tributário | **Lucro Real** | Refazer a apuração de IRPJ, CSLL, PIS e COFINS (não cumulativo) |
+| 2 | Margem de R$ 5,00 e saldo negativo | **Margem é despesa operacional. Saldo negativo é saldo a receber** | Lançamentos separados (ver `scratchpad/redacao-clausulas.md`) |
+| 3 | Sobra do crédito de uso | **Segue a sugestão do advogado**: baixa como receita, com aviso de 30 dias. **Substitui a decisão da rodada 3** (devolução em dinheiro) | Cláusula de crédito de uso; risco de CDC, art. 51 registrado |
+| 4 | Juros | **Sem juros** | X.13(c) sem juros. A multa de 2% segue a sugestão do advogado, a confirmar pelo dono |
+
+Redação das cláusulas: `scratchpad/redacao-clausulas.md`, entregue ao dono. Pendências que sobram: valor do teto, item do ISS (texto oficial da LC 116/2003), perda esperada do saldo a receber (CPC 48, técnica do contador) e a assinatura com CNPJ e CRC.

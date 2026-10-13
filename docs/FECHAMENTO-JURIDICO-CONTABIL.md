@@ -769,3 +769,47 @@ está como "aceito" é a tese; a citação só vale depois de lida.
 - A compensação (1) e a confissão de dívida (2) entram no rascunho do contrato da promotora como cláusula nova. Isso vira nova versão, que só se publica com juros e multa corrigidos (3).
 - O teto (5), a margem (6) e a validade do crédito (9) ficam pendentes; sem eles não há regra de saldo negativo nem de carteira para construir.
 - Triagem, carteira e contenção seguem esperando o parecer e as decisões acima.
+
+## Resposta do contador às perguntas 10 a 17 (13/10/2026, rodada 7)
+
+A resposta vem **sem assinatura válida**: traz `{{RAZAO_SOCIAL}}`, `{{CNPJ}}` e
+`{{CRC}}` sem preencher. O conteúdo fica registrado, mas a parte contábil só
+fecha com assinatura e CRC reais. O CNPJ e a razão social são pendência do
+dono até depois do lançamento.
+
+| # | Tema | O que o contador respondeu | Veredito | Motivo e o que falta |
+|---|---|---|---|---|
+| 10 | Competência da apropriação | Mês do vencimento do crédito (prazo de 12 meses); NFS-e no mesmo mês, sem nota retroativa. Lançamento: Adiantamento (D) / Receita de créditos não utilizados (C). Tributos como "despesa" de ISS, PIS, COFINS, IRPJ e CSLL, "conforme alíquotas" | **Pendente de fonte e de classificação** | O fundamento é a Lei 13.701/2003, art. 1º, que ainda não foi conferida (pergunta 8 da rodada anterior). ISS, PIS e COFINS sobre receita, em regra, são deduções da receita bruta, não despesa. IRPJ e CSLL não se lançam por alíquota nesse evento. **Falta dizer qual serviço é prestado na apropriação**: o crédito não usado não corresponde a serviço entregue, e o fato gerador do ISS é a prestação de serviço. Falta também o regime tributário da plataforma, que não consta no documento |
+| 11 | Taxa de saque | Receita própria, tributada (ISS, PIS/COFINS, IRPJ/CSLL); item a definir ("10.08 ou item financeiro") | **Parcial** | Base legal e limite são do advogado. "Item financeiro" não foi identificado. A cobrança depende de decisão do dono |
+| 12 | Saque do crédito e conta de pagamento | Atividade regulada, dependente do parecer bancário | **Pendente** | Depende de contratar o parecer (A13); o dono ainda não contratou |
+| 13 | Decisão automatizada (LGPD, art. 20) | Remete ao advogado | **Pendente do advogado** | — |
+| 14 | Comunicação ao solicitante | Remete ao advogado | **Pendente do advogado** | — |
+| 15 | Guarda dos casos e logs | Histórico de 5 anos "alinhado ao CTN, arts. 173 e 174"; registros de acesso de 6 meses (Marco Civil); log interno de 12 meses | **Não aceito o fundamento** | CTN 173 e 174 tratam de decadência e prescrição do fisco; não fixam prazo de guarda de caso de atendimento. O mesmo erro da rodada anterior (pergunta 9). O Marco Civil, art. 15 (6 meses), vale para registros de acesso a aplicações: confirmar o texto. O log de 12 meses não tem base. O prazo de guarda de dado pessoal precisa de base na LGPD (art. 16 e finalidade), a confirmar pelo advogado |
+| 16 | Item de serviço | 17.06 não cabe; 10.02 se intermedeia bilhete; 10.08 se só gestão de tráfego; decisão conjunta com o advogado, com a operação real informada pelo dono | **Pendente do dono e do advogado** | Depende de a plataforma só gerir tráfego ou também intermediar bilhete, o que o dono ainda não descreveu. **Conferir os códigos no texto da LC 116/2003**: o contador indica 10.08 como "agenciamento de publicidade"; pelo que consigo verificar, esse agenciamento é o 10.05. A descrição do 10.02 também precisa de leitura do texto antes de qualquer NFS-e |
+| 17 | CNAE principal | Definido pela maior receita; com rifa, não é o 73.19-0/99; 92.00-3/00 fora; intermediação de bilhete sem CNAE específico | **Conflito com decisões anteriores** | A decisão K-CNAE (10/10) escolheu principal **63.11-9/00** (software), com secundários 74.90-1/04 e **73.19-0/99**. A rodada 5 (13/10) disse que a maior receita é da rifa. O contador tirou o 73.19-0/99 da lista que a decisão K-CNAE mantinha. O dono escolhe entre as duas posições antes de o CNAE ser informado à Receita |
+
+Os pontos 18 e 19 (nome do site e domínio) não são do contador: seguem como
+pendências do dono.
+
+### Correções para devolver ao contador (uma rodada)
+
+1. **Pergunta 10:** qual serviço é prestado na apropriação (fato gerador); ISS, PIS e COFINS como dedução da receita; IRPJ e CSLL fora do lançamento do evento; regime tributário da plataforma.
+2. **Pergunta 15:** retirar CTN 173 e 174 como base dos prazos; fundamentar a guarda pela LGPD (art. 16 e finalidade) e o Marco Civil (art. 15) com o texto lido.
+3. **Pergunta 16:** conferir no texto da LC 116/2003 os códigos 10.02, 10.05 e 10.08, e apontar o que cabe.
+4. **Pergunta 17:** resolver o conflito com a decisão K-CNAE.
+5. **Assinatura:** reenviar com nome, CRC e CNPJ (ou protocolo da alteração em andamento).
+
+### Decisões do dono necessárias
+
+- **Operação real:** só gestão de tráfego (publicidade) ou também intermediação de bilhete. Define o item de serviço (pergunta 16).
+- **Receita principal para o CNAE:** software (decisão K-CNAE) ou rifa (rodada 5). Não dá para ter as duas.
+- **Taxa de saque:** existe ou não. O contador já tributa, mas a cobrança é decisão do dono.
+- **Parecer bancário (A13):** contratar, para a pergunta 12 avançar.
+- **Assinatura com CNPJ:** o contador precisa de CNPJ e razão social para assinar a parte contábil, e o dono deixou isso para depois do lançamento. Escolher: usar o CNPJ da alteração em andamento ou esperar.
+
+### Efeito
+
+- Nada no código muda agora.
+- A apropriação (10) só entra no fechamento depois de o contador dizer o fato gerador e a classificação, e de o advogado confirmar a Lei 13.701/2003.
+- A guarda de casos e logs (15) fica sem prazo fixo até a LGPD e o advogado fundamentarem.
+- O item de serviço (16) e o CNAE (17) bloqueiam a emissão de NFS-e e a abertura do CNPJ alterado.

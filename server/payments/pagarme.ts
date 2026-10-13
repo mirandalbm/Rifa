@@ -264,14 +264,26 @@ export function lerPedidoPagarme(json: unknown, vencimentoPedido: Date): { charg
   if (pix.status === "failed" || t.status === "failed" || t.status === "with_error") {
     throw new ErroDoPagarme("O Pagar.me recusou o Pix.");
   }
-  if (typeof t.qr_code !== "string" || t.qr_code.length < 20) throw new ErroDoPagarme("O Pagar.me não devolveu o código Pix.");
+  // O copia e cola é o código EMV do Pix (começa com 000201 e traz o domínio do
+  // BCB). Uma URL nesse campo passava pelo tamanho mínimo, o banco não lia o QR,
+  // e o cliente pagava um código que não existe. Só o formato Pix entra.
+  const copia = typeof t.qr_code === "string" ? t.qr_code.trim() : "";
+  if (!ehCopiaEColaPix(copia)) {
+    console.error(`[pagarme] código Pix fora do formato EMV; campos da transação: ${Object.keys(t).join(", ") || "nenhum"}`);
+    throw new ErroDoPagarme("O Pagar.me não devolveu um código Pix válido.");
+  }
   let expiresAt = vencimentoPedido;
   if (typeof t.expires_at === "string") {
     const lida = new Date(t.expires_at);
     // O QR vence com a reserva: a data de lá só vale se for antes da nossa.
     if (Number.isFinite(lida.getTime()) && lida.getTime() < vencimentoPedido.getTime()) expiresAt = lida;
   }
-  return { chargeId: pix.id, copyPaste: t.qr_code, expiresAt };
+  return { chargeId: pix.id, copyPaste: copia, expiresAt };
+}
+
+/** Copia e cola Pix: o payload EMV com o domínio do BCB, nunca uma URL. */
+export function ehCopiaEColaPix(valor: string): boolean {
+  return valor.length >= 50 && valor.startsWith("000201") && valor.toLowerCase().includes("br.gov.bcb.pix");
 }
 
 /** A cobrança lida pela API, só no que importa. */

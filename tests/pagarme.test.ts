@@ -13,6 +13,7 @@ import {
   idDeEventoValido,
   lerCobrancaPagarme,
   lerPedidoPagarme,
+  ehCopiaEColaPix,
   payloadDoPagarme,
   problemaNoEstornoParcial,
   problemaNoPagadorDoPagarme,
@@ -302,5 +303,30 @@ describe("Pagar.me: estorno", () => {
   it("o erro não leva o corpo inteiro", () => {
     expect(erroDoPagarme(500, '{"message":"Erro interno"}')).toBe("Pagar.me recusou (500): Erro interno");
     expect(erroDoPagarme(502, "<html>ana@exemplo.com</html>")).toBe("Pagar.me recusou (502).");
+  });
+});
+
+describe("copia e cola do Pix (formato EMV, nunca URL)", () => {
+  const EMV = "00020126820014br.gov.bcb.pix2560pix.stone.com.br/pix/v2/ch_1234567890abcdef5204000053039865802BR6304ABCD";
+  const pedido = (qr: unknown) => ({
+    charges: [{ id: "ch_1234567890abcdef", status: "pending", payment_method: "pix", last_transaction: { status: "pending", qr_code: qr } }],
+  });
+  const vence = new Date("2099-01-01T00:00:00Z");
+
+  it("aceita o payload EMV do Pix", () => {
+    expect(ehCopiaEColaPix(EMV)).toBe(true);
+    expect(lerPedidoPagarme(pedido(EMV), vence).copyPaste).toBe(EMV);
+  });
+
+  it("recusa URL no lugar do código, que o banco não lê", () => {
+    const url = "https://digital.mundipagg.com/pix/0123456789abcdef0123456789abcdef";
+    expect(ehCopiaEColaPix(url)).toBe(false);
+    expect(() => lerPedidoPagarme(pedido(url), vence)).toThrow("código Pix válido");
+  });
+
+  it("recusa texto curto e payload sem o domínio do BCB", () => {
+    expect(ehCopiaEColaPix("000201" + "x".repeat(60))).toBe(false);
+    expect(ehCopiaEColaPix(EMV.replace("br.gov.bcb.pix", "outro.dominio"))).toBe(false);
+    expect(ehCopiaEColaPix("")).toBe(false);
   });
 });

@@ -710,3 +710,12 @@ item vira código, texto ou pergunta, conforme indicado.
 | Item 10 | Sobra já tributada | **Conflito**: o dono decidiu que não é tributada de novo. O contador afirma que a Prefeitura de São Paulo trata a apropriação do crédito como **novo fato gerador de ISS** e cita Lei 13.701/2003 (arts. 1º e 14) e Solução de Consulta SF/DEJUG 41/2013. **Citações ainda não conferidas**. Antes de fechar, o advogado confirma o texto da lei e da solução de consulta | Pendente de confirmação; não aplicar a regra de não bis in idem até decidir |
 | Maior receita própria | CNAE | Contador espera a confirmação do dono: taxa de gestão ou comissão de rifas | Pendente do dono |
 | Domínio | Site | O dono verifica hoje | Pendente |
+
+## Decisões do dono (13/10/2026, rodada 5): ISS da sobra, triagem com interruptor e receita principal
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| Item 10 | ISS da sobra já tributada | **Vale o que o contador disse**: a apropriação do crédito não usado é novo fato gerador de ISS. As citações (Lei 13.701/2003, arts. 1º e 14; SF/DEJUG 41/2013) ainda devem ser conferidas pelo advogado antes de virar cláusula | Sobra com ISS na apropriação; a regra "não tributar de novo" sai |
+| Triagem (item 2) | Modo de atendimento | **Interruptor**: o humano aciona a **IA autônoma** ou a **IA supervisionada** conforme a demanda. Com muita demanda, o usuário troca o fluxo para manter o equilíbrio. Há **vários atendentes** disponíveis | Interruptor de modo de triagem no painel; regra de quais casos a IA pode decidir sozinha ainda a definir |
+| Receita principal | CNAE e item de serviço | A **maior receita é da rifa**, porque a gestão é opcional | Pergunta ao advogado e ao contador sobre o item de serviço (ver perguntas) |
+| Item 3 | Não respondido | Em branco na resposta | Pendente |

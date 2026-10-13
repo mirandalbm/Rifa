@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
@@ -48,6 +48,16 @@ export default function Bilhete() {
     queryKey: [`/api/public/tickets/${code}`],
   });
 
+  // O Chrome não aceita altura "auto" em @page: cai para Carta (A4). A folha
+  // leva a altura medida do bilhete, em mm, mais os 3 mm de margem em cima e
+  // embaixo — assim o rolo sai do tamanho do bilhete, sem papel em branco.
+  const folhaRef = useRef<HTMLDivElement>(null);
+  const [alturaMm, setAlturaMm] = useState<number | null>(null);
+  useEffect(() => {
+    if (!t || !folhaRef.current) return;
+    setAlturaMm(Math.ceil((folhaRef.current.getBoundingClientRect().height / 96) * 25.4) + 2);
+  }, [t]);
+
   useEffect(() => {
     if (!t) return;
     if (new URLSearchParams(window.location.search).get("auto") === "1") {
@@ -71,16 +81,21 @@ export default function Bilhete() {
     ? new Date(t.sorteio.data).toLocaleDateString("pt-BR")
     : "a definir";
 
+  // ?papel=80 para a bobina de 80 mm; o padrão é a de 58 mm.
+  const largo = new URLSearchParams(window.location.search).get("papel") === "80";
+  const papel = largo ? "80mm" : "58mm";
+  const larguraDoBilhete = largo ? "72mm" : "58mm";
+
   return (
     <>
       <style>{`
-        @page { size: 58mm auto; margin: 3mm; }
+        @page { size: ${papel} ${alturaMm ? `${alturaMm + 6}mm` : "auto"}; margin: 3mm; }
         @media print {
           .nao-imprime { display: none !important; }
           body { background: #fff; }
         }
         .bilhete {
-          width: 58mm;
+          width: ${larguraDoBilhete};
           margin: 0 auto;
           padding: 4mm 2mm;
           background: #fff;
@@ -113,7 +128,7 @@ export default function Bilhete() {
         </Button>
       </div>
 
-      <div className="bilhete">
+      <div className="bilhete" ref={folhaRef}>
         <h1>{t.administradora.nome.toUpperCase()}</h1>
         {t.administradora.cnpj ? (
           <p className="centro mini">CNPJ {t.administradora.cnpj}</p>

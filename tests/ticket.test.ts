@@ -77,8 +77,22 @@ describe("bilhete para a impressora térmica", () => {
     }
   });
 
+  it("na bobina de 80 mm, a linha passa de 32 mas nunca de 48 colunas", () => {
+    const largo = escPosTicket(BILHETE, 80).split("\n");
+    for (const linha of largo) {
+      expect(linha.length, `linha larga demais: "${linha}"`).toBeLessThanOrEqual(48);
+    }
+    expect(largo.some((l) => l.length > 32)).toBe(true);
+  });
+
   it("não manda acento para a bobina, que imprimiria lixo", () => {
     expect(texto).not.toMatch(/[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/);
+  });
+
+  it("troca o º e o ª ordinais por letra, que o NFD não tira", () => {
+    const ordinal = escPosTicket({ ...BILHETE, sorteio: { ...BILHETE.sorteio, metodo: "1º ao 5º prêmio, ª" } });
+    expect(ordinal).toContain("1o ao 5o premio, a");
+    expect(ordinal).not.toMatch(/[ºª]/);
   });
 
   it("não manda espaço não-quebrável, que sai como caractere estranho", () => {

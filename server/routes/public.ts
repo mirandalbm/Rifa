@@ -2414,7 +2414,9 @@ publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Bilhete não encontrado." });
     }
-    res.type("text/plain; charset=utf-8").send(escPosTicket(ticket));
+    // 58 mm é o padrão da maquininha; 80 mm para a impressora de bobina larga.
+    const papel = req.query.papel === "80" ? 80 : 58;
+    res.type("text/plain; charset=utf-8").send(escPosTicket(ticket, papel));
   } catch (err) {
     next(err);
   }

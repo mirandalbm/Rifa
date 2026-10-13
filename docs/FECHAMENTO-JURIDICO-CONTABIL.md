@@ -719,3 +719,53 @@ item vira código, texto ou pergunta, conforme indicado.
 | Triagem (item 2) | Modo de atendimento | **Interruptor**: o humano aciona a **IA autônoma** ou a **IA supervisionada** conforme a demanda. Com muita demanda, o usuário troca o fluxo para manter o equilíbrio. Há **vários atendentes** disponíveis | Interruptor de modo de triagem no painel; regra de quais casos a IA pode decidir sozinha ainda a definir |
 | Receita principal | CNAE e item de serviço | A **maior receita é da rifa**, porque a gestão é opcional | Pergunta ao advogado e ao contador sobre o item de serviço (ver perguntas) |
 | Item 3 | Não respondido | Em branco na resposta | Pendente |
+
+## Parecer do advogado sobre as perguntas de 13/10/2026 (rodada 6)
+
+O advogado respondeu as perguntas 1 a 9. A 10 (competência do ISS na
+apropriação) é do contador e não veio. As perguntas 11 a 19 não têm resposta.
+**Nenhuma fonte citada nesta resposta foi conferida no texto oficial.** O que
+está como "aceito" é a tese; a citação só vale depois de lida.
+
+| # | Tema | O que o advogado respondeu | Veredito | Motivo e o que falta |
+|---|---|---|---|---|
+| 1 | Compensação automática do saldo negativo | Sim, se o contrato prevê (CC, art. 368). Para promotora consumidora (MEI ou associação), ressalva do CDC, art. 51, IV, com notificação e 5 dias antes do débito | **Aceito como rascunho** | Redação sugerida para o contrato. Depende da pergunta 5 (a promotora é consumidora?) |
+| 2 | Título executivo | Não: contrato sem duas testemunhas não é título (CPC, art. 784, III). Caminho: confissão de dívida prévia no contrato | **Aceito** | Cláusula de confissão de dívida no contrato da promotora |
+| 3 | Juros, correção e multa | 1% ao mês (CC, art. 406; Lei 14.905/2024), IPCA, multa de 2% (CDC, art. 52, §1º, e CC, art. 413) | **Pendente de correção** | Três erros de citação: (a) o CC, art. 406, depois da Lei 14.905/2024, é a taxa legal (Selic menos IPCA), não 1%; (b) o CDC, art. 52, §1º, limita a 2% a multa de mora, não os juros; (c) o CC, art. 413 trata de redução de multa excessiva, não de base para multa. **Conflita com a nota anterior de que X.13(c) "está correto"**: a cláusula X foi aprovada em 10/10, então os números precisam ser confirmados antes da próxima versão publicada |
+| 4 | Bloqueio por inadimplência | CC, art. 476. Suspende só novas publicações, com notificação e 10 dias; rifas no ar seguem | **Aceito como rascunho** | Igual à X.13 (a). Ressalva do CDC, art. 51, IV, se a promotora for consumidora |
+| 5 | Teto de exposição e reincidência | Teto de R$ [valor] por promotora; 10 dias de regularização; rescisão na segunda notificação | **Pendente do dono** | Falta o valor do teto. O advogado diz que é gestão de risco, não limite de responsabilidade |
+| 6 | Natureza da margem de R$ 5,00 | Liberalidade (sem receita, sem ISS) ou taxa (receita com ISS e PIS/COFINS). "Na dúvida, liberalidade" | **Pendente do dono, com conflito** | A decisão A18 (rodada 4) diz que a margem é cobrada, e o saldo negativo é debitado da promotora. Liberalidade não casa com isso. Escolher uma redação e pedir ao advogado que a confirme |
+| 7 | Prejuízo absorvido pela plataforma | Não cria obrigação perante a promotora nem o fisco; registrar como despesa operacional; não perdoar a dívida (CC, art. 385; Lei 6.404, art. 187) | **Aceito, com ressalva de citação** | Registro: despesa mais saldo negativo ainda recuperável (A18). A Lei 6.404 vale para S.A.; confirmar se a plataforma é LTDA. O art. 385 trata de remissão por documento particular; confirmar a aplicação |
+| 8 | Citações do ISS da sobra (Lei 13.701/2003; SF/DEJUG 41/2013) | Lei 13.701/2003, arts. 1º e 14. A SF/DEJUG 41/2013 "não foi localizada"; cita a 41/2018 como "existente", mas diz que ela trata de fundos. Sugere a SF/DEJUG 13/2013 para os itens 10.08 e 17.06 | **Não aceito: citações pendentes** | O próprio parecer se contradiz sobre a 41. A Lei 13.701/2003 é lei municipal de São Paulo, não federal; o parecer a trata como norma geral. Item 10.08: pelo que consigo verificar, o agenciamento de publicidade da LC 116/2003 é o 10.05; conferir na lista. Precisa do texto oficial lido antes de a regra da sobra ir ao contrato |
+| 9 | Prazo de uso do crédito | Sem vencimento para consumidor; para empresa, 5 anos (CTN, arts. 173 e 174) | **Não aceito: respondeu outra coisa** | O parecer tratou o crédito como crédito tributário de ISS. O crédito de uso (a carteira) não é crédito tributário. CTN 173 e 174 são decadência e prescrição do fisco. A decisão B2 (rodada 2) já fixou 12 meses, com aviso 30 dias antes. Refazer a pergunta sobre a validade do crédito de uso |
+
+### Correções para devolver ao advogado (uma rodada)
+
+1. **Juros e multa (3):** corrigir CC, art. 406 (Lei 14.905/2024), CDC, art. 52, §1º, e CC, art. 413, com o texto de cada um.
+2. **ISS da sobra (8):** texto oficial da Lei 13.701/2003, dizendo se é municipal; SF/DEJUG 41/2013 ou 41/2018, a que existir de fato; item de serviço na LC 116/2003 (10.05 ou 10.08).
+3. **Validade do crédito de uso (9):** responder de novo, separando crédito de uso de crédito tributário.
+4. **Margem (6):** dizer qual redação vale com a decisão A18 e as consequências de cada uma.
+5. **Promotora consumidora ou não (1 e 4):** MEI e associação são consumidores para o CDC? Isso muda a ressalva de compensação e de bloqueio.
+6. **Citações de empresa (7):** aplicabilidade da Lei 6.404 e do CC, art. 385 a LTDA.
+
+### Decisões do dono necessárias
+
+- **Margem de R$ 5,00 (6):** cobrada (receita, com ISS e PIS/COFINS) ou liberalidade. A decisão A18 pressupõe cobrança.
+- **Valor do teto de exposição (5):** a definir por promotora.
+- **Validade do crédito de uso (9):** confirmar os 12 meses da B2 antes de o advogado responder de novo.
+- **Domínio (18 e 19):** verificar hoje e informar o nome final.
+- **Item 3 da sua lista:** em branco na mensagem. Preciso que você diga qual era.
+
+### Sem resposta nesta rodada
+
+- **10 (contador):** competência do ISS na apropriação e o que acontece com a nota.
+- **11 e 12:** taxa de saque, com base legal e limite; o saque como atividade regulada (depende do parecer bancário, A13).
+- **13 a 15 (triagem com IA):** casos que a IA pode decidir sozinha (LGPD, art. 20), resposta ao solicitante e prazo de guarda do histórico.
+- **16 e 17:** item de serviço (10.08 ou 17.06, com a rifa como receita principal) e CNAE principal.
+
+### Efeito
+
+- Nada do código muda agora.
+- A compensação (1) e a confissão de dívida (2) entram no rascunho do contrato da promotora como cláusula nova. Isso vira nova versão, que só se publica com juros e multa corrigidos (3).
+- O teto (5), a margem (6) e a validade do crédito (9) ficam pendentes; sem eles não há regra de saldo negativo nem de carteira para construir.
+- Triagem, carteira e contenção seguem esperando o parecer e as decisões acima.

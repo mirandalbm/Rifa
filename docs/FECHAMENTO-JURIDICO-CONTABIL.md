@@ -669,3 +669,14 @@ item vira código, texto ou pergunta, conforme indicado.
 | A17 | Carência do Pix | Entra no **fechamento como os demais recursos** | Contabilização (contador) |
 | A18 | Excedente | A plataforma **não cobra excedente**; deve existir **mecanismo de contenção**: não ultrapassa o saldo e **sempre deixa um mínimo** | Contenção no tráfego (código a construir, ver perguntas) |
 | Item 7 | Taxa de gestão | Taxa sobre o valor total da verba, debitada integralmente; repassada à plataforma; sobra vira **crédito, não dinheiro** | Já é o comportamento do código |
+
+## Decisões do dono (13/10/2026, rodada 2): créditos, mínimo, selo e pipeline
+
+| # | Tema | Decisão | O que muda |
+|---|---|---|---|
+| A4 | Selo do globo | **Sim**: o selo aparece sobre a tela de vídeo do globo quando ele estiver **ao vivo** | Selo na tela do vídeo, só com o globo no ar; nunca bloqueia recurso |
+| A13 | Carteira | **Não é carteira com dinheiro real**. O usuário tem **créditos** que usa nos serviços que quiser (tráfego, campanhas, banners e outros). O painel do organizador mostra a hierarquia de todos os serviços cobrados por esse painel | Modelo de créditos de uso, sem resgate em dinheiro. Ver perguntas ao advogado |
+| A14 | Medidas provisórias | No painel do admin, cada caso traz as **opções acima** para o responsável do setor escolher, conforme a análise | Ações por caso no painel do admin, com as opções (a), (b) e (c) já descritas |
+| A15 | Saldo na rescisão ou banimento | (decisão anterior) saque proporcional dos serviços da plataforma | Sem mudança |
+| A18 | Mínimo da contenção | **R$ 5,00** sempre sem gastar | Valor fixo de contenção no tráfego |
+| Pipeline | Análise de documentos | **Pipeline simples**: entrada do documento → análise → revisão do advogado → **recusado** ou **concluído** | Fluxo de estados para documentos (contrato, anexos e outros), com o advogado na etapa de revisão |

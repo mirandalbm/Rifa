@@ -71,16 +71,21 @@ export default function Bilhete() {
     ? new Date(t.sorteio.data).toLocaleDateString("pt-BR")
     : "a definir";
 
+  // ?papel=80 para a bobina de 80 mm; o padrão é a de 58 mm.
+  const largo = new URLSearchParams(window.location.search).get("papel") === "80";
+  const papel = largo ? "80mm" : "58mm";
+  const larguraDoBilhete = largo ? "72mm" : "58mm";
+
   return (
     <>
       <style>{`
-        @page { size: 58mm auto; margin: 3mm; }
+        @page { size: ${papel} auto; margin: 3mm; }
         @media print {
           .nao-imprime { display: none !important; }
           body { background: #fff; }
         }
         .bilhete {
-          width: 58mm;
+          width: ${larguraDoBilhete};
           margin: 0 auto;
           padding: 4mm 2mm;
           background: #fff;

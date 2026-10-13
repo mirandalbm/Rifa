@@ -57,35 +57,39 @@ export const SITUACAO_LABEL: Record<string, string> = {
   refunded: "ESTORNADO",
 };
 
-/** Colunas de uma bobina de 58 mm na fonte padrão. */
-const LARGURA = 32;
+/**
+ * Colunas de cada bobina na fonte padrão: 58 mm dá 32, 80 mm dá 48. O padrão
+ * é 58 mm, o tamanho das maquininhas.
+ */
+export const COLUNAS = { 58: 32, 80: 48 } as const;
+export type Papel = keyof typeof COLUNAS;
 
-function linha(char = "-"): string {
-  return char.repeat(LARGURA);
+function linhaDe(largura: number, char = "-"): string {
+  return char.repeat(largura);
 }
 
-function centro(texto: string): string {
-  const t = texto.slice(0, LARGURA);
-  const espaco = Math.max(0, Math.floor((LARGURA - t.length) / 2));
+function centroDe(largura: number, texto: string): string {
+  const t = texto.slice(0, largura);
+  const espaco = Math.max(0, Math.floor((largura - t.length) / 2));
   return " ".repeat(espaco) + t;
 }
 
 /** "TOTAL              R$ 24,50" — rótulo à esquerda, valor à direita. */
-function parEsquerdaDireita(rotulo: string, valor: string): string {
+function parDe(largura: number, rotulo: string, valor: string): string {
   const limpo = valor.replace(/[\u00a0\u202f]/g, " ");
-  const espaco = Math.max(1, LARGURA - rotulo.length - limpo.length);
+  const espaco = Math.max(1, largura - rotulo.length - limpo.length);
   return rotulo + " ".repeat(espaco) + limpo;
 }
 
-function quebrar(texto: string): string[] {
+function quebrarDe(largura: number, texto: string): string[] {
   const palavras = texto.split(/\s+/);
   const linhas: string[] = [];
   let atual = "";
   for (const palavra of palavras) {
-    if ((`${atual} ${palavra}`).trim().length > LARGURA) {
+    if ((`${atual} ${palavra}`).trim().length > largura) {
       if (atual) linhas.push(atual.trim());
       // Palavra sozinha maior que a bobina: corta, senão estoura a linha.
-      atual = palavra.length > LARGURA ? palavra.slice(0, LARGURA) : palavra;
+      atual = palavra.length > largura ? palavra.slice(0, largura) : palavra;
     } else {
       atual = `${atual} ${palavra}`.trim();
     }
@@ -106,8 +110,16 @@ function paraBobina(texto: string): string {
     .replace(/[̀-ͯ]/g, "");
 }
 
-/** Texto puro do bilhete, pronto para a impressora da maquininha. */
-export function escPosTicket(t: TicketData): string {
+/**
+ * Texto puro do bilhete, pronto para a impressora térmica. `papel` escolhe a
+ * largura da bobina (58 ou 80 mm); a linha nunca passa dela.
+ */
+export function escPosTicket(t: TicketData, papel: Papel = 58): string {
+  const L = COLUNAS[papel];
+  const linha = (char = "-") => linhaDe(L, char);
+  const centro = (texto: string) => centroDe(L, texto);
+  const parEsquerdaDireita = (rotulo: string, valor: string) => parDe(L, rotulo, valor);
+  const quebrar = (texto: string) => quebrarDe(L, texto);
   const partes: string[] = [];
 
   partes.push(centro(t.administradora.nome.toUpperCase()));

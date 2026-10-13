@@ -856,3 +856,15 @@ pendências do dono.
 
 - Nada muda no código agora. Quando o parecer chegar, o saldo negativo vira um registro com teto e compensação automática, sem fluxo de cobrança judicial, e o bloqueio por inadimplência fica como consequência.
 - A contenção no tráfego (A18) continua com o mínimo de R$ 5,00, agora como aporte da plataforma e sem cobrança.
+
+## Fechamento das decisões do dono (13/10/2026, rodada 9)
+
+| Ponto | Decisão do dono | Efeito |
+|---|---|---|
+| Margem (D8.1) | Ok: aporte da plataforma (custo mais R$ 5,00), não cobrado da promotora | Pergunta 6 resolvida como liberalidade, a confirmar pelo advogado |
+| Cobrança | Ok: sem cobrança judicial pela plataforma | Perguntas 2 e 5 saem do escopo de cobrança |
+| Teto | Ok como mecanismo. **Valor por promotora ainda não informado** | Pendência do dono |
+| Juros | **Não haverá**, porque não há cobrança | Pergunta 3 encerrada; X.13(c) sem juros, multa a confirmar pelo advogado |
+| Mantidos | Ok: compensação automática e bloqueio por inadimplência | Continuam como cláusula |
+
+**Ainda não fechado:** a Parte 1 segue aberta. Faltam as respostas do advogado e do contador, a assinatura do contador (campos `{{RAZAO_SOCIAL}}`, `{{CNPJ}}` e `{{CRC}}` em aberto), o valor do teto, o domínio, o CNAE principal e o parecer bancário. O pacote de envio está em `scratchpad/pacote-fechamento.md`, entregue ao dono.

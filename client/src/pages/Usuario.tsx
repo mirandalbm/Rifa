@@ -1,4 +1,5 @@
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
+import { useTemplate } from "@/lib/template";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
@@ -21,6 +22,7 @@ interface PerfilDoApostador {
  * nome real — primeiro e último. Nada de telefone, CPF ou e-mail.
  */
 export default function Usuario() {
+  const nomeDaPlataforma = useTemplate().identidade.nome;
   const { apelido } = useParams<{ apelido: string }>();
   const { data, isLoading, error } = useQuery<PerfilDoApostador>({ queryKey: [`/api/public/u/${apelido}`] });
   return (
@@ -48,7 +50,7 @@ export default function Usuario() {
           ) : null}
           {data.desde ? (
             <p className="tnum text-xs opacity-75">
-              no rifa.br desde {new Date(data.desde).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+              no {nomeDaPlataforma} desde {new Date(data.desde).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
             </p>
           ) : null}
           <div className="pt-2.5 empty:hidden">

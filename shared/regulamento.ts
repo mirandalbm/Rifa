@@ -36,7 +36,12 @@ export function validarRegulamentoExtra(bruto: unknown): string | null {
   return t || null;
 }
 
+/** Nome padrão da plataforma, quando o template publicado não traz outro. */
+export const PLATAFORMA_PADRAO = "Loterias do Bem";
+
 export interface DadosDoRegulamento {
+  /** Nome da plataforma como o template publicado o diz. */
+  plataforma?: string;
   rifa: {
     title: string;
     prizeTitle: string;
@@ -117,6 +122,8 @@ function agrupar(premios: string[]): string[] {
 
 export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
   const { rifa, promotora } = d;
+  // O nome da plataforma vem do template publicado (a marca pode mudar); sem ele, o padrão.
+  const plataforma = d.plataforma?.trim() || PLATAFORMA_PADRAO;
   const zero = numeracaoZero(rifa.metodoApuracao);
   const primeira = formatQuota(1, rifa.totalQuotas, zero);
   const ultima = formatQuota(rifa.totalQuotas, rifa.totalQuotas, zero);
@@ -143,7 +150,7 @@ export function montarRegulamento(d: DadosDoRegulamento): Secao[] {
           promotora.endereco ? `, com sede em ${promotora.endereco}` : ""
         }.`,
         ...(promotora.contato ? [`Contato da promotora: ${promotora.contato}.`] : []),
-        "A plataforma rifa.br é o meio de venda e de conferência; a responsabilidade pela promoção e pela entrega do prêmio é da promotora.",
+        `A plataforma ${plataforma} é o meio de venda e de conferência; a responsabilidade pela promoção e pela entrega do prêmio é da promotora.`,
       ],
     },
     {

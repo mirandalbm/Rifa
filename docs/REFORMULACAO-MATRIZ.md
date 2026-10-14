@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 852 |
+| Cartões (componentes usados pelas telas) | 853 |
 | Rotas da API | 480, das quais 476 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 62 |
 | Testes de regra (`tests/`) | 131 arquivos |
-| Destinos decididos | 959 de 959 |
+| Destinos decididos | 960 de 960 |
 
 ## 1. Telas
 
@@ -153,6 +153,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `InstalarApp` | manter · na tela 01 Vitrine · onda 5 |
 | `Patrocinadas` | manter · na tela 01 Vitrine · onda 5 |
 | `PublicShell` | manter · peça do kit (onda 1) · na tela 01 Vitrine |
+| `SeletorDeRegiao` | manter · na tela 01 Vitrine · onda 5 |
 | `SorteioDoInicio` | manter · na tela 01 Vitrine · onda 5 |
 | `VisualizadorDeStories` | manter · na tela 01 Vitrine · onda 5 |
 

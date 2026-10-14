@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Janela } from "@/components/Janela";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
@@ -23,6 +23,7 @@ import { bilhetesNoCarrinho, useCarrinho } from "@/lib/carrinho";
 import { IconeTrevo } from "@/components/Publicacao";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { Marca } from "@/components/Marca";
+import { SeletorDeRegiao } from "@/components/SeletorDeRegiao";
 import { CriarReels } from "@/components/CriarReels";
 import { useNoComputador } from "@/lib/largura";
 
@@ -348,15 +349,19 @@ export function ConsoleDoApp() {
         // Sempre só os ícones (72 px); ao passar o ponteiro — ou ao entrar
         // pelo teclado — abre com os nomes por cima do conteúdo, sem empurrar
         // a página, e fecha ao sair.
-        className="group/lateral fixed inset-y-0 left-0 z-30 hidden w-[72px] flex-col overflow-hidden border-r border-line bg-white px-3 py-6 transition-[width,box-shadow] duration-150 focus-within:w-[244px] focus-within:shadow-card hover:w-[244px] hover:shadow-card motion-reduce:transition-none lg:flex"
+        className="group/lateral fixed inset-y-0 left-0 z-50 hidden w-[72px] flex-col overflow-hidden border-r border-line bg-white px-3 py-6 transition-[width,box-shadow] duration-150 focus-within:w-[244px] focus-within:shadow-card hover:w-[244px] hover:shadow-card motion-reduce:transition-none lg:flex"
       >
-        {/* A logo como é, na cor e na forma de sempre — só menor na lateral estreita. */}
-        <Link href="/" className="mb-6 flex h-10 items-center whitespace-nowrap px-1 text-[15px] group-hover/lateral:text-xl group-focus-within/lateral:text-xl" aria-label="Início">
-          <Marca />
+        {/* Recolhida, só o símbolo; aberta, o nome da plataforma (`Marca` cuida disso). */}
+        <Link href="/" className="mb-6 flex h-10 items-center px-1" aria-label="Início">
+          <Marca lateral />
         </Link>
         <div className="flex flex-col gap-1">
-          {BOTOES_DO_CONSOLE.filter((b) => b.chave !== "perfil").map((b) => (
-            <BotaoDoConsole key={b.chave} chave={b.chave} rotulo={b.rotulo} caminho={b.caminho} ativo={ativo === b.chave} lateral />
+          {BOTOES_DO_CONSOLE.filter((b) => b.chave !== "perfil").map((b, i) => (
+            <Fragment key={b.chave}>
+              <BotaoDoConsole chave={b.chave} rotulo={b.rotulo} caminho={b.caminho} ativo={ativo === b.chave} lateral />
+              {/* O seletor de estado é da vitrine: aparece na lateral só lá, logo abaixo do Início. */}
+              {i === 0 && local === "/" ? <SeletorDeRegiao lateral /> : null}
+            </Fragment>
           ))}
           <TrevoDeAvisos comRotulo />
           <BotaoPublicar comRotulo />

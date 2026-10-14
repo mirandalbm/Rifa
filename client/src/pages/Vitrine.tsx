@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Plus } from "lucide-react";
-import { UFS, ufValida } from "@shared/endereco";
-import { lerRegiao, gravarRegiao, regiaoEfetiva, type EscolhaDeRegiao } from "@/lib/regiao";
+import { Plus } from "lucide-react";
 import { useSession } from "@/lib/session";
+import { SeletorDeRegiao, useRegiaoDaVitrine } from "@/components/SeletorDeRegiao";
 import { useTemplate } from "@/lib/template";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
@@ -26,79 +25,15 @@ import { ContagemDoSorteio, SorteioDoInicio, useSorteioDoInicio } from "@/compon
 export default function Vitrine() {
   const template = useTemplate();
   const sorteio = useSorteioDoInicio();
-  const { data: sessao } = useSession();
-  const naConta = Boolean(sessao?.buyer?.conta);
-  // Com conta, a região vem do CEP do cadastro — sem ninguém precisar
-  // escolher. O seletor de estado muda só neste aparelho.
-  const { data: conta } = useQuery<{ uf: string | null; cidade: string | null }>({
-    queryKey: ["/api/public/conta"],
-    enabled: naConta,
-  });
-  const [escolha, setEscolha] = useState<EscolhaDeRegiao>(() => lerRegiao());
-  const regiao = regiaoEfetiva(escolha, conta);
+  const { regiao, valor: valorDaRegiao, nome: nomeDaRegiao, aoEscolherUf } = useRegiaoDaVitrine();
   const { data, isLoading } = useQuery<RifaDoFeed[]>({
     queryKey: ["/api/public/campaigns", regiao ? { uf: regiao.uf, cidade: regiao.cidade ?? undefined } : undefined],
   });
-  const escolher = (r: EscolhaDeRegiao) => {
-    gravarRegiao(r);
-    setEscolha(r);
-  };
-
-  const valorDaRegiao = escolha === "todos" ? "" : (regiao?.uf ?? "");
-  const aoEscolherUf = (uf: string) => {
-    if (!uf) return escolher("todos");
-    if (conta?.uf === uf) return escolher(null);
-    if (ufValida(uf)) escolher({ uf, cidade: null });
-  };
-  const opcoesDeUf = (
-    <>
-      <option value="">Todo o Brasil</option>
-      {Object.entries(UFS).map(([sigla, nome]) => (
-        <option key={sigla} value={sigla}>
-          {nome}
-        </option>
-      ))}
-    </>
-  );
-  // Celular: o estado mora no topo, só o ícone do local ao lado da varinha.
-  // O <select> de verdade fica por cima, transparente — o toque, o teclado e
-  // o leitor de tela são dele, e o estado escolhido vai no rótulo.
-  const nomeDaRegiao = valorDaRegiao ? (UFS as Record<string, string>)[valorDaRegiao] : "Todo o Brasil";
-  const regiaoNoTopo = (
-    <div
-      className="relative flex h-10 w-10 items-center justify-center rounded-lg text-ink focus-within:ring-2 focus-within:ring-marca hover:bg-mist md:hidden"
-      title={`Rifas perto de: ${nomeDaRegiao}`}
-    >
-      <MapPin size={24} aria-hidden />
-      <select
-        aria-label={`Rifas perto de: ${nomeDaRegiao}`}
-        value={valorDaRegiao}
-        onChange={(e) => aoEscolherUf(e.target.value)}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-      >
-        {opcoesDeUf}
-      </select>
-    </div>
-  );
-  // Tablet e computador seguem com "Rifas perto de" e o nome do estado; no
-  // celular a faixa fica só com a contagem do sorteio.
-  const blocoRegiao = (
-    <div className="flex items-center gap-2 pb-1">
-      <MapPin size={16} aria-hidden className="hidden shrink-0 text-muted md:block" />
-      <label htmlFor="vitrine-uf" className="hidden text-sm text-ink-2 md:block">
-        Rifas perto de
-      </label>
-      <select
-        id="vitrine-uf"
-        value={valorDaRegiao}
-        onChange={(e) => aoEscolherUf(e.target.value)}
-        className="hidden min-w-0 rounded-md border border-line-2 bg-white px-2 py-1.5 text-sm font-semibold md:block"
-      >
-        {opcoesDeUf}
-      </select>
-      <ContagemDoSorteio onAbrir={sorteio.abrir} />
-    </div>
-  );
+  // O seletor de estado mora no topo (tablet e celular) e na lateral do
+  // computador (`SeletorDeRegiao`). Aqui, na vitrine, a faixa só leva a
+  // contagem do próximo sorteio no celular.
+  const regiaoNoTopo = <SeletorDeRegiao />;
+  const blocoRegiao = <ContagemDoSorteio onAbrir={sorteio.abrir} />;
   // Uma rifa por vez, em todas as larguras, com rolagem infinita.
   // As divulgações entram só no primeiro bloco de rifas (dois blocos repetiriam as mesmas peças).
   const gradeDeRifas = (lista: RifaDoFeed[] | undefined, comDivulgacoes: boolean) => (

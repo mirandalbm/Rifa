@@ -26,7 +26,7 @@ describe("manifesto do app instalado", () => {
   });
 
   it("nome vazio ou só com espaço cai no padrão; nome longo é cortado", () => {
-    expect(nomeDoApp("   \n ")).toBe("rifa.br");
+    expect(nomeDoApp("   \n ")).toBe("Loterias do Bem");
     expect(nomeDoApp("A".repeat(80))).toHaveLength(40);
     expect(nomeDoApp("  Rifas   do\nZé ")).toBe("Rifas do Zé");
   });

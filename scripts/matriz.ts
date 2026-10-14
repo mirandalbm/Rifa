@@ -394,9 +394,8 @@ function principal() {
     const novas = semDestino(m, destinos);
     destinos = { ...destinos };
     for (const c of novas) destinos[c] = A_DECIDIR;
-    const ordenado = Object.fromEntries(Object.entries(destinos).sort(([a], [b]) => a.localeCompare(b)));
-    fs.writeFileSync(ARQUIVO_DOS_DESTINOS, JSON.stringify(ordenado, null, 2) + "\n");
-    destinos = ordenado;
+    // A ordem do arquivo é a que ele já tem: as chaves novas entram no fim, sem reordenar o resto.
+    fs.writeFileSync(ARQUIVO_DOS_DESTINOS, JSON.stringify(destinos, null, 1) + "\n");
     console.log(`destinos: ${novas.length} novo(s) como "${A_DECIDIR}" (${Object.keys(destinos).length} no total)`);
   }
   fs.writeFileSync(ARQUIVO_DA_MATRIZ, montarDocumento(m, destinos));

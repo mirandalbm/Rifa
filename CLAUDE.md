@@ -488,9 +488,13 @@ arquitetura.
     organizações — nem na tela, nem no `aria-label`. É botão e abre a tela
     do sorteio. O tempo vai no `aria-label`; sem nenhum sorteio marcado
     (nem oficial nem de rifa), "Sorteios". **É só do celular**:
-    do tablet em diante o pino não aparece, o seletor segue o de antes na
-    faixa ("Rifas perto de" e o nome do estado) e a contagem não existe —
-    lá a tela do sorteio principal é a coluna ao vivo, já definida.
+    do tablet em diante a contagem não existe — lá a tela do sorteio
+    principal é a coluna ao vivo, já definida. **O seletor de estado
+    ("Rifas perto de") não fica mais na faixa do feed**: no tablet e no
+    celular é o pino do topo (`SeletorDeRegiao`); no computador é um item
+    da lateral logo abaixo do Início, com a sigla embaixo quando recolhida
+    e "Rifas perto de: <estado>" quando abre. A lateral mostra o seletor só
+    na vitrine (rota `/`). Escolher num lugar muda no outro (`ouvirRegiao`).
   - **O voltar do aparelho fecha** (`#sorteio`, `useSorteioDoInicio()`):
     abrir empurra a marca no histórico, fechar a tira; chegar com
     `#sorteio` abre direto.
@@ -655,8 +659,14 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   magenta e índigo não são cor do sistema — claro é branco e azul com
   detalhes verdes; escuro é preto e verde, com azul em alguns lugares), com contraste ≥ 3:1
   nos dois temas (o teste confere). O número de avisos vai no rótulo.
-- **A logo não muda** — nem na lateral do computador, onde só fica menor.
-  É o último item do sistema a mudar.
+- **A marca é "Loterias do Bem" com o símbolo do bilhete e do coração**
+  (`IconeDaMarca` e `Marca` em `client/src/components/Marca.tsx`; o recorte
+  do coração deixa ver o fundo, então vale nos dois temas). O nome padrão
+  vem de `shared/template.ts` e `shared/manifest.ts`, mas o que vale em
+  produção é o template publicado: trocar o nome é em Aparência → Identidade.
+  Na lateral do computador recolhida, só o símbolo; aberta, o nome. Os
+  ícones do app (`client/public/icons/`) são gerados do mesmo desenho. Logo
+  enviada em Aparência substitui o desenho (com o nome como texto alternativo).
 - **Quem vê a publicação** (`quemPublica()`): organização e plataforma
   (Criar: rifa, story, legenda e as divulgações de terceiros para
   autorizar), afiliado como influenciador (kit e publicar com o material

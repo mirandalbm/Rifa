@@ -1428,6 +1428,7 @@ publicRouter.get("/campaigns/:slug/regulamento", async (req, res, next) => {
       rifa: { slug: c.slug, title: c.title, prizeTitle: c.prizeTitle },
       organizacao: org ? { slug: org.slug, nome: org.name } : null,
       secoes: montarRegulamento({
+        plataforma: (await templatePublicado()).template.identidade.nome,
         rifa: {
           title: c.title,
           prizeTitle: c.prizeTitle,

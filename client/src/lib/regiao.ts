@@ -29,6 +29,9 @@ export function lerRegiao(): EscolhaDeRegiao {
   }
 }
 
+/** Avisa quem mostra a região (a lateral e a vitrine) que a escolha mudou. */
+const EVENTO = "rifa:regiao";
+
 export function gravarRegiao(r: EscolhaDeRegiao) {
   try {
     if (r) localStorage.setItem(CHAVE, JSON.stringify(r));
@@ -36,6 +39,13 @@ export function gravarRegiao(r: EscolhaDeRegiao) {
   } catch {
     /* sem armazenamento, a escolha vale só nesta visita */
   }
+  window.dispatchEvent(new Event(EVENTO));
+}
+
+/** Chama `quando` a cada escolha gravada. Devolve a função que para de ouvir. */
+export function ouvirRegiao(quando: () => void): () => void {
+  window.addEventListener(EVENTO, quando);
+  return () => window.removeEventListener(EVENTO, quando);
 }
 
 /** A região que de fato ordena: a escolha, senão a da conta. */

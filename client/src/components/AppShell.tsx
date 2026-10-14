@@ -66,7 +66,7 @@ import { RenovarConsentimento } from "@/components/RenovarConsentimento";
 import { TemaCiclo } from "@/components/TemaToggle";
 import { BotaoDoAssistente, ColunaDoAssistente, useAssistente } from "@/components/AssistenteDoPainel";
 import { papelTemIA } from "@shared/ia";
-import { Marca } from "@/components/Marca";
+import { IconeDaMarca, Marca } from "@/components/Marca";
 import { useTemplate } from "@/lib/template";
 
 /**
@@ -520,7 +520,7 @@ export function PanelShell({
         aria-label="Menu do painel"
       >
         <div className="flex h-16 shrink-0 items-center gap-2 overflow-hidden px-5">
-          <Link href="/" title="Ir para as rifas" className="min-w-0 whitespace-nowrap text-lg">
+          <Link href="/" title="Ir para as rifas" className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-base">
             {aberto ? (
               <Marca />
             ) : (
@@ -528,9 +528,7 @@ export function PanelShell({
                 <span className={`hidden group-hover/menu:inline group-focus-within/menu:inline max-md:inline`}>
                   <Marca />
                 </span>
-                <span className="font-display text-xl font-extrabold tracking-tight group-hover/menu:hidden group-focus-within/menu:hidden max-md:hidden">
-                  {(nomeDaMarca || "r").charAt(0)}<span className="text-marca">.</span>
-                </span>
+                <IconeDaMarca className="h-8 w-8 group-hover/menu:hidden group-focus-within/menu:hidden max-md:hidden" />
               </>
             )}
           </Link>
@@ -540,7 +538,7 @@ export function PanelShell({
             aria-expanded={aberto}
             aria-label={aberto ? "Recolher menu" : "Abrir menu"}
             title={aberto ? "Recolher menu" : "Abrir menu"}
-            className={`ml-auto rounded-md p-1.5 text-muted hover:bg-mist-2 hover:text-ink ${nomes}`}
+            className={`ml-auto shrink-0 rounded-md p-1.5 text-muted hover:bg-mist-2 hover:text-ink ${nomes}`}
           >
             {aberto ? <ChevronsLeft size={20} aria-hidden /> : <ChevronsRight size={20} aria-hidden />}
           </button>

@@ -674,12 +674,22 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   do coração deixa ver o fundo, então vale nos dois temas). O nome padrão
   vem de `shared/template.ts` e `shared/manifest.ts`, mas o que vale em
   produção é o template publicado: trocar o nome é em Aparência → Identidade.
-  Na lateral do computador recolhida, só o símbolo; aberta, o nome. **No
-  celular a marca fica como era** (só o texto, sem símbolo; `sm:` mostra o
-  símbolo a partir do tablet). Os ícones do app (`client/public/icons/`) são
-  a **folha de trevo da direita, vermelha** (`docs/marca/`, escolha do
-  produto em 14/10/2026; o `icon-maskable-512` leva a arte no centro, 72%,
-  para o recorte circular do Android). O título do iPhone e o nome do app
+  Na lateral do computador recolhida, só o símbolo; aberta, o nome. **O nome
+  é a logo escrita** (`LogoEscrita`, pedido do produto em 14/10/2026), em
+  todas as larguras: "Loterias do" no verde do ícone e "Bem" no vermelho da
+  folha, com o **B desenhado como a folha em forma de coração** (lado
+  esquerdo reto, os dois lobos à direita, a metade de baixo mais escura,
+  como no ícone). As cores são tokens de identidade (`--logo-verde`,
+  `--logo-vermelho`, `--logo-vermelho-escuro`, com contraste ≥ 3:1 nos dois
+  temas — `tests/marca.test.ts`). **Só vale com o nome "Loterias do Bem"
+  publicado** (`usaLogoEscrita()` em `client/src/lib/marca.ts`): com outro
+  nome no template, a tela mostra o nome em texto, como antes — a logo nunca
+  diz um nome que a plataforma não publicou. No celular, sem símbolo; `sm:`
+  mostra o símbolo do bilhete ao lado a partir do tablet. Os ícones do app
+  (`client/public/icons/`) são a **folha de trevo da direita, vermelha**
+  (`docs/marca/`, escolha do produto em 14/10/2026; o `icon-maskable-512` é
+  a mesma arte de sangria total do `icon-512` — reduzida, deixava uma placa
+  em volta do trevo). O título do iPhone e o nome do app
   instalado (manifesto de fábrica) seguem como eram: mudança de marca para
   todos avisa antes. Logo enviada em Aparência substitui o desenho (com o nome
   como texto alternativo).

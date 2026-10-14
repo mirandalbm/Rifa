@@ -41,6 +41,14 @@
     --azul: #0a6fd6;
     /* O "+" do carrinho: vermelho da marca no claro (pedido do produto), verde no escuro (preto e verde). */
     --mais: var(--red);
+    /*
+     * A logo escrita "Loterias do Bem": "Loterias do" no verde do ícone e o
+     * "Bem" no vermelho da folha (o B é a folha em forma de coração, com a
+     * metade de baixo mais escura, como no ícone). Identidade, nunca estado.
+     */
+    --logo-verde: #007931;
+    --logo-vermelho: #d62931;
+    --logo-vermelho-escuro: #b61d25;
 
     /*
      * Casas quadradas do mapa e da cartela, alternando azul e verde cheios
@@ -108,6 +116,9 @@
 
       --azul: #5aa9ff;
       --mais: var(--green-deep);
+      --logo-verde: #4cc35a;
+      --logo-vermelho: #ec4a50;
+      --logo-vermelho-escuro: #c8242c;
       --quadro-azul: #1f6fc4;
       --quadro-verde: #16924e;
       --quadro-texto: #ffffff;
@@ -150,6 +161,9 @@
 
     --azul: #5aa9ff;
     --mais: var(--green-deep);
+    --logo-verde: #4cc35a;
+    --logo-vermelho: #ec4a50;
+    --logo-vermelho-escuro: #c8242c;
     --quadro-azul: #1f6fc4;
     --quadro-verde: #16924e;
     --quadro-texto: #ffffff;

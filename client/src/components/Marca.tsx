@@ -41,7 +41,7 @@ export function IconeDaMarca({ className = "" }: { className?: string }) {
 }
 
 /**
- * A frase "Loterias do Bem" com as letras da logo oficial da intro, numa
+ * A frase "Loterias do Bem" na Google Sans Flex 400 (reta), numa
  * linha: os contornos vêm de `npm run logo-escrita` (`LOGO_ESCRITA`).
  * "Loterias do" no verde e "Bem" no vermelho; as cores são os tokens
  * `--logo-*`, que trocam com o tema.
@@ -55,8 +55,8 @@ export function LogoEscrita({ className = "" }: { className?: string }) {
   return (
     <span className={`relative inline-flex shrink-0 align-middle ${className}`}>
       <svg viewBox={`0 0 ${d.largura} ${d.altura}`} aria-hidden className="h-[1.2em] w-auto">
-        <path d={d.verde} fillRule="evenodd" style={{ fill: "var(--logo-verde)" }} />
-        <path d={d.vermelho} fillRule="evenodd" style={{ fill: "var(--logo-vermelho)" }} />
+        <path d={d.verde} style={{ fill: "var(--logo-verde)" }} />
+        <path d={d.vermelho} style={{ fill: "var(--logo-vermelho)" }} />
       </svg>
       <span className="sr-only">{NOME_DA_LOGO_ESCRITA}</span>
     </span>

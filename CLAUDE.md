@@ -681,18 +681,18 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
     são as do ícone nos dois temas (marca, não estado). Cada folha é **um
     contorno só** (`contornoDaFolha()`): o recorte com polígono e círculos
     separados saía furado fora do navegador.
-  - **A frase são as letras da logo oficial** (`LogoEscrita`): vetorizadas
-    uma vez da `docs/marca/logo-oficial.png` (`letras-loterias-do-bem.svg`) e
-    postas numa linha por `npm run logo-escrita` (`scripts/logo-escrita.ts`:
-    "do" no tamanho das outras letras, a mesma linha de base), que grava os
-    contornos (`client/src/lib/logoEscritaDesenho.ts`, gerado — nunca à mão),
-    o trevo da abertura no `index.html` e os arquivos de `docs/marca/` (a logo
+  - **A frase é desenhada na Google Sans Flex** (`LogoEscrita`), no peso 400,
+    reta — sem itálico nem negrito, pedido do produto em 14/10/2026. `npm run
+    logo-escrita` (`scripts/logo-escrita.ts`) lê a fonte de
+    `@fontsource-variable/google-sans-flex` (OFL, versão exata 5.3.1; woff2
+    descomprimido com `wawoff2`, porque o fontkit só lê TTF) e grava os
+    contornos (`client/src/lib/logoEscritaDesenho.ts`, gerado — nunca à mão), o
+    trevo da abertura no `index.html` e os arquivos de `docs/marca/` (a logo
     horizontal em SVG e PNG de 2048, claro e escuro). "Loterias do" no verde e
-    **"Bem" no vermelho**, com `fill-rule="evenodd"` (os furos das letras). A
-    altura acompanha a letra ao redor (1,2em; o trevo, 1,6em). As cores são
-    `CORES_DA_LOGO` (`client/src/lib/marca.ts`), os mesmos valores dos tokens
-    `--logo-verde` e `--logo-vermelho` do `index.css` nos dois temas, cada uma
-    com contraste ≥ 3:1 — `tests/marca.test.ts` confere as duas coisas.
+    **"Bem" no vermelho**. A altura acompanha a letra ao redor (1,2em; o trevo,
+    1,6em). As cores são `CORES_DA_LOGO` (`client/src/lib/marca.ts`), os mesmos
+    valores dos tokens `--logo-verde` e `--logo-vermelho` do `index.css` nos
+    dois temas, cada uma com contraste ≥ 3:1 — `tests/marca.test.ts` confere.
   - **Só vale com o nome "Loterias do Bem" publicado** (`usaLogoEscrita()`):
     com outro nome no template, a tela mostra o nome em texto e o símbolo do
     bilhete (`IconeDaMarca`), como antes — a logo nunca diz um nome que a

@@ -189,11 +189,15 @@ export default function PerfilPage() {
           <CapaPadrao nome={p.nome} />
         )}
       </div>
-      {/* No computador, duas colunas abaixo da capa: o cartão do perfil à
-          esquerda, fixo na rolagem, e as rifas em grade à direita. No
-          celular, a mesma ordem de sempre. */}
-      <div className="mt-4 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <div className="lg:sticky lg:top-4">
+      {/* No computador, como no Instagram: o perfil é um cabeçalho de ponta a
+          ponta abaixo da capa (foto, nome, contadores e ações à esquerda; a
+          bio, os links e os destaques à direita) e as rifas vêm embaixo, em
+          grade de 3. A coluna lateral de antes deixava um vão branco do
+          tamanho da página ao lado do feed. No celular e no tablet, a mesma
+          ordem de sempre. */}
+      <div className="mt-4">
+      <div className="lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-start lg:gap-x-10">
+      <div>
       {/* O cartão do perfil, logo abaixo da capa (sem subir sobre ela): foto à
           esquerda; à direita, o nome e, embaixo dele, os contadores. */}
       <div className="flex items-center gap-4">
@@ -315,10 +319,12 @@ export default function PerfilPage() {
       </div>
 
       {denunciando ? <Denunciar organizacao={p.slug} onFechar={() => setDenunciando(false)} /> : null}
+      </div>
 
+      <div className="min-w-0">
       {/* A cidade, o texto do organizador e a rifa atual, escrita sozinha
           (`bioAutomatica()`), cada linha com o seu ícone. */}
-      <div className="mt-3 space-y-3 text-[13px]">
+      <div className="mt-3 space-y-3 text-[13px] lg:mt-0">
         {p.local ? (
           <p className="flex items-center gap-1 text-muted">
             <MapPin size={14} aria-hidden className="shrink-0" /> {p.local}
@@ -380,16 +386,17 @@ export default function PerfilPage() {
           </ul>
         </section>
       ) : null}
+      </div>
 
       </div>
 
-      {/* Uma rifa por linha no celular; do tablet em diante, duas colunas em
-          fluxo (`columns`), não grade: cada publicação tem a altura do seu
-          formato (4:5, 9:16…), e a grade deixava um buraco do tamanho da
-          peça mais alta ao lado de cada peça mais baixa. */}
+      {/* Uma rifa por linha no celular; no tablet, duas colunas em fluxo
+          (`columns`), não grade: cada publicação tem a altura do seu formato
+          (4:5, 9:16…). No computador, grade de 3 com a imagem sempre em 4:5
+          (`caixaNoComputador`), para as linhas começarem na mesma altura. */}
       <section
         aria-label="Rifas no ar"
-        className="-mx-4 mt-4 sm:mx-0 md:columns-2 md:gap-4 lg:mt-0 lg:gap-6"
+        className="-mx-4 mt-4 sm:mx-0 md:columns-2 md:gap-4 lg:mt-8 lg:grid lg:columns-auto lg:grid-cols-3 lg:items-start lg:gap-6"
       >
         {p.rifas.length === 0 ? (
           <div className="[column-span:all]">
@@ -397,7 +404,7 @@ export default function PerfilPage() {
           </div>
         ) : null}
         {p.rifas.map((r) => (
-          <div key={r.id} className="mb-4 break-inside-avoid lg:mb-6">
+          <div key={r.id} className="mb-4 break-inside-avoid lg:mb-0 lg:min-w-0">
             <CartaoDaRifa org={p.slug} nome={p.nome} rifa={r} />
           </div>
         ))}
@@ -566,6 +573,7 @@ function CartaoDaRifa({ org, nome, rifa }: { org: string; nome: string; rifa: Ri
         href={href}
         aoAbrir={() => marcarOrigem("perfil")}
         retratoNoCelular={Boolean(rifa.demonstracao)}
+        caixaNoComputador="lg:aspect-[4/5]"
       />
       {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações, como no feed. */}
       <Link

@@ -236,8 +236,13 @@ arquitetura.
   sem significado é ruído. O tema escuro troca os tons, nunca o significado
   (seção "Tema claro e escuro").
   Exceções, só como identidade e nunca como estado: as cores das loterias
-  (seção "Sorteios oficiais") e a cor de cada pessoa na conversa por cima do
-  vídeo do sorteio (`CORES_DOS_NOMES`).
+  (seção "Sorteios oficiais"), a cor de cada pessoa na conversa por cima do
+  vídeo do sorteio (`CORES_DOS_NOMES`) e o **vermelho da marca** — o da
+  logo, do ícone e da intro (`docs/marca/`) e o do **"+" do carrinho** no
+  tema claro (`--mais` = `--red`, pedido do produto em 14/10/2026; no escuro
+  segue verde). O "+" é ação, não estado: vermelho continua sendo erro em
+  todo o resto, e nenhum aviso, pílula ou estado novo usa o vermelho fora de
+  erro.
 
 ## O que ainda não existe
 
@@ -602,9 +607,13 @@ arquitetura.
     `plataforma_arquivos`; o nome é o texto alternativo; o link é caminho do
     site ou `https:` (`validarApoios()`, a régua do banner). Entra no ar ao
     publicar o template.
-- **Perfil da organização**: capa 4:1; abaixo, o cartão do perfil (foto,
-  contadores, ações, bio, links, destaques) numa coluna de 320 px fixa na
-  rolagem, e as rifas em 2 colunas ao lado.
+- **Perfil da organização**, como no Instagram: capa 4:1; abaixo, o
+  cabeçalho do perfil de ponta a ponta (foto, nome, contadores e ações à
+  esquerda; cidade, bio, links e destaques à direita) e, embaixo dele, as
+  rifas em **grade de 3** com a imagem sempre em 4:5 (`caixaNoComputador`
+  do `Carrossel`), para as linhas começarem na mesma altura. A coluna
+  lateral de 320 px saiu: deixava um vão branco do tamanho da página ao
+  lado do feed. No tablet, as rifas seguem em 2 colunas em fluxo.
 - **Painel do organizador em grade bento** (`Bento` em
   `client/src/pages/admin.tsx`, etiqueta presa na borda): receita com o
   gráfico em 2×2, cotas, comissão, próximo sorteio (azul, com a loteria pelo
@@ -3336,7 +3345,7 @@ emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
 
 ## Carrinho e comprar — o que não pode afrouxar
 
-Na barra da publicação, o **"+"** (azul no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
+Na barra da publicação, o **"+"** (vermelho da marca no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
 e o **comprar** (a sacola) no canto direito, onde era o salvar. O "+" abre
 a janela dos números (`EscolherBilhete`): os tamanhos 5, 10, 25 e 50 (ou
 uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele
@@ -3345,7 +3354,7 @@ carrinho.
 
 **Na página da rifa, o "+" e a sacola saem de baixo da publicação** — a
 compra já está na tela. Cada cartela traz tudo numa linha: **trocar** (só
-o ícone, à esquerda), o **"+"** (o mesmo "+" azul/verde em negrito da
+o ícone, à esquerda), o **"+"** (o mesmo "+" vermelho/verde em negrito da
 barra, `IconeMais` em `Icones.tsx`, que junta a cartela ao carrinho) e o
 **Pagar**, maior, no canto direito.
 

@@ -144,7 +144,7 @@ export function IconePresente({ tamanho = 26, aberto = false }: P & { aberto?: b
 }
 
 /**
- * O "+" de pôr no carrinho: em negrito, azul no claro e verde no escuro
+ * O "+" de pôr no carrinho: em negrito, vermelho da marca no claro e verde no escuro
  * (`--mais`). Na barra da publicação abre a janela dos números; na cartela,
  * adiciona aquele bilhete.
  */

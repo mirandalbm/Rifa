@@ -88,9 +88,9 @@ export function IconeLupa({ aceso, tamanho }: P) {
   return <Desenho corpo={aceso ? SOLAR.lupaCheia : SOLAR.lupa} tamanho={tamanho} />;
 }
 
-/** A sacola — comprar na publicação, o carrinho final no console. */
-export function IconeSacola({ aceso, tamanho }: P) {
-  return <Desenho corpo={aceso ? SOLAR.sacolaCheia : SOLAR.sacola} tamanho={tamanho} />;
+/** A sacola — comprar na publicação (verde, `text-green-deep`), o carrinho final no console (na cor do console). */
+export function IconeSacola({ aceso, tamanho, className }: P & { className?: string }) {
+  return <Desenho corpo={aceso ? SOLAR.sacolaCheia : SOLAR.sacola} tamanho={tamanho} className={className} />;
 }
 
 /** A varinha de publicar. */

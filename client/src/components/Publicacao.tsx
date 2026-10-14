@@ -501,7 +501,8 @@ export function BarraDeAcoes({
               aria-label="Comprar agora"
               onClick={() => (aoComprar ? aoComprar() : navegar(`${caminho}?comprar=1`))}
             >
-              <IconeSacola />
+              {/* Comprar é dinheiro entrando: verde, nos dois temas. No console a sacola segue na cor dele. */}
+              <IconeSacola className="text-green-deep" />
             </button>
           </>
         ) : null}

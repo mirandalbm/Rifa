@@ -89,6 +89,7 @@ export const acimaDoRodape = acimaDoConsole;
 export function PublicShell({
   children,
   larga,
+  ampla,
   vitrine,
   rodape,
   antesDaMarca,
@@ -100,6 +101,8 @@ export function PublicShell({
   /** No topo do celular, à esquerda da logo (hoje nenhuma tela usa). */
   antesDaMarca?: ReactNode;
   larga?: boolean;
+  /** Com `larga`, a página da rifa: a faixa vai a 1408 px no computador, para a publicação caber maior ao lado da compra. */
+  ampla?: boolean;
   /** A vitrine ocupa a largura toda do tablet em diante (feed e coluna ao vivo). */
   vitrine?: boolean;
   /** O rodapé da plataforma (informações, pagamentos, 18+ e logos) — tablet e computador. */
@@ -107,7 +110,13 @@ export function PublicShell({
 }) {
   // A vitrine ocupa a tela toda do tablet em diante: as colunas ficam
   // coladas (1 px de linha entre elas), sem margem sobrando dos lados.
-  const largura = vitrine ? "max-w-3xl md:max-w-none" : larga ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl";
+  const largura = vitrine
+    ? "max-w-3xl md:max-w-none"
+    : larga
+      ? ampla
+        ? "max-w-3xl lg:max-w-[1408px]"
+        : "max-w-3xl lg:max-w-6xl"
+      : "max-w-3xl";
   const { data: sessao } = useSession();
 
   return (
@@ -520,7 +529,7 @@ export function PanelShell({
         aria-label="Menu do painel"
       >
         <div className="flex h-16 shrink-0 items-center gap-2 overflow-hidden px-5">
-          <Link href="/" title="Ir para as rifas" className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-base">
+          <Link href="/" title="Ir para as rifas" className="min-w-0 whitespace-nowrap text-lg md:flex-1 md:overflow-hidden md:text-base">
             {aberto ? (
               <Marca />
             ) : (
@@ -538,7 +547,7 @@ export function PanelShell({
             aria-expanded={aberto}
             aria-label={aberto ? "Recolher menu" : "Abrir menu"}
             title={aberto ? "Recolher menu" : "Abrir menu"}
-            className={`ml-auto shrink-0 rounded-md p-1.5 text-muted hover:bg-mist-2 hover:text-ink ${nomes}`}
+            className={`ml-auto rounded-md p-1.5 text-muted hover:bg-mist-2 hover:text-ink md:shrink-0 ${nomes}`}
           >
             {aberto ? <ChevronsLeft size={20} aria-hidden /> : <ChevronsRight size={20} aria-hidden />}
           </button>

@@ -379,7 +379,7 @@ export default function Rifa() {
   }
 
   return (
-    <PublicShell larga>
+    <PublicShell larga ampla>
       {/* No computador, duas colunas: a publicação à esquerda e a compra à
           direita, fixa enquanto rola. No celular, a mesma ordem de sempre:
           publicação, compra, e o resto (últimas compras, sorteio, comentários). */}

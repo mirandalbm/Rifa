@@ -2,9 +2,9 @@ import { useState, type ReactNode } from "react";
 import { useTemplate } from "@/lib/template";
 import { Link, Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Bookmark, Grid3x3, List, Lock, Megaphone, Settings, Store } from "lucide-react";
+import { Bookmark, Grid3x3, List, Lock, Megaphone, Plus, Settings, Store } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { usePendencias } from "@/components/Console";
+import { useConfigDoApp, usePendencias } from "@/components/Console";
 import { type BilheteDaConta } from "@/components/BilheteComoPublicacao";
 import { type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { TONS_DO_BOTAO } from "@/components/bits";
@@ -72,12 +72,13 @@ interface Numero {
  * `ponto`, o ponto verde da conta incompleta (o mesmo do botão Perfil do
  * console); o que falta vai em texto no quadro "Complete sua conta", logo abaixo.
  */
-function FotoEContadores({ foto, numeros, ponto = false }: { foto: ReactNode; numeros: Numero[]; ponto?: boolean }) {
+function FotoEContadores({ foto, numeros, ponto = false, acao = null }: { foto: ReactNode; numeros: Numero[]; ponto?: boolean; acao?: ReactNode }) {
   return (
     <div className="mt-2 flex items-center gap-5">
       <span className="relative shrink-0">
         {foto}
         {ponto ? <span aria-hidden className="absolute right-1 top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-green" /> : null}
+        {acao ? <span className="absolute bottom-0 right-0">{acao}</span> : null}
       </span>
       {numeros.length ? (
         <dl className="grid min-w-0 flex-1 text-center" style={{ gridTemplateColumns: `repeat(${numeros.length}, minmax(0, 1fr))` }}>
@@ -304,6 +305,10 @@ function PerfilDoApostadorDaConta() {
   }
 
   const listaDeBilhetes = bilhetes.paginas.flat();
+  // O "+" sobre a foto leva a Publicar, só com o interruptor da plataforma ligado
+  // e com apelido (sem apelido a publicação não aparece em lugar nenhum).
+  const { publicarApostador } = useConfigDoApp();
+  const podePublicar = publicarApostador && Boolean(apelido);
   const numeros: Numero[] = [
     { rotulo: "bilhetes", valor: bilhetes.isLoading ? "…" : `${listaDeBilhetes.length}${bilhetes.hasNextPage ? "+" : ""}` },
     { rotulo: "republicações", valor: apelido ? String(republicacoes?.length ?? "…") : "0" },
@@ -319,7 +324,23 @@ function PerfilDoApostadorDaConta() {
   return (
     <PublicShell>
       <TopoDoPerfil titulo={titulo} selo={perfil?.verificado ? <SeloVerificado sujeito="apostador" tamanho={18} /> : null} />
-      <FotoEContadores foto={foto} numeros={numeros} ponto={pendencias.length > 0} />
+      <FotoEContadores
+        foto={foto}
+        numeros={numeros}
+        ponto={pendencias.length > 0}
+        acao={
+          podePublicar ? (
+            <Link
+              href="/publicar"
+              aria-label="Publicar"
+              title="Publicar"
+              className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-mais text-branco"
+            >
+              <Plus size={16} strokeWidth={3} aria-hidden />
+            </Link>
+          ) : null
+        }
+      />
       {nome ? <p className="mt-3 text-[15px] font-bold">{nome}</p> : null}
       {perfil?.bio ? <p className="mt-1 whitespace-pre-line text-[15px] text-ink-2">{perfil.bio}</p> : null}
       <div className="mt-2">

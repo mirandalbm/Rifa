@@ -13,7 +13,7 @@ import sharp from "sharp";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { buyers, compradorFotos, seguidoresPessoas } from "@shared/schema";
-import { nomeRealPublico, validarApelido, validarBio, validarLinkDoApostador } from "@shared/perfilApostador";
+import { nomeRealPublico, notaAte, notaVigente, validarApelido, validarBio, validarLinkDoApostador } from "@shared/perfilApostador";
 import { isUniqueViolation } from "../pgError";
 import { depoisDaFoto, fotoMudouNaTransacao } from "./verificacao";
 import type { StatusVerificacao } from "@shared/verificacao";
@@ -49,7 +49,7 @@ async function processarFoto(dataUrl: string) {
 
 async function contaDe(buyerId: string) {
   const [b] = await db
-    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash, verificadoEm: buyers.verificadoEm, cpf: buyers.cpf, phone: buyers.phone, bio: buyers.bio, link: buyers.link, seguidores: buyers.seguidoresCount, seguindo: buyers.seguindoPessoasCount })
+    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash, verificadoEm: buyers.verificadoEm, cpf: buyers.cpf, phone: buyers.phone, bio: buyers.bio, link: buyers.link, nota: buyers.nota, notaEm: buyers.notaEm, seguidores: buyers.seguidoresCount, seguindo: buyers.seguindoPessoasCount })
     .from(buyers)
     .where(and(eq(buyers.id, buyerId), isNull(buyers.excluidoEm)));
   if (!b?.conta) throw new PerfilApostadorError("Entre na sua conta.", 401);
@@ -65,6 +65,8 @@ export async function meuPerfilPublico(buyerId: string) {
     verificado: Boolean(b.verificadoEm),
     bio: b.bio,
     link: b.link,
+    nota: notaVigente(b.notaEm) ? b.nota : null,
+    notaAte: notaVigente(b.notaEm) ? notaAte(b.notaEm) : null,
     seguidores: b.seguidores,
     seguindo: b.seguindo,
     falta: faltaNaContaGoogle({ cpf: b.cpf, phone: b.phone }),
@@ -144,12 +146,14 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
 export async function perfilPublicoDoApostador(apelidoBruto: string, quemOlha: string | null = null) {
   const apelido = apelidoBruto.toLowerCase();
   const [b] = await db
-    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, desde: buyers.contaCriadaEm, verificadoEm: buyers.verificadoEm, bio: buyers.bio, link: buyers.link, seguidores: buyers.seguidoresCount, seguindo: buyers.seguindoPessoasCount })
+    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, desde: buyers.contaCriadaEm, verificadoEm: buyers.verificadoEm, bio: buyers.bio, link: buyers.link, nota: buyers.nota, notaEm: buyers.notaEm, seguidores: buyers.seguidoresCount, seguindo: buyers.seguindoPessoasCount })
     .from(buyers)
     .where(and(eq(buyers.apelido, apelido), isNull(buyers.excluidoEm)));
   if (!b) throw new PerfilApostadorError("Perfil não encontrado.", 404);
   const proprio = quemOlha === b.id;
   const seguidoPorMim = quemOlha && !proprio ? await sigoPessoa(quemOlha, b.id) : false;
+  // A nota é de quem segue a pessoa (e da própria pessoa); quem não segue não lê.
+  const notaVisivel = (proprio || seguidoPorMim) && notaVigente(b.notaEm);
   return {
     apelido: b.apelido,
     nomeReal: nomeRealPublico(b.nome),
@@ -158,6 +162,7 @@ export async function perfilPublicoDoApostador(apelidoBruto: string, quemOlha: s
     verificado: Boolean(b.verificadoEm),
     bio: b.bio,
     link: b.link,
+    nota: notaVisivel ? b.nota : null,
     seguidores: b.seguidores,
     seguindo: b.seguindo,
     seguidoPorMim,

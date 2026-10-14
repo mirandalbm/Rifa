@@ -428,6 +428,9 @@ export async function excluirConta(req: Request, senha: string) {
         apelido: null,
         fotoEm: null,
         verificadoEm: null,
+        // A nota é texto pessoal: sai junto com o apelido.
+        nota: null,
+        notaEm: null,
         seguidoresCount: 0,
         seguindoPessoasCount: 0,
         excluidoEm: new Date(),

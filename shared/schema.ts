@@ -371,6 +371,14 @@ export const buyers = pgTable(
      */
     link: text("link"),
     /**
+     * Nota de 24 horas, sobre a foto (como no Instagram): até 60 caracteres,
+     * a régua do comentário e sem pedido de Pix por fora. Vale 24 h a partir
+     * de `nota_em`; passado o prazo, nenhuma leitura a devolve (não há relógio
+     * que apague — o texto só sai quando a pessoa escreve outra ou apaga).
+     */
+    nota: text("nota"),
+    notaEm: timestamp("nota_em"),
+    /**
      * Perfil verificado (selo de trevo). Espelho de `verificacoes.status =
      * 'verificado'`, gravado na mesma transação — a vitrine e os
      * comentários leem daqui sem juntar a tabela do cofre.

@@ -9,7 +9,7 @@ import { type BilheteDaConta } from "@/components/BilheteComoPublicacao";
 import { type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { TONS_DO_BOTAO } from "@/components/bits";
 import { IconeRepublicar } from "@/components/Icones";
-import { ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
+import { BalaoDaNota, ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useListaPaginada } from "@/lib/paginada";
@@ -246,6 +246,7 @@ interface MeuPerfil {
   verificado: boolean;
   bio: string | null;
   link: string | null;
+  nota: string | null;
   seguidores: number;
   seguindo: number;
 }
@@ -327,6 +328,11 @@ function PerfilDoApostadorDaConta() {
   return (
     <PublicShell>
       <TopoDoPerfil titulo={titulo} selo={perfil?.verificado ? <SeloVerificado sujeito="apostador" tamanho={18} /> : null} />
+      {perfil?.nota ? (
+        <div className="mb-2 flex justify-center md:justify-start">
+          <BalaoDaNota nota={perfil.nota} />
+        </div>
+      ) : null}
       <FotoEContadores
         foto={foto}
         numeros={numeros}

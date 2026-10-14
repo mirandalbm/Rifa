@@ -6,7 +6,7 @@ import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
-import { ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
+import { BalaoDaNota, ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { BotaoMensagem } from "@/components/BotaoMensagem";
@@ -21,6 +21,7 @@ interface PerfilDoApostador {
   verificado: boolean;
   bio: string | null;
   link: string | null;
+  nota: string | null;
   seguidores: number;
   seguindo: number;
   seguidoPorMim: boolean;
@@ -49,6 +50,7 @@ export default function Usuario() {
           celular; do tablet em diante, com os cantos da capa da organização. */}
       {data ? (
         <section className="-mx-4 -mt-4 flex flex-col items-center gap-1.5 faixa-escura px-4 pb-6 pt-7 text-center sm:mx-0 sm:mt-0 sm:rounded-xl">
+          <BalaoDaNota nota={data.nota} invertida />
           <FotoDoApostador nome={data.apelido} foto={data.foto} tamanho={FOTO_COMO_NO_INSTAGRAM} invertida />
           <h1 className="flex min-w-0 max-w-full items-center justify-center gap-1.5 font-display text-[22px] font-bold leading-tight">
             <span className="min-w-0 break-all">@{data.apelido}</span>

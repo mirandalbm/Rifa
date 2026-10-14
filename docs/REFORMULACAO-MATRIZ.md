@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 855 |
-| Rotas da API | 482, das quais 478 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 63 |
-| Testes de regra (`tests/`) | 132 arquivos |
-| Destinos decididos | 962 de 962 |
+| Cartões (componentes usados pelas telas) | 857 |
+| Rotas da API | 483, das quais 479 citadas por alguma prova |
+| Provas contra a API (`npm run …`) | 64 |
+| Testes de regra (`tests/`) | 133 arquivos |
+| Destinos decididos | 964 de 964 |
 
 ## 1. Telas
 
@@ -1188,6 +1188,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `BalaoDaNota` | manter · na tela 11 Perfil · onda 5 |
 | `ChipDeLink` | manter · na tela 11 Perfil · onda 5 |
 | `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `FotoDoApostador` | manter · na tela 11 Perfil · onda 5 |
@@ -1314,6 +1315,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `BalaoDaNota` | manter · na tela 05 Perfil do apostador · onda 5 |
 | `BotaoMensagem` | manter · na tela 05 Perfil do apostador · onda 5 |
 | `CartaoDoFeed` | manter · na tela 05 Perfil do apostador · onda 5 |
 | `ChipDeLink` | manter · na tela 05 Perfil do apostador · onda 5 |
@@ -1671,7 +1673,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta` | `ia-test.ts`, `isolation-test.ts` |
 | POST | `/pagamentos` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 
-### `server/routes/public.ts` — /api/public (151 rotas, 149 com prova)
+### `server/routes/public.ts` — /api/public (152 rotas, 150 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
@@ -1726,8 +1728,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | DELETE | `/comentarios/:id` | `comentarios-test.ts`, `isolation-test.ts` |
 | PUT | `/comentarios/:id/curtida` | `comentarios-test.ts` |
 | POST | `/denuncias` | `seguranca-test.ts` |
-| GET | `/conta/perfil` | `comentarios-test.ts`, `google-test.ts`, `verificacao-test.ts` |
-| PUT | `/conta/perfil` | `comentarios-test.ts`, `google-test.ts`, `verificacao-test.ts` |
+| GET | `/conta/perfil` | `comentarios-test.ts`, `google-test.ts`, `nota-test.ts` +1 |
+| PUT | `/conta/perfil` | `comentarios-test.ts`, `google-test.ts`, `nota-test.ts` +1 |
+| PUT | `/conta/nota` | `nota-test.ts` |
 | GET | `/app` | `buscar-test.ts`, `divulgacao-test.ts`, `grupos-test.ts` +3 |
 | GET | `/selos` | `verificacao-test.ts` |
 | PUT | `/campaigns/:slug/acoes/:acao` | `publicacao-test.ts` |
@@ -1737,8 +1740,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta/bilhetes` | `bilhetes-test.ts`, `isolation-test.ts` |
 | GET | `/u/:apelido/republicacoes` | `publicacao-test.ts` |
 | GET | `/u/:apelido` | `bilhetes-test.ts`, `comentarios-test.ts`, `publicacao-test.ts` +2 |
-| POST | `/u/:apelido/seguir` | `seguir-pessoas-test.ts` |
-| DELETE | `/u/:apelido/seguir` | `seguir-pessoas-test.ts` |
+| POST | `/u/:apelido/seguir` | `nota-test.ts`, `seguir-pessoas-test.ts` |
+| DELETE | `/u/:apelido/seguir` | `nota-test.ts`, `seguir-pessoas-test.ts` |
 | GET | `/u/:apelido/foto` | `publico-test.ts` |
 | GET | `/notificacoes/resumo` | `push-test.ts` |
 | GET | `/notificacoes` | `push-test.ts` |
@@ -1778,14 +1781,14 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/conta/telefone/codigo` | `conta-test.ts`, `google-test.ts` |
 | POST | `/conta/telefone/confirmar` | `conta-test.ts`, `google-test.ts` |
 | DELETE | `/conta/google` | `google-test.ts` |
-| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +16 |
+| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +17 |
 | POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `telas.ts` |
 | POST | `/conta/sair` | `bilhetes-test.ts`, `conta-test.ts` |
-| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +16 |
+| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +17 |
 | PUT | `/conta/senha` | `conta-test.ts` |
 | PUT | `/conta/cep` | `conta-test.ts` |
 | PUT | `/conta/perfil-publico` | `perfil-test.ts` |
-| POST | `/conta/excluir` | `bilhetes-test.ts`, `conta-test.ts`, `google-test.ts` +2 |
+| POST | `/conta/excluir` | `bilhetes-test.ts`, `conta-test.ts`, `google-test.ts` +3 |
 | GET | `/chamados` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | POST | `/chamados` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | GET | `/chamados/anexos/:id` | `chamados-test.ts` |
@@ -1860,7 +1863,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 
 - `server/routes/admin.ts` (1 de 267): PUT `/media/raw`
 - `server/routes/affiliate.ts` (1 de 36): GET `/divulgacoes/:id/video`
-- `server/routes/public.ts` (2 de 151): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
+- `server/routes/public.ts` (2 de 152): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 
 ## 6. Provas contra a API
 
@@ -1903,6 +1906,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `marketing` | `scripts/marketing-test.ts` |
 | `matriz` | `scripts/matriz.ts` |
 | `mensagens` | `scripts/mensagens-test.ts` |
+| `nota` | `scripts/nota-test.ts` |
 | `pagarme` | `scripts/pagarme-test.ts` |
 | `patrocinio` | `scripts/patrocinio-test.ts` |
 | `perfil` | `scripts/perfil-test.ts` |

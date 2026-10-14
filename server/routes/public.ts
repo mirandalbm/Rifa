@@ -8,6 +8,7 @@ import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
 import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambemJoga, salvarPerfilPublico } from "../services/perfilApostador";
 import { deixarDeSeguirPessoa, seguirPessoa } from "../services/seguirPessoas";
+import { salvarNota } from "../services/notaApostador";
 import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
 import {
   apagarComentarioDoSorteio,
@@ -979,6 +980,17 @@ publicRouter.put("/conta/perfil", async (req, res, next) => {
     const id = req.session.buyer?.id;
     if (!id) return res.status(401).json({ message: "Entre na sua conta." });
     res.json(await salvarPerfilPublico(id, { apelido: req.body?.apelido, foto: req.body?.foto, bio: req.body?.bio, link: req.body?.link }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A nota de 24 horas (até 60 letras). Vazia apaga. Regras e prazo em `services/notaApostador.ts`. */
+publicRouter.put("/conta/nota", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await salvarNota(id, req.body?.nota));
   } catch (err) {
     next(err);
   }

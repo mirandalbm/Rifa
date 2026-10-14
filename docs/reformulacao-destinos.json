@@ -960,5 +960,7 @@
  "tela:/u/:apelido": "manter · 10 · Loja · 05 Perfil do apostador (node 22-2628) · onda 5",
  "cartao:/#SeletorDeRegiao": "manter · na tela 01 Vitrine · onda 5",
  "cartao:/perfil#ChipDeLink": "manter · na tela 11 Perfil · onda 5",
- "cartao:/u/:apelido#ChipDeLink": "manter · na tela 05 Perfil do apostador · onda 5"
+ "cartao:/u/:apelido#ChipDeLink": "manter · na tela 05 Perfil do apostador · onda 5",
+ "cartao:/perfil#BalaoDaNota": "manter · na tela 11 Perfil · onda 5",
+ "cartao:/u/:apelido#BalaoDaNota": "manter · na tela 05 Perfil do apostador · onda 5"
 }

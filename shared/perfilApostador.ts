@@ -6,6 +6,7 @@
 
 import { temLinkOuTelefone } from "./comentarios";
 import { validarLinks } from "./perfil";
+import { pedePagamentoPorFora } from "./seguranca";
 
 export const APELIDO_MIN = 3;
 export const APELIDO_MAX = 30;
@@ -78,6 +79,43 @@ export function validarLinkDoApostador(entrada: unknown): { ok: true; link: stri
   } catch (err) {
     return { ok: false, erro: (err as Error).message.replace(/^Link 1: /, "Link: ") };
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Nota de 24 horas, sobre a foto (como no Instagram)
+ * ------------------------------------------------------------------ */
+
+export const NOTA_MAX = 60;
+export const NOTA_HORAS = 24;
+export const NOTA_MS = NOTA_HORAS * 60 * 60 * 1000;
+
+/**
+ * A nota é uma linha de texto puro: sem link, sem telefone e sem pedido de
+ * Pix por fora (a mesma varredura das mensagens). `null`/vazio apaga a nota.
+ */
+export function validarNota(entrada: unknown): { ok: true; nota: string | null } | { ok: false; erro: string } {
+  if (entrada === null || entrada === undefined) return { ok: true, nota: null };
+  if (typeof entrada !== "string") return { ok: false, erro: "A nota precisa ser texto." };
+  const t = entrada.replace(/\s+/g, " ").trim();
+  if (!t) return { ok: true, nota: null };
+  if (t.length > NOTA_MAX) return { ok: false, erro: `A nota passa de ${NOTA_MAX} caracteres.` };
+  const problema = temLinkOuTelefone(t);
+  if (problema) return { ok: false, erro: `Nota: ${problema.charAt(0).toLowerCase()}${problema.slice(1)}` };
+  if (pedePagamentoPorFora(t)) return { ok: false, erro: "Nota: não pode pedir pagamento por fora da plataforma." };
+  return { ok: true, nota: t };
+}
+
+/** Até quando a nota vale: 24 h depois de escrita. Nulo se nunca foi escrita. */
+export function notaAte(notaEm: Date | string | null | undefined): Date | null {
+  if (!notaEm) return null;
+  const t = new Date(notaEm).getTime();
+  return Number.isFinite(t) ? new Date(t + NOTA_MS) : null;
+}
+
+/** A nota ainda aparece? Passado o prazo, nenhuma leitura a devolve. */
+export function notaVigente(notaEm: Date | string | null | undefined, agora = Date.now()): boolean {
+  const ate = notaAte(notaEm);
+  return ate !== null && agora < ate.getTime();
 }
 
 /**

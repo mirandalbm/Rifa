@@ -66,6 +66,7 @@ export const GUARDADO_NO_NAVEGADOR: { grupo: string; itens: string[] }[] = [
     itens: [
       "rifa.origem e rifa.utm — de onde você chegou (anúncio, story, link), para as estatísticas da organização; nunca decidem dinheiro.",
       "rifa.patrocinadas.vistas — as rifas patrocinadas já mostradas, para não repetir.",
+      "rifa.intro — a intro da marca já mostrada nesta aba (celular e tablet), para não repetir ao recarregar.",
     ],
   },
   {

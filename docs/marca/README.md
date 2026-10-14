@@ -2,7 +2,8 @@
 
 Arquivos de origem da marca. Nada aqui é servido pelo app: o que vai ao ar
 (ícones do app, manifesto, logo em Aparência) é copiado daqui quando a troca
-for aprovada.
+for aprovada. A intro já está no app como animação (celular e tablet):
+`client/src/components/IntroDaMarca.tsx`, com as peças em `client/public/intro/`.
 
 | Arquivo | O que é |
 |---|---|

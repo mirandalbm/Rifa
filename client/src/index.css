@@ -37,10 +37,10 @@
     /* Texto sobre o azul cheio: o azul é o mesmo nos dois temas. */
     --on-yellow: #ffffff;
 
-    /* O "+" do carrinho na barra da publicação (azul, como pediu o produto). */
+    /* Azul da paleta (espera e prêmio). O "+" do carrinho não usa mais este token. */
     --azul: #0a6fd6;
-    /* O "+" do carrinho: azul no claro, verde no escuro (preto e verde). */
-    --mais: var(--azul);
+    /* O "+" do carrinho: vermelho da marca no claro (pedido do produto), verde no escuro (preto e verde). */
+    --mais: var(--red);
 
     /*
      * Casas quadradas do mapa e da cartela, alternando azul e verde cheios

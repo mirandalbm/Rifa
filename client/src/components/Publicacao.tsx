@@ -121,7 +121,7 @@ export function Carrossel({
           O teto de altura vem com a largura fixa (`w-full`): sem ela, o navegador passa o
           teto para a largura pela proporção e a caixa encolhe, encostada à esquerda. */}
       <div
-        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] md:w-full lg:max-h-none" : ""} ${
+        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] md:w-full" : ""} ${
           perfilSobreNaWeb ? "md:max-h-[85svh] md:w-full md:rounded-2xl" : ""
         }`}
       >

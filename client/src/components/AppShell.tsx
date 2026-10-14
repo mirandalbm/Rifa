@@ -89,6 +89,7 @@ export const acimaDoRodape = acimaDoConsole;
 export function PublicShell({
   children,
   larga,
+  ampla,
   vitrine,
   rodape,
   antesDaMarca,
@@ -100,6 +101,8 @@ export function PublicShell({
   /** No topo do celular, à esquerda da logo (hoje nenhuma tela usa). */
   antesDaMarca?: ReactNode;
   larga?: boolean;
+  /** Com `larga`, a página da rifa: a faixa vai a 1408 px no computador, para a publicação caber maior ao lado da compra. */
+  ampla?: boolean;
   /** A vitrine ocupa a largura toda do tablet em diante (feed e coluna ao vivo). */
   vitrine?: boolean;
   /** O rodapé da plataforma (informações, pagamentos, 18+ e logos) — tablet e computador. */
@@ -107,7 +110,13 @@ export function PublicShell({
 }) {
   // A vitrine ocupa a tela toda do tablet em diante: as colunas ficam
   // coladas (1 px de linha entre elas), sem margem sobrando dos lados.
-  const largura = vitrine ? "max-w-3xl md:max-w-none" : larga ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl";
+  const largura = vitrine
+    ? "max-w-3xl md:max-w-none"
+    : larga
+      ? ampla
+        ? "max-w-3xl lg:max-w-[1408px]"
+        : "max-w-3xl lg:max-w-6xl"
+      : "max-w-3xl";
   const { data: sessao } = useSession();
 
   return (

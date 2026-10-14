@@ -676,9 +676,11 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   produção é o template publicado: trocar o nome é em Aparência → Identidade.
   Na lateral do computador recolhida, só o símbolo; aberta, o nome. **No
   celular a marca fica como era** (só o texto, sem símbolo; `sm:` mostra o
-  símbolo a partir do tablet). Os ícones do app (`client/public/icons/`), o
-  título do iPhone e o nome do app instalado (manifesto de fábrica) também
-  ficaram como eram: quem mexe no celular é o dono, e mudança de marca para
+  símbolo a partir do tablet). Os ícones do app (`client/public/icons/`) são
+  a **folha de trevo da direita, vermelha** (`docs/marca/`, escolha do
+  produto em 14/10/2026; o `icon-maskable-512` leva a arte no centro, 72%,
+  para o recorte circular do Android). O título do iPhone e o nome do app
+  instalado (manifesto de fábrica) seguem como eram: mudança de marca para
   todos avisa antes. Logo enviada em Aparência substitui o desenho (com o nome
   como texto alternativo).
 - **Quem vê a publicação** (`quemPublica()`): organização e plataforma

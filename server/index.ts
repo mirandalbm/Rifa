@@ -12,6 +12,7 @@ import { mensagemDeValidacao } from "@shared/zodPt";
 import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
+import { reconhecerSubdominio } from "./services/subdominio";
 import { startJobs } from "./jobs";
 import { LocalDiskStorage, chaveRestauravel, storage } from "./services/storage";
 import { manifestDaPlataforma } from "./services/template";
@@ -202,6 +203,8 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+app.use(reconhecerSubdominio);
 
 (async () => {
   setupAuth(app);

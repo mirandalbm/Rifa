@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTemplate } from "@/lib/template";
 import { Link, Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Bookmark, Grid3x3, List, Lock, Megaphone, Settings, Store } from "lucide-react";
@@ -245,6 +246,7 @@ interface MeuPerfil {
 }
 
 function PerfilDoApostadorDaConta() {
+  const nomeDaPlataforma = useTemplate().identidade.nome;
   const { data: sessao } = useSession();
   const conta = Boolean(sessao?.buyer?.conta);
   const pendencias = usePendencias();
@@ -334,7 +336,7 @@ function PerfilDoApostadorDaConta() {
 
       <Botoes>
         <BotaoLink href="/minhas-compras?aba=conta">Editar perfil</BotaoLink>
-        {apelido ? <BotaoCompartilhar caminho={`/u/${apelido}`} titulo={`@${apelido} no rifa.br`} /> : <BotaoLink href="/minhas-compras">Minhas compras</BotaoLink>}
+        {apelido ? <BotaoCompartilhar caminho={`/u/${apelido}`} titulo={`@${apelido} no ${nomeDaPlataforma}`} /> : <BotaoLink href="/minhas-compras">Minhas compras</BotaoLink>}
       </Botoes>
 
       <AbasDaGrade abas={abas} aberta={aba} abrir={setAba} />

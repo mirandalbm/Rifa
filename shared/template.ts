@@ -183,7 +183,7 @@ export const CONTRASTE_MIN = 3;
 
 export const TEMPLATE_PADRAO: Template = {
   identidade: {
-    nome: "rifa.br",
+    nome: "Loterias do Bem",
     logo: null,
     cor: { claro: "#00873e", escuro: "#5dd394" },
     fonte: "instrument",

@@ -664,9 +664,13 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   do coração deixa ver o fundo, então vale nos dois temas). O nome padrão
   vem de `shared/template.ts` e `shared/manifest.ts`, mas o que vale em
   produção é o template publicado: trocar o nome é em Aparência → Identidade.
-  Na lateral do computador recolhida, só o símbolo; aberta, o nome. Os
-  ícones do app (`client/public/icons/`) são gerados do mesmo desenho. Logo
-  enviada em Aparência substitui o desenho (com o nome como texto alternativo).
+  Na lateral do computador recolhida, só o símbolo; aberta, o nome. **No
+  celular a marca fica como era** (só o texto, sem símbolo; `sm:` mostra o
+  símbolo a partir do tablet). Os ícones do app (`client/public/icons/`), o
+  título do iPhone e o nome do app instalado (manifesto de fábrica) também
+  ficaram como eram: quem mexe no celular é o dono, e mudança de marca para
+  todos avisa antes. Logo enviada em Aparência substitui o desenho (com o nome
+  como texto alternativo).
 - **Quem vê a publicação** (`quemPublica()`): organização e plataforma
   (Criar: rifa, story, legenda e as divulgações de terceiros para
   autorizar), afiliado como influenciador (kit e publicar com o material

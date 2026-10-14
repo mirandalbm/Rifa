@@ -9,7 +9,7 @@
  * não confia em ninguém), ícones em endereços nossos.
  */
 
-export const NOME_PADRAO = "Loterias do Bem";
+export const NOME_PADRAO = "rifa.br";
 /** O nome curto (embaixo do ícone na tela inicial) cabe em ~12 letras. */
 export const NOME_CURTO_MAX = 12;
 export const COR_PADRAO = "#00873e";

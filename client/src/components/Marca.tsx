@@ -39,8 +39,12 @@ export function IconeDaMarca({ className = "" }: { className?: string }) {
 
 /**
  * Nome (ou logo) da plataforma, como o template manda. Sem logo enviada,
- * o símbolo e o nome: a primeira palavra em tinta e o resto na cor de marca
- * ("Loterias do Bem"). Nome com ponto ("rifa.br") mantém o ponto na cor de marca.
+ * o nome com o ponto na cor de marca — o de sempre.
+ *
+ * A partir do tablet (`sm`), o símbolo e o nome novos: a primeira palavra em
+ * tinta e o resto na cor de marca ("Loterias do Bem"). O celular fica como era
+ * (só o texto), por decisão do dono: a mudança de marca é só para tablet e
+ * computador.
  *
  * `lateral`: na lateral do computador o símbolo fica sempre, e o nome só
  * aparece quando a lateral abre (ao passar o ponteiro ou entrar pelo teclado).
@@ -51,27 +55,34 @@ export function Marca({ className = "", lateral = false }: { className?: string;
     return <img src={logo} alt={nome} className={`h-7 w-auto ${className}`} />;
   }
   const pontuado = nome.lastIndexOf(".");
-  const espaco = nome.indexOf(" ");
-  const texto =
+  const textoDeSempre =
     pontuado > 0 ? (
       <>
         {nome.slice(0, pontuado)}
         <span className="text-marca">.</span>
         {nome.slice(pontuado + 1)}
       </>
-    ) : espaco > 0 ? (
-      <>
-        {nome.slice(0, espaco)} <span className="text-marca">{nome.slice(espaco + 1)}</span>
-      </>
     ) : (
       nome
     );
+  const espaco = nome.indexOf(" ");
+  const textoNovo =
+    pontuado > 0 || espaco <= 0 ? (
+      textoDeSempre
+    ) : (
+      <>
+        {nome.slice(0, espaco)} <span className="text-marca">{nome.slice(espaco + 1)}</span>
+      </>
+    );
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
-      <IconeDaMarca className="h-8 w-8" />
-      <span className={lateral ? "hidden whitespace-nowrap group-hover/lateral:inline group-focus-within/lateral:inline" : "min-w-0 truncate"}>
-        <span className="font-display font-extrabold tracking-tight">{texto}</span>
+    <>
+      <span className={`font-display font-extrabold tracking-tight sm:hidden ${className}`}>{textoDeSempre}</span>
+      <span className={`hidden items-center gap-2 sm:inline-flex ${className}`}>
+        <IconeDaMarca className="h-8 w-8" />
+        <span className={lateral ? "hidden whitespace-nowrap group-hover/lateral:inline group-focus-within/lateral:inline" : "min-w-0 truncate"}>
+          <span className="font-display font-extrabold tracking-tight">{textoNovo}</span>
+        </span>
       </span>
-    </span>
+    </>
   );
 }

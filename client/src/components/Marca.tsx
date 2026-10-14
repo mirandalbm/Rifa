@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { useTemplate } from "@/lib/template";
 import { NOME_DA_LOGO_ESCRITA, usaLogoEscrita } from "@/lib/marca";
+import { LOGO_ESCRITA } from "@/lib/logoEscritaDesenho";
 
 /**
  * O símbolo da marca: um bilhete com um coração recortado (o recorte deixa
@@ -39,47 +40,54 @@ export function IconeDaMarca({ className = "" }: { className?: string }) {
 }
 
 /**
- * O "B" da logo escrita: a folha vermelha do ícone deitada — o coração com
- * os dois lobos à direita e o recorte entre eles, como a folha da direita do
- * trevo, com o lado esquerdo reto para ler como B. A metade de cima no
- * vermelho e a de baixo no vermelho escuro, como a folha do ícone. A caixa do desenho é a altura da letra
- * maiúscula, então o B senta na linha de base como as outras letras.
- */
-function BDeFolha() {
-  const id = `${useId().replace(/:/g, "")}-folha`;
-  return (
-    <svg viewBox="4 4 92 92" aria-hidden className="inline-block h-[0.74em] w-[0.74em] align-baseline">
-      <defs>
-        <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1="4" x2="0" y2="96">
-          <stop offset="0.5" style={{ stopColor: "var(--logo-vermelho)" }} />
-          <stop offset="0.5" style={{ stopColor: "var(--logo-vermelho-escuro)" }} />
-        </linearGradient>
-      </defs>
-      <path
-        style={{ fill: `url(#${id})` }}
-        d="M10 4H58C80 4 94 15 94 29C94 40 86 47 72 50C88 53 96 62 96 72C96 87 84 96 62 96H10C6.7 96 4 93.3 4 90V10C4 6.7 6.7 4 10 4Z"
-      />
-    </svg>
-  );
-}
-
-/**
- * A logo escrita: "Loterias do" no verde do ícone e "Bem" no vermelho da
- * folha, com o B desenhado como a folha em forma de coração. É uma imagem
- * para o leitor de tela (o nome inteiro no rótulo).
+ * A logo escrita "Loterias do Bem", desenhada grande e reduzida na tela: os
+ * contornos vêm de `npm run logo-escrita` (`LOGO_ESCRITA`) — as letras da
+ * Bricolage Grotesque 800 com o espaçamento da fonte, e o B no lugar da folha
+ * vermelha do ícone deitada (os lobos em coração à direita, a metade de cima
+ * clara e a de baixo escura). "Loterias do" no degradê verde das folhas e
+ * "em" no vermelho; as cores são os tokens `--logo-*`, que trocam com o tema.
+ *
+ * A altura acompanha a letra de quem a usa (1,28em = o tamanho da fonte do
+ * texto ao redor), então ela ocupa o lugar do nome escrito sem mexer no topo.
+ * O desenho é decorativo para o leitor de tela; o nome vai em texto (`sr-only`).
  */
 export function LogoEscrita({ className = "" }: { className?: string }) {
+  const id = useId().replace(/:/g, "");
+  const d = LOGO_ESCRITA;
+  const cor = (token: string) => ({ stopColor: `var(${token})` });
   return (
-    <span
-      role="img"
-      aria-label={NOME_DA_LOGO_ESCRITA}
-      className={`whitespace-nowrap font-display font-extrabold tracking-tight ${className}`}
-    >
-      <span style={{ color: "var(--logo-verde)" }}>Loterias do </span>
-      <span style={{ color: "var(--logo-vermelho)" }}>
-        <BDeFolha />
-        em
-      </span>
+    <span className={`relative inline-flex shrink-0 align-middle ${className}`}>
+      <svg viewBox={`0 0 ${d.largura} ${d.altura}`} aria-hidden className="h-[1.28em] w-auto">
+        <defs>
+          <linearGradient id={`${id}-v`} gradientUnits="userSpaceOnUse" x1="0" y1={d.topo} x2="0" y2={d.base}>
+            <stop offset="0" style={cor("--logo-verde-luz")} />
+            <stop offset="1" style={cor("--logo-verde")} />
+          </linearGradient>
+          <linearGradient id={`${id}-r`} gradientUnits="userSpaceOnUse" x1="0" y1={d.topo} x2="0" y2={d.base}>
+            <stop offset="0" style={cor("--logo-vermelho-luz")} />
+            <stop offset="1" style={cor("--logo-vermelho-escuro")} />
+          </linearGradient>
+          <linearGradient id={`${id}-fc`} gradientUnits="userSpaceOnUse" x1={d.folhaX0} y1={d.topo} x2={d.folhaX1} y2={d.meio}>
+            <stop offset="0" style={cor("--logo-vermelho-luz")} />
+            <stop offset="1" style={cor("--logo-vermelho")} />
+          </linearGradient>
+          <linearGradient id={`${id}-fb`} gradientUnits="userSpaceOnUse" x1={d.folhaX0} y1={d.meio} x2={d.folhaX1} y2={d.base}>
+            <stop offset="0" style={cor("--logo-vermelho-escuro")} />
+            <stop offset="1" style={cor("--logo-vermelho-fundo")} />
+          </linearGradient>
+          <clipPath id={`${id}-cima`}>
+            <rect x="0" y="0" width={d.largura} height={d.meio} />
+          </clipPath>
+          <clipPath id={`${id}-baixo`}>
+            <rect x="0" y={d.meio} width={d.largura} height={d.altura - d.meio} />
+          </clipPath>
+        </defs>
+        <path d={d.verde} style={{ fill: `url(#${id}-v)` }} />
+        <path d={d.folha} style={{ fill: `url(#${id}-fc)` }} clipPath={`url(#${id}-cima)`} />
+        <path d={d.folha} style={{ fill: `url(#${id}-fb)` }} clipPath={`url(#${id}-baixo)`} />
+        <path d={d.vermelho} style={{ fill: `url(#${id}-r)` }} />
+      </svg>
+      <span className="sr-only">{NOME_DA_LOGO_ESCRITA}</span>
     </span>
   );
 }
@@ -88,12 +96,11 @@ export function LogoEscrita({ className = "" }: { className?: string }) {
  * Nome (ou logo) da plataforma, como o template manda. Sem logo enviada,
  * o nome com o ponto na cor de marca — o de sempre. Com o nome "Loterias do
  * Bem" publicado, a logo escrita (`LogoEscrita`) no lugar do texto, em todas
- * as larguras.
+ * as larguras (no celular sozinha; do tablet em diante com o símbolo ao lado).
  *
- * A partir do tablet (`sm`), o símbolo e o nome novos: a primeira palavra em
- * tinta e o resto na cor de marca ("Loterias do Bem"). O celular fica como era
- * (só o texto), por decisão do dono: a mudança de marca é só para tablet e
- * computador.
+ * Com outro nome, o de antes: no celular só o texto; a partir do tablet
+ * (`sm`), o símbolo e o nome com a primeira palavra em tinta e o resto na cor
+ * de marca.
  *
  * `lateral`: na lateral do computador o símbolo fica sempre, e o nome só
  * aparece quando a lateral abre (ao passar o ponteiro ou entrar pelo teclado).

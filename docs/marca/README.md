@@ -10,7 +10,15 @@ for aprovada. A intro já está no app como animação (celular e tablet):
 | `logo-oficial.png` | A logo oficial: trevo de 4 folhas nas cores do trevo antigo, os dois corações e o sublinhado em vermelho, sem os raios e as estrelinhas. 2048 × 2048. |
 | `icone-folha-de-cima-vermelha.png` (e `-512`) | Ícone do app, versão 1: trevo redesenhado (4 folhas iguais) com a folha de cima vermelha. 2048 e 512 (Play Store). |
 | `icone-folha-da-direita-vermelha.png` (e `-512`) | Ícone do app, versão 2: o mesmo trevo com a folha da direita vermelha. |
+| `logo-loterias-do-bem.svg` (e `.png`) | A logo escrita, para fundo claro: "Loterias do" no degradê verde das folhas e "Bem" no vermelho, com o **B desenhado como a folha em forma de coração** do ícone (os lobos à direita, a metade de cima clara e a de baixo escura). Letras da Bricolage Grotesque 800 em contornos (não depende da fonte instalada). SVG vetorial e PNG de 2048 de largura, fundo transparente. |
+| `logo-loterias-do-bem-escuro.svg` (e `.png`) | A mesma logo para fundo escuro, com os tons do tema escuro (o PNG já vem com o fundo `#0e1712`). |
 | `intro-loterias-do-bem.mp4` | Intro animada do app com a logo oficial: 1080 × 1920, 60 quadros por segundo, 3,4 s, sem som. |
+
+A logo escrita é **gerada**: `npm run logo-escrita` (`scripts/logo-escrita.ts`)
+desenha a arte grande e grava os quatro arquivos acima e os contornos que o
+topo do site usa reduzidos (`client/src/lib/logoEscritaDesenho.ts`). As cores
+são as de `CORES_DA_LOGO` (`client/src/lib/marca.ts`). Mudou o desenho ou a
+cor, rode de novo — nunca edite os arquivos gerados à mão.
 
 ## A intro, quadro a quadro
 

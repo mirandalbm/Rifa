@@ -80,7 +80,8 @@
     "matriz": "tsx scripts/matriz.ts",
     "telas": "tsx scripts/telas.ts",
     "fila": "tsx scripts/fila-test.ts",
-    "stone": "bash android/teste-sem-sdk/rodar.sh"
+    "stone": "bash android/teste-sem-sdk/rodar.sh",
+    "logo-escrita": "tsx scripts/logo-escrita.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.1141.0",

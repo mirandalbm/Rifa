@@ -8,7 +8,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 859 |
 | Rotas da API | 487, das quais 483 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 65 |
+| Provas contra a API (`npm run …`) | 66 |
 | Testes de regra (`tests/`) | 136 arquivos |
 | Destinos decididos | 966 de 966 |
 
@@ -1909,6 +1909,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `ia-acoes` | `scripts/ia-acoes-test.ts` |
 | `isolation` | `scripts/isolation-test.ts` |
 | `load` | `scripts/load-test.ts` |
+| `logo-escrita` | `scripts/logo-escrita.ts` |
 | `marcados` | `scripts/marcados-test.ts` |
 | `marketing` | `scripts/marketing-test.ts` |
 | `matriz` | `scripts/matriz.ts` |

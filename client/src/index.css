@@ -44,11 +44,15 @@
     /*
      * A logo escrita "Loterias do Bem": "Loterias do" no verde do ícone e o
      * "Bem" no vermelho da folha (o B é a folha em forma de coração, com a
-     * metade de baixo mais escura, como no ícone). Identidade, nunca estado.
+     * metade de baixo mais escura, como no ícone), com o degradê da arte.
+     * Os valores são os de `CORES_DA_LOGO` (client/src/lib/marca.ts). Identidade, nunca estado.
      */
+    --logo-verde-luz: #3aa63a;
     --logo-verde: #007931;
+    --logo-vermelho-luz: #e2383e;
     --logo-vermelho: #d62931;
     --logo-vermelho-escuro: #b61d25;
+    --logo-vermelho-fundo: #9c1820;
 
     /*
      * Casas quadradas do mapa e da cartela, alternando azul e verde cheios
@@ -116,9 +120,12 @@
 
       --azul: #5aa9ff;
       --mais: var(--green-deep);
+      --logo-verde-luz: #9be06a;
       --logo-verde: #4cc35a;
+      --logo-vermelho-luz: #f46a6f;
       --logo-vermelho: #ec4a50;
-      --logo-vermelho-escuro: #c8242c;
+      --logo-vermelho-escuro: #d42f37;
+      --logo-vermelho-fundo: #c0222b;
       --quadro-azul: #1f6fc4;
       --quadro-verde: #16924e;
       --quadro-texto: #ffffff;
@@ -161,9 +168,12 @@
 
     --azul: #5aa9ff;
     --mais: var(--green-deep);
+    --logo-verde-luz: #9be06a;
     --logo-verde: #4cc35a;
+    --logo-vermelho-luz: #f46a6f;
     --logo-vermelho: #ec4a50;
-    --logo-vermelho-escuro: #c8242c;
+    --logo-vermelho-escuro: #d42f37;
+    --logo-vermelho-fundo: #c0222b;
     --quadro-azul: #1f6fc4;
     --quadro-verde: #16924e;
     --quadro-texto: #ffffff;

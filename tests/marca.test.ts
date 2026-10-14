@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { NOME_DA_LOGO_ESCRITA, usaLogoEscrita } from "../client/src/lib/marca";
+import { CORES_DA_LOGO, NOME_DA_LOGO_ESCRITA, usaLogoEscrita } from "../client/src/lib/marca";
+import { LOGO_ESCRITA } from "../client/src/lib/logoEscritaDesenho";
 import { CONTRASTE_MIN, FUNDO, TEMPLATE_PADRAO, contraste } from "../shared/template";
 
 const css = readFileSync(path.resolve(import.meta.dirname, "../client/src/index.css"), "utf8");
@@ -26,12 +27,28 @@ describe("logo escrita Loterias do Bem", () => {
     expect(usaLogoEscrita("")).toBe(false);
   });
 
-  it("as cores da logo têm contraste ≥ 3:1 com o fundo dos dois temas", () => {
+  it("os tokens --logo-* do index.css são as cores da logo, nos dois temas", () => {
     const claro = variaveis(":root {");
     const escuro = variaveis(':root:not([data-tema="claro"])');
-    for (const nome of ["--logo-verde", "--logo-vermelho", "--logo-vermelho-escuro"]) {
-      expect(contraste(claro[nome], FUNDO.claro), `${nome} no claro`).toBeGreaterThanOrEqual(CONTRASTE_MIN);
-      expect(contraste(escuro[nome], FUNDO.escuro), `${nome} no escuro`).toBeGreaterThanOrEqual(CONTRASTE_MIN);
+    for (const [nome, valor] of Object.entries(CORES_DA_LOGO.claro)) expect(claro[nome], nome).toBe(valor);
+    for (const [nome, valor] of Object.entries(CORES_DA_LOGO.escuro)) expect(escuro[nome], nome).toBe(valor);
+  });
+
+  it("cada cor da logo tem contraste ≥ 3:1 com o fundo do tema dela", () => {
+    for (const [nome, valor] of Object.entries(CORES_DA_LOGO.claro)) {
+      expect(contraste(valor, FUNDO.claro), `${nome} no claro`).toBeGreaterThanOrEqual(CONTRASTE_MIN);
     }
+    for (const [nome, valor] of Object.entries(CORES_DA_LOGO.escuro)) {
+      expect(contraste(valor, FUNDO.escuro), `${nome} no escuro`).toBeGreaterThanOrEqual(CONTRASTE_MIN);
+    }
+  });
+
+  it("o desenho gerado tem o B no lugar certo, entre o verde e o vermelho", () => {
+    expect(LOGO_ESCRITA.verde.length).toBeGreaterThan(0);
+    expect(LOGO_ESCRITA.vermelho.length).toBeGreaterThan(0);
+    expect(LOGO_ESCRITA.folhaX1).toBeGreaterThan(LOGO_ESCRITA.folhaX0);
+    expect(LOGO_ESCRITA.meio).toBeGreaterThan(LOGO_ESCRITA.topo);
+    expect(LOGO_ESCRITA.base).toBeGreaterThan(LOGO_ESCRITA.meio);
+    expect(LOGO_ESCRITA.largura).toBeGreaterThan(LOGO_ESCRITA.folhaX1);
   });
 });

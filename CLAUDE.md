@@ -676,12 +676,18 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   produção é o template publicado: trocar o nome é em Aparência → Identidade.
   Na lateral do computador recolhida, só o símbolo; aberta, o nome. **O nome
   é a logo escrita** (`LogoEscrita`, pedido do produto em 14/10/2026), em
-  todas as larguras: "Loterias do" no verde do ícone e "Bem" no vermelho da
-  folha, com o **B desenhado como a folha em forma de coração** (lado
+  todas as larguras: "Loterias do" no degradê verde das folhas e "Bem" no
+  vermelho, com o **B desenhado como a folha em forma de coração** (lado
   esquerdo reto, os dois lobos à direita, a metade de baixo mais escura,
-  como no ícone). As cores são tokens de identidade (`--logo-verde`,
-  `--logo-vermelho`, `--logo-vermelho-escuro`, com contraste ≥ 3:1 nos dois
-  temas — `tests/marca.test.ts`). **Só vale com o nome "Loterias do Bem"
+  como no ícone). **É arte desenhada grande e reduzida na tela**: `npm run
+  logo-escrita` (`scripts/logo-escrita.ts`) tira as letras da Bricolage
+  Grotesque 800 em contornos, põe a folha na caixa do B e grava os contornos
+  (`client/src/lib/logoEscritaDesenho.ts`, gerado — nunca à mão) e os
+  arquivos de `docs/marca/` (SVG e PNG de 2048, claro e escuro). A altura
+  acompanha a letra ao redor (1,28em). As cores são `CORES_DA_LOGO`
+  (`client/src/lib/marca.ts`), os mesmos valores dos tokens `--logo-*` do
+  `index.css` nos dois temas, cada uma com contraste ≥ 3:1 —
+  `tests/marca.test.ts` confere as duas coisas. **Só vale com o nome "Loterias do Bem"
   publicado** (`usaLogoEscrita()` em `client/src/lib/marca.ts`): com outro
   nome no template, a tela mostra o nome em texto, como antes — a logo nunca
   diz um nome que a plataforma não publicou. No celular, sem símbolo; `sm:`

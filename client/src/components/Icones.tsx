@@ -88,9 +88,9 @@ export function IconeLupa({ aceso, tamanho }: P) {
   return <Desenho corpo={aceso ? SOLAR.lupaCheia : SOLAR.lupa} tamanho={tamanho} />;
 }
 
-/** A sacola — comprar na publicação, o carrinho final no console. */
-export function IconeSacola({ aceso, tamanho }: P) {
-  return <Desenho corpo={aceso ? SOLAR.sacolaCheia : SOLAR.sacola} tamanho={tamanho} />;
+/** A sacola — comprar na publicação (verde, `text-green-deep`), o carrinho final no console (na cor do console). */
+export function IconeSacola({ aceso, tamanho, className }: P & { className?: string }) {
+  return <Desenho corpo={aceso ? SOLAR.sacolaCheia : SOLAR.sacola} tamanho={tamanho} className={className} />;
 }
 
 /** A varinha de publicar. */
@@ -144,7 +144,7 @@ export function IconePresente({ tamanho = 26, aberto = false }: P & { aberto?: b
 }
 
 /**
- * O "+" de pôr no carrinho: em negrito, azul no claro e verde no escuro
+ * O "+" de pôr no carrinho: em negrito, vermelho da marca no claro e verde no escuro
  * (`--mais`). Na barra da publicação abre a janela dos números; na cartela,
  * adiciona aquele bilhete.
  */

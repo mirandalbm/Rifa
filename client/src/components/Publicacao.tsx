@@ -83,6 +83,7 @@ export function Carrossel({
   perfilSobreNaWeb = false,
   limitarNoTablet = false,
   retratoNoCelular = false,
+  caixaNoComputador = "",
   canto,
   children,
 }: {
@@ -101,6 +102,8 @@ export function Carrossel({
   limitarNoTablet?: boolean;
   /** Rifa de demonstração: no celular, retrato 4:5; do tablet em diante, o formato medido (`caixaDoCarrossel`). */
   retratoNoCelular?: boolean;
+  /** Caixa só do computador (classe `lg:`), por cima do formato medido: a grade do perfil alinha as linhas em 4:5. */
+  caixaNoComputador?: string;
   /** O que vai por cima da imagem, abaixo do perfil quando ele está por cima. */
   children?: ReactNode;
   /** Botão no canto de cima à direita, abaixo do contador (a cota surpresa). */
@@ -121,7 +124,7 @@ export function Carrossel({
           O teto de altura vem com a largura fixa (`w-full`): sem ela, o navegador passa o
           teto para a largura pela proporção e a caixa encolhe, encostada à esquerda. */}
       <div
-        className={`relative overflow-hidden bg-mist-2 ${caixa} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] md:w-full lg:max-h-none" : ""} ${
+        className={`relative overflow-hidden bg-mist-2 ${caixa} ${caixaNoComputador} ${porCima ? "max-h-[85svh] w-full" : ""} ${limitarNoTablet ? "md:max-h-[85svh] md:w-full" : ""} ${
           perfilSobreNaWeb ? "md:max-h-[85svh] md:w-full md:rounded-2xl" : ""
         }`}
       >
@@ -498,7 +501,8 @@ export function BarraDeAcoes({
               aria-label="Comprar agora"
               onClick={() => (aoComprar ? aoComprar() : navegar(`${caminho}?comprar=1`))}
             >
-              <IconeSacola />
+              {/* Comprar é dinheiro entrando: verde, nos dois temas. No console a sacola segue na cor dele. */}
+              <IconeSacola className="text-green-deep" />
             </button>
           </>
         ) : null}

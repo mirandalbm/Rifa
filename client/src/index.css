@@ -37,10 +37,10 @@
     /* Texto sobre o azul cheio: o azul é o mesmo nos dois temas. */
     --on-yellow: #ffffff;
 
-    /* O "+" do carrinho na barra da publicação (azul, como pediu o produto). */
+    /* Azul da paleta (espera e prêmio). O "+" do carrinho não usa mais este token. */
     --azul: #0a6fd6;
-    /* O "+" do carrinho: azul no claro, verde no escuro (preto e verde). */
-    --mais: var(--azul);
+    /* O "+" do carrinho: vermelho da marca no claro (pedido do produto), verde no escuro (preto e verde). */
+    --mais: var(--red);
 
     /*
      * Casas quadradas do mapa e da cartela, alternando azul e verde cheios
@@ -443,4 +443,88 @@
   textarea:not(.text-lg):not(.text-xl):not(.text-2xl) {
     font-size: 16px;
   }
+}
+
+/*
+ * Intro da marca (`IntroDaMarca`), o mesmo roteiro do vídeo em docs/marca:
+ * trevo girando (0,15 s), "Loterias" (0,75 s) e "do Bem" (0,98 s) da esquerda
+ * para a direita, sublinhado (1,35 s), corações (1,6 e 1,75 s), brilho no
+ * trevo (2,05 s) e duas batidas dos corações (2,55 s). Com o movimento
+ * reduzido, a regra acima zera as durações e tudo aparece pronto.
+ */
+.intro-marca {
+  transition-property: opacity;
+  transition-timing-function: ease-out;
+}
+.intro-saindo {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-marca .intro-trevo,
+.intro-marca .intro-linha,
+.intro-marca .intro-sublinhado,
+.intro-marca .intro-coracao,
+.intro-marca .intro-brilho {
+  opacity: 0;
+}
+.intro-animando .intro-trevo {
+  animation: intro-trevo 850ms cubic-bezier(0.2, 0.8, 0.3, 1) 150ms both;
+}
+.intro-animando .intro-linha {
+  animation: intro-linha 550ms ease-out both;
+}
+.intro-animando .intro-loterias {
+  animation-delay: 750ms;
+}
+.intro-animando .intro-do-bem {
+  animation-delay: 980ms;
+}
+.intro-animando .intro-sublinhado {
+  animation: intro-desenho 550ms ease-in-out 1350ms both;
+}
+.intro-coracao-esq {
+  --giro: 14deg;
+}
+.intro-coracao-dir {
+  --giro: -14deg;
+}
+.intro-animando .intro-coracao {
+  animation: intro-coracao 450ms ease-out 1600ms both;
+}
+.intro-animando .intro-coracao-dir {
+  animation-delay: 1750ms;
+}
+.intro-animando .intro-batida {
+  animation: intro-batida 600ms ease-in-out 2550ms both;
+}
+.intro-animando .intro-brilho {
+  animation: intro-brilho 550ms ease-in-out 2050ms both;
+}
+@keyframes intro-trevo {
+  0% { opacity: 0; transform: scale(0) rotate(-180deg); }
+  35% { opacity: 1; }
+  70% { transform: scale(1.1) rotate(-8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes intro-linha {
+  0% { opacity: 1; clip-path: inset(0 100% 0 0); transform: translateY(12px); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); transform: none; }
+}
+@keyframes intro-desenho {
+  0% { opacity: 1; clip-path: inset(0 100% 0 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+@keyframes intro-coracao {
+  0% { opacity: 0; transform: scale(0) rotate(var(--giro)); }
+  30% { opacity: 1; }
+  65% { transform: scale(1.18) rotate(0deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes intro-batida {
+  0%, 36%, 72%, 100% { transform: scale(1); }
+  18%, 54% { transform: scale(1.1); }
+}
+@keyframes intro-brilho {
+  0% { opacity: 1; transform: translate(-1320px, -1320px); }
+  100% { opacity: 1; transform: translate(1320px, 1320px); }
 }

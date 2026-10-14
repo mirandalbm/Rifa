@@ -4,6 +4,7 @@ import { PaginaNaoEncontrada } from "@/components/PaginaNaoEncontrada";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
+import { IntroDaMarca } from "@/components/IntroDaMarca";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSession } from "@/lib/session";
 import { roleSatisfies, type Role } from "@shared/access";
@@ -374,6 +375,7 @@ export default function App() {
           <Route component={NotFound} />
         </Switch>
         <Toaster />
+        <IntroDaMarca />
       </TooltipProvider>
     </QueryClientProvider>
   );

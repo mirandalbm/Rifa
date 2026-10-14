@@ -428,10 +428,20 @@ export async function excluirConta(req: Request, senha: string) {
         apelido: null,
         fotoEm: null,
         verificadoEm: null,
+        // A nota é texto pessoal: sai junto com o apelido.
+        nota: null,
+        notaEm: null,
+        seguidoresCount: 0,
+        seguindoPessoasCount: 0,
         excluidoEm: new Date(),
       })
       .where(eq(buyers.id, c.id));
     await tx.delete(compradorFotos).where(eq(compradorFotos.buyerId, c.id));
+    // Os seguir de pessoas: quem a pessoa seguia perde um seguidor; quem a seguia perde um seguindo.
+    // Os contadores das outras contas acompanham antes de a linha sumir.
+    await tx.execute(sql`UPDATE buyers SET seguidores_count = greatest(seguidores_count - 1, 0) WHERE id IN (SELECT seguido_id FROM seguidores_pessoas WHERE seguidor_id = ${c.id})`);
+    await tx.execute(sql`UPDATE buyers SET seguindo_pessoas_count = greatest(seguindo_pessoas_count - 1, 0) WHERE id IN (SELECT seguidor_id FROM seguidores_pessoas WHERE seguido_id = ${c.id})`);
+    await tx.execute(sql`DELETE FROM seguidores_pessoas WHERE seguidor_id = ${c.id} OR seguido_id = ${c.id}`);
     // Fotos privadas enviadas em conversas e a presença: `conversas` não tem chave para o comprador.
     await tx.execute(sql`
       DELETE FROM mensagem_imagens WHERE mensagem_id IN (

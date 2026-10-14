@@ -1,13 +1,18 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { useTemplate } from "@/lib/template";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
-import { FotoDoApostador } from "@/components/PerfilDoApostador";
+import { BalaoDaNota, ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
+import { MarcadosNoPerfil } from "@/components/MarcadosNoPerfil";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { BotaoMensagem } from "@/components/BotaoMensagem";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useSession } from "@/lib/session";
 
 interface PerfilDoApostador {
   apelido: string;
@@ -15,6 +20,13 @@ interface PerfilDoApostador {
   foto: string | null;
   desde: string | null;
   verificado: boolean;
+  bio: string | null;
+  link: string | null;
+  nota: string | null;
+  seguidores: number;
+  seguindo: number;
+  seguidoPorMim: boolean;
+  proprio: boolean;
 }
 
 /**
@@ -39,12 +51,19 @@ export default function Usuario() {
           celular; do tablet em diante, com os cantos da capa da organização. */}
       {data ? (
         <section className="-mx-4 -mt-4 flex flex-col items-center gap-1.5 faixa-escura px-4 pb-6 pt-7 text-center sm:mx-0 sm:mt-0 sm:rounded-xl">
+          <BalaoDaNota nota={data.nota} invertida />
           <FotoDoApostador nome={data.apelido} foto={data.foto} tamanho={FOTO_COMO_NO_INSTAGRAM} invertida />
           <h1 className="flex min-w-0 max-w-full items-center justify-center gap-1.5 font-display text-[22px] font-bold leading-tight">
             <span className="min-w-0 break-all">@{data.apelido}</span>
             {data.verificado ? <SeloVerificado sujeito="apostador" tamanho={20} /> : null}
           </h1>
           <p className="text-base">{data.nomeReal}</p>
+          {data.bio ? <p className="whitespace-pre-line text-sm">{data.bio}</p> : null}
+          {data.link ? <ChipDeLink link={data.link} claro /> : null}
+          <p className="tnum text-sm">
+            <strong className="font-semibold">{data.seguidores}</strong> seguidores · <strong className="font-semibold">{data.seguindo}</strong> seguindo
+          </p>
+          <BotaoSeguir apelido={data.apelido} seguidoPorMim={data.seguidoPorMim} proprio={data.proprio} />
           {data.verificado ? (
             <p className="text-xs opacity-75">Apostador verificado: documentos e foto conferidos pela plataforma.</p>
           ) : null}
@@ -63,7 +82,51 @@ export default function Usuario() {
         </section>
       ) : null}
       {data ? <Republicacoes apelido={data.apelido} /> : null}
+      {data ? (
+        <section aria-labelledby="titulo-marcados">
+          <div className="px-4 py-6 text-center">
+            <h2 id="titulo-marcados" className="text-sm font-semibold text-ink-2">
+              Marcados
+            </h2>
+          </div>
+          <MarcadosNoPerfil apelido={data.apelido} proprio={false} />
+        </section>
+      ) : null}
     </PublicShell>
+  );
+}
+
+/**
+ * Seguir a pessoa (só com conta; sem conta não aparece, e no próprio perfil
+ * também não). `aria-pressed` diz o estado; o texto diz também, não só a cor.
+ */
+function BotaoSeguir({ apelido, seguidoPorMim, proprio }: { apelido: string; seguidoPorMim: boolean; proprio: boolean }) {
+  const { data: sessao } = useSession();
+  const conta = Boolean(sessao?.buyer?.conta);
+  const [erro, setErro] = useState<string | null>(null);
+  const mudar = useMutation({
+    mutationFn: () =>
+      apiRequest(seguidoPorMim ? "DELETE" : "POST", `/api/public/u/${apelido}/seguir`),
+    onSuccess: () => {
+      setErro(null);
+      queryClient.invalidateQueries({ queryKey: [`/api/public/u/${apelido}`] });
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+  if (!conta || proprio) return null;
+  return (
+    <div className="flex flex-col items-center gap-1 pt-2">
+      <button
+        type="button"
+        aria-pressed={seguidoPorMim}
+        disabled={mudar.isPending}
+        onClick={() => mudar.mutate()}
+        className="rounded-[10px] border border-current px-[18px] py-[9px] text-sm font-semibold text-current hover:bg-black/10 disabled:opacity-60"
+      >
+        {seguidoPorMim ? "✓ Seguindo" : "Seguir"}
+      </button>
+      {erro ? <p role="alert" className="text-xs">{erro}</p> : null}
+    </div>
   );
 }
 

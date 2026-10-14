@@ -2,14 +2,15 @@ import { useState, type ReactNode } from "react";
 import { useTemplate } from "@/lib/template";
 import { Link, Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Bookmark, Grid3x3, List, Lock, Megaphone, Settings, Store } from "lucide-react";
+import { Bookmark, Grid3x3, List, Lock, Megaphone, Plus, Settings, Store, Tag } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
-import { usePendencias } from "@/components/Console";
+import { useConfigDoApp, usePendencias } from "@/components/Console";
 import { type BilheteDaConta } from "@/components/BilheteComoPublicacao";
 import { type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { TONS_DO_BOTAO } from "@/components/bits";
 import { IconeRepublicar } from "@/components/Icones";
-import { FotoDoApostador } from "@/components/PerfilDoApostador";
+import { BalaoDaNota, ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
+import { MarcadosNoPerfil } from "@/components/MarcadosNoPerfil";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useListaPaginada } from "@/lib/paginada";
@@ -72,12 +73,13 @@ interface Numero {
  * `ponto`, o ponto verde da conta incompleta (o mesmo do botão Perfil do
  * console); o que falta vai em texto no quadro "Complete sua conta", logo abaixo.
  */
-function FotoEContadores({ foto, numeros, ponto = false }: { foto: ReactNode; numeros: Numero[]; ponto?: boolean }) {
+function FotoEContadores({ foto, numeros, ponto = false, acao = null }: { foto: ReactNode; numeros: Numero[]; ponto?: boolean; acao?: ReactNode }) {
   return (
     <div className="mt-2 flex items-center gap-5">
       <span className="relative shrink-0">
         {foto}
         {ponto ? <span aria-hidden className="absolute right-1 top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-green" /> : null}
+        {acao ? <span className="absolute bottom-0 right-0">{acao}</span> : null}
       </span>
       {numeros.length ? (
         <dl className="grid min-w-0 flex-1 text-center" style={{ gridTemplateColumns: `repeat(${numeros.length}, minmax(0, 1fr))` }}>
@@ -243,6 +245,11 @@ interface MeuPerfil {
   apelido: string | null;
   nomeReal: string;
   verificado: boolean;
+  bio: string | null;
+  link: string | null;
+  nota: string | null;
+  seguidores: number;
+  seguindo: number;
 }
 
 function PerfilDoApostadorDaConta() {
@@ -251,7 +258,6 @@ function PerfilDoApostadorDaConta() {
   const conta = Boolean(sessao?.buyer?.conta);
   const pendencias = usePendencias();
   const { data: perfil } = useQuery<MeuPerfil>({ queryKey: ["/api/public/conta/perfil"], enabled: conta });
-  const { data: seguindo } = useQuery<unknown[]>({ queryKey: ["/api/public/seguindo"], enabled: conta });
   const bilhetes = useListaPaginada<BilheteDaConta[]>("/api/public/conta/bilhetes", {}, { enabled: conta });
   const apelido = perfil?.apelido ?? null;
   const { data: republicacoes, isLoading: carregandoRepublicacoes } = useQuery<RifaDoFeed[]>({
@@ -302,14 +308,22 @@ function PerfilDoApostadorDaConta() {
   }
 
   const listaDeBilhetes = bilhetes.paginas.flat();
+  // O "+" sobre a foto leva a Publicar, só com o interruptor da plataforma ligado
+  // e com apelido (sem apelido a publicação não aparece em lugar nenhum).
+  const { publicarApostador } = useConfigDoApp();
+  const podePublicar = publicarApostador && Boolean(apelido);
   const numeros: Numero[] = [
     { rotulo: "bilhetes", valor: bilhetes.isLoading ? "…" : `${listaDeBilhetes.length}${bilhetes.hasNextPage ? "+" : ""}` },
-    { rotulo: "republicações", valor: apelido ? String(republicacoes?.length ?? "…") : "0" },
-    { rotulo: "seguindo", valor: String(seguindo?.length ?? "…") },
+    // Seguidores e seguindo são pessoas (`seguidores_pessoas`); a lista de organizações
+    // seguidas não tem tela no perfil, então o número dela saiu daqui.
+    { rotulo: "seguidores", valor: perfil ? String(perfil.seguidores) : "…" },
+    { rotulo: "seguindo", valor: perfil ? String(perfil.seguindo) : "…" },
   ];
   const abas: Aba[] = [
     { chave: "bilhetes", rotulo: "Bilhetes", icone: (ativa) => <List size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
     { chave: "republicacoes", rotulo: "Republicações", icone: (ativa) => <IconeRepublicar tamanho={22} aceso={ativa} /> },
+    // Só aparece o que a pessoa aceitou (e a publicação segue no ar); os pedidos ficam no topo da aba.
+    { chave: "marcados", rotulo: "Marcados", icone: (ativa) => <Tag size={22} strokeWidth={ativa ? 2.25 : 1.75} /> },
     // O Figma desenha a sacola; a sacola é o Carrinho do console, então Salvos segue com o marcador.
     { chave: "salvos", rotulo: "Salvos", icone: (ativa) => <Bookmark size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
   ];
@@ -317,8 +331,33 @@ function PerfilDoApostadorDaConta() {
   return (
     <PublicShell>
       <TopoDoPerfil titulo={titulo} selo={perfil?.verificado ? <SeloVerificado sujeito="apostador" tamanho={18} /> : null} />
-      <FotoEContadores foto={foto} numeros={numeros} ponto={pendencias.length > 0} />
+      {perfil?.nota ? (
+        <div className="mb-2 flex justify-center md:justify-start">
+          <BalaoDaNota nota={perfil.nota} />
+        </div>
+      ) : null}
+      <FotoEContadores
+        foto={foto}
+        numeros={numeros}
+        ponto={pendencias.length > 0}
+        acao={
+          podePublicar ? (
+            <Link
+              href="/publicar"
+              aria-label="Publicar"
+              title="Publicar"
+              className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-mais text-branco"
+            >
+              <Plus size={16} strokeWidth={3} aria-hidden />
+            </Link>
+          ) : null
+        }
+      />
       {nome ? <p className="mt-3 text-[15px] font-bold">{nome}</p> : null}
+      {perfil?.bio ? <p className="mt-1 whitespace-pre-line text-[15px] text-ink-2">{perfil.bio}</p> : null}
+      <div className="mt-2">
+        <ChipDeLink link={perfil?.link ?? null} />
+      </div>
 
       {pendencias.length ? (
         <section aria-label="Complete sua conta" className="mt-3 rounded-xl border border-green bg-green-soft p-3.5 text-sm">
@@ -374,6 +413,11 @@ function PerfilDoApostadorDaConta() {
             imagem: capaDaRifa(r),
           }))}
         />
+      ) : null}
+      {aba === "marcados" && apelido ? (
+        <div className="mt-4">
+          <MarcadosNoPerfil apelido={apelido} proprio />
+        </div>
       ) : null}
       {aba === "salvos" ? (
         <Grade

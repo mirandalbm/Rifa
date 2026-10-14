@@ -169,7 +169,7 @@ arquitetura.
 | tema claro e escuro | `client/src/index.css` (variáveis), `client/src/lib/tema.ts`, `client/src/components/TemaToggle.tsx`, `tests/tema.test.ts` |
 | comentários na publicação da rifa | `shared/comentarios.ts` (regras), `server/services/comentarios.ts`, `client/src/components/Comentarios.tsx`, `scripts/comentarios-test.ts` |
 | bilhetes do apostador como publicações privadas (`/perfil/bilhetes`) | `shared/bilhetes.ts` (regras), `server/services/bilhetes.ts`, `GET /conta/bilhetes` em `server/routes/public.ts`, `client/src/components/BilheteComoPublicacao.tsx`, `client/src/pages/MeusBilhetes.tsx`, `scripts/bilhetes-test.ts`, `tests/bilhetes.test.ts` |
-| perfil do apostador (apelido, foto, `/u/<apelido>`) e curtidas | `shared/perfilApostador.ts`, `server/services/perfilApostador.ts`, `client/src/components/PerfilDoApostador.tsx`, `client/src/pages/Usuario.tsx`, `scripts/comentarios-test.ts` |
+| perfil do apostador (apelido, foto, bio e link, `/u/<apelido>`) e curtidas | `shared/perfilApostador.ts` (`validarBio`, `validarLinkDoApostador`, `problemaNoSeguirPessoa`), `server/services/perfilApostador.ts`, `client/src/components/PerfilDoApostador.tsx` (`ChipDeLink`), `client/src/pages/Usuario.tsx` (`BotaoSeguir`), `client/src/pages/PerfilDoUsuario.tsx`, `scripts/comentarios-test.ts`, `tests/bioDoApostador.test.ts`; seguir outro apostador (`seguidores_pessoas`, contadores em `buyers`, rotas `/u/:apelido/seguir`): `server/services/seguirPessoas.ts`, `scripts/seguir-pessoas-test.ts` (`npm run seguir-pessoas`); nota de 24 horas (`buyers.nota`, `nota_em`, `validarNota`, `notaVigente`, `PUT /api/public/conta/nota`): `server/services/notaApostador.ts`, `BalaoDaNota`/`NotaDoApostador` em `client/src/components/PerfilDoApostador.tsx`, `scripts/nota-test.ts` (`npm run nota`), `tests/notaApostador.test.ts`; marcar pessoas na publicação de apostador (`divulgacao_marcacoes`, só `aceita` aparece no perfil, `validarMarcados`): `shared/marcacoes.ts`, `server/services/divulgacao.ts` (`pessoasParaMarcar`, `aceitarMarcacao`, `tirarMarcacao`, `marcadosPublicos`), `client/src/components/MarcadosNoPerfil.tsx`, `scripts/marcados-test.ts` (`npm run marcados`), `tests/marcacoes.test.ts` |
 | segurança do organizador: telefone aprovado, denúncias, rifa travada, banimento | `shared/seguranca.ts` (regras e varredura), `server/services/seguranca.ts`, `client/src/components/Seguranca.tsx`, `scripts/seguranca-test.ts` |
 | retenção cautelar de saldo (nasce no banimento; liberar ou abater) | `shared/retencao.ts` (regras), `server/services/retencao.ts`, `reterNaTransacao()` em `decidirDenuncia()` (`server/services/seguranca.ts`), a trava nos pagamentos (`pedirReembolso`/`decidirReembolso`/`marcarReembolsoPago` em `server/services/patrocinio.ts`, `darBaixa()` em `server/services/billing.ts`), `/retencoes*` e `/organizacoes/:id/retencao` em `server/routes/admin.ts`, `client/src/components/RetencoesCautelares.tsx` (em Cobrança), tipo `retencao` em `shared/caixa.ts`, `scripts/retencao-test.ts`, `tests/retencao.test.ts` |
 | visão do organizador (só o próprio perfil) | `VisaoDoOrganizador` em `client/src/App.tsx`, `organizacao` em `GET /api/auth/me` |
@@ -198,6 +198,7 @@ arquitetura.
 | sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
+| intro animada da marca ao abrir o app (celular e tablet) e os arquivos da marca (logo oficial, ícones, vídeo da intro) | `client/src/lib/intro.ts` (quando aparece, o trevo em geometria, as posições), `client/src/components/IntroDaMarca.tsx`, `.intro-*` em `client/src/index.css`, `client/public/intro/`, `docs/marca/`, `tests/intro.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem), os agentes (`implementador-da-rifa`, `revisor-de-invariantes`, `conferente-de-telas`, `pesquisador-de-integracao`, `analista-de-csp`), o fluxo entre eles e as skills de terceiros que o projeto usa (com o ajuste de cada uma) | `docs/AGENTES-E-SKILLS.md` (o guia), `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/`, `skills-lock.json`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
@@ -235,8 +236,13 @@ arquitetura.
   sem significado é ruído. O tema escuro troca os tons, nunca o significado
   (seção "Tema claro e escuro").
   Exceções, só como identidade e nunca como estado: as cores das loterias
-  (seção "Sorteios oficiais") e a cor de cada pessoa na conversa por cima do
-  vídeo do sorteio (`CORES_DOS_NOMES`).
+  (seção "Sorteios oficiais"), a cor de cada pessoa na conversa por cima do
+  vídeo do sorteio (`CORES_DOS_NOMES`) e o **vermelho da marca** — o da
+  logo, do ícone e da intro (`docs/marca/`) e o do **"+" do carrinho** no
+  tema claro (`--mais` = `--red`, pedido do produto em 14/10/2026; no escuro
+  segue verde). O "+" é ação, não estado: vermelho continua sendo erro em
+  todo o resto, e nenhum aviso, pílula ou estado novo usa o vermelho fora de
+  erro.
 
 ## O que ainda não existe
 
@@ -601,9 +607,13 @@ arquitetura.
     `plataforma_arquivos`; o nome é o texto alternativo; o link é caminho do
     site ou `https:` (`validarApoios()`, a régua do banner). Entra no ar ao
     publicar o template.
-- **Perfil da organização**: capa 4:1; abaixo, o cartão do perfil (foto,
-  contadores, ações, bio, links, destaques) numa coluna de 320 px fixa na
-  rolagem, e as rifas em 2 colunas ao lado.
+- **Perfil da organização**, como no Instagram: capa 4:1; abaixo, o
+  cabeçalho do perfil de ponta a ponta (foto, nome, contadores e ações à
+  esquerda; cidade, bio, links e destaques à direita) e, embaixo dele, as
+  rifas em **grade de 3** com a imagem sempre em 4:5 (`caixaNoComputador`
+  do `Carrossel`), para as linhas começarem na mesma altura. A coluna
+  lateral de 320 px saiu: deixava um vão branco do tamanho da página ao
+  lado do feed. No tablet, as rifas seguem em 2 colunas em fluxo.
 - **Painel do organizador em grade bento** (`Bento` em
   `client/src/pages/admin.tsx`, etiqueta presa na borda): receita com o
   gráfico em 2×2, cotas, comissão, próximo sorteio (azul, com a loteria pelo
@@ -3335,8 +3345,8 @@ emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
 
 ## Carrinho e comprar — o que não pode afrouxar
 
-Na barra da publicação, o **"+"** (azul no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
-e o **comprar** (a sacola) no canto direito, onde era o salvar. O "+" abre
+Na barra da publicação, o **"+"** (vermelho da marca no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
+e o **comprar** (a sacola, em verde — `text-green-deep`, dinheiro entrando; no console ela segue na cor do console) no canto direito, onde era o salvar. O "+" abre
 a janela dos números (`EscolherBilhete`): os tamanhos 5, 10, 25 e 50 (ou
 uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele
 tamanho (`Cartelas` com `acao="carrinho"`); a cartela escolhida vai para o
@@ -3344,7 +3354,7 @@ carrinho.
 
 **Na página da rifa, o "+" e a sacola saem de baixo da publicação** — a
 compra já está na tela. Cada cartela traz tudo numa linha: **trocar** (só
-o ícone, à esquerda), o **"+"** (o mesmo "+" azul/verde em negrito da
+o ícone, à esquerda), o **"+"** (o mesmo "+" vermelho/verde em negrito da
 barra, `IconeMais` em `Icones.tsx`, que junta a cartela ao carrinho) e o
 **Pagar**, maior, no canto direito.
 

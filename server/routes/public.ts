@@ -7,6 +7,8 @@ import { loteriaDoSorteio } from "@shared/sorteiosOficiais";
 import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
 import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambemJoga, salvarPerfilPublico } from "../services/perfilApostador";
+import { deixarDeSeguirPessoa, seguirPessoa } from "../services/seguirPessoas";
+import { salvarNota } from "../services/notaApostador";
 import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
 import {
   apagarComentarioDoSorteio,
@@ -24,9 +26,13 @@ import {
   fotoDoAutor,
   fotoPublica,
   videoPublico,
+  aceitarMarcacao,
+  marcacoesPendentes,
+  marcadosPublicos,
   minhasDoApostador,
   publicarComoApostador,
   retirarPropriaDoApostador,
+  tirarMarcacao,
   rifasDoApostador,
 } from "../services/divulgacao";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
@@ -977,7 +983,18 @@ publicRouter.put("/conta/perfil", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     if (!id) return res.status(401).json({ message: "Entre na sua conta." });
-    res.json(await salvarPerfilPublico(id, { apelido: req.body?.apelido, foto: req.body?.foto }));
+    res.json(await salvarPerfilPublico(id, { apelido: req.body?.apelido, foto: req.body?.foto, bio: req.body?.bio, link: req.body?.link }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A nota de 24 horas (até 60 letras). Vazia apaga. Regras e prazo em `services/notaApostador.ts`. */
+publicRouter.put("/conta/nota", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await salvarNota(id, req.body?.nota));
   } catch (err) {
     next(err);
   }
@@ -1101,7 +1118,67 @@ publicRouter.get("/u/:apelido/republicacoes", async (req, res, next) => {
 
 publicRouter.get("/u/:apelido", async (req, res, next) => {
   try {
-    res.json(await perfilPublicoDoApostador(req.params.apelido));
+    res.json(await perfilPublicoDoApostador(req.params.apelido, req.session.buyer?.id ?? null));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Seguir e deixar de seguir outro apostador (regras e contadores em `services/seguirPessoas.ts`). */
+publicRouter.post("/u/:apelido/seguir", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await seguirPessoa(id, req.params.apelido));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/u/:apelido/seguir", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await deixarDeSeguirPessoa(id, req.params.apelido));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- marcados (pessoas marcadas numa publicação de apostador) ---------------- */
+
+/** Os pedidos de marcação que esperam a resposta de quem está logado. */
+publicRouter.get("/conta/marcacoes", async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json(await marcacoesPendentes(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Aceita a marcação: a publicação passa a aparecer no perfil de quem foi marcado. */
+publicRouter.post("/marcacoes/:id/aceitar", async (req, res, next) => {
+  try {
+    res.json(await aceitarMarcacao(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Recusa o pedido ou tira a marcação já aceita. */
+publicRouter.delete("/marcacoes/:id", async (req, res, next) => {
+  try {
+    res.json(await tirarMarcacao(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** As publicações em que o apelido foi marcado e aceitou, no ar (aba Marcados do perfil). */
+publicRouter.get("/u/:apelido/marcados", async (req, res, next) => {
+  try {
+    res.json(await marcadosPublicos(req.params.apelido));
   } catch (err) {
     next(err);
   }

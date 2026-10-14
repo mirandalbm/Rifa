@@ -347,6 +347,12 @@ export const buyers = pgTable(
     /** Cotas de bônus a resgatar. Anda com `bonus_lancamentos`, na mesma transação. */
     bonusSaldo: integer("bonus_saldo").notNull().default(0),
     /**
+     * Seguidores (quem segue esta pessoa) e seguindo (quantas pessoas ela segue),
+     * em `seguidores_pessoas`. Andam na mesma transação do seguir.
+     */
+    seguidoresCount: integer("seguidores_count").notNull().default(0),
+    seguindoPessoasCount: integer("seguindo_pessoas_count").notNull().default(0),
+    /**
      * Apelido público, como o nome de usuário do Instagram (minúsculas,
      * números, ponto e sublinhado). Exigido para comentar; o perfil
      * `/u/<apelido>` mostra também o primeiro e o último nome reais.
@@ -354,6 +360,24 @@ export const buyers = pgTable(
     apelido: text("apelido"),
     /** Quando a foto do perfil mudou (a foto em si fica em `comprador_fotos`). */
     fotoEm: timestamp("foto_em"),
+    /**
+     * Bio do perfil público (até 150 caracteres, sem link nem telefone —
+     * a régua do comentário). Nulo: sem bio. Público em `/u/<apelido>`.
+     */
+    bio: text("bio"),
+    /**
+     * Link do perfil público (um só, `https:`, a régua de `validarLinks`).
+     * Nulo: sem link. Público em `/u/<apelido>`.
+     */
+    link: text("link"),
+    /**
+     * Nota de 24 horas, sobre a foto (como no Instagram): até 60 caracteres,
+     * a régua do comentário e sem pedido de Pix por fora. Vale 24 h a partir
+     * de `nota_em`; passado o prazo, nenhuma leitura a devolve (não há relógio
+     * que apague — o texto só sai quando a pessoa escreve outra ou apaga).
+     */
+    nota: text("nota"),
+    notaEm: timestamp("nota_em"),
     /**
      * Perfil verificado (selo de trevo). Espelho de `verificacoes.status =
      * 'verificado'`, gravado na mesma transação — a vitrine e os
@@ -1680,6 +1704,29 @@ export const seguidores = pgTable(
   (t) => [
     primaryKey({ columns: [t.organizationId, t.buyerId] }),
     index("idx_seguidores_buyer").on(t.buyerId),
+  ],
+);
+
+/**
+ * Seguir uma pessoa (apostador com conta e apelido). A chave composta é o
+ * que decide: duas vezes, uma linha. Os contadores de `buyers` andam na mesma
+ * transação, e só quando a linha entrou ou saiu. Nunca aparece a lista de
+ * quem segue quem: a página mostra só os números.
+ */
+export const seguidoresPessoas = pgTable(
+  "seguidores_pessoas",
+  {
+    seguidorId: uuid("seguidor_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    seguidoId: uuid("seguido_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    criadoEm: timestamp("criado_em").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.seguidorId, t.seguidoId] }),
+    index("idx_seguidores_pessoas_seguido").on(t.seguidoId),
   ],
 );
 
@@ -3540,6 +3587,31 @@ export const divulgacaoVideos = pgTable("divulgacao_videos", {
   poster: bytea("poster"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/**
+ * Pessoa marcada numa publicação de apostador. Só `aceita` aparece no perfil
+ * dela (aba Marcados): quem marca não decide sozinho. A chave `(publicação,
+ * pessoa)` decide: marcar duas vezes é uma linha só. Recusar ou tirar a
+ * marcação apaga a linha.
+ */
+export const divulgacaoMarcacoes = pgTable(
+  "divulgacao_marcacoes",
+  {
+    divulgacaoId: uuid("divulgacao_id")
+      .notNull()
+      .references(() => divulgacoes.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    situacao: text("situacao").$type<"pendente" | "aceita">().notNull().default("pendente"),
+    criadaEm: timestamp("criada_em").notNull().defaultNow(),
+    decididaEm: timestamp("decidida_em"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.divulgacaoId, t.buyerId] }),
+    index("idx_marcacao_pessoa_situacao").on(t.buyerId, t.situacao),
+  ],
+);
 
 /* ------------------------------------------------------------------ *
  * Assistente de IA (Chatbase) — conversa e uso

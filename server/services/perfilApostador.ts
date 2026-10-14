@@ -12,8 +12,8 @@ import { faltaNaContaGoogle } from "@shared/google";
 import sharp from "sharp";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { buyers, compradorFotos } from "@shared/schema";
-import { nomeRealPublico, validarApelido } from "@shared/perfilApostador";
+import { buyers, compradorFotos, seguidoresPessoas } from "@shared/schema";
+import { nomeRealPublico, notaAte, notaVigente, validarApelido, validarBio, validarLinkDoApostador } from "@shared/perfilApostador";
 import { isUniqueViolation } from "../pgError";
 import { depoisDaFoto, fotoMudouNaTransacao } from "./verificacao";
 import type { StatusVerificacao } from "@shared/verificacao";
@@ -49,7 +49,7 @@ async function processarFoto(dataUrl: string) {
 
 async function contaDe(buyerId: string) {
   const [b] = await db
-    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash, verificadoEm: buyers.verificadoEm, cpf: buyers.cpf, phone: buyers.phone })
+    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, conta: buyers.passwordHash, verificadoEm: buyers.verificadoEm, cpf: buyers.cpf, phone: buyers.phone, bio: buyers.bio, link: buyers.link, nota: buyers.nota, notaEm: buyers.notaEm, seguidores: buyers.seguidoresCount, seguindo: buyers.seguindoPessoasCount })
     .from(buyers)
     .where(and(eq(buyers.id, buyerId), isNull(buyers.excluidoEm)));
   if (!b?.conta) throw new PerfilApostadorError("Entre na sua conta.", 401);
@@ -63,6 +63,12 @@ export async function meuPerfilPublico(buyerId: string) {
     foto: urlDaFotoDoApostador(b.apelido, b.fotoEm),
     nomeReal: nomeRealPublico(b.nome),
     verificado: Boolean(b.verificadoEm),
+    bio: b.bio,
+    link: b.link,
+    nota: notaVigente(b.notaEm) ? b.nota : null,
+    notaAte: notaVigente(b.notaEm) ? notaAte(b.notaEm) : null,
+    seguidores: b.seguidores,
+    seguindo: b.seguindo,
     falta: faltaNaContaGoogle({ cpf: b.cpf, phone: b.phone }),
   };
 }
@@ -71,13 +77,25 @@ export async function meuPerfilPublico(buyerId: string) {
  * Salva apelido e/ou foto. Tudo é conferido (inclusive abrir a imagem)
  * antes de gravar: recusa não deixa nada pela metade. `foto: null` apaga.
  */
-export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: unknown; foto?: unknown }) {
+export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: unknown; foto?: unknown; bio?: unknown; link?: unknown }) {
   const b = await contaDe(buyerId);
   let apelido: string | undefined;
   if (entrada.apelido !== undefined) {
     const v = validarApelido(entrada.apelido);
     if (!v.ok) throw new PerfilApostadorError(v.erro);
     apelido = v.apelido;
+  }
+  let bio: string | null | undefined;
+  if (entrada.bio !== undefined) {
+    const v = validarBio(entrada.bio);
+    if (!v.ok) throw new PerfilApostadorError(v.erro);
+    bio = v.bio;
+  }
+  let link: string | null | undefined;
+  if (entrada.link !== undefined) {
+    const v = validarLinkDoApostador(entrada.link);
+    if (!v.ok) throw new PerfilApostadorError(v.erro);
+    link = v.link;
   }
   const foto =
     typeof entrada.foto === "string" ? await processarFoto(entrada.foto) : entrada.foto === null ? null : undefined;
@@ -101,6 +119,8 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
         .update(buyers)
         .set({
           ...(apelido !== undefined ? { apelido } : {}),
+          ...(bio !== undefined ? { bio } : {}),
+          ...(link !== undefined ? { link } : {}),
           ...(foto !== undefined ? { fotoEm: foto ? agora : null } : {}),
         })
         .where(eq(buyers.id, buyerId));
@@ -118,19 +138,35 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
 }
 
 /** O perfil que qualquer um vê em `/u/<apelido>`. */
-export async function perfilPublicoDoApostador(apelidoBruto: string) {
+/**
+ * O perfil público. `quemOlha` é a pessoa da sessão (nulo sem sessão): só dela
+ * sai `seguidoPorMim`. Os números (seguidores, seguindo) são contadores, nunca
+ * a lista de quem é quem.
+ */
+export async function perfilPublicoDoApostador(apelidoBruto: string, quemOlha: string | null = null) {
   const apelido = apelidoBruto.toLowerCase();
   const [b] = await db
-    .select({ nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, desde: buyers.contaCriadaEm, verificadoEm: buyers.verificadoEm })
+    .select({ id: buyers.id, nome: buyers.name, apelido: buyers.apelido, fotoEm: buyers.fotoEm, desde: buyers.contaCriadaEm, verificadoEm: buyers.verificadoEm, bio: buyers.bio, link: buyers.link, nota: buyers.nota, notaEm: buyers.notaEm, seguidores: buyers.seguidoresCount, seguindo: buyers.seguindoPessoasCount })
     .from(buyers)
     .where(and(eq(buyers.apelido, apelido), isNull(buyers.excluidoEm)));
   if (!b) throw new PerfilApostadorError("Perfil não encontrado.", 404);
+  const proprio = quemOlha === b.id;
+  const seguidoPorMim = quemOlha && !proprio ? await sigoPessoa(quemOlha, b.id) : false;
+  // A nota é de quem segue a pessoa (e da própria pessoa); quem não segue não lê.
+  const notaVisivel = (proprio || seguidoPorMim) && notaVigente(b.notaEm);
   return {
     apelido: b.apelido,
     nomeReal: nomeRealPublico(b.nome),
     foto: urlDaFotoDoApostador(b.apelido, b.fotoEm),
     desde: b.desde,
     verificado: Boolean(b.verificadoEm),
+    bio: b.bio,
+    link: b.link,
+    nota: notaVisivel ? b.nota : null,
+    seguidores: b.seguidores,
+    seguindo: b.seguindo,
+    seguidoPorMim,
+    proprio,
   };
 }
 
@@ -189,4 +225,14 @@ export async function quemTambemJoga(slug: string) {
   cacheQuemJoga.set(slug, { em: Date.now(), v });
   if (cacheQuemJoga.size > 500) cacheQuemJoga.clear();
   return v;
+}
+
+/** Se a pessoa da sessão já segue o apelido (um `EXISTS`, nunca a lista). */
+export async function sigoPessoa(seguidorId: string, seguidoId: string): Promise<boolean> {
+  const [linha] = await db
+    .select({ seguidorId: seguidoresPessoas.seguidorId })
+    .from(seguidoresPessoas)
+    .where(and(eq(seguidoresPessoas.seguidorId, seguidorId), eq(seguidoresPessoas.seguidoId, seguidoId)))
+    .limit(1);
+  return Boolean(linha);
 }

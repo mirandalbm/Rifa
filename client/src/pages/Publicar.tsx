@@ -41,6 +41,7 @@ export default function Publicar() {
   const { data: minhas = [] } = useQuery<Minha[]>({ queryKey: ["/api/public/divulgacoes/minhas"], enabled: ligado });
   const [slug, setSlug] = useState("");
   const [legenda, setLegenda] = useState("");
+  const [marcar, setMarcar] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   // O texto que está sendo corrigido (nulo: publicação nova).
   const [editando, setEditando] = useState<{ id: string; versao: number } | null>(null);
@@ -57,13 +58,21 @@ export default function Publicar() {
     fotos.limpar();
     setAgenda("");
     setAgendaMudou(false);
+    setMarcar("");
   };
 
   const publicar = useMutation({
     mutationFn: () =>
       editando
         ? apiRequest("PATCH", `/api/public/divulgacoes/${editando.id}`, { legenda, versao: editando.versao, ...fotos.corpo(true), ...corpoDaAgenda() })
-        : apiRequest("POST", "/api/public/divulgacoes", { slug, legenda, ...fotos.corpo(false), ...corpoDaAgenda() }),
+        : apiRequest("POST", "/api/public/divulgacoes", {
+            slug,
+            legenda,
+            ...fotos.corpo(false),
+            ...corpoDaAgenda(),
+            // Os apelidos que o campo traz, sem @ e separados por espaço ou vírgula. O servidor confere cada um.
+            marcados: marcar.split(/[\s,]+/).map((a) => a.replace(/^@/, "")).filter(Boolean),
+          }),
     onSuccess: () => {
       setMsg({
         ok: true,
@@ -147,6 +156,21 @@ export default function Publicar() {
                 >
                   <textarea id="publicar-texto" rows={4} maxLength={LEGENDA_MAX} value={legenda} onChange={(e) => setLegenda(e.target.value)} />
                 </Campo>
+                {editando ? null : (
+                  <Campo
+                    rotulo="Marcar pessoas (opcional)"
+                    dica="Apelidos separados por espaço, até 5. Só vai ao perfil delas depois que elas aceitarem."
+                  >
+                    <input
+                      id="publicar-marcados"
+                      value={marcar}
+                      placeholder="@ana @joao"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      onChange={(e) => setMarcar(e.target.value)}
+                    />
+                  </Campo>
+                )}
                 <FotosProprias estado={fotos} editando={Boolean(editando)} dica="Só fotos suas. A organização vê cada uma antes de publicar." />
                 <CampoDeAgenda
                   id="publicar-agenda"

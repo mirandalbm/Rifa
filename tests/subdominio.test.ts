@@ -125,3 +125,45 @@ describe("endereço de divulgação", () => {
     expect(identificarHost(host, BASE)).toEqual({ tipo: "organizacao", slug: "rifa-solidaria" });
   });
 });
+
+describe("reconhecimento do subdomínio no servidor", () => {
+  it("sem SUBDOMINIO_BASE, nenhum endereço é reconhecido (o sistema segue como hoje)", async () => {
+    const { destinoDoSubdominio, subdominioBaseDoAmbiente } = await import("../server/services/subdominio");
+    expect(subdominioBaseDoAmbiente({} as NodeJS.ProcessEnv)).toBeNull();
+    expect(destinoDoSubdominio(`rifa-solidaria.${BASE}`, null)).toBeNull();
+  });
+
+  it("com a base configurada, lê a base em minúsculas e sem espaço", async () => {
+    const { subdominioBaseDoAmbiente } = await import("../server/services/subdominio");
+    expect(subdominioBaseDoAmbiente({ SUBDOMINIO_BASE: "  Rifas.Exemplo.com.br " } as NodeJS.ProcessEnv)).toBe(
+      "rifas.exemplo.com.br",
+    );
+  });
+
+  it("reconhece a organização e o afiliado pelo Host, e ignora o domínio principal", async () => {
+    const { destinoDoSubdominio } = await import("../server/services/subdominio");
+    expect(destinoDoSubdominio(`rifa-solidaria.${BASE}`, BASE)).toEqual({ tipo: "organizacao", slug: "rifa-solidaria" });
+    expect(destinoDoSubdominio(`af-joao2026.${BASE}`, BASE)).toEqual({ tipo: "afiliado", codigo: "joao2026" });
+    expect(destinoDoSubdominio(BASE, BASE)).toBeNull();
+    expect(destinoDoSubdominio(undefined, BASE)).toBeNull();
+  });
+
+  it("o middleware só marca res.locals e segue sem responder", async () => {
+    const { reconhecerSubdominio } = await import("../server/services/subdominio");
+    const res = { locals: {} as Record<string, unknown> };
+    let seguiu = false;
+    const req = { headers: { host: `rifa-solidaria.${BASE}` } };
+    const old = process.env.SUBDOMINIO_BASE;
+    process.env.SUBDOMINIO_BASE = BASE;
+    try {
+      reconhecerSubdominio(req as never, res as never, () => {
+        seguiu = true;
+      });
+    } finally {
+      if (old === undefined) delete process.env.SUBDOMINIO_BASE;
+      else process.env.SUBDOMINIO_BASE = old;
+    }
+    expect(seguiu).toBe(true);
+    expect(res.locals.subdominio).toEqual({ tipo: "organizacao", slug: "rifa-solidaria" });
+  });
+});

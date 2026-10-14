@@ -20,7 +20,7 @@ export const INTRO_SAIDA_MS = 400;
 export const INTRO_ESPERA_IMAGENS_MS = 800;
 
 /** Painel é ferramenta de trabalho: quem entra nele não vê a intro. */
-const ROTAS_SEM_INTRO = ["/admin", "/afiliado", "/cambista"];
+export const ROTAS_SEM_INTRO = ["/admin", "/afiliado", "/cambista"];
 
 export interface ContextoDaIntro {
   largura: number;
@@ -93,13 +93,62 @@ export function folhasDoTrevo(): FolhaDesenhada[] {
 
 export const RAIO_DO_LOBULO = Math.round(FOLHA.r * 10) / 10;
 
-/** As cores do trevo da logo, da luz (alto à esquerda) para a sombra. */
+/**
+ * O contorno de uma folha num `path` só (o polígono e os dois lóbulos, todos
+ * no mesmo sentido, para a regra "nonzero" somar em vez de furar). Um
+ * `clipPath` com um filho só desenha igual em todo lugar — o recorte com
+ * polígono e círculos separados saía furado fora do navegador (librsvg).
+ */
+export function contornoDaFolha(f: FolhaDesenhada): string {
+  const pts = f.poligono.split(" ").map((p) => p.split(",").map(Number));
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[(i + 1) % pts.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  const giro = area > 0 ? 1 : 0;
+  const r = RAIO_DO_LOBULO;
+  const poligono = `M${pts.map((p) => p.join(" ")).join("L")}Z`;
+  const lobulos = f.circulos
+    .map(({ cx, cy }) => `M${cx - r} ${cy}A${r} ${r} 0 1 ${giro} ${cx + r} ${cy}A${r} ${r} 0 1 ${giro} ${cx - r} ${cy}Z`)
+    .join("");
+  return poligono + lobulos;
+}
+
+/**
+ * As cores do trevo, as mesmas do ícone do app (`docs/marca/icone-folha-da-
+ * direita-vermelha.png`): as folhas verdes num degradê da luz (alto à
+ * esquerda) para a sombra, e a folha da direita vermelha. Cada folha tem a
+ * metade clara e a escura, como no ícone.
+ */
 export const DEGRADE_CLARO: [number, string][] = [
   [0, "#9cca29"], [0.167, "#9cca29"], [0.333, "#79bf2a"], [0.5, "#4ba833"], [0.667, "#0a8832"], [0.833, "#00712f"], [1, "#016031"],
 ];
 export const DEGRADE_ESCURO: [number, string][] = [
   [0, "#9cca29"], [0.167, "#9cca29"], [0.333, "#5cb030"], [0.5, "#168f34"], [0.667, "#017d32"], [0.833, "#016031"], [1, "#016031"],
 ];
+
+export const DEGRADE_VERMELHO_CLARO: [number, string][] = [
+  [0, "#e4353c"], [0.55, "#d92b32"], [1, "#c7232b"],
+];
+export const DEGRADE_VERMELHO_ESCURO: [number, string][] = [
+  [0, "#cf242c"], [0.55, "#bd1e26"], [1, "#a51920"],
+];
+/** A folha vermelha (a da direita, como no ícone), na ordem de `folhasDoTrevo()`. */
+export const FOLHA_VERMELHA = 1;
+
+/**
+ * A abertura: antes de o JavaScript chegar, o `index.html` já desenha o trevo
+ * no meio da tela branca (`#abertura`), no lugar em que o celular mostrou o
+ * ícone. A intro começa com o trevo ali e o leva ao lugar dele na logo — sem
+ * tela branca entre o ícone e a intro. O `index.html` repete a regra de
+ * `deveMostrarIntro()` (o teste confere) e este tamanho.
+ */
+export const ABERTURA_ID = "abertura";
+export const ABERTURA_TREVO_PX = 136;
+/** Se o app não abrir, a abertura sai sozinha (nunca prende a tela). */
+export const ABERTURA_PRAZO_MS = 8000;
 
 /**
  * Onde cada peça fica, em % da caixa da logo (1520 × 1302 px da logo oficial):
@@ -114,3 +163,36 @@ export const PECAS_DA_INTRO = {
   coracaoEsq: { src: "/intro/coracao-esq.webp", left: 17.171, top: 20.891, width: 12.961 },
   coracaoDir: { src: "/intro/coracao-dir.webp", left: 69.868, top: 16.129, width: 15.921 },
 } as const;
+
+/**
+ * O trevo em SVG puro (texto), para onde o React ainda não chegou: a abertura
+ * do `index.html` e os arquivos de `docs/marca`. O mesmo desenho de
+ * `TrevoDaMarca`; `npm run logo-escrita` grava esta saída no `index.html` (o
+ * teste confere que está igual).
+ */
+export function svgDoTrevo(prefixo: string, atributos = ""): string {
+  const degrade = (id: string, paradas: [number, string][]) =>
+    `<linearGradient id="${prefixo}${id}" gradientUnits="userSpaceOnUse" x1="-660" y1="-660" x2="660" y2="660">${paradas
+      .map(([o, cor]) => `<stop offset="${o}" stop-color="${cor}"/>`)
+      .join("")}</linearGradient>`;
+  const folhas = folhasDoTrevo();
+  const recortes = folhas
+    .map(
+      (f, i) =>
+        `<clipPath id="${prefixo}f${i}"><path d="${contornoDaFolha(f)}"/></clipPath>`,
+    )
+    .join("");
+  const desenho = folhas
+    .map((f, i) => {
+      const v = i === FOLHA_VERMELHA;
+      return `<g clip-path="url(#${prefixo}f${i})"><polygon points="${f.metadeClara}" fill="url(#${prefixo}${v ? "vc" : "c"})"/><polygon points="${f.metadeEscura}" fill="url(#${prefixo}${v ? "ve" : "e"})"/></g>`;
+    })
+    .join("");
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-660 -660 1320 1320"${atributos ? ` ${atributos}` : ""}>` +
+    `<defs>${degrade("c", DEGRADE_CLARO)}${degrade("e", DEGRADE_ESCURO)}${degrade("vc", DEGRADE_VERMELHO_CLARO)}${degrade(
+      "ve",
+      DEGRADE_VERMELHO_ESCURO,
+    )}${recortes}</defs>${desenho}</svg>`
+  );
+}

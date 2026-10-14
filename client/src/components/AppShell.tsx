@@ -66,7 +66,7 @@ import { RenovarConsentimento } from "@/components/RenovarConsentimento";
 import { TemaCiclo } from "@/components/TemaToggle";
 import { BotaoDoAssistente, ColunaDoAssistente, useAssistente } from "@/components/AssistenteDoPainel";
 import { papelTemIA } from "@shared/ia";
-import { IconeDaMarca, Marca } from "@/components/Marca";
+import { Marca, SimboloDaMarca } from "@/components/Marca";
 import { useTemplate } from "@/lib/template";
 
 /**
@@ -537,7 +537,7 @@ export function PanelShell({
                 <span className={`hidden group-hover/menu:inline group-focus-within/menu:inline max-md:inline`}>
                   <Marca />
                 </span>
-                <IconeDaMarca className="h-8 w-8 group-hover/menu:hidden group-focus-within/menu:hidden max-md:hidden" />
+                <SimboloDaMarca className="h-8 w-8 group-hover/menu:hidden group-focus-within/menu:hidden max-md:hidden" />
               </>
             )}
           </Link>

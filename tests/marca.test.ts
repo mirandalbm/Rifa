@@ -43,12 +43,10 @@ describe("logo escrita Loterias do Bem", () => {
     }
   });
 
-  it("o desenho gerado tem o B no lugar certo, entre o verde e o vermelho", () => {
+  it("o desenho gerado tem as duas partes da frase, numa linha só", () => {
     expect(LOGO_ESCRITA.verde.length).toBeGreaterThan(0);
     expect(LOGO_ESCRITA.vermelho.length).toBeGreaterThan(0);
-    expect(LOGO_ESCRITA.folhaX1).toBeGreaterThan(LOGO_ESCRITA.folhaX0);
-    expect(LOGO_ESCRITA.meio).toBeGreaterThan(LOGO_ESCRITA.topo);
-    expect(LOGO_ESCRITA.base).toBeGreaterThan(LOGO_ESCRITA.meio);
-    expect(LOGO_ESCRITA.largura).toBeGreaterThan(LOGO_ESCRITA.folhaX1);
+    // uma linha: bem mais larga que alta
+    expect(LOGO_ESCRITA.largura / LOGO_ESCRITA.altura).toBeGreaterThan(6);
   });
 });

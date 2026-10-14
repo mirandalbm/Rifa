@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { FOLHA, INTRO_LARGURA_MAX, PECAS_DA_INTRO, deveMostrarIntro, folhasDoTrevo } from "../client/src/lib/intro";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import {
+  ABERTURA_ID,
+  ABERTURA_PRAZO_MS,
+  ABERTURA_TREVO_PX,
+  FOLHA,
+  FOLHA_VERMELHA,
+  INTRO_CHAVE,
+  INTRO_LARGURA_MAX,
+  PECAS_DA_INTRO,
+  ROTAS_SEM_INTRO,
+  contornoDaFolha,
+  deveMostrarIntro,
+  folhasDoTrevo,
+  svgDoTrevo,
+} from "../client/src/lib/intro";
+
+const indexHtml = readFileSync(path.resolve(import.meta.dirname, "../client/index.html"), "utf8");
 
 const base = { largura: 390, caminho: "/", jaViuNaSessao: false, automatizado: false, emMoldura: false };
 
@@ -62,5 +80,40 @@ describe("intro da marca: o trevo", () => {
       expect(p.top, nome).toBeGreaterThanOrEqual(0);
       expect(p.left + p.width, nome).toBeLessThanOrEqual(100);
     }
+  });
+});
+
+describe("intro da marca: o trevo do ícone e a abertura", () => {
+  it("a folha da direita é a vermelha, como no ícone", () => {
+    const direita = folhasDoTrevo()[FOLHA_VERMELHA];
+    for (const c of direita.circulos) expect(c.cx).toBeGreaterThan(0);
+    expect(svgDoTrevo("x")).toContain(`url(#x${"vc"})`);
+  });
+
+  it("cada folha é um contorno só, polígono e lóbulos no mesmo sentido", () => {
+    for (const f of folhasDoTrevo()) {
+      const d = contornoDaFolha(f);
+      expect(d.match(/M/g)).toHaveLength(3);
+      const giros = [...d.matchAll(/A[\d. -]+ 0 1 ([01])/g)].map((m) => m[1]);
+      expect(new Set(giros).size).toBe(1);
+    }
+  });
+
+  it("o index.html desenha o mesmo trevo (gerado por npm run logo-escrita)", () => {
+    expect(indexHtml).toContain(svgDoTrevo("ab", `width="${ABERTURA_TREVO_PX}" height="${ABERTURA_TREVO_PX}"`));
+    expect(indexHtml).toContain(`id="${ABERTURA_ID}"`);
+  });
+
+  it("o index.html repete a regra de quando a intro aparece", () => {
+    const script = indexHtml.slice(indexHtml.indexOf("// A abertura:"), indexHtml.indexOf("</script>", indexHtml.indexOf("// A abertura:")));
+    expect(script).toContain(`"${INTRO_CHAVE}"`);
+    expect(script).toContain(`window.innerWidth > ${INTRO_LARGURA_MAX}`);
+    expect(script).toContain(JSON.stringify(ROTAS_SEM_INTRO).replace(/,/g, ", "));
+    expect(script).toContain("navigator.webdriver");
+    expect(script).toContain("window.top");
+    expect(script).toContain(`}, ${ABERTURA_PRAZO_MS});`);
+    // e já pede as peças da intro, para ela não esperar a rede
+    const { proporcao: _p, trevo: _t, ...imagens } = PECAS_DA_INTRO;
+    for (const p of Object.values(imagens)) expect(script).toContain(`"${p.src}"`);
   });
 });

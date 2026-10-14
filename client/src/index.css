@@ -47,12 +47,8 @@
      * metade de baixo mais escura, como no ícone), com o degradê da arte.
      * Os valores são os de `CORES_DA_LOGO` (client/src/lib/marca.ts). Identidade, nunca estado.
      */
-    --logo-verde-luz: #3aa63a;
-    --logo-verde: #007931;
-    --logo-vermelho-luz: #e2383e;
+    --logo-verde: #026a35;
     --logo-vermelho: #d62931;
-    --logo-vermelho-escuro: #b61d25;
-    --logo-vermelho-fundo: #9c1820;
 
     /*
      * Casas quadradas do mapa e da cartela, alternando azul e verde cheios
@@ -120,12 +116,8 @@
 
       --azul: #5aa9ff;
       --mais: var(--green-deep);
-      --logo-verde-luz: #9be06a;
       --logo-verde: #4cc35a;
-      --logo-vermelho-luz: #f46a6f;
       --logo-vermelho: #ec4a50;
-      --logo-vermelho-escuro: #d42f37;
-      --logo-vermelho-fundo: #c0222b;
       --quadro-azul: #1f6fc4;
       --quadro-verde: #16924e;
       --quadro-texto: #ffffff;
@@ -168,12 +160,8 @@
 
     --azul: #5aa9ff;
     --mais: var(--green-deep);
-    --logo-verde-luz: #9be06a;
     --logo-verde: #4cc35a;
-    --logo-vermelho-luz: #f46a6f;
     --logo-vermelho: #ec4a50;
-    --logo-vermelho-escuro: #d42f37;
-    --logo-vermelho-fundo: #c0222b;
     --quadro-azul: #1f6fc4;
     --quadro-verde: #16924e;
     --quadro-texto: #ffffff;
@@ -471,7 +459,9 @@
 
 /*
  * Intro da marca (`IntroDaMarca`), o mesmo roteiro do vídeo em docs/marca:
- * trevo girando (0,15 s), "Loterias" (0,75 s) e "do Bem" (0,98 s) da esquerda
+ * o trevo sai do meio da tela, onde a abertura do index.html o desenhou
+ * (`--partida-*`), e vai ao lugar dele (0,1 s), "Loterias" (0,75 s) e "do
+ * Bem" (0,98 s) da esquerda
  * para a direita, sublinhado (1,35 s), corações (1,6 e 1,75 s), brilho no
  * trevo (2,05 s) e duas batidas dos corações (2,55 s). Com o movimento
  * reduzido, a regra acima zera as durações e tudo aparece pronto.
@@ -491,8 +481,12 @@
 .intro-marca .intro-brilho {
   opacity: 0;
 }
+.intro-marca .intro-trevo.intro-trevo-pronto {
+  opacity: 1;
+  transform: translate(var(--partida-x), var(--partida-y)) scale(var(--partida-escala));
+}
 .intro-animando .intro-trevo {
-  animation: intro-trevo 850ms cubic-bezier(0.2, 0.8, 0.3, 1) 150ms both;
+  animation: intro-trevo 900ms cubic-bezier(0.45, 0, 0.2, 1) 100ms both;
 }
 .intro-animando .intro-linha {
   animation: intro-linha 550ms ease-out both;
@@ -525,10 +519,9 @@
   animation: intro-brilho 550ms ease-in-out 2050ms both;
 }
 @keyframes intro-trevo {
-  0% { opacity: 0; transform: scale(0) rotate(-180deg); }
-  35% { opacity: 1; }
-  70% { transform: scale(1.1) rotate(-8deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  0% { opacity: 1; transform: translate(var(--partida-x, 0px), var(--partida-y, 0px)) scale(var(--partida-escala, 0)) rotate(0deg); }
+  70% { opacity: 1; transform: translate(0px, 0px) scale(1.08) rotate(-10deg); }
+  100% { opacity: 1; transform: translate(0px, 0px) scale(1) rotate(0deg); }
 }
 @keyframes intro-linha {
   0% { opacity: 1; clip-path: inset(0 100% 0 0); transform: translateY(12px); }

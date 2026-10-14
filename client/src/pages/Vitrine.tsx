@@ -58,7 +58,7 @@ export default function Vitrine() {
           no tablet e 336 no computador (Figma "10 · Loja", 01 Vitrine). */}
       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_296px] lg:grid-cols-[minmax(0,1fr)_336px]">
       <div className="min-w-0 md:px-4 md:pb-8 md:pt-3">
-      <div className="mx-auto w-full min-w-0 max-w-[768px]">
+      <div className="mx-auto w-full min-w-0 max-w-[768px] md:max-w-none">
       {blocos.map((b) => {
           switch (b.tipo) {
             case "regiao":

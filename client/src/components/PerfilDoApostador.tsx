@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { lerFoto } from "@/lib/anexo";
-import { APELIDO_MAX, validarApelido } from "@shared/perfilApostador";
+import { APELIDO_MAX, BIO_MAX, validarApelido, validarBio, validarLinkDoApostador } from "@shared/perfilApostador";
 import { SeloVerificado } from "@/components/SeloVerificado";
 
 interface MeuPerfil {
@@ -12,6 +12,8 @@ interface MeuPerfil {
   foto: string | null;
   nomeReal: string;
   verificado?: boolean;
+  bio?: string | null;
+  link?: string | null;
 }
 
 /**
@@ -61,18 +63,24 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
   const qc = useQueryClient();
   const { data } = useQuery<MeuPerfil>({ queryKey: ["/api/public/conta/perfil"] });
   const [apelido, setApelido] = useState<string | null>(null);
+  const [bio, setBio] = useState<string | null>(null);
+  const [link, setLink] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
   const valor = apelido ?? data?.apelido ?? "";
+  const bioAtual = bio ?? data?.bio ?? "";
+  const linkAtual = link ?? data?.link ?? "";
 
   const salvar = useMutation({
-    mutationFn: (corpo: { apelido?: string; foto?: string | null }) =>
+    mutationFn: (corpo: { apelido?: string; foto?: string | null; bio?: string | null; link?: string | null }) =>
       apiRequest("PUT", "/api/public/conta/perfil", corpo),
     onSuccess: () => {
       setErro(null);
       setOk("Perfil salvo.");
       setApelido(null);
+      setBio(null);
+      setLink(null);
       qc.invalidateQueries({ queryKey: ["/api/public/conta/perfil"] });
       // A foto é a que se compara com o documento: trocar mexe na verificação.
       qc.invalidateQueries({ queryKey: ["/api/public/conta/verificacao"] });
@@ -129,6 +137,54 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
         </div>
         <Button type="submit" disabled={salvar.isPending || !valor.trim()}>
           Salvar apelido
+        </Button>
+      </form>
+      <form
+        className="space-y-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const b = validarBio(bioAtual);
+          if (!b.ok) return setErro(b.erro);
+          const l = validarLinkDoApostador(linkAtual);
+          if (!l.ok) return setErro(l.erro);
+          salvar.mutate({ bio: b.bio, link: l.link });
+        }}
+      >
+        <div>
+          <label htmlFor="bio-do-perfil" className="label-xs">
+            Bio (até {BIO_MAX} caracteres, sem link nem telefone)
+          </label>
+          <textarea
+            id="bio-do-perfil"
+            value={bioAtual}
+            maxLength={BIO_MAX}
+            rows={2}
+            onChange={(e) => {
+              setErro(null);
+              setBio(e.target.value);
+            }}
+            className="mt-1 w-full rounded-md border border-line-2 bg-white px-2 py-2 text-sm outline-none"
+          />
+        </div>
+        <div>
+          <label htmlFor="link-do-perfil" className="label-xs">
+            Link (um só, https)
+          </label>
+          <input
+            id="link-do-perfil"
+            type="url"
+            inputMode="url"
+            value={linkAtual}
+            placeholder="https://seusite.com.br"
+            onChange={(e) => {
+              setErro(null);
+              setLink(e.target.value);
+            }}
+            className="mt-1 w-full rounded-md border border-line-2 bg-white px-2 py-2 text-sm outline-none"
+          />
+        </div>
+        <Button type="submit" disabled={salvar.isPending}>
+          Salvar bio e link
         </Button>
       </form>
       {data.apelido ? (
@@ -188,5 +244,29 @@ export function PerfilPublicoCard() {
     <Card title="Meu perfil público">
       <EditarPerfilPublico />
     </Card>
+  );
+}
+
+/**
+ * O chip de link do perfil, como o do Instagram: com o endereço, leva a ele
+ * (em outra aba, com o rótulo dizendo); sem, é "+ Adicionar" e leva a Minha conta.
+ */
+export function ChipDeLink({ link, claro = false }: { link: string | null; claro?: boolean }) {
+  const classe = `inline-flex max-w-full items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-semibold ${
+    claro ? "border-current" : "border-line-2 text-ink"
+  }`;
+  if (!link) {
+    return (
+      <Link href="/minhas-compras?aba=conta" className={classe}>
+        <span aria-hidden>+</span> Adicionar link
+      </Link>
+    );
+  }
+  const host = new URL(link).hostname.replace(/^www\./, "");
+  return (
+    <a href={link} target="_blank" rel="noopener noreferrer nofollow ugc" className={`${classe} min-w-0`}>
+      <span className="truncate">{host}</span>
+      <span className="sr-only">(abre em outra aba)</span>
+    </a>
   );
 }

@@ -22,7 +22,7 @@ import { PIX_TARDIO_PRAZO_DIAS_UTEIS } from "./pixTardio";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-12";
+export const VIGENCIA_DOS_TERMOS = "2026-10-14";
 
 /**
  * Em quantos dias a plataforma responde a reclamação de consumidor: o teto do
@@ -378,7 +378,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
     {
       titulo: "4. O que fica público",
       itens: [
-        "Nos comentários, o seu apelido ou o primeiro nome com a inicial. No seu perfil (/u/apelido), apelido, foto e o primeiro e o último nome.",
+        "Nos comentários, o seu apelido ou o primeiro nome com a inicial. No seu perfil (/u/apelido), apelido, foto, a bio e o link que você escrever (até 150 letras, sem telefone nem link de contato) e o primeiro e o último nome.",
         "Quando a compra é paga, o primeiro nome com a inicial e a cidade/UF do cadastro podem aparecer em \"jogando agora\" na vitrine; o ganhador (do sorteio ou de cota premiada) aparece da mesma forma, no comentário fixo da rifa e, se a promotora publicar, na foto do resultado. No sorteio pelo globo da plataforma, a ata notarial da extração (com o nome do auditor ou das testemunhas, o local e a hora de cada bola) fica pública na página do sorteio, como prova da apuração. Quem tem o código do pedido vê o nome de quem comprou ao consultá-lo — guarde o código com você.",
         "Se você publicar sobre uma rifa (quando a plataforma liga essa opção), o texto e as fotos que você enviar aparecem na página da rifa com o seu apelido, depois que a organização autorizar; sai do ar se você retirar, se a compra for estornada ou se a organização retirar. As fotos de uma publicação recusada ou retirada são apagadas na hora.",
         "Se você é afiliado e publica sobre uma rifa, o texto e as fotos ou o vídeo que você enviar aparecem na página da rifa com o seu nome curto e o seu código, depois que a organização autorizar (com foto ou vídeo, sempre depois); sai do ar se você retirar, se a organização retirar ou se você perder o vínculo com ela. As fotos e o vídeo saem do banco quando a publicação é recusada ou retirada — inclusive por você, a qualquer momento, em Divulgar.",

@@ -355,6 +355,16 @@ export const buyers = pgTable(
     /** Quando a foto do perfil mudou (a foto em si fica em `comprador_fotos`). */
     fotoEm: timestamp("foto_em"),
     /**
+     * Bio do perfil público (até 150 caracteres, sem link nem telefone —
+     * a régua do comentário). Nulo: sem bio. Público em `/u/<apelido>`.
+     */
+    bio: text("bio"),
+    /**
+     * Link do perfil público (um só, `https:`, a régua de `validarLinks`).
+     * Nulo: sem link. Público em `/u/<apelido>`.
+     */
+    link: text("link"),
+    /**
      * Perfil verificado (selo de trevo). Espelho de `verificacoes.status =
      * 'verificado'`, gravado na mesma transação — a vitrine e os
      * comentários leem daqui sem juntar a tabela do cofre.

@@ -977,7 +977,7 @@ publicRouter.put("/conta/perfil", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     if (!id) return res.status(401).json({ message: "Entre na sua conta." });
-    res.json(await salvarPerfilPublico(id, { apelido: req.body?.apelido, foto: req.body?.foto }));
+    res.json(await salvarPerfilPublico(id, { apelido: req.body?.apelido, foto: req.body?.foto, bio: req.body?.bio, link: req.body?.link }));
   } catch (err) {
     next(err);
   }

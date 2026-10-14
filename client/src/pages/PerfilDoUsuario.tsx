@@ -9,7 +9,7 @@ import { type BilheteDaConta } from "@/components/BilheteComoPublicacao";
 import { type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { TONS_DO_BOTAO } from "@/components/bits";
 import { IconeRepublicar } from "@/components/Icones";
-import { FotoDoApostador } from "@/components/PerfilDoApostador";
+import { ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useListaPaginada } from "@/lib/paginada";
@@ -243,6 +243,8 @@ interface MeuPerfil {
   apelido: string | null;
   nomeReal: string;
   verificado: boolean;
+  bio: string | null;
+  link: string | null;
 }
 
 function PerfilDoApostadorDaConta() {
@@ -319,6 +321,10 @@ function PerfilDoApostadorDaConta() {
       <TopoDoPerfil titulo={titulo} selo={perfil?.verificado ? <SeloVerificado sujeito="apostador" tamanho={18} /> : null} />
       <FotoEContadores foto={foto} numeros={numeros} ponto={pendencias.length > 0} />
       {nome ? <p className="mt-3 text-[15px] font-bold">{nome}</p> : null}
+      {perfil?.bio ? <p className="mt-1 whitespace-pre-line text-[15px] text-ink-2">{perfil.bio}</p> : null}
+      <div className="mt-2">
+        <ChipDeLink link={perfil?.link ?? null} />
+      </div>
 
       {pendencias.length ? (
         <section aria-label="Complete sua conta" className="mt-3 rounded-xl border border-green bg-green-soft p-3.5 text-sm">

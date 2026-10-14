@@ -958,5 +958,7 @@
  "tela:/seja-afiliado": "manter · 10 · Loja · 25 Seja afiliado (node 30-3436) · onda 5",
  "tela:/termos": "manter · 10 · Loja · 19 Termos de uso e Privacidade (node 28-3320) · onda 5",
  "tela:/u/:apelido": "manter · 10 · Loja · 05 Perfil do apostador (node 22-2628) · onda 5",
- "cartao:/#SeletorDeRegiao": "manter · na tela 01 Vitrine · onda 5"
+ "cartao:/#SeletorDeRegiao": "manter · na tela 01 Vitrine · onda 5",
+ "cartao:/perfil#ChipDeLink": "manter · na tela 11 Perfil · onda 5",
+ "cartao:/u/:apelido#ChipDeLink": "manter · na tela 05 Perfil do apostador · onda 5"
 }

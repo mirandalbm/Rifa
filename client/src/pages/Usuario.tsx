@@ -4,7 +4,7 @@ import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
-import { FotoDoApostador } from "@/components/PerfilDoApostador";
+import { ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { BotaoMensagem } from "@/components/BotaoMensagem";
@@ -15,6 +15,8 @@ interface PerfilDoApostador {
   foto: string | null;
   desde: string | null;
   verificado: boolean;
+  bio: string | null;
+  link: string | null;
 }
 
 /**
@@ -45,6 +47,8 @@ export default function Usuario() {
             {data.verificado ? <SeloVerificado sujeito="apostador" tamanho={20} /> : null}
           </h1>
           <p className="text-base">{data.nomeReal}</p>
+          {data.bio ? <p className="whitespace-pre-line text-sm">{data.bio}</p> : null}
+          {data.link ? <ChipDeLink link={data.link} claro /> : null}
           {data.verificado ? (
             <p className="text-xs opacity-75">Apostador verificado: documentos e foto conferidos pela plataforma.</p>
           ) : null}

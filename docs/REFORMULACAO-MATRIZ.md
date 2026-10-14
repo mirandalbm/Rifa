@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 853 |
+| Cartões (componentes usados pelas telas) | 855 |
 | Rotas da API | 480, das quais 476 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 62 |
-| Testes de regra (`tests/`) | 131 arquivos |
-| Destinos decididos | 960 de 960 |
+| Testes de regra (`tests/`) | 132 arquivos |
+| Destinos decididos | 962 de 962 |
 
 ## 1. Telas
 
@@ -1188,6 +1188,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 | Cartão | Destino |
 |---|---|
+| `ChipDeLink` | manter · na tela 11 Perfil · onda 5 |
 | `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 11 Perfil |
 | `FotoDoApostador` | manter · na tela 11 Perfil · onda 5 |
 | `IconeRepublicar` | manter · peça do kit (onda 1) · na tela 11 Perfil |
@@ -1315,6 +1316,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `BotaoMensagem` | manter · na tela 05 Perfil do apostador · onda 5 |
 | `CartaoDoFeed` | manter · na tela 05 Perfil do apostador · onda 5 |
+| `ChipDeLink` | manter · na tela 05 Perfil do apostador · onda 5 |
 | `Empty` | manter · peça do kit (onda 1) · na tela 05 Perfil do apostador |
 | `FOTO_COMO_NO_INSTAGRAM` | manter · peça do kit (onda 1) · na tela 05 Perfil do apostador |
 | `FotoDoApostador` | manter · na tela 05 Perfil do apostador · onda 5 |

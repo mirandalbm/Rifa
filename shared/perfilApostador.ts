@@ -4,6 +4,9 @@
  * esconder atrás do apelido. Telefone, CPF e e-mail nunca aparecem.
  */
 
+import { temLinkOuTelefone } from "./comentarios";
+import { validarLinks } from "./perfil";
+
 export const APELIDO_MIN = 3;
 export const APELIDO_MAX = 30;
 
@@ -38,3 +41,41 @@ export function nomeRealPublico(nome: string | null | undefined) {
 
 /** As reações rápidas da barra de comentários, na ordem do Instagram. */
 export const REACOES = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"] as const;
+
+/* ------------------------------------------------------------------ *
+ * Bio e link do perfil público (Instagram: a bio e o chip de link)
+ * ------------------------------------------------------------------ */
+
+export const BIO_MAX = 150;
+
+/**
+ * A bio é texto puro: sem link e sem telefone (a régua do comentário, porque
+ * a bio aparece para qualquer um). `null`/vazio apaga a bio.
+ */
+export function validarBio(entrada: unknown): { ok: true; bio: string | null } | { ok: false; erro: string } {
+  if (entrada === null || entrada === undefined) return { ok: true, bio: null };
+  if (typeof entrada !== "string") return { ok: false, erro: "A bio precisa ser texto." };
+  const t = entrada.replace(/[ \t]+/g, " ").replace(/\n{2,}/g, "\n").trim();
+  if (!t) return { ok: true, bio: null };
+  if (t.length > BIO_MAX) return { ok: false, erro: `A bio passa de ${BIO_MAX} caracteres.` };
+  const problema = temLinkOuTelefone(t);
+  if (problema) return { ok: false, erro: `Bio: ${problema.charAt(0).toLowerCase()}${problema.slice(1)}` };
+  return { ok: true, bio: t };
+}
+
+/**
+ * O link do perfil: um só, pela régua dos links da organização (`https:`,
+ * sem usuário e senha, com domínio de verdade). Vazio apaga o link.
+ */
+export function validarLinkDoApostador(entrada: unknown): { ok: true; link: string | null } | { ok: false; erro: string } {
+  if (entrada === null || entrada === undefined || (typeof entrada === "string" && !entrada.trim())) {
+    return { ok: true, link: null };
+  }
+  if (typeof entrada !== "string") return { ok: false, erro: "O link precisa ser um endereço." };
+  try {
+    const [l] = validarLinks([{ url: entrada }]);
+    return { ok: true, link: l.url };
+  } catch (err) {
+    return { ok: false, erro: (err as Error).message.replace(/^Link 1: /, "Link: ") };
+  }
+}

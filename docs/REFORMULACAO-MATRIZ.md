@@ -7,8 +7,8 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 855 |
-| Rotas da API | 480, das quais 476 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 62 |
+| Rotas da API | 482, das quais 478 citadas por alguma prova |
+| Provas contra a API (`npm run …`) | 63 |
 | Testes de regra (`tests/`) | 132 arquivos |
 | Destinos decididos | 962 de 962 |
 
@@ -1671,7 +1671,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta` | `ia-test.ts`, `isolation-test.ts` |
 | POST | `/pagamentos` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 
-### `server/routes/public.ts` — /api/public (149 rotas, 147 com prova)
+### `server/routes/public.ts` — /api/public (151 rotas, 149 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
@@ -1737,6 +1737,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta/bilhetes` | `bilhetes-test.ts`, `isolation-test.ts` |
 | GET | `/u/:apelido/republicacoes` | `publicacao-test.ts` |
 | GET | `/u/:apelido` | `bilhetes-test.ts`, `comentarios-test.ts`, `publicacao-test.ts` +2 |
+| POST | `/u/:apelido/seguir` | `seguir-pessoas-test.ts` |
+| DELETE | `/u/:apelido/seguir` | `seguir-pessoas-test.ts` |
 | GET | `/u/:apelido/foto` | `publico-test.ts` |
 | GET | `/notificacoes/resumo` | `push-test.ts` |
 | GET | `/notificacoes` | `push-test.ts` |
@@ -1776,14 +1778,14 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/conta/telefone/codigo` | `conta-test.ts`, `google-test.ts` |
 | POST | `/conta/telefone/confirmar` | `conta-test.ts`, `google-test.ts` |
 | DELETE | `/conta/google` | `google-test.ts` |
-| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +15 |
+| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +16 |
 | POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `telas.ts` |
 | POST | `/conta/sair` | `bilhetes-test.ts`, `conta-test.ts` |
-| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +15 |
+| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +16 |
 | PUT | `/conta/senha` | `conta-test.ts` |
 | PUT | `/conta/cep` | `conta-test.ts` |
 | PUT | `/conta/perfil-publico` | `perfil-test.ts` |
-| POST | `/conta/excluir` | `bilhetes-test.ts`, `conta-test.ts`, `google-test.ts` +1 |
+| POST | `/conta/excluir` | `bilhetes-test.ts`, `conta-test.ts`, `google-test.ts` +2 |
 | GET | `/chamados` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | POST | `/chamados` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | GET | `/chamados/anexos/:id` | `chamados-test.ts` |
@@ -1858,7 +1860,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 
 - `server/routes/admin.ts` (1 de 267): PUT `/media/raw`
 - `server/routes/affiliate.ts` (1 de 36): GET `/divulgacoes/:id/video`
-- `server/routes/public.ts` (2 de 149): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
+- `server/routes/public.ts` (2 de 151): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 
 ## 6. Provas contra a API
 
@@ -1914,6 +1916,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `relogios` | `scripts/relogios-test.ts` |
 | `resultados` | `scripts/resultados-test.ts` |
 | `retencao` | `scripts/retencao-test.ts` |
+| `seguir-pessoas` | `scripts/seguir-pessoas-test.ts` |
 | `seguranca` | `scripts/seguranca-test.ts` |
 | `senha` | `scripts/senha-test.ts` |
 | `solicitacoes` | `scripts/solicitacoes-test.ts` |

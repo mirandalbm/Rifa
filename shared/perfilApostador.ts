@@ -79,3 +79,11 @@ export function validarLinkDoApostador(entrada: unknown): { ok: true; link: stri
     return { ok: false, erro: (err as Error).message.replace(/^Link 1: /, "Link: ") };
   }
 }
+
+/**
+ * Seguir uma pessoa: a única regra de quem segue é não seguir a si mesmo. A
+ * conferência de conta e apelido fica no serviço (`server/services/seguirPessoas.ts`).
+ */
+export function problemaNoSeguirPessoa(seguidorId: string, seguidoId: string): string | null {
+  return seguidorId === seguidoId ? "Você não pode seguir o próprio perfil." : null;
+}

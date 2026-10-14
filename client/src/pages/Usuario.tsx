@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { CartaoDoFeed, type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { useTemplate } from "@/lib/template";
 import { Link, useParams } from "wouter";
@@ -8,6 +10,8 @@ import { ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { BotaoMensagem } from "@/components/BotaoMensagem";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useSession } from "@/lib/session";
 
 interface PerfilDoApostador {
   apelido: string;
@@ -17,6 +21,10 @@ interface PerfilDoApostador {
   verificado: boolean;
   bio: string | null;
   link: string | null;
+  seguidores: number;
+  seguindo: number;
+  seguidoPorMim: boolean;
+  proprio: boolean;
 }
 
 /**
@@ -49,6 +57,10 @@ export default function Usuario() {
           <p className="text-base">{data.nomeReal}</p>
           {data.bio ? <p className="whitespace-pre-line text-sm">{data.bio}</p> : null}
           {data.link ? <ChipDeLink link={data.link} claro /> : null}
+          <p className="tnum text-sm">
+            <strong className="font-semibold">{data.seguidores}</strong> seguidores · <strong className="font-semibold">{data.seguindo}</strong> seguindo
+          </p>
+          <BotaoSeguir apelido={data.apelido} seguidoPorMim={data.seguidoPorMim} proprio={data.proprio} />
           {data.verificado ? (
             <p className="text-xs opacity-75">Apostador verificado: documentos e foto conferidos pela plataforma.</p>
           ) : null}
@@ -68,6 +80,40 @@ export default function Usuario() {
       ) : null}
       {data ? <Republicacoes apelido={data.apelido} /> : null}
     </PublicShell>
+  );
+}
+
+/**
+ * Seguir a pessoa (só com conta; sem conta não aparece, e no próprio perfil
+ * também não). `aria-pressed` diz o estado; o texto diz também, não só a cor.
+ */
+function BotaoSeguir({ apelido, seguidoPorMim, proprio }: { apelido: string; seguidoPorMim: boolean; proprio: boolean }) {
+  const { data: sessao } = useSession();
+  const conta = Boolean(sessao?.buyer?.conta);
+  const [erro, setErro] = useState<string | null>(null);
+  const mudar = useMutation({
+    mutationFn: () =>
+      apiRequest(seguidoPorMim ? "DELETE" : "POST", `/api/public/u/${apelido}/seguir`),
+    onSuccess: () => {
+      setErro(null);
+      queryClient.invalidateQueries({ queryKey: [`/api/public/u/${apelido}`] });
+    },
+    onError: (e: Error) => setErro(e.message),
+  });
+  if (!conta || proprio) return null;
+  return (
+    <div className="flex flex-col items-center gap-1 pt-2">
+      <button
+        type="button"
+        aria-pressed={seguidoPorMim}
+        disabled={mudar.isPending}
+        onClick={() => mudar.mutate()}
+        className="rounded-[10px] border border-current px-[18px] py-[9px] text-sm font-semibold text-current hover:bg-black/10 disabled:opacity-60"
+      >
+        {seguidoPorMim ? "✓ Seguindo" : "Seguir"}
+      </button>
+      {erro ? <p role="alert" className="text-xs">{erro}</p> : null}
+    </div>
   );
 }
 

@@ -7,6 +7,7 @@ import { loteriaDoSorteio } from "@shared/sorteiosOficiais";
 import { conferirRecibo } from "../services/recibos";
 import { denunciar } from "../services/seguranca";
 import { fotoDoApostador, meuPerfilPublico, perfilPublicoDoApostador, quemTambemJoga, salvarPerfilPublico } from "../services/perfilApostador";
+import { deixarDeSeguirPessoa, seguirPessoa } from "../services/seguirPessoas";
 import { apagarComentario, comentar, curtirComentario, listarComentarios } from "../services/comentarios";
 import {
   apagarComentarioDoSorteio,
@@ -1101,7 +1102,28 @@ publicRouter.get("/u/:apelido/republicacoes", async (req, res, next) => {
 
 publicRouter.get("/u/:apelido", async (req, res, next) => {
   try {
-    res.json(await perfilPublicoDoApostador(req.params.apelido));
+    res.json(await perfilPublicoDoApostador(req.params.apelido, req.session.buyer?.id ?? null));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Seguir e deixar de seguir outro apostador (regras e contadores em `services/seguirPessoas.ts`). */
+publicRouter.post("/u/:apelido/seguir", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await seguirPessoa(id, req.params.apelido));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.delete("/u/:apelido/seguir", async (req, res, next) => {
+  try {
+    const id = req.session.buyer?.id;
+    if (!id) return res.status(401).json({ message: "Entre na sua conta." });
+    res.json(await deixarDeSeguirPessoa(id, req.params.apelido));
   } catch (err) {
     next(err);
   }

@@ -347,6 +347,12 @@ export const buyers = pgTable(
     /** Cotas de bônus a resgatar. Anda com `bonus_lancamentos`, na mesma transação. */
     bonusSaldo: integer("bonus_saldo").notNull().default(0),
     /**
+     * Seguidores (quem segue esta pessoa) e seguindo (quantas pessoas ela segue),
+     * em `seguidores_pessoas`. Andam na mesma transação do seguir.
+     */
+    seguidoresCount: integer("seguidores_count").notNull().default(0),
+    seguindoPessoasCount: integer("seguindo_pessoas_count").notNull().default(0),
+    /**
      * Apelido público, como o nome de usuário do Instagram (minúsculas,
      * números, ponto e sublinhado). Exigido para comentar; o perfil
      * `/u/<apelido>` mostra também o primeiro e o último nome reais.
@@ -1690,6 +1696,29 @@ export const seguidores = pgTable(
   (t) => [
     primaryKey({ columns: [t.organizationId, t.buyerId] }),
     index("idx_seguidores_buyer").on(t.buyerId),
+  ],
+);
+
+/**
+ * Seguir uma pessoa (apostador com conta e apelido). A chave composta é o
+ * que decide: duas vezes, uma linha. Os contadores de `buyers` andam na mesma
+ * transação, e só quando a linha entrou ou saiu. Nunca aparece a lista de
+ * quem segue quem: a página mostra só os números.
+ */
+export const seguidoresPessoas = pgTable(
+  "seguidores_pessoas",
+  {
+    seguidorId: uuid("seguidor_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    seguidoId: uuid("seguido_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    criadoEm: timestamp("criado_em").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.seguidorId, t.seguidoId] }),
+    index("idx_seguidores_pessoas_seguido").on(t.seguidoId),
   ],
 );
 

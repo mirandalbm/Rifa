@@ -246,6 +246,8 @@ interface MeuPerfil {
   verificado: boolean;
   bio: string | null;
   link: string | null;
+  seguidores: number;
+  seguindo: number;
 }
 
 function PerfilDoApostadorDaConta() {
@@ -254,7 +256,6 @@ function PerfilDoApostadorDaConta() {
   const conta = Boolean(sessao?.buyer?.conta);
   const pendencias = usePendencias();
   const { data: perfil } = useQuery<MeuPerfil>({ queryKey: ["/api/public/conta/perfil"], enabled: conta });
-  const { data: seguindo } = useQuery<unknown[]>({ queryKey: ["/api/public/seguindo"], enabled: conta });
   const bilhetes = useListaPaginada<BilheteDaConta[]>("/api/public/conta/bilhetes", {}, { enabled: conta });
   const apelido = perfil?.apelido ?? null;
   const { data: republicacoes, isLoading: carregandoRepublicacoes } = useQuery<RifaDoFeed[]>({
@@ -311,8 +312,10 @@ function PerfilDoApostadorDaConta() {
   const podePublicar = publicarApostador && Boolean(apelido);
   const numeros: Numero[] = [
     { rotulo: "bilhetes", valor: bilhetes.isLoading ? "…" : `${listaDeBilhetes.length}${bilhetes.hasNextPage ? "+" : ""}` },
-    { rotulo: "republicações", valor: apelido ? String(republicacoes?.length ?? "…") : "0" },
-    { rotulo: "seguindo", valor: String(seguindo?.length ?? "…") },
+    // Seguidores e seguindo são pessoas (`seguidores_pessoas`); a lista de organizações
+    // seguidas não tem tela no perfil, então o número dela saiu daqui.
+    { rotulo: "seguidores", valor: perfil ? String(perfil.seguidores) : "…" },
+    { rotulo: "seguindo", valor: perfil ? String(perfil.seguindo) : "…" },
   ];
   const abas: Aba[] = [
     { chave: "bilhetes", rotulo: "Bilhetes", icone: (ativa) => <List size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },

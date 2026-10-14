@@ -962,5 +962,7 @@
  "cartao:/perfil#ChipDeLink": "manter · na tela 11 Perfil · onda 5",
  "cartao:/u/:apelido#ChipDeLink": "manter · na tela 05 Perfil do apostador · onda 5",
  "cartao:/perfil#BalaoDaNota": "manter · na tela 11 Perfil · onda 5",
- "cartao:/u/:apelido#BalaoDaNota": "manter · na tela 05 Perfil do apostador · onda 5"
+ "cartao:/u/:apelido#BalaoDaNota": "manter · na tela 05 Perfil do apostador · onda 5",
+ "cartao:/perfil#MarcadosNoPerfil": "manter · na tela 11 Perfil · onda 5",
+ "cartao:/u/:apelido#MarcadosNoPerfil": "manter · na tela 05 Perfil do apostador · onda 5"
 }

@@ -28,6 +28,7 @@
     "conta": "tsx scripts/conta-test.ts",
     "seguir-pessoas": "tsx scripts/seguir-pessoas-test.ts",
     "nota": "tsx scripts/nota-test.ts",
+    "marcados": "tsx scripts/marcados-test.ts",
     "bilhetes": "tsx scripts/bilhetes-test.ts",
     "perfil": "tsx scripts/perfil-test.ts",
     "push": "tsx scripts/push-test.ts",

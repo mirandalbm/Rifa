@@ -26,9 +26,13 @@ import {
   fotoDoAutor,
   fotoPublica,
   videoPublico,
+  aceitarMarcacao,
+  marcacoesPendentes,
+  marcadosPublicos,
   minhasDoApostador,
   publicarComoApostador,
   retirarPropriaDoApostador,
+  tirarMarcacao,
   rifasDoApostador,
 } from "../services/divulgacao";
 import { fotoDoGanhador, urlDaFotoDoGanhador } from "../services/ganhador";
@@ -1136,6 +1140,45 @@ publicRouter.delete("/u/:apelido/seguir", async (req, res, next) => {
     const id = req.session.buyer?.id;
     if (!id) return res.status(401).json({ message: "Entre na sua conta." });
     res.json(await deixarDeSeguirPessoa(id, req.params.apelido));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ---------------- marcados (pessoas marcadas numa publicação de apostador) ---------------- */
+
+/** Os pedidos de marcação que esperam a resposta de quem está logado. */
+publicRouter.get("/conta/marcacoes", async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json(await marcacoesPendentes(req));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Aceita a marcação: a publicação passa a aparecer no perfil de quem foi marcado. */
+publicRouter.post("/marcacoes/:id/aceitar", async (req, res, next) => {
+  try {
+    res.json(await aceitarMarcacao(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Recusa o pedido ou tira a marcação já aceita. */
+publicRouter.delete("/marcacoes/:id", async (req, res, next) => {
+  try {
+    res.json(await tirarMarcacao(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** As publicações em que o apelido foi marcado e aceitou, no ar (aba Marcados do perfil). */
+publicRouter.get("/u/:apelido/marcados", async (req, res, next) => {
+  try {
+    res.json(await marcadosPublicos(req.params.apelido));
   } catch (err) {
     next(err);
   }

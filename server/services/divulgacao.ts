@@ -20,6 +20,7 @@
  *   sempre passam pela organização: a varredura do Pix por fora só lê texto.
  */
 import { ehUuid } from "@shared/uuid";
+import { avisoDaMarcacao, validarMarcados } from "@shared/marcacoes";
 import type { Request } from "express";
 import sharp from "sharp";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
@@ -31,6 +32,7 @@ import {
   campaignMedia,
   campaigns,
   divulgacaoFotos,
+  divulgacaoMarcacoes,
   divulgacaoVideos,
   divulgacoes,
   orders,
@@ -261,12 +263,16 @@ async function gravarVideo(tx: Tx, divulgacaoId: string, v: VideoLido) {
   return linha.id;
 }
 
-async function gravar(valores: typeof divulgacoes.$inferInsert, fotos: Buffer[] = [], video: VideoLido | null = null) {
+async function gravar(valores: typeof divulgacoes.$inferInsert, fotos: Buffer[] = [], video: VideoLido | null = null, marcados: string[] = []) {
   try {
     const r = await db.transaction(async (tx: Tx) => {
       const [d] = await tx.insert(divulgacoes).values(valores).returning();
       if (fotos.length) await tx.insert(divulgacaoFotos).values(fotos.map((bytes, posicao) => ({ divulgacaoId: d.id, posicao, bytes })));
       const videoId = video ? await gravarVideo(tx, d.id, video) : null;
+      // As marcações nascem na mesma transação da peça: sem peça, não há marcação.
+      if (marcados.length) {
+        await tx.insert(divulgacaoMarcacoes).values(marcados.map((buyerId) => ({ divulgacaoId: d.id, buyerId }))).onConflictDoNothing();
+      }
       return { d, videoId };
     });
     if (video && r.videoId) emSegundoPlano(gerarPosterDaPeca(r.d.id, r.videoId, video), "pôster da divulgação");
@@ -527,6 +533,11 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
   if (entrada.video !== undefined && entrada.video !== null) throw new DivulgacaoError("O apostador publica texto e fotos.", 422);
   const fotosBrutas = regra(() => validarFotos(entrada.fotos)) ?? [];
   const publicaEm = regra(() => agendaDaPeca(entrada.publicaEm)) ?? null;
+  const marcados = regra(() => {
+    const m = validarMarcados(entrada.marcados);
+    if (!m.ok) throw new Error(m.erro);
+    return m.apelidos;
+  });
   const rifa = await rifaParaDivulgar(entrada.slug);
   // Só fala da rifa quem joga nela: compra paga (a PK do pedido, não um palpite).
   const [joga] = await db
@@ -535,6 +546,8 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
     .where(and(eq(orders.buyerId, b.id), eq(orders.campaignId, rifa.id), eq(orders.status, "paid")))
     .limit(1);
   if (!joga) throw new DivulgacaoError("Só quem comprou esta rifa publica sobre ela.", 403);
+  // Conferido antes de gravar: apelido que não existe ou a própria pessoa é 422, sem nada gravado.
+  const marcadosIds = await pessoasParaMarcar(marcados, b.id);
   const limite = await hit(`divulgacao:apostador:${b.id}`, 24 * 60, DIVULGACOES_POR_DIA);
   if (limite.excedeu) throw new DivulgacaoError("Muitas divulgações hoje. Tente amanhã.", 429);
   barrarPixPorFora(dados.legenda, rifa, `apostador @${b.apelido}`);
@@ -549,7 +562,8 @@ export async function publicarComoApostador(req: Request, entrada: Record<string
     // Sempre a organização antes de ir ao ar, qualquer que seja o modo dela.
     status: statusInicial("apostador", "direta"),
     publicaEm,
-  }, fotos);
+  }, fotos, null, marcadosIds);
+  if (marcadosIds.length) emSegundoPlano(avisarMarcados(d.id, marcadosIds, b.apelido ?? "", rifa.title), "aviso de marcação");
   return { id: d.id, status: d.status };
 }
 
@@ -655,6 +669,123 @@ export async function retirarPropria(dono: { affiliateId: string } | { buyerId: 
     await tx.delete(divulgacaoVideos).where(eq(divulgacaoVideos.divulgacaoId, id));
   });
   return { ok: true };
+}
+
+/* ------------------------------------------------------------------ *
+ * Marcados: pessoas marcadas numa publicação de apostador
+ * ------------------------------------------------------------------ */
+
+const MARCADOS_NO_PERFIL = 24;
+
+/** Acha as contas marcadas pelo apelido. Apelido que não existe, ou marcar a si mesmo, são 422. */
+async function pessoasParaMarcar(apelidos: string[], autorId: string): Promise<string[]> {
+  if (!apelidos.length) return [];
+  const achadas = await db
+    .select({ id: buyers.id, apelido: buyers.apelido })
+    .from(buyers)
+    .where(and(inArray(buyers.apelido, apelidos), isNull(buyers.excluidoEm), isNotNull(buyers.passwordHash)));
+  const porApelido = new Map(achadas.map((a) => [a.apelido, a.id]));
+  return apelidos.map((apelido) => {
+    const id = porApelido.get(apelido);
+    if (!id) throw new DivulgacaoError(`Não achei @${apelido}. Confira o apelido.`, 422);
+    if (id === autorId) throw new DivulgacaoError("Você não pode se marcar.", 422);
+    return id;
+  });
+}
+
+/** O aviso de quem foi marcado: a chave é a publicação (uma vez por pessoa), e o texto não traz a legenda. */
+function avisarMarcados(divulgacaoId: string, ids: string[], autor: string, rifa: string) {
+  return avisar(ids, "divulgacao", `marcacao:${divulgacaoId}`, {
+    ...avisoDaMarcacao(autor, rifa),
+    url: "/perfil",
+    tag: `marcacao-${divulgacaoId}`,
+  });
+}
+
+/** Os pedidos de marcação que esperam a resposta de quem foi marcado (da publicação em análise ou no ar). */
+export async function marcacoesPendentes(req: Request) {
+  await interruptorDoApostador();
+  const b = await apostadorComConta(req);
+  const linhas = await db
+    .select({
+      id: divulgacoes.id,
+      criadaEm: divulgacaoMarcacoes.criadaEm,
+      legenda: divulgacoes.legenda,
+      autor: buyers.apelido,
+      rifa: campaigns.title,
+    })
+    .from(divulgacaoMarcacoes)
+    .innerJoin(divulgacoes, eq(divulgacoes.id, divulgacaoMarcacoes.divulgacaoId))
+    .innerJoin(campaigns, eq(campaigns.id, divulgacoes.campaignId))
+    .innerJoin(buyers, eq(buyers.id, divulgacoes.buyerId))
+    .where(
+      and(
+        eq(divulgacaoMarcacoes.buyerId, b.id),
+        eq(divulgacaoMarcacoes.situacao, "pendente"),
+        // Esperando a organização ou no ar: recusada ou retirada, o pedido some.
+        inArray(divulgacoes.status, ["em_analise", "publicada"]),
+      ),
+    )
+    .orderBy(desc(divulgacaoMarcacoes.criadaEm))
+    .limit(20);
+  return linhas.map((l) => ({ id: l.id, quem: `@${l.autor}`, rifa: l.rifa, legenda: l.legenda, criadaEm: l.criadaEm }));
+}
+
+/** Quem foi marcado aceita: a publicação passa a aparecer no perfil dele. */
+export async function aceitarMarcacao(req: Request, divulgacaoId: string) {
+  await interruptorDoApostador();
+  const b = await apostadorComConta(req);
+  if (!ehUuid(divulgacaoId)) throw new DivulgacaoError("Publicação não encontrada.", 404);
+  // Só a linha pendente vira aceita: dois cliques, um aceite e um 404.
+  const [r] = await db
+    .update(divulgacaoMarcacoes)
+    .set({ situacao: "aceita", decididaEm: new Date() })
+    .where(
+      and(
+        eq(divulgacaoMarcacoes.divulgacaoId, divulgacaoId),
+        eq(divulgacaoMarcacoes.buyerId, b.id),
+        eq(divulgacaoMarcacoes.situacao, "pendente"),
+      ),
+    )
+    .returning({ id: divulgacaoMarcacoes.divulgacaoId });
+  if (!r) throw new DivulgacaoError("Publicação não encontrada.", 404);
+  return { ok: true };
+}
+
+/** Recusar um pedido ou tirar uma marcação já aceita: a linha sai, e quem publicou não é avisado. */
+export async function tirarMarcacao(req: Request, divulgacaoId: string) {
+  await interruptorDoApostador();
+  const b = await apostadorComConta(req);
+  if (!ehUuid(divulgacaoId)) throw new DivulgacaoError("Publicação não encontrada.", 404);
+  const [r] = await db
+    .delete(divulgacaoMarcacoes)
+    .where(and(eq(divulgacaoMarcacoes.divulgacaoId, divulgacaoId), eq(divulgacaoMarcacoes.buyerId, b.id)))
+    .returning({ id: divulgacaoMarcacoes.divulgacaoId });
+  if (!r) throw new DivulgacaoError("Publicação não encontrada.", 404);
+  return { ok: true };
+}
+
+/**
+ * As publicações em que a pessoa foi marcada e aceitou. A régua é a do feed
+ * (`pecasNoAr`): o autor ainda compra a rifa, a rifa está no ar, a publicação
+ * está aprovada e passou da hora. Quem não tem nada no ar vê lista vazia.
+ */
+export async function marcadosPublicos(apelido: string) {
+  const [alvo] = await db
+    .select({ id: buyers.id })
+    .from(buyers)
+    .where(and(eq(buyers.apelido, apelido.toLowerCase()), isNull(buyers.excluidoEm)));
+  if (!alvo) throw new DivulgacaoError("Perfil não encontrado.", 404);
+  return pecasNoAr(
+    inArray(
+      divulgacoes.id,
+      db
+        .select({ id: divulgacaoMarcacoes.divulgacaoId })
+        .from(divulgacaoMarcacoes)
+        .where(and(eq(divulgacaoMarcacoes.buyerId, alvo.id), eq(divulgacaoMarcacoes.situacao, "aceita"))),
+    ),
+    MARCADOS_NO_PERFIL,
+  );
 }
 
 export async function retirarPropriaDoApostador(req: Request, id: string) {

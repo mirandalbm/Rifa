@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useTemplate } from "@/lib/template";
 import { Link, Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Bookmark, Grid3x3, List, Lock, Megaphone, Plus, Settings, Store } from "lucide-react";
+import { Bookmark, Grid3x3, List, Lock, Megaphone, Plus, Settings, Store, Tag } from "lucide-react";
 import { PublicShell } from "@/components/AppShell";
 import { useConfigDoApp, usePendencias } from "@/components/Console";
 import { type BilheteDaConta } from "@/components/BilheteComoPublicacao";
@@ -10,6 +10,7 @@ import { type RifaDoFeed } from "@/components/CartaoDoFeed";
 import { TONS_DO_BOTAO } from "@/components/bits";
 import { IconeRepublicar } from "@/components/Icones";
 import { BalaoDaNota, ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
+import { MarcadosNoPerfil } from "@/components/MarcadosNoPerfil";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { useListaPaginada } from "@/lib/paginada";
@@ -321,6 +322,8 @@ function PerfilDoApostadorDaConta() {
   const abas: Aba[] = [
     { chave: "bilhetes", rotulo: "Bilhetes", icone: (ativa) => <List size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
     { chave: "republicacoes", rotulo: "Republicações", icone: (ativa) => <IconeRepublicar tamanho={22} aceso={ativa} /> },
+    // Só aparece o que a pessoa aceitou (e a publicação segue no ar); os pedidos ficam no topo da aba.
+    { chave: "marcados", rotulo: "Marcados", icone: (ativa) => <Tag size={22} strokeWidth={ativa ? 2.25 : 1.75} /> },
     // O Figma desenha a sacola; a sacola é o Carrinho do console, então Salvos segue com o marcador.
     { chave: "salvos", rotulo: "Salvos", icone: (ativa) => <Bookmark size={22} strokeWidth={ativa ? 2.25 : 1.75} />, privada: true },
   ];
@@ -410,6 +413,11 @@ function PerfilDoApostadorDaConta() {
             imagem: capaDaRifa(r),
           }))}
         />
+      ) : null}
+      {aba === "marcados" && apelido ? (
+        <div className="mt-4">
+          <MarcadosNoPerfil apelido={apelido} proprio />
+        </div>
       ) : null}
       {aba === "salvos" ? (
         <Grade

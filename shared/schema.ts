@@ -3588,6 +3588,31 @@ export const divulgacaoVideos = pgTable("divulgacao_videos", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Pessoa marcada numa publicação de apostador. Só `aceita` aparece no perfil
+ * dela (aba Marcados): quem marca não decide sozinho. A chave `(publicação,
+ * pessoa)` decide: marcar duas vezes é uma linha só. Recusar ou tirar a
+ * marcação apaga a linha.
+ */
+export const divulgacaoMarcacoes = pgTable(
+  "divulgacao_marcacoes",
+  {
+    divulgacaoId: uuid("divulgacao_id")
+      .notNull()
+      .references(() => divulgacoes.id, { onDelete: "cascade" }),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id, { onDelete: "cascade" }),
+    situacao: text("situacao").$type<"pendente" | "aceita">().notNull().default("pendente"),
+    criadaEm: timestamp("criada_em").notNull().defaultNow(),
+    decididaEm: timestamp("decidida_em"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.divulgacaoId, t.buyerId] }),
+    index("idx_marcacao_pessoa_situacao").on(t.buyerId, t.situacao),
+  ],
+);
+
 /* ------------------------------------------------------------------ *
  * Assistente de IA (Chatbase) — conversa e uso
  * ------------------------------------------------------------------ */

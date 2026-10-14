@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Empty } from "@/components/bits";
 import { BalaoDaNota, ChipDeLink, FotoDoApostador } from "@/components/PerfilDoApostador";
+import { MarcadosNoPerfil } from "@/components/MarcadosNoPerfil";
 import { FOTO_COMO_NO_INSTAGRAM } from "@/components/Seguir";
 import { SeloVerificado } from "@/components/SeloVerificado";
 import { BotaoMensagem } from "@/components/BotaoMensagem";
@@ -81,6 +82,16 @@ export default function Usuario() {
         </section>
       ) : null}
       {data ? <Republicacoes apelido={data.apelido} /> : null}
+      {data ? (
+        <section aria-labelledby="titulo-marcados">
+          <div className="px-4 py-6 text-center">
+            <h2 id="titulo-marcados" className="text-sm font-semibold text-ink-2">
+              Marcados
+            </h2>
+          </div>
+          <MarcadosNoPerfil apelido={data.apelido} proprio={false} />
+        </section>
+      ) : null}
     </PublicShell>
   );
 }

@@ -3,10 +3,31 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 01/10/2026 (painéis no padrão Materialize).
+Última atualização: 15/10/2026 (seção 0: ajustes de topo, locais e rifas nacionais).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
-senha); **[código]** é trabalho no repositório.
+senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
+resposta de produto antes de codar.
+
+## 0. Ajustes de 15/10/2026 (checklist por urgência)
+
+O checklist completo, com o que falta em cada item e quem decide, está em
+`docs/CHECKLIST-AJUSTES.md`. Resumo:
+
+- [ ] **[você]** Autorizar o merge do PR #266 (ícone do app) e publicar o
+  template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
+- [ ] **[decisão]** Largura da publicação da rifa (igual ao cartão da vitrine?).
+- [ ] **[decisão]** Cor dos ícones de compra ("+" e sacola).
+- [ ] **[código]** Ícone do topo à esquerda centralizado na vertical.
+- [ ] **[decisão]** "Rifas perto de" vira "Locais": painel com todos os
+  estados e bandeiras (enviar as imagens, ou selo com a sigla).
+- [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo.
+- [ ] **[decisão]** Rifa nacional: valor mínimo, aprovação só pelo admin e
+  ordem no topo (muda a regra "a localização ordena, nunca esconde").
+- [ ] **[decisão]** Banners por estado (carrossel de 5 em cada estado e no
+  nacional) e cadastro no portal de marketing.
+- [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
+  afiliado, cambista, plataforma, marketing), um PR por acesso.
 
 ## 1. WhatsApp
 

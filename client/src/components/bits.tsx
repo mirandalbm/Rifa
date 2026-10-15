@@ -29,7 +29,7 @@ export function Progress({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuetext={texto}
-      aria-label={rotulo}
+      aria-label={rotulo ?? texto ?? `${pct}%`}
     >
       <div
         className={`h-full rounded-full ${tone === "yellow" ? "bg-yellow" : "bg-green"}`}

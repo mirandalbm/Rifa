@@ -153,7 +153,7 @@ export function GerarReels({
                         onClick={() => alternar(f.id)}
                         disabled={!escolhida && cheiaDeFotos}
                         aria-pressed={escolhida}
-                        aria-label={escolhida ? `${nome}: entra em ${ordem + 1}º lugar` : `${nome}: fora do vídeo`}
+                        aria-label={escolhida ? `${ordem + 1} · ${nome}: entra em ${ordem + 1}º lugar` : `${nome}: fora do vídeo`}
                         className={`relative block aspect-[9/16] w-full overflow-hidden rounded-md border-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green disabled:opacity-40 ${
                           escolhida ? "border-green" : "border-line opacity-60"
                         }`}

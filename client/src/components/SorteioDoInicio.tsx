@@ -386,7 +386,7 @@ function FileiraDeAvatares({
 }) {
   useVistos();
   return (
-    <ul className="flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2" data-sem-gesto>
+    <ul className="flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2" data-sem-gesto tabIndex={0} aria-label="Rifas em destaque">
       {rifas.map((r) => {
         const o = r.organizacao;
         const rifa = `/o/${o.slug}/r/${r.slug}`;
@@ -474,13 +474,6 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
         [falta.segundos, "seg"],
       ]
     : [];
-  const rotulo = !proximo
-    ? oficial
-      ? `Resultado oficial: ${oficial.nome}. Abrir a tela do sorteio`
-      : "Nenhum sorteio marcado. Abrir a tela do sorteio"
-    : falta?.aoVivo
-      ? `Sorteio ao vivo agora. ${proximo.nome}. Abrir a tela do sorteio`
-      : `Próximo sorteio em ${falta?.dias} dias, ${falta?.horas} horas e ${falta?.minutos} minutos. ${proximo.nome}. Abrir a tela do sorteio`;
 
   // Um banner pequeno de ponta a ponta: o título em cima, as casas no meio
   // (como a tela do sorteio), quem realiza o sorteio — nunca o prêmio — e,
@@ -492,15 +485,14 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
     <button
       type="button"
       onClick={onAbrir}
-      aria-label={rotulo}
       className="flex w-full min-w-0 flex-col items-center justify-center gap-3 rounded-xl border border-line-2 bg-[#0B1F14] p-4 text-center text-branco md:hidden"
     >
-      <span aria-hidden className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-green-bright">
-        <Radio size={14} className="shrink-0" />
+      <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-green-bright">
+        <Radio size={14} className="shrink-0" aria-hidden />
         {!proximo ? (oficial ? "Resultado do sorteio" : "Sorteios") : falta?.aoVivo ? "Ao vivo agora" : "Próximo sorteio"}
       </span>
       {proximo && !falta?.aoVivo ? (
-        <span aria-hidden className="flex items-stretch justify-center gap-2">
+        <span className="flex items-stretch justify-center gap-2">
           {casas.map(([n, u]) => (
             <span key={u} className="flex w-16 flex-col items-center rounded-[10px] bg-branco/10 py-2">
               <span className="tnum text-2xl font-medium leading-none">{String(n).padStart(2, "0")}</span>
@@ -509,12 +501,13 @@ export function ContagemDoSorteio({ onAbrir }: { onAbrir: () => void }) {
           ))}
         </span>
       ) : null}
-      <span aria-hidden className="flex max-w-full flex-col items-center gap-2">
+      <span className="flex max-w-full flex-col items-center gap-2">
         <span className={`max-w-full truncate text-[13px] ${proximo ? "font-bold text-branco" : "text-branco/80"}`}>
           {proximo ? proximo.nome : oficial ? oficial.nome : "Toque para ver os últimos sorteios"}
         </span>
         {hora ? <span className="tnum text-[11px] text-branco/70">{hora}</span> : null}
       </span>
+      <span className="sr-only">Abrir a tela do sorteio</span>
     </button>
   );
 }

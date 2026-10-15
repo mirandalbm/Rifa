@@ -184,7 +184,7 @@ function Linha({
         disabled={!podeCurtir || curtir.isPending}
         onClick={() => curtir.mutate(!curtido.curti)}
         aria-pressed={curtido.curti}
-        aria-label={`${curtido.curti ? "Descurtir" : "Curtir"} (${curtido.n} curtida${curtido.n === 1 ? "" : "s"})`}
+        aria-label={`${curtido.curti ? "Descurtir" : "Curtir"}, ${curtido.n} curtida${curtido.n === 1 ? "" : "s"}`}
         className="flex w-8 shrink-0 flex-col items-center pt-1 text-muted disabled:opacity-60"
       >
         <Heart size={16} aria-hidden className={curtido.curti ? "fill-current text-marca" : ""} />

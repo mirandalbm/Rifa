@@ -106,7 +106,7 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
       {/* Só a rifa vai dentro do cartão, logo abaixo da imagem e acima das ações. */}
       <Link href={href} onClick={() => marcarOrigem(origem)} className="mx-3 mt-3 block rounded-xl border border-line px-3.5 py-3 hover:bg-mist">
         <div className="space-y-2">
-          <h3 className="font-display text-base font-bold leading-tight">{c.prizeTitle}</h3>
+          <h2 className="font-display text-base font-bold leading-tight">{c.prizeTitle}</h2>
           {c.demonstracao ? (
             <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-2">
               <Pill status="pending">Demonstração</Pill> exemplo, não está à venda

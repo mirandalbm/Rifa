@@ -1,5 +1,8 @@
 import { useId } from "react";
+import { TrevoDaMarca } from "@/components/TrevoDaMarca";
 import { useTemplate } from "@/lib/template";
+import { NOME_DA_LOGO_ESCRITA, usaLogoEscrita } from "@/lib/marca";
+import { LOGO_ESCRITA } from "@/lib/logoEscritaDesenho";
 
 /**
  * O símbolo da marca: um bilhete com um coração recortado (o recorte deixa
@@ -38,13 +41,47 @@ export function IconeDaMarca({ className = "" }: { className?: string }) {
 }
 
 /**
- * Nome (ou logo) da plataforma, como o template manda. Sem logo enviada,
- * o nome com o ponto na cor de marca — o de sempre.
+ * A frase "Loterias do Bem" na Google Sans Flex 400 (reta, pontas redondas),
+ * numa linha: os contornos vêm de `npm run logo-escrita` (`LOGO_ESCRITA`).
+ * "Loterias do" no verde e "bem" no vermelho; as cores são os tokens
+ * `--logo-*`, que trocam com o tema.
  *
- * A partir do tablet (`sm`), o símbolo e o nome novos: a primeira palavra em
- * tinta e o resto na cor de marca ("Loterias do Bem"). O celular fica como era
- * (só o texto), por decisão do dono: a mudança de marca é só para tablet e
- * computador.
+ * A altura acompanha a letra de quem a usa (1,2em), então ela ocupa o lugar
+ * do nome escrito sem mexer no topo. O desenho é decorativo para o leitor de
+ * tela; o nome vai em texto (`sr-only`).
+ */
+export function LogoEscrita({ className = "" }: { className?: string }) {
+  const d = LOGO_ESCRITA;
+  return (
+    <span className={`relative inline-flex shrink-0 align-middle ${className}`}>
+      <svg viewBox={`0 0 ${d.largura} ${d.altura}`} aria-hidden className="h-[1.2em] w-auto">
+        <path d={d.verde} style={{ fill: "var(--logo-verde)" }} />
+        <path d={d.vermelho} style={{ fill: "var(--logo-vermelho)" }} />
+      </svg>
+      <span className="sr-only">{NOME_DA_LOGO_ESCRITA}</span>
+    </span>
+  );
+}
+
+/**
+ * O símbolo sozinho (a lateral recolhida do painel): com o nome "Loterias do
+ * Bem" publicado, o trevo do ícone; com outro nome, o bilhete de sempre.
+ */
+export function SimboloDaMarca({ className = "" }: { className?: string }) {
+  const { nome, logo } = useTemplate().identidade;
+  if (!logo && usaLogoEscrita(nome)) return <TrevoDaMarca className={`shrink-0 ${className}`} />;
+  return <IconeDaMarca className={className} />;
+}
+
+/**
+ * Nome (ou logo) da plataforma, como o template manda. Sem logo enviada,
+ * o nome com o ponto na cor de marca — o de sempre. Com o nome "Loterias do
+ * Bem" publicado, o trevo do ícone à esquerda e a frase da logo oficial
+ * (`LogoEscrita`) à direita, em todas as larguras.
+ *
+ * Com outro nome, o de antes: no celular só o texto; a partir do tablet
+ * (`sm`), o símbolo e o nome com a primeira palavra em tinta e o resto na cor
+ * de marca.
  *
  * `lateral`: na lateral do computador o símbolo fica sempre, e o nome só
  * aparece quando a lateral abre (ao passar o ponteiro ou entrar pelo teclado).
@@ -53,6 +90,16 @@ export function Marca({ className = "", lateral = false }: { className?: string;
   const { nome, logo } = useTemplate().identidade;
   if (logo) {
     return <img src={logo} alt={nome} className={`h-7 w-auto ${className}`} />;
+  }
+  if (usaLogoEscrita(nome)) {
+    return (
+      <span className={`inline-flex items-center gap-1.5 ${className}`}>
+        <TrevoDaMarca className="h-[1.6em] w-[1.6em] shrink-0" />
+        <span className={lateral ? "hidden whitespace-nowrap group-hover/lateral:inline-flex group-focus-within/lateral:inline-flex" : "inline-flex min-w-0"}>
+          <LogoEscrita />
+        </span>
+      </span>
+    );
   }
   const pontuado = nome.lastIndexOf(".");
   const textoDeSempre =

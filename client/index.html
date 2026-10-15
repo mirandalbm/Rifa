@@ -18,13 +18,47 @@
         } catch (e) {}
       })();
     </script>
+    <style>
+      /* A abertura (lib/intro.ts): o trevo do ícone no meio da tela branca, desenhado antes do JavaScript. */
+      #abertura { display: none; }
+      html.abertura #abertura { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: #ffffff; }
+    </style>
+    <script>
+      // A abertura: a mesma regra de deveMostrarIntro() em lib/intro.ts (o teste confere).
+      // O celular mostrou o ícone; o trevo dele fica na tela até a intro o levar à logo.
+      (function () {
+        try {
+          var viu = false;
+          try { viu = sessionStorage.getItem("rifa.intro") === "1"; } catch (e) {}
+          var moldura = true;
+          try { moldura = window.self !== window.top; } catch (e) {}
+          var p = location.pathname;
+          var painel = ["/admin", "/afiliado", "/cambista"].some(function (r) { return p === r || p.indexOf(r + "/") === 0; });
+          if (window.innerWidth > 1023 || viu || navigator.webdriver || moldura || painel) return;
+          var html = document.documentElement;
+          html.classList.add("abertura");
+          ["/intro/texto-loterias.webp", "/intro/texto-do-bem.webp", "/intro/sublinhado.webp", "/intro/coracao-esq.webp", "/intro/coracao-dir.webp"].forEach(function (src) {
+            var l = document.createElement("link");
+            l.rel = "preload";
+            l.as = "image";
+            l.href = src;
+            document.head.appendChild(l);
+          });
+          setTimeout(function () {
+            html.classList.remove("abertura");
+            var a = document.getElementById("abertura");
+            if (a) a.remove();
+          }, 8000);
+        } catch (e) {}
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="rifa.br" />
+    <meta name="apple-mobile-web-app-title" content="Loterias do Bem" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -33,6 +67,7 @@
     />
   </head>
   <body>
+    <div id="abertura" aria-hidden="true"><!-- abertura:inicio --><svg xmlns="http://www.w3.org/2000/svg" viewBox="-660 -660 1320 1320" width="136" height="136"><defs><linearGradient id="abc" gradientUnits="userSpaceOnUse" x1="-660" y1="-660" x2="660" y2="660"><stop offset="0" stop-color="#9cca29"/><stop offset="0.167" stop-color="#9cca29"/><stop offset="0.333" stop-color="#79bf2a"/><stop offset="0.5" stop-color="#4ba833"/><stop offset="0.667" stop-color="#0a8832"/><stop offset="0.833" stop-color="#00712f"/><stop offset="1" stop-color="#016031"/></linearGradient><linearGradient id="abe" gradientUnits="userSpaceOnUse" x1="-660" y1="-660" x2="660" y2="660"><stop offset="0" stop-color="#9cca29"/><stop offset="0.167" stop-color="#9cca29"/><stop offset="0.333" stop-color="#5cb030"/><stop offset="0.5" stop-color="#168f34"/><stop offset="0.667" stop-color="#017d32"/><stop offset="0.833" stop-color="#016031"/><stop offset="1" stop-color="#016031"/></linearGradient><linearGradient id="abvc" gradientUnits="userSpaceOnUse" x1="-660" y1="-660" x2="660" y2="660"><stop offset="0" stop-color="#e4353c"/><stop offset="0.55" stop-color="#d92b32"/><stop offset="1" stop-color="#c7232b"/></linearGradient><linearGradient id="abve" gradientUnits="userSpaceOnUse" x1="-660" y1="-660" x2="660" y2="660"><stop offset="0" stop-color="#cf242c"/><stop offset="0.55" stop-color="#bd1e26"/><stop offset="1" stop-color="#a51920"/></linearGradient><clipPath id="abf0"><path d="M0 -12L292.4 -304.4L153.4 -443.4L-153.4 -443.4L-292.4 -304.4ZM-43.19999999999999 -443.4A196.6 196.6 0 1 0 350 -443.4A196.6 196.6 0 1 0 -43.19999999999999 -443.4ZM-350 -443.4A196.6 196.6 0 1 0 43.19999999999999 -443.4A196.6 196.6 0 1 0 -350 -443.4Z"/></clipPath><clipPath id="abf1"><path d="M12 0L304.4 292.4L443.4 153.4L443.4 -153.4L304.4 -292.4ZM246.79999999999998 153.4A196.6 196.6 0 1 0 640 153.4A196.6 196.6 0 1 0 246.79999999999998 153.4ZM246.79999999999998 -153.4A196.6 196.6 0 1 0 640 -153.4A196.6 196.6 0 1 0 246.79999999999998 -153.4Z"/></clipPath><clipPath id="abf2"><path d="M0 12L-292.4 304.4L-153.4 443.4L153.4 443.4L292.4 304.4ZM-350 443.4A196.6 196.6 0 1 0 43.19999999999999 443.4A196.6 196.6 0 1 0 -350 443.4ZM-43.19999999999999 443.4A196.6 196.6 0 1 0 350 443.4A196.6 196.6 0 1 0 -43.19999999999999 443.4Z"/></clipPath><clipPath id="abf3"><path d="M-12 0L-304.4 -292.4L-443.4 -153.4L-443.4 153.4L-304.4 292.4ZM-640 -153.4A196.6 196.6 0 1 0 -246.79999999999998 -153.4A196.6 196.6 0 1 0 -640 -153.4ZM-640 153.4A196.6 196.6 0 1 0 -246.79999999999998 153.4A196.6 196.6 0 1 0 -640 153.4Z"/></clipPath></defs><g clip-path="url(#abf0)"><polygon points="0,40 -700,40 -700,-700 0,-700" fill="url(#abc)"/><polygon points="0,40 700,40 700,-700 0,-700" fill="url(#abe)"/></g><g clip-path="url(#abf1)"><polygon points="-40,0 -40,-700 700,-700 700,0" fill="url(#abvc)"/><polygon points="-40,0 -40,700 700,700 700,0" fill="url(#abve)"/></g><g clip-path="url(#abf2)"><polygon points="0,-40 -700,-40 -700,700 0,700" fill="url(#abc)"/><polygon points="0,-40 700,-40 700,700 0,700" fill="url(#abe)"/></g><g clip-path="url(#abf3)"><polygon points="40,0 40,-700 -700,-700 -700,0" fill="url(#abc)"/><polygon points="40,0 40,700 -700,700 -700,0" fill="url(#abe)"/></g></svg><!-- abertura:fim --></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

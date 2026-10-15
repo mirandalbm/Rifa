@@ -1,21 +1,18 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { TrevoDaMarca } from "@/components/TrevoDaMarca";
 import {
-  DEGRADE_CLARO,
-  DEGRADE_ESCURO,
+  ABERTURA_ID,
+  ABERTURA_TREVO_PX,
   INTRO_CHAVE,
   INTRO_DURACAO_MS,
   INTRO_ESPERA_IMAGENS_MS,
   INTRO_PARADA_MS,
   INTRO_SAIDA_MS,
   PECAS_DA_INTRO,
-  RAIO_DO_LOBULO,
   deveMostrarIntro,
-  folhasDoTrevo,
 } from "@/lib/intro";
 
 type Fase = "preparando" | "animando" | "saindo" | "fim";
-
-const FOLHAS = folhasDoTrevo();
 const IMAGENS = [
   PECAS_DA_INTRO.textoLoterias.src,
   PECAS_DA_INTRO.textoDoBem.src,
@@ -67,8 +64,15 @@ function carregar(src: string): Promise<void> {
   });
 }
 
+/** Tira a abertura do `index.html` (o trevo desenhado antes do JavaScript). */
+function tirarAbertura() {
+  document.getElementById(ABERTURA_ID)?.remove();
+  document.documentElement.classList.remove(ABERTURA_ID);
+}
+
 /**
- * A intro da marca: tela branca, o trevo entra girando, o nome aparece da
+ * A intro da marca: tela branca, o trevo (o do ícone) sai do meio da tela,
+ * onde a abertura o deixou, e vai ao lugar dele na logo; o nome aparece da
  * esquerda para a direita, o sublinhado se desenha, os corações saltam e
  * batem. Só no celular e no tablet, uma vez por sessão; um toque ou uma tecla
  * pula. Com o movimento reduzido, a logo aparece pronta e some em seguida.
@@ -77,7 +81,32 @@ function carregar(src: string): Promise<void> {
  */
 export function IntroDaMarca() {
   const [fase, setFase] = useState<Fase>(() => (mostrarAgora() ? "preparando" : "fim"));
-  const id = useId().replace(/:/g, "");
+  const caixa = useRef<HTMLDivElement>(null);
+  // De onde o trevo parte: o meio da tela, do tamanho da abertura.
+  const [partida, setPartida] = useState<CSSProperties | null>(null);
+
+  useLayoutEffect(() => {
+    if (fase === "fim") {
+      tirarAbertura();
+      return;
+    }
+    if (partida || !caixa.current) return;
+    const r = caixa.current.getBoundingClientRect();
+    const t = PECAS_DA_INTRO.trevo;
+    const lado = (t.width / 100) * r.width;
+    const cx = r.left + (t.left / 100) * r.width + lado / 2;
+    const cy = r.top + (t.top / 100) * r.height + lado / 2;
+    setPartida({
+      ["--partida-x" as string]: `${window.innerWidth / 2 - cx}px`,
+      ["--partida-y" as string]: `${window.innerHeight / 2 - cy}px`,
+      ["--partida-escala" as string]: String(lado > 0 ? ABERTURA_TREVO_PX / lado : 1),
+    });
+  }, [fase, partida]);
+
+  // A intro já desenhou o trevo no mesmo lugar: a abertura pode sair.
+  useLayoutEffect(() => {
+    if (partida) tirarAbertura();
+  }, [partida]);
 
   useEffect(() => {
     if (fase !== "preparando") return;
@@ -130,43 +159,12 @@ export function IntroDaMarca() {
       } ${fase === "saindo" ? "intro-saindo" : ""}`}
       style={{ transitionDuration: `${INTRO_SAIDA_MS}ms` }}
     >
-      <div className="relative w-[78vw] max-w-[460px]" style={{ aspectRatio: String(p.proporcao) }}>
-        <svg className="intro-trevo absolute" style={pos(p.trevo)} viewBox="-660 -660 1320 1320" focusable="false">
-          <defs>
-            {(
-              [
-                ["c", DEGRADE_CLARO],
-                ["e", DEGRADE_ESCURO],
-              ] as const
-            ).map(([k, paradas]) => (
-              <linearGradient key={k} id={`${id}${k}`} gradientUnits="userSpaceOnUse" x1="-660" y1="-660" x2="660" y2="660">
-                {paradas.map(([o, cor]) => (
-                  <stop key={o} offset={o} stopColor={cor} />
-                ))}
-              </linearGradient>
-            ))}
-            <linearGradient id={`${id}b`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0.38" stopColor="#fff" stopOpacity="0" />
-              <stop offset="0.5" stopColor="#fff" stopOpacity="0.5" />
-              <stop offset="0.62" stopColor="#fff" stopOpacity="0" />
-            </linearGradient>
-            {FOLHAS.map((f, i) => (
-              <clipPath key={i} id={`${id}f${i}`}>
-                <polygon points={f.poligono} />
-                {f.circulos.map((c, j) => (
-                  <circle key={j} cx={c.cx} cy={c.cy} r={RAIO_DO_LOBULO} />
-                ))}
-              </clipPath>
-            ))}
-          </defs>
-          {FOLHAS.map((f, i) => (
-            <g key={i} clipPath={`url(#${id}f${i})`}>
-              <polygon points={f.metadeClara} fill={`url(#${id}c)`} />
-              <polygon points={f.metadeEscura} fill={`url(#${id}e)`} />
-              <rect className="intro-brilho" x="-660" y="-660" width="1320" height="1320" fill={`url(#${id}b)`} />
-            </g>
-          ))}
-        </svg>
+      <div ref={caixa} className="relative w-[78vw] max-w-[460px]" style={{ aspectRatio: String(p.proporcao) }}>
+        <TrevoDaMarca
+          brilho
+          className={`intro-trevo absolute ${partida ? "intro-trevo-pronto" : ""}`}
+          style={{ ...pos(p.trevo), ...partida }}
+        />
         <img className="intro-linha intro-loterias absolute" src={p.textoLoterias.src} alt="" style={pos(p.textoLoterias)} />
         <img className="intro-linha intro-do-bem absolute" src={p.textoDoBem.src} alt="" style={pos(p.textoDoBem)} />
         <img className="intro-sublinhado absolute" src={p.sublinhado.src} alt="" style={pos(p.sublinhado)} />

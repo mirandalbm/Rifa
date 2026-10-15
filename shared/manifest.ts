@@ -9,7 +9,8 @@
  * não confia em ninguém), ícones em endereços nossos.
  */
 
-export const NOME_PADRAO = "rifa.br";
+/** A marca da plataforma: é o nome que o app instalado leva se o template não tiver um. */
+export const NOME_PADRAO = "Loterias do Bem";
 /** O nome curto (embaixo do ícone na tela inicial) cabe em ~12 letras. */
 export const NOME_CURTO_MAX = 12;
 export const COR_PADRAO = "#00873e";

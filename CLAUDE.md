@@ -198,7 +198,7 @@ arquitetura.
 | sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
 | rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
-| intro animada da marca ao abrir o app (celular e tablet) e os arquivos da marca (logo oficial, ícones, vídeo da intro) | `client/src/lib/intro.ts` (quando aparece, o trevo em geometria, as posições), `client/src/components/IntroDaMarca.tsx`, `.intro-*` em `client/src/index.css`, `client/public/intro/`, `docs/marca/`, `tests/intro.test.ts` |
+| intro animada da marca ao abrir o app (celular e tablet), a abertura antes do JavaScript, o trevo do ícone e a logo escrita do topo, e os arquivos da marca (logo oficial, ícones, vídeo da intro) | `client/src/lib/intro.ts` (quando aparece, o trevo em geometria e cores, as posições, a abertura), `client/src/components/IntroDaMarca.tsx`, `client/src/components/TrevoDaMarca.tsx`, `Marca`/`LogoEscrita` em `client/src/components/Marca.tsx`, `#abertura` em `client/index.html`, `npm run logo-escrita`, `tests/marca.test.ts`, `.intro-*` em `client/src/index.css`, `client/public/intro/`, `docs/marca/`, `tests/intro.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem), os agentes (`implementador-da-rifa`, `revisor-de-invariantes`, `conferente-de-telas`, `pesquisador-de-integracao`, `analista-de-csp`), o fluxo entre eles e as skills de terceiros que o projeto usa (com o ajuste de cada uma) | `docs/AGENTES-E-SKILLS.md` (o guia), `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/`, `skills-lock.json`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
@@ -669,20 +669,56 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   magenta e índigo não são cor do sistema — claro é branco e azul com
   detalhes verdes; escuro é preto e verde, com azul em alguns lugares), com contraste ≥ 3:1
   nos dois temas (o teste confere). O número de avisos vai no rótulo.
-- **A marca é "Loterias do Bem" com o símbolo do bilhete e do coração**
-  (`IconeDaMarca` e `Marca` em `client/src/components/Marca.tsx`; o recorte
-  do coração deixa ver o fundo, então vale nos dois temas). O nome padrão
-  vem de `shared/template.ts` e `shared/manifest.ts`, mas o que vale em
-  produção é o template publicado: trocar o nome é em Aparência → Identidade.
-  Na lateral do computador recolhida, só o símbolo; aberta, o nome. **No
-  celular a marca fica como era** (só o texto, sem símbolo; `sm:` mostra o
-  símbolo a partir do tablet). Os ícones do app (`client/public/icons/`) são
-  a **folha de trevo da direita, vermelha** (`docs/marca/`, escolha do
-  produto em 14/10/2026; o `icon-maskable-512` leva a arte no centro, 72%,
-  para o recorte circular do Android). O título do iPhone e o nome do app
-  instalado (manifesto de fábrica) seguem como eram: mudança de marca para
-  todos avisa antes. Logo enviada em Aparência substitui o desenho (com o nome
-  como texto alternativo).
+- **A marca é "Loterias do Bem": o trevo do ícone à esquerda e a frase da
+  logo oficial à direita** (`Marca` em `client/src/components/Marca.tsx`,
+  pedido do produto em 14/10/2026), em todas as larguras. O nome padrão vem
+  de `shared/template.ts` e `shared/manifest.ts`, mas o que vale em produção
+  é o template publicado: trocar o nome é em Aparência → Identidade.
+  - **O trevo é um só** (`TrevoDaMarca`, a geometria e as cores em
+    `client/src/lib/intro.ts`): quatro folhas em coração com a metade clara e
+    a escura, **a folha da direita vermelha**, como no ícone. Serve à intro, ao
+    topo e à lateral recolhida do painel (`SimboloDaMarca`). As cores do trevo
+    são as do ícone nos dois temas (marca, não estado). Cada folha é **um
+    contorno só** (`contornoDaFolha()`): o recorte com polígono e círculos
+    separados saía furado fora do navegador.
+  - **A frase é desenhada na Google Sans Flex** (`LogoEscrita`), no peso 400,
+    reta, sem itálico (pedido do produto em 14/10/2026); a palavra "bem" vai em
+    negrito, peso 700 (pedido do produto em 14/10/2026). `npm run
+    logo-escrita` (`scripts/logo-escrita.ts`) lê a fonte de
+    `@fontsource-variable/google-sans-flex` (OFL, versão exata 5.3.1; woff2
+    descomprimido com `wawoff2`, porque o fontkit só lê TTF) e grava os
+    contornos (`client/src/lib/logoEscritaDesenho.ts`, gerado — nunca à mão), o
+    trevo da abertura no `index.html` e os arquivos de `docs/marca/` (a logo
+    horizontal em SVG e PNG de 2048, claro e escuro). "Loterias do" no verde e
+    **"bem" no vermelho**, com as pontas redondas (ROND 100) e as letras mais
+    juntas (`APERTO` no gerador). A altura acompanha a letra ao redor (1,2em; o trevo,
+    1,6em). As cores são `CORES_DA_LOGO` (`client/src/lib/marca.ts`), os mesmos
+    valores dos tokens `--logo-verde` e `--logo-vermelho` do `index.css` nos
+    dois temas, cada uma com contraste ≥ 3:1 — `tests/marca.test.ts` confere.
+  - **Só vale com o nome "Loterias do Bem" publicado** (`usaLogoEscrita()`):
+    com outro nome no template, a tela mostra o nome em texto e o símbolo do
+    bilhete (`IconeDaMarca`), como antes — a logo nunca diz um nome que a
+    plataforma não publicou. Na lateral do computador recolhida, só o trevo;
+    aberta, a frase. Logo enviada em Aparência substitui o desenho (com o nome
+    como texto alternativo).
+  - Os ícones do app (`client/public/icons/`) são a **folha de trevo da
+    direita, vermelha** (`docs/marca/`, escolha do produto em 14/10/2026; o
+    `icon-maskable-512` é a mesma arte de sangria total do `icon-512` —
+    reduzida, deixava uma placa em volta do trevo). O título do iPhone
+    (`apple-mobile-web-app-title`) e o nome do app instalado no manifesto de
+    fábrica são "Loterias do Bem" (`NOME_PADRAO`, o curto "Loterias do"). No
+    Android, o nome instalado vem do template **publicado** em Aparência →
+    Identidade: se o aparelho mostrar outro nome, a publicação do template
+    ainda não tem "Loterias do Bem".
+- **A abertura não pisca entre o ícone e a intro** (`ABERTURA_*` em
+  `client/src/lib/intro.ts`): o celular mostra o ícone ao abrir o app
+  instalado; antes, vinha a tela branca e só depois a intro, com o trevo
+  surgindo do nada. Agora o `index.html` desenha o mesmo trevo no meio da tela
+  branca **antes do JavaScript** (`#abertura`, script em linha com a mesma
+  regra de `deveMostrarIntro()` — o teste confere —, já pedindo as imagens da
+  intro), e a intro começa com o trevo ali (`--partida-*`) e o leva ao lugar
+  dele na logo; só então a abertura sai. Se o app não abrir, ela sai sozinha
+  em `ABERTURA_PRAZO_MS`. O script entra na CSP pelo hash, como o do tema.
 - **Quem vê a publicação** (`quemPublica()`): organização e plataforma
   (Criar: rifa, story, legenda e as divulgações de terceiros para
   autorizar), afiliado como influenciador (kit e publicar com o material

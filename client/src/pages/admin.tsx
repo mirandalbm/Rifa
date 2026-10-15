@@ -1,3 +1,4 @@
+import { BarraDeAcessos } from "@/components/BarraDeAcessos";
 import { SociosDaOrganizacaoCard } from "@/components/SociosDaOrganizacaoCard";
 import { LegendaCard } from "@/components/Publicacao";
 import { problemaNoPremio } from "@shared/premio";
@@ -163,6 +164,7 @@ export function AdminPainel() {
 
   return (
     <PanelShell title="Painel">
+      <BarraDeAcessos />
       {!data ? (
         <Empty>Carregando…</Empty>
       ) : (

@@ -10,7 +10,7 @@ for aprovada. A intro já está no app como animação (celular e tablet):
 | `logo-oficial.png` | A logo oficial: trevo de 4 folhas nas cores do trevo antigo, os dois corações e o sublinhado em vermelho, sem os raios e as estrelinhas. 2048 × 2048. |
 | `icone-folha-de-cima-vermelha.png` (e `-512`) | Ícone do app, versão 1: trevo redesenhado (4 folhas iguais) com a folha de cima vermelha. 2048 e 512 (Play Store). |
 | `icone-folha-da-direita-vermelha.png` (e `-512`) | Ícone do app, versão 2: o mesmo trevo com a folha da direita vermelha. |
-| `logo-loterias-do-bem.svg` (e `.png`) | A logo horizontal, para fundo claro: o trevo do ícone (a folha da direita vermelha) à esquerda e "Loterias do Bem" na Google Sans Flex 400 (reta), numa linha, "Bem" em vermelho. SVG vetorial e PNG de 2048 de largura, fundo transparente. |
+| `logo-loterias-do-bem.svg` (e `.png`) | A logo horizontal, para fundo claro: o trevo do ícone (a folha da direita vermelha) à esquerda e "Loterias do bem" na Google Sans Flex 400 (reta, pontas redondas), numa linha, "bem" em vermelho. SVG vetorial e PNG de 2048 de largura, fundo transparente. |
 | `logo-loterias-do-bem-escuro.svg` (e `.png`) | A mesma logo para fundo escuro, com os tons do tema escuro (o PNG já vem com o fundo `#0e1712`). |
 | `intro-loterias-do-bem.mp4` | Intro animada do app com a logo oficial: 1080 × 1920, 60 quadros por segundo, 3,4 s, sem som. |
 

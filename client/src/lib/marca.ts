@@ -8,7 +8,7 @@ export const NOME_DA_LOGO_ESCRITA = "Loterias do Bem";
 
 /**
  * As cores da logo escrita em cada tema: o verde das letras da logo oficial
- * ("Loterias do") e o vermelho dos corações dela ("Bem"). No escuro, os mesmos
+ * ("Loterias do") e o vermelho dos corações dela ("bem"). No escuro, os mesmos
  * papéis em tons claros, para ler sobre o preto. Identidade, nunca estado. Os
  * tokens `--logo-*` do `index.css` têm estes valores (`tests/marca.test.ts`
  * confere), e o gerador (`npm run logo-escrita`) desenha os arquivos de

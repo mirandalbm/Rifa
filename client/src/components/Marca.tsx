@@ -41,9 +41,9 @@ export function IconeDaMarca({ className = "" }: { className?: string }) {
 }
 
 /**
- * A frase "Loterias do Bem" na Google Sans Flex 400 (reta), numa
- * linha: os contornos vêm de `npm run logo-escrita` (`LOGO_ESCRITA`).
- * "Loterias do" no verde e "Bem" no vermelho; as cores são os tokens
+ * A frase "Loterias do Bem" na Google Sans Flex 400 (reta, pontas redondas),
+ * numa linha: os contornos vêm de `npm run logo-escrita` (`LOGO_ESCRITA`).
+ * "Loterias do" no verde e "bem" no vermelho; as cores são os tokens
  * `--logo-*`, que trocam com o tema.
  *
  * A altura acompanha a letra de quem a usa (1,2em), então ela ocupa o lugar

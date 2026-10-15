@@ -2,13 +2,13 @@
  * Gera a logo escrita "Loterias do Bem" (`npm run logo-escrita`).
  *
  * A frase é desenhada na Google Sans Flex (OFL, `@fontsource-variable`) no
- * peso 400, reta, em contornos: o site não carrega a fonte por causa da logo,
+ * peso 400, reta, com as pontas redondas (eixo ROND 100), em contornos: o site não carrega a fonte por causa da logo,
  * e o desenho sai igual em qualquer aparelho. A fonte é variável em woff2, e o
  * fontkit só lê TTF: por isso o arquivo é descomprimido aqui (`wawoff2`).
  *
  * Grava:
  * - client/src/lib/logoEscritaDesenho.ts — os contornos que o topo desenha
- *   (LogoEscrita), "Loterias do" no verde e "Bem" no vermelho;
+ *   (LogoEscrita), "Loterias do" no verde e "bem" no vermelho;
  * - o trevo da abertura no client/index.html (svgDoTrevo(), entre as marcas
  *   abertura:inicio e abertura:fim);
  * - docs/marca/logo-loterias-do-bem.svg e -escuro.svg, e os PNG de 2048 de
@@ -28,11 +28,13 @@ import { ABERTURA_TREVO_PX, svgDoTrevo } from "../client/src/lib/intro";
 const exigir = createRequire(import.meta.url);
 const raiz = path.resolve(import.meta.dirname, "..");
 
-/** Peso 400, reta: sem negrito e sem itálico. */
-const EIXOS = { wght: 400 };
-const TEXTO = "Loterias do Bem";
-const DEPOIS_DE = TEXTO.indexOf("Bem"); // a partir daqui, a cor vermelha
+/** Peso 400, reta (sem negrito nem itálico), pontas redondas (ROND 100). */
+const EIXOS = { wght: 400, ROND: 100 };
+const TEXTO = "Loterias do bem";
+const DEPOIS_DE = TEXTO.indexOf("bem"); // a partir daqui, a cor vermelha
 const TAMANHO = 200; // desenhada a 200 unidades: arte grande, reduzida na tela
+/** Letras mais juntas: afasta o avanço de cada letra em 2% do corpo. */
+const APERTO = -0.02 * TAMANHO;
 const MARGEM = 8;
 
 const woff2 = readFileSync(
@@ -56,7 +58,7 @@ disposicao.glyphs.forEach((glifo, i) => {
       vermelho: i >= DEPOIS_DE,
     });
   }
-  x += pos.xAdvance * escala;
+  x += pos.xAdvance * escala + APERTO;
 });
 
 // Leva a frase para perto da origem, com a margem, e mede a caixa final.
@@ -81,7 +83,7 @@ const vermelho = partes.filter((p) => p.vermelho).map((p) => contorno(p.path)).j
 writeFileSync(
   path.join(raiz, "client/src/lib/logoEscritaDesenho.ts"),
   `// Gerado por \`npm run logo-escrita\` (scripts/logo-escrita.ts). Não edite à mão.\n` +
-    `// Letras: Google Sans Flex, peso 400, reta (@fontsource-variable, OFL), em contornos.\n` +
+    `// Letras: Google Sans Flex, peso 400, reta, pontas redondas ROND 100 (@fontsource-variable, OFL), em contornos.\n` +
     `export const LOGO_ESCRITA = ${JSON.stringify({ largura, altura, verde, vermelho }, null, 2)} as const;\n`,
 );
 

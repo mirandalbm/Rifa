@@ -689,7 +689,8 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
     contornos (`client/src/lib/logoEscritaDesenho.ts`, gerado — nunca à mão), o
     trevo da abertura no `index.html` e os arquivos de `docs/marca/` (a logo
     horizontal em SVG e PNG de 2048, claro e escuro). "Loterias do" no verde e
-    **"Bem" no vermelho**. A altura acompanha a letra ao redor (1,2em; o trevo,
+    **"bem" no vermelho**, com as pontas redondas (ROND 100) e as letras mais
+    juntas (`APERTO` no gerador). A altura acompanha a letra ao redor (1,2em; o trevo,
     1,6em). As cores são `CORES_DA_LOGO` (`client/src/lib/marca.ts`), os mesmos
     valores dos tokens `--logo-verde` e `--logo-vermelho` do `index.css` nos
     dois temas, cada uma com contraste ≥ 3:1 — `tests/marca.test.ts` confere.

@@ -682,7 +682,8 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
     contorno só** (`contornoDaFolha()`): o recorte com polígono e círculos
     separados saía furado fora do navegador.
   - **A frase é desenhada na Google Sans Flex** (`LogoEscrita`), no peso 400,
-    reta — sem itálico nem negrito, pedido do produto em 14/10/2026. `npm run
+    reta, sem itálico (pedido do produto em 14/10/2026); a palavra "bem" vai em
+    negrito, peso 700 (pedido do produto em 14/10/2026). `npm run
     logo-escrita` (`scripts/logo-escrita.ts`) lê a fonte de
     `@fontsource-variable/google-sans-flex` (OFL, versão exata 5.3.1; woff2
     descomprimido com `wawoff2`, porque o fontkit só lê TTF) e grava os

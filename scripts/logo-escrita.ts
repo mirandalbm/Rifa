@@ -2,7 +2,7 @@
  * Gera a logo escrita "Loterias do Bem" (`npm run logo-escrita`).
  *
  * A frase é desenhada na Google Sans Flex (OFL, `@fontsource-variable`) no
- * peso 400, reta, com as pontas redondas (eixo ROND 100), em contornos: o site não carrega a fonte por causa da logo,
+ * peso 400 ("bem" em 700, negrito), reta, com as pontas redondas (eixo ROND 100), em contornos: o site não carrega a fonte por causa da logo,
  * e o desenho sai igual em qualquer aparelho. A fonte é variável em woff2, e o
  * fontkit só lê TTF: por isso o arquivo é descomprimido aqui (`wawoff2`).
  *
@@ -28,8 +28,9 @@ import { ABERTURA_TREVO_PX, svgDoTrevo } from "../client/src/lib/intro";
 const exigir = createRequire(import.meta.url);
 const raiz = path.resolve(import.meta.dirname, "..");
 
-/** Peso 400, reta (sem negrito nem itálico), pontas redondas (ROND 100). */
+/** Peso 400, reta (sem itálico), pontas redondas (ROND 100). "bem" vai em 700 (negrito), a pedido do produto. */
 const EIXOS = { wght: 400, ROND: 100 };
+const EIXOS_DO_BEM = { wght: 700, ROND: 100 };
 const TEXTO = "Loterias do bem";
 const DEPOIS_DE = TEXTO.indexOf("bem"); // a partir daqui, a cor vermelha
 const TAMANHO = 200; // desenhada a 200 unidades: arte grande, reduzida na tela
@@ -42,24 +43,32 @@ const woff2 = readFileSync(
 );
 const base = fontkit.create(Buffer.from(await decompress(woff2))) as fontkit.Font;
 const fonte = base.getVariation(EIXOS) as fontkit.Font;
+const fonteDoBem = base.getVariation(EIXOS_DO_BEM) as fontkit.Font;
 
 const arred = (n: number) => Math.round(n * 10) / 10;
 const escala = TAMANHO / fonte.unitsPerEm;
 
 // Cada letra vira um contorno na escala final, com a linha de base em y = 0.
+// "Loterias do " em 400 e "bem" em 700, numa linha só, com o mesmo aperto.
+const SEGMENTOS = [
+  { texto: TEXTO.slice(0, DEPOIS_DE), fonte, vermelho: false },
+  { texto: TEXTO.slice(DEPOIS_DE), fonte: fonteDoBem, vermelho: true },
+];
 const partes: { path: fontkit.Path; vermelho: boolean }[] = [];
-const disposicao = fonte.layout(TEXTO);
 let x = 0;
-disposicao.glyphs.forEach((glifo, i) => {
-  const pos = disposicao.positions[i];
-  if (TEXTO[i] !== " ") {
-    partes.push({
-      path: glifo.path.scale(escala, -escala).translate(x + pos.xOffset * escala, 0),
-      vermelho: i >= DEPOIS_DE,
-    });
-  }
-  x += pos.xAdvance * escala + APERTO;
-});
+for (const seg of SEGMENTOS) {
+  const disposicao = seg.fonte.layout(seg.texto);
+  disposicao.glyphs.forEach((glifo, i) => {
+    const pos = disposicao.positions[i];
+    if (seg.texto[i] !== " ") {
+      partes.push({
+        path: glifo.path.scale(escala, -escala).translate(x + pos.xOffset * escala, 0),
+        vermelho: seg.vermelho,
+      });
+    }
+    x += pos.xAdvance * escala + APERTO;
+  });
+}
 
 // Leva a frase para perto da origem, com a margem, e mede a caixa final.
 const caixas = partes.map((p) => p.path.bbox);
@@ -83,7 +92,7 @@ const vermelho = partes.filter((p) => p.vermelho).map((p) => contorno(p.path)).j
 writeFileSync(
   path.join(raiz, "client/src/lib/logoEscritaDesenho.ts"),
   `// Gerado por \`npm run logo-escrita\` (scripts/logo-escrita.ts). Não edite à mão.\n` +
-    `// Letras: Google Sans Flex, peso 400, reta, pontas redondas ROND 100 (@fontsource-variable, OFL), em contornos.\n` +
+    `// Letras: Google Sans Flex, peso 400 ("bem" em 700), reta, pontas redondas ROND 100 (@fontsource-variable, OFL), em contornos.\n` +
     `export const LOGO_ESCRITA = ${JSON.stringify({ largura, altura, verde, vermelho }, null, 2)} as const;\n`,
 );
 

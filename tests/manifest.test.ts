@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { COR_PADRAO, corDoApp, montarManifest, nomeCurtoDoApp, nomeDoApp } from "../shared/manifest";
+import { COR_PADRAO, NOME_PADRAO, corDoApp, montarManifest, nomeCurtoDoApp, nomeDoApp } from "../shared/manifest";
 
 describe("manifesto do app instalado", () => {
   it("o nome e a cor vêm do template; sem logo, valem os ícones de fábrica", () => {
@@ -26,7 +26,7 @@ describe("manifesto do app instalado", () => {
   });
 
   it("nome vazio ou só com espaço cai no padrão; nome longo é cortado", () => {
-    expect(nomeDoApp("   \n ")).toBe("rifa.br");
+    expect(nomeDoApp("   \n ")).toBe("Loterias do Bem");
     expect(nomeDoApp("A".repeat(80))).toHaveLength(40);
     expect(nomeDoApp("  Rifas   do\nZé ")).toBe("Rifas do Zé");
   });
@@ -49,8 +49,10 @@ describe("manifesto do app instalado", () => {
 
   it("o arquivo de fábrica (usado se o banco falhar) concorda com o padrão", () => {
     const f = JSON.parse(readFileSync("client/public/manifest.webmanifest", "utf8"));
-    const m = montarManifest({ nome: "rifa.br", cor: COR_PADRAO, logoVersao: null });
+    const m = montarManifest({ nome: NOME_PADRAO, cor: COR_PADRAO, logoVersao: null });
+    expect(f.name).toBe("Loterias do Bem");
     expect(f.name).toBe(m.name);
+    expect(f.short_name).toBe(m.short_name);
     expect(f.theme_color).toBe(m.theme_color);
     expect(f.icons).toEqual(m.icons);
   });

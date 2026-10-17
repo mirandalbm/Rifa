@@ -5,13 +5,13 @@ ciclo de implementação (o ciclo que fecha um item marca aqui no mesmo PR).
 O que depende de decisão de produto ou de ação fora do código está em
 `docs/CHECKLIST-AJUSTES.md` e `docs/PENDENCIAS.md`, não aqui.
 
-Última atualização: 2026-10-17 (ciclo 1, segunda passada).
+Última atualização: 2026-10-17 (leva 20 parcial).
 
 ## Abertas
 
 | # | Item | Estado | O que falta |
 |---|---|---|---|
-| T1 | Leva do registro de versões do celular | em andamento (ciclo 1) | Registro com 10 linhas `aguardando leva` (189–198) e o limite de 10 é o teste: a 11ª linha quebra `tests/versoes.test.ts`, então as mudanças de acessibilidade só entram depois da leva. Falta: `npm run telas` de novo nos dois temas (a última rodada é anterior às correções do T9); conferir 820 e 1440 das telas das linhas 189–198 (só Painel do organizador, vitrine e publicidade foram vistos em 390 e o Painel em 1440); tema escuro; então marcar `leva N`, registrar as mudanças de acessibilidade (`87bf51b`, `f971328`, T9) e acrescentar a leva na tabela "Levas" |
+| T1 | Leva do registro de versões do celular | em andamento (leva 20 parcial) | `npm run telas` nos dois temas feito (243 capturas cada, 0 reprovadas, 0 avisos). Fechadas na leva 20: 189, 190 e 198. Ficam aguardando, com a lacuna escrita em cada linha: 191 (botão "+" com interruptor desligado), 192 (Seguir com segunda conta), 193 (nota no próprio perfil; login de teste em 429), 194 (marcação pendente), 195 (intro, fora do `telas`), 196 (barra de ações abaixo da dobra), 197 (ícone só no aparelho) e 199 (acessibilidade, falta 820/1440 da publicidade e dos resultados) |
 | T2 | Acessibilidade: modais, abas e formulários depois de enviar | não medido | abrir cada `Janela` e aba pelo navegador, rodar axe, corrigir o que aparecer |
 | T3 | Acessibilidade: páginas com dados reais (rifa, pedido, carrinho/Pix, estado, perfis) | não medido pelo axe | rodar axe nas rotas com slug do banco de exemplo (o `telas` mede nome e `alt`, não contraste) |
 | T4 | Acessibilidade: tema escuro com axe | não medido | rodar axe com `prefers-color-scheme: dark` e com `data-theme="dark"` |

@@ -59,7 +59,7 @@ export function Estatistica({
   );
   const classe = "cartao estatistica block min-w-0 rounded-xl border border-line bg-white px-5 py-4";
   return href ? (
-    <Link href={href} className={`${classe} hover:bg-mist`} aria-label={`${rotulo}: ${typeof valor === "string" ? valor : ""}`}>
+    <Link href={href} className={`${classe} hover:bg-mist`}>
       {miolo}
     </Link>
   ) : (
@@ -95,14 +95,17 @@ export function CartaoDoPainel({
   );
 }
 
-/** O cabeçalho cinza da tabela do kit: letras pequenas, maiúsculas, espaçadas. */
+/**
+ * O cabeçalho cinza da tabela do kit: letras pequenas, maiúsculas, espaçadas.
+ * Coluna sem título é a de ações: o leitor de tela recebe o nome "Ações".
+ */
 export function CabecalhoDaTabela({ colunas }: { colunas: string[] }) {
   return (
     <thead>
       <tr className="bg-mist">
         {colunas.map((c, i) => (
           <th key={`${c}-${i}`} scope="col" className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
-            {c}
+            {c || <span className="sr-only">Ações</span>}
           </th>
         ))}
       </tr>

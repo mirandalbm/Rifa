@@ -964,5 +964,12 @@
  "cartao:/perfil#BalaoDaNota": "manter · na tela 11 Perfil · onda 5",
  "cartao:/u/:apelido#BalaoDaNota": "manter · na tela 05 Perfil do apostador · onda 5",
  "cartao:/perfil#MarcadosNoPerfil": "manter · na tela 11 Perfil · onda 5",
- "cartao:/u/:apelido#MarcadosNoPerfil": "manter · na tela 05 Perfil do apostador · onda 5"
+ "cartao:/u/:apelido#MarcadosNoPerfil": "manter · na tela 05 Perfil do apostador · onda 5",
+ "cartao:/admin#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2",
+ "cartao:/admin/afiliados#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
+ "cartao:/admin/campanhas#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
+ "cartao:/admin/configuracoes#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
+ "cartao:/admin/financeiro#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
+ "cartao:/admin/pedidos#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
+ "cartao:/admin/sorteios#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)"
 }

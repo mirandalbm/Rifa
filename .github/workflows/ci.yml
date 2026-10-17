@@ -38,22 +38,6 @@ jobs:
     name: Isolamento, estorno e carga (Postgres real)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    services:
-      postgres:
-        # Espelho oficial do Docker na AWS: o Docker Hub barra o pull sem login
-        # ("toomanyrequests") e derrubava este job antes de qualquer teste.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_USER: rifa
-          POSTGRES_PASSWORD: rifa
-          POSTGRES_DB: rifa
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U rifa"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
       DATABASE_URL: postgres://rifa:rifa@127.0.0.1:5432/rifa
       SESSION_SECRET: ci-somente-para-teste
@@ -90,6 +74,25 @@ jobs:
       PAGARME_API_URL: http://127.0.0.1:5095/core/v5
     steps:
       - uses: actions/checkout@v4
+
+      # Postgres 16 instalado no próprio runner, sem contêiner. Puxar imagem de
+      # registry (Docker Hub e o espelho da AWS) falhava com "toomanyrequests" e
+      # derrubava este job antes de qualquer teste. O usuário e o banco são os
+      # mesmos de antes (DATABASE_URL acima), e o usuário é superusuário como era
+      # no contêiner (o `npm run db:push` cria a extensão pg_trgm).
+      - name: Sobe o Postgres 16 do runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-16
+          sudo systemctl start postgresql
+          for i in $(seq 1 30); do
+            pg_isready -h 127.0.0.1 -p 5432 && break
+            sleep 1
+          done
+          sudo -u postgres psql -v ON_ERROR_STOP=1 \
+            -c "CREATE USER rifa WITH SUPERUSER PASSWORD 'rifa';" \
+            -c "CREATE DATABASE rifa OWNER rifa;"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22

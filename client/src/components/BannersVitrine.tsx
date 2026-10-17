@@ -69,6 +69,9 @@ export function BannersVitrine() {
       <div
         ref={trilho}
         className="flex snap-x snap-mandatory overflow-x-auto rounded-xl"
+        tabIndex={0}
+        role="region"
+        aria-label="Banners em destaque"
         style={{ scrollbarWidth: "none" }}
         onScroll={(e) => {
           const el = e.currentTarget;
@@ -114,8 +117,10 @@ export function BannersVitrine() {
                 setParado(true);
                 irPara(i);
               }}
-              className={`h-1.5 rounded-full transition-all ${i === atual ? "w-4 bg-branco" : "w-1.5 bg-branco/60"}`}
-            />
+              className="flex h-6 min-w-6 items-center justify-center"
+            >
+              <span aria-hidden className={`block h-1.5 rounded-full transition-all ${i === atual ? "w-4 bg-branco" : "w-1.5 bg-branco/60"}`} />
+            </button>
           ))}
         </div>
       ) : null}

@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 859 |
+| Cartões (componentes usados pelas telas) | 866 |
 | Rotas da API | 487, das quais 483 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 66 |
 | Testes de regra (`tests/`) | 136 arquivos |
-| Destinos decididos | 966 de 966 |
+| Destinos decididos | 973 de 973 |
 
 ## 1. Telas
 
@@ -168,6 +168,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AlternarVisao` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `ArtesParaDivulgar` | manter · na tela P01 Painel (visão geral) · onda 2 |
 | `BannerDivulgacaoCard` | manter · na tela P01 Painel (visão geral) · onda 2 |
+| `BarraDeAcessos` | manter · na tela P01 Painel (visão geral) · onda 2 |
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `Button` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P01 Painel (visão geral) |
@@ -221,6 +222,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AlternarVisao` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `ArtesParaDivulgar` | manter · na tela P12 Afiliados · onda 2 |
 | `BannerDivulgacaoCard` | manter · na tela P12 Afiliados · onda 2 |
+| `BarraDeAcessos` | manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro) |
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `Button` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P12 Afiliados |
@@ -365,6 +367,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AlternarVisao` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `ArtesParaDivulgar` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
 | `BannerDivulgacaoCard` | manter · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) · onda 2 |
+| `BarraDeAcessos` | manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro) |
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `Button` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P02 Rifas (grade de capas) + P03 Editar rifa (abas, 54-4503) |
@@ -434,6 +437,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AlternarVisao` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `ArtesParaDivulgar` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
 | `BannerDivulgacaoCard` | manter · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) · onda 2 |
+| `BarraDeAcessos` | manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro) |
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `Button` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P15 Configurações do organizador (abas) + P29 da plataforma (51-5240) |
@@ -497,6 +501,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AlternarVisao` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `ArtesParaDivulgar` | manter · na tela P09 Financeiro · onda 2 |
 | `BannerDivulgacaoCard` | manter · na tela P09 Financeiro · onda 2 |
+| `BarraDeAcessos` | manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro) |
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `Button` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P09 Financeiro |
@@ -627,6 +632,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AlternarVisao` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `ArtesParaDivulgar` | manter · na tela P04 Pedidos · onda 2 |
 | `BannerDivulgacaoCard` | manter · na tela P04 Pedidos · onda 2 |
+| `BarraDeAcessos` | manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro) |
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `Button` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P04 Pedidos |
@@ -690,6 +696,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 | `AlternarVisao` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `ArtesParaDivulgar` | manter · na tela P07 Sorteios · onda 2 |
 | `BannerDivulgacaoCard` | manter · na tela P07 Sorteios · onda 2 |
+| `BarraDeAcessos` | manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro) |
 | `BarrasHorizontais` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `Button` | manter · peça do kit (onda 1) · na tela P07 Sorteios |
 | `CabecalhoDaTabela` | manter · peça do kit (onda 1) · na tela P07 Sorteios |

@@ -172,7 +172,7 @@ function AbasDaGrade({ abas, aberta, abrir }: { abas: Aba[]; aberta: string; abr
               {a.icone(ativa)}
             </span>
             <span className="flex max-w-full items-center gap-1">
-              <span className="truncate">{a.rotulo}</span>
+              <span className="hyphens-auto break-words text-center text-[11px] leading-tight sm:text-xs">{a.rotulo}</span>
               {a.privada ? (
                 <>
                   <Lock size={12} aria-hidden className="shrink-0" />

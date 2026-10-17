@@ -236,7 +236,7 @@ export function BotaoDenunciar({
           soIcone
             ? "flex h-9 w-9 items-center justify-center rounded-full bg-black/50"
             : comoLink
-            ? "font-semibold underline"
+            ? "inline-flex min-h-6 items-center font-semibold underline"
             : "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted hover:bg-mist hover:text-ink"
         }
       >

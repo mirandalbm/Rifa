@@ -381,7 +381,7 @@ function GastoReceita({ serie }: { serie: DiaSerie[] }) {
           </span>
         </div>
         <div
-          className="flex h-36 items-end gap-[3px] border-b border-line"
+          className="flex h-36 items-end gap-[3px] overflow-x-auto border-b border-line"
           onMouseLeave={() => setAtivo(null)}
         >
           {serie.map((x, i) => (
@@ -392,7 +392,7 @@ function GastoReceita({ serie }: { serie: DiaSerie[] }) {
               onFocus={() => setAtivo(i)}
               onClick={() => setAtivo(i)}
               aria-label={`${diaCurto(x.dia)}: gasto ${formatBRL(x.gastoCents)}, receita ${formatBRL(x.receitaCents)}`}
-              className="flex h-full flex-1 items-end justify-center gap-[1px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              className="flex h-full min-w-6 flex-1 items-end justify-center gap-[1px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
             >
               <span
                 className="block w-1/2 max-w-3 rounded-t bg-ink-2"
@@ -412,7 +412,7 @@ function GastoReceita({ serie }: { serie: DiaSerie[] }) {
         <button
           type="button"
           onClick={() => setTabela(!tabela)}
-          className="mt-2 text-xs text-ink-2 underline"
+          className="mt-2 inline-flex min-h-6 items-center text-xs text-ink-2 underline"
         >
           {tabela ? "Esconder tabela" : "Ver em tabela"}
         </button>

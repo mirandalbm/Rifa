@@ -701,10 +701,13 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
     plataforma não publicou. Na lateral do computador recolhida, só o trevo;
     aberta, a frase. Logo enviada em Aparência substitui o desenho (com o nome
     como texto alternativo).
-  - Os ícones do app (`client/public/icons/`) são a **folha de trevo da
-    direita, vermelha** (`docs/marca/`, escolha do produto em 14/10/2026; o
-    `icon-maskable-512` é a mesma arte de sangria total do `icon-512` —
-    reduzida, deixava uma placa em volta do trevo). O título do iPhone
+  - Os ícones do app (`client/public/icons/`) são só o **trevo, com a folha
+    da direita vermelha** (`docs/marca/`, escolha do produto em 14/10/2026),
+    sem moldura nem placa: `icon-192` e `icon-512` com o trevo a 87% sobre
+    fundo transparente; `icon-maskable-512` com o trevo a 66% sobre fundo
+    transparente, dentro da zona segura de 80% (o raio do trevo fica em
+    171 px de 205); `apple-touch-icon` com o trevo a 87% sobre branco (o iOS
+    não aceita transparência). O título do iPhone
     (`apple-mobile-web-app-title`) e o nome do app instalado no manifesto de
     fábrica são "Loterias do Bem" (`NOME_PADRAO`, o curto "Loterias do"). No
     Android, o nome instalado vem do template **publicado** em Aparência →

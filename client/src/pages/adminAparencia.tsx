@@ -587,7 +587,7 @@ export function AdminAparencia() {
             }
           >
             {/* mx-auto no filho centraliza quando cabe e deixa rolar quando não cabe. */}
-            <div className="flex overflow-x-auto bg-mist p-3">
+            <div className="flex overflow-x-auto bg-mist p-3" tabIndex={0} role="region" aria-label="Prévia da loja no celular, rolável">
               {tela === "celular" ? (
                 <iframe title="Pré-visualização no celular" src="/?previa=1" className="mx-auto h-[700px] w-[375px] shrink-0 rounded-xl border border-line bg-white" />
               ) : (

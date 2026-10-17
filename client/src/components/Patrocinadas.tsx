@@ -57,7 +57,7 @@ export function Patrocinadas({
   return (
     <section aria-label={titulo || "Rifas patrocinadas"} className="mt-4">
       <h2 className="font-display text-lg font-bold">{titulo || "Patrocinadas"}</h2>
-      <ul className="-mx-4 mt-2 flex snap-x gap-3 overflow-x-auto px-4 pb-2">
+      <ul className="-mx-4 mt-2 flex snap-x gap-3 overflow-x-auto px-4 pb-2" tabIndex={0} aria-label="Rifas patrocinadas">
         {lista.map(({ p, r }) => (
           <li key={p.id} className="w-60 shrink-0 snap-start">
             <Link

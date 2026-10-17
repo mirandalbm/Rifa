@@ -246,7 +246,7 @@ export function EditarPerfilPublico({ compacto, aoSalvar }: { compacto?: boolean
               Tirar foto
             </Button>
           ) : null}
-          <Link href={`/u/${data.apelido}`} className="text-marca underline">
+          <Link href={`/u/${data.apelido}`} className="inline-flex min-h-6 items-center text-marca underline">
             Ver meu perfil
           </Link>
         </div>

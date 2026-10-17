@@ -412,7 +412,7 @@ function GastoReceita({ serie }: { serie: DiaSerie[] }) {
         <button
           type="button"
           onClick={() => setTabela(!tabela)}
-          className="mt-2 text-xs text-ink-2 underline"
+          className="mt-2 inline-flex min-h-6 items-center text-xs text-ink-2 underline"
         >
           {tabela ? "Esconder tabela" : "Ver em tabela"}
         </button>

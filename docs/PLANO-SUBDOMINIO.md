@@ -868,3 +868,29 @@ Vão em `docs/PERGUNTAS-AO-ADVOGADO.md`, "Quinta rodada". Resumo:
     a lista inteira e o teste de cobertura a trava).
 11. **Seções mencionadas e inexistentes:** "Subdomínio do organizador" em
     `PENDENCIAS.md` não está em `origin/main` (conferido).
+
+---
+
+## 15. Parecer do advogado (R30 a R35, 18/10/2026) e o que muda
+
+O parecer completo está em `docs/PERGUNTAS-AO-ADVOGADO.md`. Efeito neste plano:
+
+- **O subdomínio não é destino de anúncio.** Google (jogos de azar, março de 2026)
+  exige domínio "propriedade direta" da empresa; a Meta verifica o domínio raiz.
+  Logo, o endereço `<rotulo>.loteriasdobem.com.br` serve ao perfil e à divulgação
+  orgânica; **o anúncio pago pede domínio próprio da promotora (CNAME)**. Isto
+  vira uma fase nova (o item "domínio próprio da promotora" do PR 8 sobe de
+  prioridade): cadastro do domínio, verificação do CNAME, certificado, o mesmo
+  guarda por host, `canonical` para ele mesmo e `?ref=` do afiliado preservado.
+  Enquanto não existe, `linkDoAnuncio` não usa o subdomínio para anúncio pago.
+- **Cookie de pixel (R32) é bloqueio de lançamento**: `SUBDOMINIO_BASE` não vai a
+  produção com `_fbp`/`_ttp` no domínio pai. Saídas: Lista de Sufixos Públicos para
+  `loteriasdobem.com.br` (cada subdomínio vira "site" próprio para o navegador) ou o
+  domínio próprio da promotora, que resolve junto com a R30.
+- **PR 6 (SEO e página)** ganha a **dupla identificação** (R31): promotora no
+  cabeçalho/área principal sem rolar (nome, CNPJ, endereço, autorização SPA/MF) e
+  plataforma no rodapé (razão social, CNPJ, e-mail dos Dados da empresa publicados).
+- **Rótulo**: além de `RESERVADOS`, triagem de nomes que sugiram instituição
+  financeira ou loteria oficial (R33); rótulo desligado nunca é reatribuído (R34).
+- **Textos**: cláusula de desligamento e licença do endereço no contrato da
+  promotora; proibição de `af-<código>` como destino pago no termo do afiliado (R35).

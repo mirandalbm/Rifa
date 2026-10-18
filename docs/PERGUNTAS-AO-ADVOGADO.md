@@ -478,6 +478,44 @@ que leva o endereço desligado?
 mas o endereço carrega o nome do afiliado. Isso muda a responsabilidade do
 afiliado pela publicidade (R16) ou a análise do Google?
 
+**Parecer do advogado sobre R30 a R35 (18/10/2026).** Prioridade imediata: R30 e R32.
+
+- **R30 [1] — o subdomínio não basta.** A política de jogos de azar do Google
+  (março de 2026) não aceita site em subdomínio de terceiro ("o domínio tem de ser
+  propriedade direta da empresa e controlado por esta"), e a verificação de domínio
+  da Meta exige o domínio raiz. **Para anunciar, a promotora precisa de domínio
+  próprio** (CNAME para a plataforma). O que faz a página ser "da promotora": nome
+  empresarial e CNPJ em destaque, número da autorização SPA/MF, marca visual e
+  rodapé com os dados dela; a plataforma aparece como operadora técnica, em rodapé
+  secundário.
+- **R31 [1] — dupla identificação.** Promotora (nome, CNPJ, endereço, autorização)
+  no cabeçalho ou área principal, **sem rolar**; plataforma (razão social, CNPJ,
+  e-mail) no rodapé, em corpo menor mas legível. Fundamento: Decreto 7.962/2013,
+  art. 2º, I e II; CDC, art. 6º, III.
+- **R32 [1] — cookie no domínio pai é compartilhamento entre promotoras.** Exige
+  base legal própria (LGPD, arts. 5º, I e 7º; Guia de Cookies da ANPD). Aviso por
+  endereço não basta se o cookie é do pai. **Não ligar `SUBDOMINIO_BASE` em produção
+  enquanto o cookie de pixel estiver no domínio pai**; restringir ao subdomínio é a
+  medida mais segura.
+- **R33 [3] — desligar o endereço.** Cláusula válida (CC, art. 421): desligar ou
+  trocar a qualquer tempo e sem aviso por (a) phishing ou fraude, (b) ordem
+  judicial, (c) confusão com marca de terceiro, (d) violação dos Termos; a promotora
+  é informada quando cessar a urgência. A plataforma que liberou endereço enganoso
+  responde solidariamente (CDC, art. 7º, parágrafo único, e art. 37) — a cláusula não
+  afasta isso. **A triagem prévia do rótulo é essencial**: recusar nome que sugira
+  vínculo com instituição financeira ou loteria oficial.
+- **R34 [3] — propriedade.** Endereço é da plataforma; a promotora tem licença não
+  exclusiva e revogável. Na rescisão ou no banimento ele é desligado e **o rótulo
+  não volta a ninguém**. A plataforma não responde pelo material impresso ou
+  publicado com o endereço desligado, se comunicou a rescisão pelos canais oficiais;
+  a promotora deve cessar a divulgação e **indeniza a plataforma** pelo uso indevido
+  depois da rescisão.
+- **R35 [3] — afiliado.** O endereço `af-<código>` não muda a responsabilidade do
+  afiliado pela peça (R16), mas é subdomínio de terceiro e o Google o recusa. O
+  **termo do afiliado deve proibir** `af-<código>` como destino de anúncio pago no
+  Google ou na Meta: serve para divulgação orgânica e rastreamento. Para anúncio
+  pago, domínio próprio da promotora com o `?ref=` do afiliado.
+
 ## Sétima rodada — bandeiras dos estados (18/10/2026)
 
 O painel "Locais" da vitrine (`client/src/components/LocaisDaVitrine.tsx`)

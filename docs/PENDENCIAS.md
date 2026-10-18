@@ -606,7 +606,22 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   principal canônico, organização suspensa, Google no endereço, anúncio sem
   endereço, indexação, PWA, lista de reservados e marcas, cookie `__Host-`,
   PSL e Cloudflare).
-- [ ] **[advogado]** R30 a R35 (`docs/PERGUNTAS-AO-ADVOGADO.md`, quinta rodada).
+- [x] **[advogado]** R30 a R35 respondidas (18/10/2026, parecer em
+  `docs/PERGUNTAS-AO-ADVOGADO.md`). **O que muda no plano:** (1) o subdomínio **não
+  serve de destino de anúncio** no Google nem na Meta — é preciso **domínio próprio da
+  promotora** (CNAME), fase nova no `docs/PLANO-SUBDOMINIO.md` (cap. 15); o subdomínio
+  fica para perfil e divulgação orgânica; (2) **não ligar `SUBDOMINIO_BASE` em produção**
+  até o cookie `_fbp`/`_ttp` sair do domínio pai (PSL ou domínio próprio); (3) a página
+  do endereço precisa da dupla identificação (promotora no alto, plataforma no
+  rodapé) — entra no PR 6; (4) rótulo: triagem de nomes que sugiram banco, Caixa ou
+  "oficial" (hoje só a lista `RESERVADOS`); (5) texto de contrato: cláusulas de
+  desligamento (R33) e licença do endereço (R34, com indenização); (6) termo do
+  afiliado: proibir `af-<código>` como destino de anúncio pago (R35).
+- [ ] **[advogado → texto]** Levar ao contrato da promotora as cláusulas R33 e R34 e ao
+  termo do afiliado a proibição da R35; conferir o texto final com o advogado.
+- [ ] **[código]** Anúncio pago (`linkDoAnuncio`, tráfego): com o parecer, o destino
+  pago não pode ser o subdomínio; hoje, com a base desligada, segue o principal — manter
+  assim até existir o domínio próprio da promotora.
 - [ ] **[você]** Cadastrar o curinga `*.loteriasdobem.com.br` no Railway; escolher o
   domínio principal canônico (raiz ou `www`); aprovar a lista de reservados.
 - [x] **[código]** PR 1, parte feita (18/10/2026): `identificarHost()` corrigido (dois

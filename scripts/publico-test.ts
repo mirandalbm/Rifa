@@ -12,12 +12,21 @@
  * - imagens (perfil, capa, banner, apostador): id ou apelido que não existe é
  *   404, organização arquivada some, id fora do formato nunca é 500;
  * - o clique de afiliado só conta código ativo e tem limite por aparelho;
- * - o CEP malformado é 400 antes de qualquer consulta de fora.
+ * - o CEP malformado é 400 antes de qualquer consulta de fora;
+ * - promotora arquivada ou banida não aparece na vitrine nem nos estados, e o
+ *   perfil, o termo, o pixel, o link e o endereço curto dela não levam a lugar
+ *   nenhum (auditoria do acesso público);
+ * - a porta aguenta o que ninguém digita: byte nulo, texto enorme e id fora do
+ *   formato respondem 400/404 — nunca 500 e nunca o servidor fora do ar (o
+ *   login anônimo derrubava o processo);
+ * - pedido, carrinho e bilhete nunca ficam em cache, e a leitura pública não
+ *   fica em cache compartilhado.
  *
  *   npm run publico      (com `npm run dev` no ar e o seed aplicado)
  */
 import "dotenv/config";
 import { baseUrl } from "./base-url";
+import { randomBytes } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
@@ -27,6 +36,7 @@ import {
   campaignStats,
   campaigns,
   clickEvents,
+  linksCurtos,
   orders,
   organizacaoFotos,
   organizations,
@@ -62,7 +72,7 @@ class Cliente {
 }
 
 const SENHA = "senha-publico-1";
-const SLUGS = ["publico-a", "publico-b", "publico-arquivada"];
+const SLUGS = ["publico-a", "publico-b", "publico-arquivada", "publico-banida"];
 const EMAILS = ["publico-org-a@teste.rifa", "publico-org-b@teste.rifa", "publico-cambista@teste.rifa", "publico-cambista-b@teste.rifa"];
 const CODIGOS = ["PUBAFIL", "PUBCAMBA", "PUBCAMBB"];
 const NOME_COMPRADOR = "Marina Souza Ferreira";
@@ -116,7 +126,25 @@ async function main() {
 
   const [orgA] = await db.insert(organizations).values({ slug: SLUGS[0], name: "Promotora Pública A" }).returning();
   const [orgB] = await db.insert(organizations).values({ slug: SLUGS[1], name: "Promotora Pública B" }).returning();
-  const [arq] = await db.insert(organizations).values({ slug: SLUGS[2], name: "Promotora Arquivada", archivedAt: new Date() }).returning();
+  const [arq] = await db.insert(organizations).values({ slug: SLUGS[2], name: "Promotora Arquivada", archivedAt: new Date(), uf: "AC" }).returning();
+  // Banida: o perfil some e a porta fecha. Os links, o pixel e o endereço curto dela não podem seguir de pé.
+  const [ban] = await db
+    .insert(organizations)
+    .values({
+      slug: SLUGS[3],
+      name: "Promotora Banida",
+      banidaEm: new Date(),
+      active: false,
+      uf: "AC",
+      links: [{ rotulo: "Canal", url: "https://exemplo.com/canal-da-banida" }],
+      pixels: { meta: "1234567890123456" },
+    })
+    .returning();
+  await db.update(organizations).set({ links: [{ rotulo: "Site", url: "https://exemplo.com/site-da-a" }] }).where(eq(organizations.id, orgA.id));
+  await db.insert(linksCurtos).values([
+    { codigo: "PUBPRF", tipo: "perfil", organizationId: orgA.id },
+    { codigo: "BANPRF", tipo: "perfil", organizationId: ban.id },
+  ]);
   await db.insert(users).values([
     { role: "organizer", organizationId: orgA.id, name: "Org A", email: EMAILS[0], passwordHash: await hashPassword(SENHA) },
     { role: "organizer", organizationId: orgB.id, name: "Org B", email: EMAILS[1], passwordHash: await hashPassword(SENHA) },
@@ -127,6 +155,9 @@ async function main() {
   ]);
   const viva = await rifa(orgA.id, "publico-viva", "published");
   const rascunho = await rifa(orgA.id, "publico-rascunho", "draft");
+  // Estado que não devia existir (arquivar e banir travam as rifas), mas que a vitrine não pode servir se existir.
+  const arqRifa = await rifa(arq.id, "publico-arq-rifa", "published");
+  const banRifa = await rifa(ban.id, "publico-banida-rifa", "published");
   await db.insert(campaignCertificados).values({ campaignId: viva.id, mime: "application/pdf", nome: "certificado.pdf", bytes: Buffer.from("%PDF-1.4 teste"), tamanho: 14 });
   await db.insert(campaignCertificados).values({ campaignId: rascunho.id, mime: "application/pdf", nome: "certificado.pdf", bytes: Buffer.from("%PDF-1.4 teste"), tamanho: 14 });
   await db.insert(prizedQuotas).values([
@@ -279,12 +310,110 @@ async function main() {
     checa("…mas a atribuição segue (o afiliado não perde a venda)", r.status === 200 && r.json?.tracked === true && r.json?.attributed === CODIGOS[0], JSON.stringify(r.json));
     checa("…e a tabela não cresce sem limite", (await cliques()) - antes <= 130, `${(await cliques()) - antes}`);
 
+    /* ------------------ promotora arquivada ou banida --------------------- */
+    console.log("\n  promotora arquivada ou banida:");
+    r = await publico.req("GET", "/api/public/campaigns");
+    const naVitrine: string[] = (r.json ?? []).map((c: { slug: string }) => c.slug);
+    checa("a rifa da promotora viva aparece na vitrine", naVitrine.includes(viva.slug), naVitrine.join(","));
+    checa("…a da arquivada e a da banida, não", !naVitrine.includes(arqRifa.slug) && !naVitrine.includes(banRifa.slug), naVitrine.join(","));
+    r = await publico.req("GET", "/api/public/estados");
+    checa("os estados não contam a rifa delas", r.status === 200 && !(r.json ?? []).some((e: { uf: string }) => e.uf === "AC"), JSON.stringify(r.json));
+    r = await publico.req("GET", `/api/public/o/${ban.slug}`);
+    checa("perfil da banida: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await publico.req("GET", `/api/public/o/${ban.slug}/termo-afiliado`);
+    checa("termo de afiliado da banida: 404 (a arquivada já era)", r.status === 404, `HTTP ${r.status}`);
+    r = await publico.req("GET", `/api/public/marketing?organizacao=${ban.slug}`);
+    checa("o pixel da banida não vai para a página", r.status === 200 && r.json?.organizacao === null, JSON.stringify(r.json));
+    const semSeguir = async (caminho: string) => {
+      const x = await fetch(URL + caminho, { redirect: "manual" });
+      return { status: x.status, destino: x.headers.get("location") ?? "" };
+    };
+    let g = await semSeguir("/l/publico-a/0");
+    checa("link do perfil da viva leva ao destino guardado", g.status === 302 && g.destino === "https://exemplo.com/site-da-a", `${g.status} ${g.destino}`);
+    g = await semSeguir(`/l/${ban.slug}/0`);
+    checa("link do perfil da banida: não redireciona (404)", g.status === 404 && g.destino === "", `${g.status} ${g.destino}`);
+    g = await semSeguir("/c/PUBPRF");
+    checa("endereço curto da viva leva ao perfil", g.status === 302 && g.destino === "/o/publico-a", `${g.status} ${g.destino}`);
+    g = await semSeguir("/c/BANPRF");
+    checa("endereço curto da banida volta para a vitrine", g.status === 302 && g.destino === "/", `${g.status} ${g.destino}`);
+
+    /* ------------- a porta aguenta o que ninguém digita ------------------ */
+    console.log("\n  byte nulo, texto enorme e id fora do formato:");
+    const vivo = async () => (await publico.req("GET", "/api/public/template")).status === 200;
+    const enorme = randomBytes(6000).toString("base64");
+    r = await publico.req("POST", "/api/auth/login", { email: "a\u0000b@teste.rifa", password: "x" });
+    checa("login com byte nulo no e-mail: 400", r.status === 400, `HTTP ${r.status}`);
+    checa("…e o servidor segue no ar", await vivo());
+    r = await publico.req("POST", "/api/auth/login", { email: enorme, password: "x" });
+    checa("login com e-mail de 8 mil letras: 401, como qualquer senha errada", r.status === 401, `HTTP ${r.status}`);
+    checa("…e o servidor segue no ar", await vivo());
+    r = await publico.req("POST", "/api/auth/login", { email: enorme, password: "x" });
+    checa("…repetido, ainda 401 (o mesmo balde, contado)", r.status === 401, `HTTP ${r.status}`);
+    r = await publico.req("POST", "/api/public/conta/entrar", { login: enorme, senha: "x" });
+    checa("entrar na conta com texto enorme: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await publico.req("POST", "/api/public/track-click", { ref: "ab\u0000c" });
+    checa("clique de afiliado com byte nulo: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await publico.req("POST", "/api/public/afiliados/cadastro", { name: "Ana\u0000 Souza", email: "ana@teste.rifa", phone: "11999999999", password: "SenhaForte123!" });
+    checa("cadastro de afiliado com byte nulo no nome: 400", r.status === 400, `HTTP ${r.status}`);
+    for (const caminho of [
+      "/api/public/campaigns/%00",
+      "/api/public/o/%00",
+      "/api/public/o/%00/foto",
+      "/api/public/u/%00",
+      "/api/public/recibos/%00",
+      "/api/public/marketing?organizacao=%00",
+      "/api/public/presente?codigo=a%00b",
+    ]) {
+      r = await publico.req("GET", caminho);
+      checa(`${caminho}: 400, nunca 500`, r.status === 400, `HTTP ${r.status}`);
+    }
+    checa("…e o servidor segue no ar", await vivo());
+
+    for (const caminho of [
+      "/api/public/orders/abc",
+      "/api/public/orders/99999999999",
+      "/api/public/orders/1.5",
+      "/api/public/carrinho/pedidos/abc",
+      "/api/public/carrinho/pedidos/99999999999",
+      "/api/public/stories/abc/poster",
+      "/api/public/stories/abc/imagem",
+      "/api/public/banners-pagos/abc/imagem",
+    ]) {
+      r = await publico.req("GET", caminho);
+      checa(`${caminho}: 404, nunca 500`, r.status === 404, `HTTP ${r.status}`);
+    }
+    await db.execute(sql`delete from rate_events where bucket like 'lookup%'`);
+
+    /* ------------------------------ cache --------------------------------- */
+    console.log("\n  cache:");
+    const cabecalho = async (caminho: string) => (await fetch(URL + caminho)).headers.get("cache-control") ?? "";
+    for (const caminho of [`/api/public/orders/${codigo}`, `/api/public/tickets/${codigo}`, `/api/public/tickets/${codigo}/escpos`]) {
+      const cc = await cabecalho(caminho);
+      checa(`${caminho.replace(String(codigo), ":código")}: pedido e nome de quem comprou, nunca em cache`, /no-store/.test(cc) && /private/.test(cc), cc);
+    }
+    for (const caminho of [`/api/public/campaigns/${viva.slug}`, "/api/public/campaigns", `/api/public/o/${orgA.slug}`, `/api/public/campaigns/${viva.slug}/ranking`]) {
+      const cc = await cabecalho(caminho);
+      checa(`${caminho.replace(viva.slug, ":slug")}: a leitura varia com a sessão, então só o aparelho guarda`, /private/.test(cc) && !/public/.test(cc), cc);
+    }
+    checa("o que é igual para todos mantém o cache da rota (template público)", /public/.test(await cabecalho("/api/public/template")), await cabecalho("/api/public/template"));
+    r = await publico.req("GET", `/api/public/campaigns/${viva.slug}/ranking`);
+    const r2 = await publico.req("GET", `/api/public/campaigns/${viva.slug}/ranking`);
+    checa("ranking guardado alguns segundos devolve o mesmo", r.status === 200 && JSON.stringify(r.json) === JSON.stringify(r2.json));
+
     /* -------------------------------- CEP --------------------------------- */
     console.log("\n  CEP:");
     r = await publico.req("GET", "/api/public/cep/123");
     checa("CEP curto: 400", r.status === 400, `HTTP ${r.status}`);
     r = await publico.req("GET", "/api/public/cep/abcdefgh");
     checa("CEP com letras: 400", r.status === 400, `HTTP ${r.status}`);
+    // Cada CEP novo é uma chamada ao serviço de fora: quem varre CEPs é barrado por IP.
+    let barrado = 0;
+    for (let i = 0; i < 135; i++) {
+      r = await publico.req("GET", "/api/public/cep/123");
+      if (r.status === 429) barrado++;
+    }
+    checa("varredura de CEP: depois de 120 por minuto, 429 em português", barrado > 0 && /CEP/.test(r.json?.message ?? ""), `${barrado} barrados`);
+    await db.execute(sql`delete from rate_events where bucket like 'cep:%'`);
 
     void cambA;
   } finally {

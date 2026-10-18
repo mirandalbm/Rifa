@@ -34,6 +34,7 @@ import {
   type BlockKind,
 } from "@shared/antifraude";
 import { normalizePhone, hidePhone } from "@shared/format";
+import { chaveDoBalde } from "./balde";
 import { appSettings } from "@shared/schema";
 
 const LIMITS_KEY = "antifraude";
@@ -109,12 +110,12 @@ async function countInWindow(bucket: string, minutes: number): Promise<number> {
   const [row] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(rateEvents)
-    .where(and(eq(rateEvents.bucket, bucket), gt(rateEvents.createdAt, desde)));
+    .where(and(eq(rateEvents.bucket, chaveDoBalde(bucket)), gt(rateEvents.createdAt, desde)));
   return row?.n ?? 0;
 }
 
 async function record(bucket: string) {
-  await db.insert(rateEvents).values({ bucket });
+  await db.insert(rateEvents).values({ bucket: chaveDoBalde(bucket) });
 }
 
 /**
@@ -424,7 +425,8 @@ export async function guardLogin(
     await flag({
       rule: "forca_bruta",
       reason: "Tentativas de entrada demais para a mesma conta.",
-      subject: chave,
+      // O e-mail vem do que foi digitado: só o começo vai para o registro.
+      subject: chave.slice(0, 120),
       detail: { tentativas: tentativa.atual, limite: limits.loginAttempts },
     });
     return {

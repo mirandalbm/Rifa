@@ -312,7 +312,7 @@ export async function termoPublico(slug: string) {
   const [org] = await db
     .select({ id: organizations.id, nome: organizations.name })
     .from(organizations)
-    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt)));
+    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
   if (!org) throw new AfiliadoError("Organização não encontrada.", 404);
   const t = await termoAtual(org.id);
   return { organizacao: org.nome, termo: t ? { versao: t.versao, comissaoPct: t.comissaoPct, texto: t.texto } : null };

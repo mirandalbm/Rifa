@@ -24,6 +24,7 @@ import {
   numeroInterno,
 } from "@shared/format";
 import { priceOrder } from "@shared/pricing";
+import { rifaAVenda } from "@shared/carrinho";
 import { regraDoReembolso, regraSemReembolsoPeloSite } from "@shared/reembolso";
 import { AvisoDePrazo } from "@/components/AvisoDePrazo";
 import { DestaqueOrg } from "@/components/DestaqueOrg";
@@ -74,6 +75,8 @@ interface CampaignDetail {
     temCertificado?: boolean;
     demonstracao?: boolean;
     travada?: boolean;
+    /** `published`, `closed` (esperando o sorteio) ou `drawn` (sorteada). */
+    status?: string;
     legenda?: string | null;
     /** A entidade beneficiada (ONG, fundação): o banner em cima da rifa e a tela dela. */
     bannerDivulgacao?: Entidade | null;
@@ -290,7 +293,16 @@ export default function Rifa() {
       setPacote(n);
       setPicked([]);
       setShowMap(false);
-    } else if ((data.pagamento?.online ?? true) && !data.campaign.demonstracao && !data.campaign.travada) {
+    } else if (
+      rifaAVenda({
+        status: data.campaign.status ?? "published",
+        demonstracao: data.campaign.demonstracao,
+        travada: data.campaign.travada,
+        soldCount: data.stats.soldCount,
+        totalQuotas: data.campaign.totalQuotas,
+        pixOnline: data.pagamento?.online,
+      })
+    ) {
       // A rifa sempre abre no +10: quem chega vê as cartelas sem tocar em
       // nada. Fora da faixa da rifa, o pacote em destaque, senão o primeiro.
       const pacotes = data.packages.length ? data.packages : PACOTES_PADRAO;
@@ -344,8 +356,18 @@ export default function Rifa() {
     }));
   const sold = stats.soldCount;
   const pct = percent(sold, campaign.totalQuotas);
-  // Vende pela loja: com Pix online ligado e nunca em rifa de demonstração.
-  const vende = (data.pagamento?.online ?? true) && !campaign.demonstracao && !campaign.travada;
+  // Vende pela loja: a mesma régua do cartão do feed e do carrinho (`rifaAVenda`) — rifa no ar,
+  // com cota livre, Pix online ligado, nem de demonstração nem travada. Rifa sorteada ou
+  // esperando o sorteio não oferece compra (e o servidor só sugere cartela de rifa no ar).
+  const vende = rifaAVenda({
+    status: campaign.status ?? "published",
+    demonstracao: campaign.demonstracao,
+    travada: campaign.travada,
+    soldCount: sold,
+    totalQuotas: campaign.totalQuotas,
+    pixOnline: data.pagamento?.online,
+  });
+  const semCotaLivre = campaign.status === "published" && sold >= campaign.totalQuotas;
   const count = picked.length;
   const dadosOk = comprador.name.length >= 2 && comprador.phone.length >= 10 && cpfOk && emailOk;
 
@@ -524,6 +546,17 @@ export default function Rifa() {
           <p className="mt-1 text-xs text-red">
             Esta rifa está em averiguação e não aceita novas compras. Quem já comprou mantém os bilhetes pagos pela
             plataforma; em dúvida, fale com o atendimento.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Rifa no ar sem cota livre, ou esperando o sorteio: a página diz por que não há compra. */}
+      {!vende && !campaign.demonstracao && !campaign.travada && campaign.status !== "drawn" && data.pagamento?.online !== false ? (
+        <div className="mt-4 rounded-lg border border-yellow bg-yellow-soft p-3">
+          <h2 className="font-display text-sm font-bold text-yellow-deep">{semCotaLivre ? "Cotas esgotadas" : "Vendas encerradas"}</h2>
+          <p className="mt-1 text-xs text-yellow-deep">
+            {semCotaLivre ? "Todas as cotas desta rifa foram vendidas." : "Esta rifa não aceita novas compras: ela espera o sorteio."} O resultado aparece nesta página
+            depois do sorteio.
           </p>
         </div>
       ) : null}

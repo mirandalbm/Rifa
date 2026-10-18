@@ -934,3 +934,23 @@ O parecer completo está em `docs/PERGUNTAS-AO-ADVOGADO.md`. Efeito neste plano:
 - **Fica:** a triagem de rótulo que sugere banco ou "oficial" (R33) segue a de
   hoje (`RESERVADOS` + `rotuloPareceMarca()`, que pede confirmação); o
   `og:image` da rifa; o sitemap por partes se passar de 5 mil rifas (teto atual).
+
+### 15.2 Para que serve o endereço (esclarecimento do responsável, 18/10/2026)
+
+O endereço existe para a **promotora ter identidade própria dentro do sistema e
+falar direto com o usuário** — não para ser destino de anúncio. Por isso:
+
+- O parecer R30 (Google e Meta exigem domínio próprio) **só pesa se a promotora
+  anunciar naquelas redes** apontando para o endereço. O "domínio próprio da
+  promotora" deixa de ser pré-requisito do lançamento e vira fase opcional,
+  para quem for anunciar.
+- Segue valendo, e **é o que trava ligar `SUBDOMINIO_BASE` em produção**, o parecer
+  R32: o cookie de pixel (`_fbp`/`_ttp`) não pode ficar no domínio pai, porque
+  isso junta o identificador do usuário entre promotoras. A saída é a Lista de
+  Sufixos Públicos (PR 8).
+- Seguem valendo a dupla identificação (R31), a licença e o desligamento do
+  endereço (R33, R34) e `af-<código>` fora de anúncio pago (R35).
+- "Comunicação direta com o usuário": hoje o console do endereço não tem
+  Mensagens (`botoesNoEndereco()`). Abrir a caixa de conversa **com a
+  organização do endereço** é o passo natural — proposta na pendência abaixo.
+

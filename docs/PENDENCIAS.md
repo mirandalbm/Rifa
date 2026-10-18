@@ -622,6 +622,10 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   plataforma fora do endereço e a dupla identificação (R31). Falta **[você]**: decidir
   se liga `SEO_INDEXAR=1` (o sitemap) — de fábrica não anuncia nada. Detalhes em
   `docs/PLANO-SUBDOMINIO.md`, cap. 15.1.
+- [ ] **[decisão]** O endereço é identidade e canal direto da promotora (esclarecido em
+  18/10/2026; `PLANO-SUBDOMINIO.md`, 15.2): o domínio próprio vira opcional (só para
+  anunciar) e o único bloqueio de ligar a base é o cookie `_fbp`/`_ttp` (R32). Falta
+  decidir **Mensagens no console do endereço** (conversa só com a organização dele).
 - [ ] **[advogado → texto]** Levar ao contrato da promotora as cláusulas R33 e R34 e ao
   termo do afiliado a proibição da R35; conferir o texto final com o advogado.
 - [ ] **[código]** Anúncio pago (`linkDoAnuncio`, tráfego): com o parecer, o destino

@@ -976,6 +976,7 @@ async function rotasDaPlataforma(eu: Lado, outro: Lado) {
     ["GET contestações do Pix a conferir", "/api/admin/contestacoes", {}],
     ["POST registrar a contestação conferida", "/api/admin/contestacoes/ch_qualquer/conferida", { method: "POST", body: '{"observacao":"conferida pelo organizador"}' }],
     ["PUT configuração do banner pago", "/api/admin/banner-pago/config", { method: "PUT", body: '{"ligado":true}' }],
+    ["PUT configuração do banner pago, só o bloco do clique", "/api/admin/banner-pago/config", { method: "PUT", body: '{"clique":{"ligado":true,"precoCents":1,"faixas":[]},"faixasDia":[]}' }],
     ["PUT configuração do tráfego pago", "/api/admin/trafego/config", { method: "PUT", body: '{"ligado":true,"redes":["google"]}' }],
     ["POST decisão de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/decisao", { method: "POST", body: '{"aprovar":true}' }],
     ["POST fechar a conta de campanha de tráfego", "/api/admin/trafego/campanhas/00000000-0000-4000-8000-000000000000/fechar", { method: "POST" }],

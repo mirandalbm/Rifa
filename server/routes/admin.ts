@@ -1,5 +1,6 @@
 import { numeracaoZero, validarMetodosLiberados } from "@shared/apuracao";
 import { problemaNoPremio } from "@shared/premio";
+import { mesclarConfigBannerPago } from "@shared/bannerPago";
 import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado, salvarArquivoDaAta } from "../services/sorteiosOficiais";
 import {
   BannerDivulgacaoError,
@@ -5206,14 +5207,18 @@ adminRouter.post("/banner-pago/pedidos/:id/decisao", async (req, res, next) => {
   }
 });
 
-/** Preço do dia, prazo e vagas (só a plataforma). O resto da configuração fica como está. */
+/**
+ * Preço do dia, prazo, vagas e o modo por clique (só a plataforma). **Parte da
+ * configuração atual**: o que não vier no corpo fica como está (antes, virava o
+ * padrão de fábrica, e `ligado` ausente desligava o produto). O resto da
+ * configuração da plataforma também fica como está.
+ */
 adminRouter.put("/banner-pago/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    // Parte da configuração atual: o corpo sem `ligado` desligava o produto, e sem preço ou dias voltava ao padrão.
-    const atual = (await getPlataforma()).bannerPago;
-    const corpo = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
-    const salva = await setPlataforma({ bannerPago: { ...atual, ...corpo } });
+    // A mescla é calculada sob a trava da configuração (`setPlataforma` com função): dois salvamentos
+    // ao mesmo tempo não se sobrescrevem, e o que não vier no corpo fica como está.
+    const salva = await setPlataforma((atual) => ({ bannerPago: mesclarConfigBannerPago(atual.bannerPago, req.body) }));
     await audit(req, "banner.config", "settings", "plataforma", { ...salva.bannerPago });
     res.json(salva.bannerPago);
   } catch (err) {

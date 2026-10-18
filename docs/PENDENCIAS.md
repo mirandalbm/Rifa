@@ -621,6 +621,70 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Banner pago: definir o **preço do dia** e as **vagas** em
   Banner na vitrine e ligar o produto quando quiser vender (roda `db:push`
   antes: tabela `banner_pedidos`).
+- [ ] **Banner pago por clique** (`docs/PLANO-BANNER-POR-CLIQUE.md`, cronograma
+  4; um PR por passo da seção 8.2):
+  - [x] **Passo 1 — regras e esquema, sem mudar comportamento** (18/10/2026):
+    configuração (`faixasDia` e o bloco `clique`, nasce desligado), contas
+    puras, `validarFaixas()` extraída do patrocínio, colunas e tabelas
+    (`banner_cliques`, `banner_diario`) e o `PUT /banner-pago/config` a partir
+    da configuração atual. **Falta no ambiente:** o `db:push` **antes** do
+    código (`docs/ORDEM-DE-LANCAMENTO.md`).
+  - [ ] Passos 2 a 6: clique honesto sem cobrar, comprar por clique e fila,
+    telas, fechamento da documentação e venda atribuída (coluna
+    `orders.banner_pedido_id`, por produto).
+  - [ ] **[você]** Padrões de fábrica propostos, a confirmar no painel quando
+    o modo for ligado: preço do clique R$ 1,00, prazo máximo 30 dias, pacote
+    mínimo 100 (o responsável citou 1.000 cliques; é configuração, o admin
+    decide) e **teto de cliques por pedido 10.000** (proposta do passo 1:
+    R$ 10.000,00 ao preço de fábrica, igual à recarga máxima do saldo; o
+    documento de preços não dizia). Faixas de desconto por volume de cliques e
+    por período, preço do dia e mínimo de dias (itens 1 a 3 do documento de
+    preços) seguem sem resposta — nada disso está escrito no código fora do
+    padrão de fábrica.
+  - **Decisões técnicas 8 a 10 do plano — _adotada, a confirmar_** (a proposta
+    do próprio plano; entram no passo 2):
+    - [ ] **(8) Comprovante da exibição por slide visível** (proposta B): a
+      tela só pede o comprovante depois de ver o slide por 1 s, em
+      `POST …/banners-pagos/exibicoes`; `GET /banners` segue público e
+      cacheável. Alternativa A (assinar na entrega da lista) descartada por
+      contar como visto o slide que talvez não apareceu.
+    - [ ] **(9) Teto por IP do banner = `CLIQUES_POR_IP` (3)**, o mesmo das
+      patrocinadas. Se a vitrine (a página mais vista) esbarrar no teto
+      cedo demais, vira constante própria — o teto erra para o lado de não
+      cobrar.
+    - [ ] **(10) Guarda de `banner_cliques`: 90 dias**, com o expurgo no
+      relógio de limpeza (hoje `patrocinio_cliques` também não tem expurgo).
+      A **Privacidade** (`shared/legal.ts`) precisará de uma frase nova **só
+      quando o passo 2 gravar o primeiro clique** (aparelho e IP em hash, 90
+      dias, base legal) — o passo 1 não grava nada, então o texto não muda
+      agora; o `rifa.device` já diz que o hash do aparelho conta "visita e
+      clique".
+  - **Do parecer do revisor de invariantes (passo 1, sem achado grave)** — para
+    o passo 2 e seguintes:
+    - [ ] `encerrarBannersPagos()` (ramo "perdeu a rifa") devolve a sobra por
+      `dias`; no pedido `modo='clique'` tem de usar `sobraDoBannerPorClique`
+      (ou valor pago − `gastoDoBannerPorClique`), e todo encerramento grava
+      `encerrado_por`.
+    - [ ] O texto "Arte de banner pago… N dia(s)" (`caixa.ts`) e a descrição
+      do livro em `comprarBanner` precisam de versão para o modo clique
+      (`resumoDoPedido()` já existe).
+    - [ ] `getPlataforma()` volta à configuração de fábrica INTEIRA se o
+      bloco `bannerPago` guardado deixar de passar na régua: criar um
+      `bannerPagoGuardado()` tolerante (como `configIAGuardada`) **antes** de
+      apertar qualquer regra do bloco `clique`.
+    - [ ] Ver o que o `drizzle-kit push` imprime numa segunda rodada: o
+      `ck_banner_pedido_modo` é o primeiro `check()` do repositório e o
+      Postgres normaliza a expressão — pode listar como diferente a cada
+      push (ruído: drop e recreate sobre linhas que já passam).
+    - [ ] O `PUT` lê e grava sem trava (duas edições simultâneas de chaves
+      diferentes: a última vence). Mesmo padrão de `setPlataforma`; só o
+      master chega aqui.
+  - [ ] **[decisão]** Ainda abertas no plano: encerrar o banner por clique
+    antes de ir ao ar com a sobra em crédito (item 4), o teto próprio por IP
+    (9) e as perguntas ao advogado e ao contador (final da seção 9). Já
+    decididas em 18/10/2026: preço, pacote mínimo e prazo são configuração da
+    plataforma; vagas compartilhadas; o clique da própria organização não
+    conta; os slides pagos giram por visita; venda atribuída por produto.
 - [ ] **[você]** Subir os banners da plataforma (Aparência → Banners da
   vitrine) e orientar as organizações a postarem stories.
 - [x] Painel de resultados do organizador (painel → Resultados): receita,

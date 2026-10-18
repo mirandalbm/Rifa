@@ -134,7 +134,7 @@ arquitetura.
 | Buscar (grade das publicações e busca por texto, interruptor e tabela da plataforma) | `shared/buscar.ts` (regras e tabela), `server/services/buscar.ts`, o índice de texto (`shared/semAcentoSql.ts`, `idx_*_trgm` em `shared/schema.ts`, `scripts/extensoes.ts` no `db:push`), `GET /api/public/buscar` em `server/routes/public.ts`, `buscarLigado`/`buscarTipos` em `shared/plataforma.ts`, `client/src/pages/Buscar.tsx`, cartão em `client/src/components/TopoDoAppCard.tsx`, `scripts/buscar-test.ts`, `tests/buscar.test.ts` |
 | Mensagens (caixa de um para um: apostador, organização e afiliado) | `shared/mensagens.ts` (regras puras), `server/services/mensagens.ts`, rotas `/mensagens/*` em `server/routes/public.ts` e `/mensagens/denuncias*` em `server/routes/admin.ts`, `mensagensLigado` em `shared/plataforma.ts`, `client/src/pages/Mensagens.tsx` (foto e "online agora"), grupos da rifa (`shared/grupos.ts`, `server/services/grupos.ts`, `client/src/components/Grupos.tsx`, `GruposDenunciadosDaPlataforma` em `ConversasDenunciadas.tsx`, `scripts/grupos-test.ts`, `tests/grupos.test.ts`), `ConversasDenunciadas.tsx`, `BotaoMensagem.tsx` (também na peça do afiliado em `DivulgacoesDaRifa.tsx`), o número não lido do painel em `PanelShell` (`client/src/components/AppShell.tsx`, `rotuloDoSino()` em `shared/avisos.ts`), `scripts/mensagens-test.ts`, `tests/mensagens.test.ts` |
 | rifas patrocinadas por clique (etapa 15): pacote, fila, tabela e números | `shared/patrocinio.ts` (regras, preço, previsão da fila), `server/services/patrocinio.ts`, `client/src/pages/adminPatrocinio.tsx` (aba de `adminPublicidade.tsx`), `client/src/components/Patrocinadas.tsx`, `scripts/patrocinio-test.ts` |
-| banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados) | `shared/bannerPago.ts` (regras e config), `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx` (aba de `adminPublicidade.tsx`), `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
+| banner pago na vitrine (dias de topo, arte aprovada, vagas, devolução dos dias não usados; o modo por clique em construção: `docs/PLANO-BANNER-POR-CLIQUE.md`) | `shared/bannerPago.ts` (regras, config e as contas dos dois modos; `mesclarConfigBannerPago()` no `PUT /banner-pago/config`), `validarFaixas()` em `shared/patrocinio.ts`, `banner_pedidos`/`banner_cliques`/`banner_diario` em `shared/schema.ts`, `server/services/bannerPago.ts`, rotas `/banner-pago*` em `server/routes/admin.ts`, `/banners` e `/banners-pagos/:id/imagem` em `server/routes/public.ts`, `bannerPago` em `shared/plataforma.ts`, `client/src/pages/adminBannerPago.tsx` (aba de `adminPublicidade.tsx`), `client/src/components/BannersVitrine.tsx`, relógio em `server/jobs/index.ts`, `scripts/banner-pago-test.ts`, `tests/bannerPago.test.ts` |
 | marketing e tráfego pago (etapa 16): pixels, aviso de cookies, UTM, compra pelo servidor | `shared/marketing.ts` (regras e corpos das APIs), `server/services/marketing.ts`, `client/src/lib/marketing.ts`, `client/src/components/Marketing.tsx`, `client/src/pages/adminMarketing.tsx`, `scripts/marketing-test.ts` |
 | plano da próxima fase (vitrine, contas, afiliados, marketing) | `docs/PLANO-FASE5.md` |
 | plano da divulgação por influenciadores (convite, vitrine de rifas, desempenho por influenciador, acordo com cachê registrado sem a plataforma mover dinheiro) e o catálogo de canais — **ainda não existe no código** | `docs/PLANO-INFLUENCIADORES.md`, perguntas R16 a R23 em `docs/PERGUNTAS-AO-ADVOGADO.md` |
@@ -4848,9 +4848,47 @@ do dia, mínimo e máximo de dias, vagas e segundos na tela são da plataforma
 - **Recorte**: o pedido, a arte e o cancelamento do vizinho são 404; decidir
   e configurar são da plataforma (403, no `npm run isolation`); a
   organização vê o saldo e os pedidos dela, sem o nome das outras.
+- **A configuração é salva a partir da atual** (`mesclarConfigBannerPago()`
+  em `shared/bannerPago.ts`, no `PUT /banner-pago/config`): o corpo troca só
+  as chaves conhecidas que trouxe (e, dentro de `clique`, só as que trouxe
+  ali); o que falta **fica como está**. Antes, o que faltava virava o padrão
+  de fábrica — mandar `{ ligado: true }` reescrevia preço, dias e vagas, e
+  `ligado` ausente desligava o produto. `validarConfigBannerPago()` só
+  completa com o padrão a configuração **guardada** de antes dos campos novos.
+- **O modo por clique (passo 1 do `docs/PLANO-BANNER-POR-CLIQUE.md`, sem
+  comportamento novo)**: a configuração ganhou `faixasDia` (desconto por
+  período, vazio de fábrica) e o bloco `clique` — `ligado` (**nasce
+  desligado**), `precoCents`, `minimoCliques`, `maximoCliques`,
+  `prazoMaxDias` e `faixas` (por volume) —, **tudo da plataforma**: o único
+  lugar do código com valor de preço, pacote ou prazo é o padrão de fábrica
+  (`CONFIG_BANNER_CLIQUE_PADRAO`: R$ 1,00 por clique, pacote de 100 a 10.000,
+  prazo de 30 dias). As faixas passam por `validarFaixas()` (extraída de
+  `shared/patrocinio.ts`, uma só régua para patrocínio e banner: ordenadas,
+  sem repetir, o desconto só cresce, faixa acima do máximo é 400). As contas
+  puras: `precoDoBanner()` (agora com a faixa por período, para baixo),
+  `precoDoBannerPorClique()` (o preço do clique e o desconto saem dela para o
+  pedido **fotografar**), `sobraDoBannerPorClique()` (valor − `gastoAte()` do
+  patrocínio: gasto + sobra fecha o valor pago), `resumoDoPedido()` (a conta
+  em texto), `avisoDoPrazo()` e `previsaoDaFilaDoBanner()` ("entra, no mais
+  tardar, em…"). **Nada disto cobra ainda**: não há rota de pedido nem de
+  clique por clique, e `comprarBanner()` só grava o desconto da faixa por
+  período quando a plataforma configurar uma.
+- **O esquema do passo 1** (`db:push` **antes** do código): `banner_pedidos`
+  ganha `modo` (`dia`, padrão que cobre os pedidos de antes), `cliques_comprados`,
+  `cliques_usados`, `preco_clique_cents`, `desconto_pct` e `encerrado_por`;
+  `preco_dia_cents` passa a aceitar nulo (o pedido por clique não tem preço do
+  dia — zero seria mentira); `dias` segue sendo a janela nos dois modos. O
+  `check` `ck_banner_pedido_modo` impede o dado pela metade (cada modo
+  carrega as colunas dele; o modo dia nunca tem clique usado). **O
+  `drizzle-kit push` cria o `check`, mas não troca a expressão de um que já
+  existe** — mudar o `check` é trocar o nome dele. Tabelas `banner_cliques`
+  (espelho de `patrocinio_cliques`, `valor_cents` zero no modo dia) e
+  `banner_diario` (espelho de `patrocinio_diario`): **nada grava nelas até o
+  passo 2**.
 - `npm run banner` prova tudo isso contra a API de verdade e devolve o
-  estado de antes. A tabela nova (`banner_pedidos`) sobe com o `db:push`
-  **antes** do código.
+  estado de antes, inclusive o `PUT` de uma chave só e o desconto por
+  período. As tabelas (`banner_pedidos`, `banner_cliques`, `banner_diario`)
+  e as colunas novas sobem com o `db:push` **antes** do código.
 
 ## Assistente de IA (Chatbase) — o que não pode afrouxar
 

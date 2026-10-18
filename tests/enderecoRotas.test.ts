@@ -53,8 +53,8 @@ describe("páginas no endereço da organização", () => {
   });
 
   it("endereço curto e link do perfil seguem (o curto de outra organização é do PR 4)", () => {
-    expect(d("GET", "/c/abc123")).toEqual({ acao: "seguir" });
-    expect(d("GET", "/l/rifa-solidaria/0")).toEqual({ acao: "seguir" });
+    expect(d("GET", "/c/abc123")).toEqual({ acao: "conferir-curto", tipo: "c", chave: "abc123" });
+    expect(d("GET", "/l/rifa-solidaria/0")).toEqual({ acao: "conferir-curto", tipo: "l", chave: "rifa-solidaria" });
   });
 });
 

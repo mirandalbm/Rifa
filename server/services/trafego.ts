@@ -70,7 +70,7 @@ import { assertCampaignInScope, orgOf } from "./orgs";
 import { lancar } from "./patrocinio";
 import { exigirSemRetencao } from "./retencao";
 import { getPlataforma } from "./settings";
-import { baseDoSite } from "./urls";
+import { baseDoSite, enderecoDaOrganizacao } from "./urls";
 import { hashDoContrato } from "./contratoPromotora";
 import { criacoesDasCampanhas, pausarNaRedeDepois, situacaoDaCriacaoPelaApi } from "./trafegoCriacao";
 
@@ -692,6 +692,7 @@ export async function painelDoTrafego(req: Request) {
       ...campos,
       organizacao: organizations.name,
       orgSlug: organizations.slug,
+      orgId: organizations.id,
       rifa: campaigns.prizeTitle,
       rifaSlug: campaigns.slug,
       vendas: sql<number>`(select count(*)::int from orders x
@@ -717,6 +718,9 @@ export async function painelDoTrafego(req: Request) {
     saldoCents = o?.s ?? 0;
   }
   const base = baseDoSite(req);
+  // O link do anúncio vai ao endereço da organização quando ligado (da organização da campanha, nunca do Host).
+  const enderecos = new Map<string, string | null>();
+  if (!org) for (const id of new Set(linhas.map((l) => l.orgId))) enderecos.set(id, await enderecoDaOrganizacao(id));
   const criacoes = await criacoesDasCampanhas(
     linhas.map((l) => l.id),
     !org,
@@ -732,6 +736,7 @@ export async function painelDoTrafego(req: Request) {
       // O excedente é custo da plataforma: a organização não vê.
       excedenteCents: org ? undefined : l.excedenteCents,
       orgSlug: undefined,
+      orgId: undefined,
       rifaSlug: undefined,
       codigo: codigoDaCampanha(l.id),
       utmCampanha: utmCampanhaDe(l.id),
@@ -742,7 +747,7 @@ export async function painelDoTrafego(req: Request) {
       links: org
         ? undefined
         : Object.fromEntries(
-            (l.redes as RedeDeAnuncio[]).map((r) => [r, linkDoAnuncio(base, { id: l.id, orgSlug: l.orgSlug, rifaSlug: l.rifaSlug }, r)]),
+            (l.redes as RedeDeAnuncio[]).map((r) => [r, linkDoAnuncio(base, { id: l.id, orgSlug: l.orgSlug, rifaSlug: l.rifaSlug, endereco: enderecos.get(l.orgId) ?? null }, r)]),
           ),
     })),
     margem: org ? undefined : await margemPorMes(),

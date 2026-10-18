@@ -23,7 +23,9 @@ export type Decisao =
   /** Só segue se `:slug` for o da organização do endereço. */
   | { acao: "conferir-organizacao"; slug: string }
   /** Só segue se a rifa do corpo (`campaignId` ou `itens[].slug`) for da organização. */
-  | { acao: "conferir-corpo"; campo: "campaignId" | "itens" };
+  | { acao: "conferir-corpo"; campo: "campaignId" | "itens" }
+  /** Endereço curto (`/c/<código>`) ou link do perfil (`/l/<rótulo>/<n>`): só segue se for desta organização; senão vai ao principal. */
+  | { acao: "conferir-curto"; tipo: "c" | "l"; chave: string };
 
 type Regra = { metodo?: string; padrao: RegExp; faz: (m: RegExpExecArray, slugDoEndereco: string) => Decisao };
 
@@ -89,7 +91,9 @@ const PREFIXOS_ESTATICOS = ["/assets/", "/icons/", "/intro/", "/bandeiras/", "/u
 /** Páginas do SPA (o que o navegador navega). */
 const PAGINAS: Regra[] = [
   { padrao: /^\/$/, faz: seguir },
-  { padrao: /^\/(?:c|l)\/.+$/, faz: seguir }, // endereço curto e link do perfil (cap. 1.6)
+  { padrao: /^\/c\/([^/]+)$/, faz: (m) => ({ acao: "conferir-curto", tipo: "c", chave: m[1]! }) }, // endereço curto (cap. 1.6)
+  { padrao: /^\/l\/([^/]+)\/[^/]+$/, faz: (m) => ({ acao: "conferir-curto", tipo: "l", chave: m[1]! }) }, // link do perfil
+  { padrao: /^\/(?:c|l)\/.+$/, faz: () => PRINCIPAL }, // forma estranha: o principal responde
   { padrao: /^\/o\/([^/]+)((?:\/.*)?)$/, faz: (m, slug) => (m[1] === slug ? caminhoCanonico(m[2] ?? "") : PRINCIPAL) },
   { padrao: /^\/r\/([^/]+)(?:\/regulamento)?$/, faz: (m) => ({ acao: "conferir-rifa", slug: m[1]! }) },
   {

@@ -195,6 +195,35 @@ async function main() {
     checa("a plataforma liga o endereço da A", r.status === 200 && r.json?.enderecoAtivo === true && r.json?.endereco === h(a.slug), `HTTP ${r.status} ${JSON.stringify(r.json)}`);
     r = await pedir("localhost", "PUT", `/api/admin/organizacoes/${b.id}/subdominio`, { cookie: admin, corpo: { ativo: true } });
     checa("e o da B", r.status === 200, `HTTP ${r.status}`);
+
+    // ------------------------------------------------ PR 4: links da rifa e curtos no endereço
+    const curtoA = await pedir("localhost", "POST", `/api/admin/campaigns/${rifaA.id}/link-curto`, { cookie: admin });
+    checa(
+      "o curto da rifa da A vem com o endereço da A (a base do link)",
+      curtoA.status === 200 && new globalThis.URL(curtoA.json?.endereco ?? "http://x").hostname === h(a.slug),
+      JSON.stringify(curtoA.json),
+    );
+    const curtoPerfilB = await pedir("localhost", "POST", `/api/admin/organizacoes/${b.id}/link-curto`, { cookie: admin });
+    checa(
+      "o curto do perfil da B vem com o endereço da B",
+      curtoPerfilB.status === 200 && new globalThis.URL(curtoPerfilB.json?.endereco ?? "http://x").hostname === h(b.slug),
+      JSON.stringify(curtoPerfilB.json),
+    );
+    const curtoB = await pedir("localhost", "POST", `/api/admin/campaigns/${rifaB.id}/link-curto`, { cookie: admin });
+    r = await pedir(h(a.slug), "GET", curtoA.json.caminho);
+    checa("/c/ da própria organização no endereço: segue (302 para a rifa dela)", r.status === 302 && /\/o\/sub-prova-a\//.test(r.local ?? ""), `HTTP ${r.status} ${r.local}`);
+    r = await pedir(h(a.slug), "GET", curtoB.json.caminho);
+    checa(
+      "/c/ da B no endereço da A: vai ao principal (sem contar no endereço)",
+      r.status === 302 && !/sub-prova-a\./.test(r.local ?? "") && (r.local ?? "").endsWith(curtoB.json.caminho),
+      `HTTP ${r.status} ${r.local}`,
+    );
+    r = await pedir(h(a.slug), "GET", "/c/ZZZZZZ");
+    checa("/c/ desconhecido no endereço: vai ao principal", r.status === 302 && !/sub-prova-a\./.test(r.local ?? ""), `HTTP ${r.status} ${r.local}`);
+    r = await pedir(h(a.slug), "GET", `/l/${b.slug}/0`);
+    checa("/l/ do perfil da B no endereço da A: vai ao principal", r.status === 302 && !/sub-prova-a\./.test(r.local ?? ""), `HTTP ${r.status} ${r.local}`);
+    r = await pedir("localhost", "GET", `/api/public/o/${a.slug}/qr.svg`);
+    checa("o QR do perfil da A leva ao endereço dela", r.status === 200 && r.texto.includes("<svg"), `HTTP ${r.status}`);
     const trilha = await db.select().from(auditLog).where(eq(auditLog.entityId, a.id));
     checa("a auditoria guarda quem ligou", trilha.some((t) => t.action === "organizacao.endereco" && (t.diff as any)?.ativo === true));
     const lista = await pedir("localhost", "GET", "/api/admin/organizacoes", { cookie: admin });

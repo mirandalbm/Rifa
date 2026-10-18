@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (subdomínio PR 3: o SPA no endereço da organização; PRs 1 e 2 mesclados, deploy do 2 concluído; `__Host-rifa.sid` aguarda o seu OK).
+Última atualização: 18/10/2026 (subdomínio PR 4: os links da rifa saem pelo endereço da organização; PRs 1 a 3 mesclados; `__Host-rifa.sid` aguarda o seu OK).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -628,12 +628,22 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   `GET /api/public/endereco`, `npm run subdominio` e a entrada do `isolation`.
   **Sem `SUBDOMINIO_BASE` é inerte; não ligue em produção antes do PR 3** (a tela
   ainda serviria a vitrine inteira no endereço).
-- [ ] **[código]** Ficou para depois do PR 2: o `/c/<código>` e o `/l/<perfil>/<n>` de
-  **outra** organização redirecionarem ao principal (hoje seguem), no PR 4 com os
-  links emitidos.
-- [ ] **[código]** PR 3: roteador por endereço no SPA (+ rodada de `npm run telas` com `*.localhost`).
-- [ ] **[código]** PR 4: URLs absolutas pelo endereço (artes, kit do afiliado, curtos, QR,
-  WhatsApp, push, tráfego pago, marketing por servidor).
+- [x] **[código]** `/c/<código>` e `/l/<perfil>/<n>` de **outra** organização (ou código
+  desconhecido) no endereço vão ao principal (302): feito no PR 4 (`conferir-curto`).
+- [x] **[código]** PR 3: roteador por endereço no SPA.
+- [x] **[código]** PR 4: os links **da rifa** saem pelo endereço da organização **quando ele
+  está ligado** (senão, o caminho de hoje): artes, QR e curto do painel e do kit do
+  afiliado (`?ref=` tirado da sessão), QR do perfil, `event_source_url` da compra,
+  aviso do ganhador e o **link do anúncio de tráfego** (`linkDoAnuncio`, as UTMs não
+  mudam). `tests/urlsAbsolutas.test.ts` trava a lista de quem monta URL absoluta.
+- [ ] **[código]** Ficou do PR 4, sem bloquear: (1) **compartilhar** na publicação, no
+  perfil e no presente usa o `origin` do aparelho — no principal compartilha o
+  principal; (2) o link de **pedido/carrinho** nos avisos do WhatsApp segue no principal
+  (a tela do pedido no endereço ainda não foi provada para pedido de outra organização);
+  (3) a criação no Meta com a base ligada e a organização **sem** endereço ativo cai no
+  link do principal (o plano pedia 409, pergunta 7 em aberto — decida);
+  (4) `npm run trafego-criacao` não foi rodado com a base ligada (precisa do Meta de
+  mentira); o `linkDoAnuncio` com endereço está no `tests/trafego.test.ts`.
 - [ ] **[código]** PR 5: pixels, cookies e Privacidade por endereço. PR 6: canonical, Open
   Graph, `robots.txt` e `sitemap.xml` por host. PR 7: ligar (`SUBDOMINIO_BASE`).
 - [ ] **[código, depois]** Cloudflare (`ipViaCloudflare`), Lista de Sufixos Públicos,

@@ -8,6 +8,7 @@ import {
   problemaParaLigarEndereco,
   rotuloPareceMarca,
   linkDaRifaNoEndereco,
+  urlDoEndereco,
   problemaNoRotulo,
   rotuloDoAfiliado,
   hostDoRotulo,
@@ -123,6 +124,16 @@ describe("endereço de divulgação", () => {
         codigoDoAfiliado: "joao2026",
       }),
     ).toBe(`https://rifa-solidaria.${BASE}/r/moto-2026?ref=joao2026`);
+  });
+
+  it("fora de produção o esquema e a porta seguem o ambiente; em produção é https sem porta", () => {
+    expect(urlDoEndereco("rifa", BASE)).toBe(`https://rifa.${BASE}`);
+    expect(urlDoEndereco("rifa", BASE, { esquema: "http", porta: "5000" })).toBe(`http://rifa.${BASE}:5000`);
+    expect(urlDoEndereco("rifa", BASE, { esquema: "http", porta: "5000/evil" })).toBe(`http://rifa.${BASE}`);
+    expect(urlDoEndereco("rifa", null)).toBeNull();
+    expect(
+      linkDaRifaNoEndereco({ base: BASE, rotuloDaOrganizacao: "rifa", rifaSlug: "moto", codigoDoAfiliado: "ab", origem: { esquema: "http", porta: "5000" } }),
+    ).toBe(`http://rifa.${BASE}:5000/r/moto?ref=ab`);
   });
 
   it("o link volta a ser reconhecido: o host do link identifica a organização", () => {

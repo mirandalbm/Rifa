@@ -362,8 +362,14 @@ export function codigoDaCampanha(id: string): string {
 export const utmCampanhaDe = (id: string) => `trafego-${codigoDaCampanha(id)}`;
 
 /** O endereço que vai no anúncio de cada rede (página da rifa com a UTM da campanha). */
-export function linkDoAnuncio(base: string, c: { id: string; orgSlug: string; rifaSlug: string }, rede: RedeDeAnuncio): string {
+export function linkDoAnuncio(
+  base: string,
+  c: { id: string; orgSlug: string; rifaSlug: string; endereco?: string | null },
+  rede: RedeDeAnuncio,
+): string {
   const q = new URLSearchParams({ utm_source: rede, utm_medium: "cpc", utm_campaign: utmCampanhaDe(c.id) });
+  // Com o endereço da organização ligado, é a página de destino dela (as UTMs e a atribuição não mudam).
+  if (c.endereco) return `${c.endereco.replace(/\/$/, "")}/r/${c.rifaSlug}?${q.toString()}`;
   return `${base.replace(/\/$/, "")}/o/${c.orgSlug}/r/${c.rifaSlug}?${q.toString()}`;
 }
 

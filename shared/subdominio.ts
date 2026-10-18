@@ -210,11 +210,25 @@ export function linkDaRifaNoEndereco(opcoes: {
   rotuloDaOrganizacao: string;
   rifaSlug: string;
   codigoDoAfiliado?: string | null;
+  /** `https://` em produção; fora dela, o do `PUBLIC_BASE_URL` (a prova roda em http, às vezes com porta). */
+  origem?: { esquema: "http" | "https"; porta?: string };
 }): string | null {
-  const host = hostDoRotulo(opcoes.rotuloDaOrganizacao, opcoes.base);
-  if (!host) return null;
+  const endereco = urlDoEndereco(opcoes.rotuloDaOrganizacao, opcoes.base, opcoes.origem);
+  if (!endereco) return null;
   const ref = opcoes.codigoDoAfiliado ? `?ref=${encodeURIComponent(opcoes.codigoDoAfiliado)}` : "";
-  return `https://${host}/r/${encodeURIComponent(opcoes.rifaSlug)}${ref}`;
+  return `${endereco}/r/${encodeURIComponent(opcoes.rifaSlug)}${ref}`;
+}
+
+/** `https://<rotulo>.<base>` (sem barra no fim), ou `null` sem base. */
+export function urlDoEndereco(
+  rotulo: string,
+  base: string | null,
+  origem: { esquema: "http" | "https"; porta?: string } = { esquema: "https" },
+): string | null {
+  const host = hostDoRotulo(rotulo, base);
+  if (!host) return null;
+  const porta = origem.porta && /^\d{1,5}$/.test(origem.porta) ? `:${origem.porta}` : "";
+  return `${origem.esquema}://${host}${porta}`;
 }
 
 /**

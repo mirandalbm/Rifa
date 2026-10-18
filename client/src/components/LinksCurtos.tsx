@@ -19,7 +19,7 @@ export function EnderecoCurto({ alvo, rotulo }: { alvo: Alvo; rotulo: string }) 
           "POST",
           alvo.tipo === "perfil" ? `/api/admin/organizacoes/${alvo.id}/link-curto` : `/api/admin/campaigns/${alvo.id}/link-curto`,
         )
-      ).json() as Promise<{ codigo: string; caminho: string; cliques: number }>,
+      ).json() as Promise<{ codigo: string; caminho: string; cliques: number; endereco: string | null }>,
   });
   useEffect(() => {
     pedir.mutate();
@@ -27,7 +27,7 @@ export function EnderecoCurto({ alvo, rotulo }: { alvo: Alvo; rotulo: string }) 
   }, [alvo.tipo, alvo.id]);
 
   const d = pedir.data;
-  const url = d ? `${window.location.origin}${d.caminho}` : "";
+  const url = d ? `${d.endereco ?? window.location.origin}${d.caminho}` : "";
   return (
     <div className="text-sm">
       <p className="label-xs">{rotulo}</p>

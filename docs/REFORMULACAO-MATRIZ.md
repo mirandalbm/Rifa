@@ -9,7 +9,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Cartões (componentes usados pelas telas) | 867 |
 | Rotas da API | 489, das quais 486 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 69 |
-| Testes de regra (`tests/`) | 146 arquivos |
+| Testes de regra (`tests/`) | 147 arquivos |
 | Destinos decididos | 974 de 974 |
 
 ## 1. Telas
@@ -1442,9 +1442,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/organizacoes/:id/exemplo` | `isolation-test.ts`, `vitrine-test.ts` |
-| POST | `/organizacoes/:id/link-curto` | `isolation-test.ts`, `perfil-test.ts` |
+| POST | `/organizacoes/:id/link-curto` | `isolation-test.ts`, `perfil-test.ts`, `subdominio-test.ts` |
 | GET | `/organizacoes/:id/links/cliques` | `isolation-test.ts`, `perfil-test.ts` |
-| POST | `/campaigns/:id/link-curto` | `isolation-test.ts` |
+| POST | `/campaigns/:id/link-curto` | `isolation-test.ts`, `subdominio-test.ts` |
 | DELETE | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/organizacoes` | `isolation-test.ts`, `subdominio-test.ts` |
 | PATCH | `/organizacoes/:id` | `isolation-test.ts` |
@@ -1727,7 +1727,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/o/:slug` | `perfil-test.ts`, `poster-test.ts`, `publico-test.ts` +7 |
 | GET | `/o/:slug/foto` | `publico-test.ts`, `semNulo.test.ts` |
 | GET | `/o/:slug/capa` | `publico-test.ts` |
-| GET | `/o/:slug/qr.svg` | `perfil-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/o/:slug/qr.svg` | `perfil-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
 | POST | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
 | DELETE | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |

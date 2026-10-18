@@ -113,6 +113,10 @@ async function main() {
     checa("o organizador não aprova o próprio telefone (403)", r.status === 403, `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/organizacoes/${org.id}/telefone/aprovar`);
     checa("a plataforma não aprova número ainda não confirmado (422)", r.status === 422, `HTTP ${r.status}`);
+    // A auditoria só registra o que aconteceu: a aprovação recusada não deixa linha de "aprovado".
+    const linhasDeAuditoria = async (acao: string, entidade: string) =>
+      Number((await db.execute(sql`select count(*)::int as n from audit_log where action = ${acao} and entity_id = ${entidade}`)).rows[0]?.["n"] ?? 0);
+    checa("…e a recusa não grava auditoria de aprovação", (await linhasDeAuditoria("organizacao.telefone.aprovado", org.id)) === 0);
     r = await organizador.req("POST", `/api/admin/organizacoes/${org.id}/telefone/confirmar`, { codigo: codigo === "000000" ? "111111" : "000000" });
     checa("código errado: 401", r.status === 401, `HTTP ${r.status}`);
     r = await organizador.req("POST", `/api/admin/organizacoes/${org.id}/telefone/confirmar`, { codigo });
@@ -120,6 +124,7 @@ async function main() {
     checa("confirmado ainda não basta para publicar", falaDoTelefone(await bloqueios()));
     r = await admin.req("POST", `/api/admin/organizacoes/${org.id}/telefone/aprovar`);
     checa("a plataforma aprova", r.status === 200 && Boolean(r.json?.aprovadoEm), `HTTP ${r.status}`);
+    checa("…e a aprovação deixa uma linha de auditoria", (await linhasDeAuditoria("organizacao.telefone.aprovado", org.id)) === 1);
     checa("aprovado: o telefone sai dos bloqueios da publicação", !falaDoTelefone(await bloqueios()), (await bloqueios()).join(" | "));
     r = await organizador.req("POST", `/api/admin/organizacoes/${org.id}/telefone`, { telefone: "(81) 91111-2222" });
     const [depois] = await db.select().from(organizations).where(eq(organizations.id, org.id));
@@ -150,11 +155,16 @@ async function main() {
     const doApostador = automaticas.find((d) => d.origem === "apostador")!;
     r = await admin.req("POST", `/api/admin/denuncias/${doApostador.id}/decidir`, { acao: "travar", resposta: "curto" });
     checa("travar sem motivo de verdade: 400", r.status === 400, `HTTP ${r.status}`);
+    r = await admin.req("POST", `/api/admin/denuncias/${doApostador.id}/decidir`, { acao: "inventada<script>", resposta: "Pediu Pix fora da plataforma" });
+    checa("ação que não existe: 400", r.status === 400, `HTTP ${r.status}`);
+    const acoesGravadas = await db.execute(sql`select action from audit_log where entity = 'denuncia' and entity_id = ${doApostador.id}`);
+    checa("a decisão recusada não grava auditoria (nem com o texto da ação vindo do corpo)", acoesGravadas.rows.length === 0, JSON.stringify(acoesGravadas.rows));
     const [d1, d2] = await Promise.all([
       admin.req("POST", `/api/admin/denuncias/${doApostador.id}/decidir`, { acao: "travar", resposta: "Pediu Pix fora da plataforma" }),
       admin.req("POST", `/api/admin/denuncias/${doApostador.id}/decidir`, { acao: "travar", resposta: "Pediu Pix fora da plataforma" }),
     ]);
     checa("dois cliques: uma decisão e um 409", [d1.status, d2.status].sort().join(",") === "200,409", `${d1.status},${d2.status}`);
+    checa("…e uma linha de auditoria só, gravada com a decisão", (await linhasDeAuditoria("denuncia.travar", doApostador.id)) === 1);
     const [travada] = await db.select().from(campaigns).where(eq(campaigns.id, noAr.id));
     checa("a rifa fica travada, com o motivo", Boolean(travada.travadaEm) && travada.travadaMotivo === "Pediu Pix fora da plataforma");
     r = await apostador.req("POST", "/api/public/orders", { campaignId: noAr.id, quantity: 1, buyer: { name: "Paula Denuncia", phone: TELEFONE_COMPRADOR } });
@@ -169,6 +179,7 @@ async function main() {
     r = await admin.req("POST", `/api/admin/campaigns/${noAr.id}/destravar`);
     const [destravada] = await db.select({ t: campaigns.travadaEm }).from(campaigns).where(eq(campaigns.id, noAr.id));
     checa("a plataforma destrava", r.status === 200 && !destravada.t, `HTTP ${r.status}`);
+    checa("…e o destravar deixa uma linha de auditoria", (await linhasDeAuditoria("campaign.destravar", noAr.id)) === 1);
 
     r = await admin.req("POST", `/api/admin/denuncias/${auto!.id}/decidir`, { acao: "banir", resposta: "Pix fora da plataforma confirmado" });
     checa("banir a organização", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
@@ -182,6 +193,7 @@ async function main() {
     checa("banida: o perfil some (404)", r.status === 404, `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/campaigns/${outra.id}/destravar`);
     checa("rifa de organização banida não destrava (422)", r.status === 422, `HTTP ${r.status}`);
+    checa("…e o destravar recusado não grava auditoria", (await linhasDeAuditoria("campaign.destravar", outra.id)) === 0);
   } finally {
     await limpar();
   }

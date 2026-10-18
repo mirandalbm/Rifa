@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { orders, buyers, campaigns, affiliates, createOrderSchema } from "@shared/schema";
 import { affiliateId } from "../auth";
@@ -8,18 +8,37 @@ import {
   confirmSellerSale,
   cancelSellerSale,
   OrderError,
-  type MetodoFisico,
 } from "../services/orders";
 import { NumbersTakenError, NoQuotasAvailableError } from "../services/quotas";
 import { openBalance, listSettlements } from "../services/settlements";
 import { buildTicket } from "../services/ticket";
 import { getPaymentMethods } from "../services/settings";
-import { identify } from "../services/antifraude";
+import { hit, identify } from "../services/antifraude";
 import { enabledPhysical } from "@shared/payments";
+import {
+  VENDAS_DO_CAMBISTA_POR_JANELA,
+  codigoDaVenda,
+  lerComprovanteDaMaquininha,
+  lerMeioFisico,
+} from "@shared/vendaFisica";
 
 export const sellerRouter = Router();
 
-const METODOS: MetodoFisico[] = ["dinheiro", "pix_maquininha"];
+/**
+ * O cambista é preso à organização do usuário dele. Organização nula é a
+ * plataforma — recorte que abre tudo —, e o cambista nunca é a plataforma:
+ * sem organização, a porta fica fechada (a entrada e a sessão já recusam, e
+ * aqui é a última linha, como o organizador sem organização).
+ */
+sellerRouter.use((req, res, next) => {
+  if (!req.user?.organizationId) {
+    return res.status(403).json({ message: "Seu acesso não está ligado a nenhuma organização." });
+  }
+  next();
+});
+
+/** A organização da sessão, já conferida pelo `use` acima. */
+const orgDoCambista = (req: { user?: { organizationId?: string | null } }) => req.user!.organizationId!;
 
 /** Tela de abrir o dia: o que dá para vender e quanto eu devo. */
 sellerRouter.get("/overview", async (req, res, next) => {
@@ -44,12 +63,14 @@ sellerRouter.get("/overview", async (req, res, next) => {
       .from(campaigns)
       // O cambista só vende rifa da organização dele. Sem este filtro ele
       // venderia cota de outro promotor, e o acerto cairia no caixa errado.
+      // Demonstração e rifa travada pela plataforma não vendem (a reserva as
+      // recusa): não são oferecidas.
       .where(
         and(
           eq(campaigns.status, "published"),
-          req.user?.organizationId
-            ? eq(campaigns.organizationId, req.user.organizationId)
-            : sql`TRUE`,
+          eq(campaigns.organizationId, orgDoCambista(req)),
+          eq(campaigns.demonstracao, false),
+          isNull(campaigns.travadaEm),
         ),
       );
 
@@ -64,7 +85,11 @@ sellerRouter.get("/overview", async (req, res, next) => {
         and(
           eq(orders.sellerId, id),
           eq(orders.status, "paid"),
-          sql`${orders.paidAt} >= date_trunc('day', now())`,
+          // "Hoje" é o dia de São Paulo, não o do banco (UTC): às 21h o contador
+          // zerava, e a venda da noite — a do evento — caía no dia seguinte.
+          // `paid_at` guarda UTC: o início do dia é convertido uma vez e a
+          // comparação fica na coluna crua.
+          sql`${orders.paidAt} >= (date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'UTC'`,
         ),
       );
 
@@ -95,11 +120,15 @@ sellerRouter.post("/sales", async (req, res, next) => {
       .select({ organizationId: campaigns.organizationId })
       .from(campaigns)
       .where(eq(campaigns.id, input.campaignId));
-    if (
-      !alvo ||
-      (req.user?.organizationId && alvo.organizationId !== req.user.organizationId)
-    ) {
+    if (!alvo || alvo.organizationId !== orgDoCambista(req)) {
       return res.status(404).json({ message: "Campanha não encontrada." });
+    }
+    // Teto de vendas novas por cambista, depois do erro de preenchimento e do
+    // recorte (que não contam): a venda dele é isenta dos limites de comprador,
+    // e sem este teto uma conta reservaria o estoque da rifa sem parar.
+    const { minutos, limite } = VENDAS_DO_CAMBISTA_POR_JANELA;
+    if ((await hit(`cambista-venda:${id}`, minutos, limite)).excedeu) {
+      return res.status(429).json({ message: "Muitas vendas em pouco tempo. Espere alguns minutos e tente de novo." });
     }
     const result = await createSellerSale(input, id, identify(req));
 
@@ -128,24 +157,29 @@ sellerRouter.post("/sales", async (req, res, next) => {
 sellerRouter.post("/sales/:code/confirm", async (req, res, next) => {
   try {
     const id = affiliateId(req);
-    const method = String(req.body?.method) as MetodoFisico;
-    if (!METODOS.includes(method)) {
+    const method = lerMeioFisico(req.body?.method);
+    if (!method) {
       return res.status(400).json({ message: "Forma de pagamento inválida." });
     }
+    const comprovante = lerComprovanteDaMaquininha(req.body?.posAuthCode, req.body?.posTerminal);
+    if (!comprovante.ok) return res.status(400).json({ message: comprovante.message });
+    // O que não é um código de venda não existe (404), como a venda do colega.
+    const code = codigoDaVenda(req.params.code);
+    if (code === null) return res.status(404).json({ message: "Venda não encontrada." });
 
     const result = await confirmSellerSale({
-      code: Number(req.params.code),
+      code,
       sellerId: id,
       method,
-      posAuthCode: req.body?.posAuthCode ? String(req.body.posAuthCode) : undefined,
-      posTerminal: req.body?.posTerminal ? String(req.body.posTerminal) : undefined,
+      posAuthCode: comprovante.posAuthCode,
+      posTerminal: comprovante.posTerminal,
     });
 
     res.json({
       code: result.order!.code,
       status: result.order!.status,
       prizes: result.prizes,
-      ticket: await buildTicket(Number(req.params.code)),
+      ticket: await buildTicket(code),
     });
   } catch (err) {
     if (err instanceof OrderError) {
@@ -159,7 +193,9 @@ sellerRouter.post("/sales/:code/confirm", async (req, res, next) => {
 sellerRouter.post("/sales/:code/cancel", async (req, res, next) => {
   try {
     const id = affiliateId(req);
-    res.json(await cancelSellerSale({ code: Number(req.params.code), sellerId: id }));
+    const code = codigoDaVenda(req.params.code);
+    if (code === null) return res.status(404).json({ message: "Venda não encontrada." });
+    res.json(await cancelSellerSale({ code, sellerId: id }));
   } catch (err) {
     if (err instanceof OrderError) {
       return res.status(err.status).json({ message: err.message });

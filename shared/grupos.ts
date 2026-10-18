@@ -64,7 +64,7 @@ export const MOTIVOS_DA_DENUNCIA_DE_GRUPO = {
 } as const;
 export type MotivoDaDenunciaDeGrupo = keyof typeof MOTIVOS_DA_DENUNCIA_DE_GRUPO;
 export const motivoDoGrupoValido = (m: unknown): m is MotivoDaDenunciaDeGrupo =>
-  typeof m === "string" && m in MOTIVOS_DA_DENUNCIA_DE_GRUPO;
+  typeof m === "string" && Object.hasOwn(MOTIVOS_DA_DENUNCIA_DE_GRUPO, m);
 
 /** "Grupos, 3 não lidas" no rótulo: o número nunca vai só na bolinha. */
 export function rotuloDosGrupos(naoLidas: number): string {

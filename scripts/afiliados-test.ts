@@ -59,7 +59,7 @@ class Cliente {
 }
 
 const SLUGS = ["afiliados-teste-a", "afiliados-teste-b"];
-const EMAILS = ["afiliados-org-a@teste.rifa", "afiliados-org-b@teste.rifa", "afiliado-avulso@teste.rifa", "afiliado-antigo@teste.rifa"];
+const EMAILS = ["afiliados-org-a@teste.rifa", "afiliados-org-b@teste.rifa", "afiliado-avulso@teste.rifa", "afiliado-antigo@teste.rifa", "afiliado-aud-x@teste.rifa", "afiliado-aud-y@teste.rifa"];
 const TEL_AFILIADO = "11944440000";
 const TEL_COLAB = "11944449999";
 const SENHA = "senha-afiliados-1";
@@ -88,7 +88,7 @@ async function limpar() {
   await db.delete(users).where(inArray(users.email, EMAILS));
   if (ids.length) await db.delete(organizations).where(inArray(organizations.id, ids));
   await db.execute(sql`delete from buyers where phone like '1194444%'`);
-  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'order:%' or bucket like 'cadastro:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'order:%' or bucket like 'cadastro:%' or bucket like 'afiliado-cadastro%'`);
 }
 
 async function novaRifa(orgId: string, sufixo: string, status: "draft" | "published") {
@@ -135,6 +135,178 @@ async function compraPeloLink(campaignId: string, codigoAfiliado: string, cupom?
   const [o] = await db.select().from(orders).where(eq(orders.code, r.json.code));
   const [k] = await db.select().from(commissions).where(eq(commissions.orderId, o.id));
   return { status: 201, pedido: o, comissao: k ?? null };
+}
+
+/**
+ * Auditoria do acesso AFILIADO (18/10/2026): o que a sessão de afiliado
+ * alcança e o que não pode alcançar — privilégio, recorte entre organizações e
+ * entre afiliados, dinheiro (saque duplo, saque de outra organização), a chave
+ * Pix, os tipos de documento, o teto das gravações do cadastro e a sessão
+ * roubada que sobrevivia à troca de senha.
+ */
+async function auditoriaDoAcesso(A: { id: string; slug: string }, B: { id: string; slug: string }, orgA: Cliente, orgB: Cliente, a1: { id: string; slug: string }, b1: { id: string; slug: string }) {
+  console.log("\n--- auditoria do acesso afiliado ---");
+  const rascunho = await novaRifa(A.id, "rasc", "draft");
+  const entrar = async (email: string, nome: string, tel: string) => {
+    const c = new Cliente();
+    let r = await c.req("POST", "/api/public/afiliados/cadastro", { name: nome, email, phone: tel, password: SENHA });
+    if (r.status !== 201) throw new Error(`cadastro de ${nome}: HTTP ${r.status}`);
+    const codigo = r.json.code as string;
+    r = await c.req("POST", "/api/auth/login", { email, password: SENHA });
+    if (r.status !== 200) throw new Error(`login de ${nome}: HTTP ${r.status}`);
+    const [af] = await db.select().from(affiliates).where(eq(affiliates.code, codigo));
+    return { c, codigo, id: af.id, email };
+  };
+  const X = await entrar(EMAILS[4], "Afiliado Aud X", "11944442000");
+  const Y = await entrar(EMAILS[5], "Afiliado Aud Y", "11944443000");
+  // A organização A tem termo (a v3 do fluxo de cima): o aceite leva a versão em vigor.
+  const termoA = ((await X.c.req("GET", "/api/affiliate/organizacoes")).json as any[]).find((o) => o.slug === A.slug)?.termo?.versao;
+  await X.c.req("POST", `/api/affiliate/organizacoes/${A.slug}/aderir`, { versao: termoA });
+  await Y.c.req("POST", `/api/affiliate/organizacoes/${B.slug}/aderir`, {});
+  await orgA.req("PATCH", `/api/admin/affiliates/${X.id}`, { status: "active" });
+  await orgB.req("PATCH", `/api/admin/affiliates/${Y.id}`, { status: "active" });
+  for (let i = 0; i < 3; i++) await compraPeloLink(a1.id, X.codigo);
+  await compraPeloLink(b1.id, Y.codigo);
+  await db.update(commissions).set({ status: "available" }).where(inArray(commissions.affiliateId, [X.id, Y.id]));
+
+  // Privilégio: a sessão de afiliado não alcança painel nem cambista, e o contrário também.
+  for (const [m, p] of [
+    ["GET", "/api/admin/overview"],
+    ["GET", "/api/admin/orders"],
+    ["GET", "/api/admin/affiliates"],
+    ["GET", "/api/admin/finance"],
+    ["POST", "/api/admin/payouts/00000000-0000-0000-0000-000000000000/paid"],
+    ["GET", "/api/seller/sales"],
+    ["POST", "/api/seller/sales"],
+  ] as const) {
+    const r = await X.c.req(m, p, m === "POST" ? {} : undefined);
+    checa(`afiliado em ${m} ${p}: 403`, r.status === 403, `HTTP ${r.status}`);
+  }
+  let r = await orgA.req("GET", "/api/affiliate/saldo");
+  checa("organizador em /api/affiliate/saldo: 403", r.status === 403, `HTTP ${r.status}`);
+
+  // Recorte entre organizações: o kit só vale onde ele recebe, e rascunho não existe.
+  r = await X.c.req("GET", `/api/affiliate/artes/${rascunho.slug}`);
+  checa("artes de um rascunho da organização dele: 404 (200 vazio confirmava o endereço)", r.status === 404, `HTTP ${r.status}`);
+  for (const [m, p] of [
+    ["GET", `/api/affiliate/artes/${b1.slug}`],
+    ["GET", `/api/affiliate/artes/${b1.slug}/rifa`],
+    ["GET", `/api/affiliate/artes/${b1.slug}/rifa/pacote`],
+    ["GET", `/api/affiliate/editor/${b1.slug}`],
+    ["GET", `/api/affiliate/editor/${rascunho.slug}`],
+  ] as const) {
+    r = await X.c.req(m, p);
+    checa(`${m} ${p.replace("/api/affiliate", "")} de rifa onde não recebe: 404`, r.status === 404, `HTTP ${r.status}`);
+  }
+  r = await X.c.req("GET", `/api/affiliate/artes/${a1.slug}?ref=${Y.codigo}`);
+  checa("o link do kit leva o código da sessão, nunca o do ?ref=", r.status === 200 && String(r.json?.link).includes(`ref=${X.codigo}`) && !JSON.stringify(r.json).includes(Y.codigo), String(r.json?.link));
+  r = await X.c.req("GET", "/api/affiliate/links");
+  checa("os links dele só trazem rifa da organização com vínculo", r.status === 200 && r.json.some((l: any) => l.slug === a1.slug) && !r.json.some((l: any) => l.slug === b1.slug || l.slug === rascunho.slug));
+  r = await X.c.req("POST", "/api/affiliate/divulgacoes", { slug: b1.slug, legenda: "Rifa de outra organização" });
+  checa("divulgar rifa de organização sem vínculo: 403", r.status === 403, `HTTP ${r.status}`);
+  r = await X.c.req("POST", "/api/affiliate/divulgacoes", { slug: rascunho.slug, legenda: "Rascunho da organização" });
+  checa("divulgar rascunho: 404", r.status === 404, `HTTP ${r.status}`);
+
+  // Entre afiliados: a peça, o saque e a nota do outro são 404.
+  r = await X.c.req("POST", "/api/affiliate/divulgacoes", { slug: a1.slug, legenda: "Participe da rifa da A" });
+  const peca = r.json?.id as string;
+  checa("publica a própria peça", r.status === 201 && Boolean(peca), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+  for (const [m, p] of [
+    ["PATCH", `/api/affiliate/divulgacoes/${peca}`],
+    ["DELETE", `/api/affiliate/divulgacoes/${peca}`],
+    ["GET", `/api/affiliate/divulgacoes/${peca}/video`],
+  ] as const) {
+    r = await Y.c.req(m, p, m === "PATCH" ? { legenda: "invasão" } : undefined);
+    checa(`${m} na peça de outro afiliado: 404`, r.status === 404, `HTTP ${r.status}`);
+  }
+  r = await Y.c.req("GET", "/api/affiliate/divulgacoes");
+  checa("a lista de peças do outro não traz a dele", r.status === 200 && !JSON.stringify(r.json).includes(peca));
+
+  // A chave Pix só troca com texto (objeto virava "[object Object]" e seguia para os saques).
+  for (const pixKey of [{ a: 1 }, ["x", "y", "z"], 123456, null]) {
+    r = await X.c.req("PATCH", "/api/affiliate/pix-key", { pixKey, senha: SENHA });
+    checa(`chave Pix ${JSON.stringify(pixKey)} é recusada (400)`, r.status === 400, `HTTP ${r.status}`);
+  }
+  r = await X.c.req("PATCH", "/api/affiliate/pix-key", { pixKey: "aud-x@exemplo.com", senha: SENHA });
+  checa("chave Pix de texto, com a senha: troca", r.status === 200, `HTTP ${r.status}`);
+
+  // Documento fiscal: só os tipos da lista (`in` aceitava "constructor" e "toString").
+  const foto = "data:image/jpeg;base64," + Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xd9]).toString("base64");
+  for (const tipo of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+    r = await X.c.req("PUT", `/api/affiliate/fiscal/documentos/${tipo}`, { arquivo: foto });
+    checa(`documento fiscal do tipo "${tipo}": 400`, r.status === 400, `HTTP ${r.status}`);
+  }
+  const gravados = await db.execute(sql`select tipo from afiliado_documentos where affiliate_id = ${X.id}::uuid`);
+  checa("nenhum documento de tipo inventado foi gravado", gravados.rows.length === 0, JSON.stringify(gravados.rows));
+  r = await X.c.req("PUT", "/api/affiliate/fiscal/documentos/identidade_frente", { arquivo: foto });
+  checa("o tipo da lista continua entrando", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+
+  // Saque: dez pedidos ao mesmo tempo dão um saque só; o outro afiliado não saca a organização dele.
+  await aprovarCadastroComCnpj(X.id);
+  await aprovarCadastroComCnpj(Y.id);
+  await db.update(affiliates).set({ pixKey: "aud-y@exemplo.com" }).where(eq(affiliates.id, Y.id));
+  const rs = await Promise.all(Array.from({ length: 10 }, () => X.c.req("POST", "/api/affiliate/payouts", { organizacaoId: A.id, notaFiscal: NOTA_DE_TESTE })));
+  checa("dez saques simultâneos: um 201 e nove recusas", rs.filter((x) => x.status === 201).length === 1 && rs.filter((x) => x.status === 400).length === 9, rs.map((x) => x.status).join(","));
+  const [{ n: saques }] = (await db.execute(sql`select count(*)::int as n from payouts where affiliate_id = ${X.id}::uuid`)).rows as { n: number }[];
+  checa("uma linha em payouts, e nenhuma comissão sobrou disponível", saques === 1 && (await db.select().from(commissions).where(and(eq(commissions.affiliateId, X.id), eq(commissions.status, "available")))).length === 0, String(saques));
+  const saqueX = rs.find((x) => x.status === 201)?.json?.id as string;
+  r = await Y.c.req("POST", "/api/affiliate/payouts", { organizacaoId: A.id, notaFiscal: NOTA_DE_TESTE });
+  checa("sacar a organização em que não tem saldo: 400, sem saque", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+  for (const organizacaoId of ["x", "plataforma", B.id.replace(/./, "0")]) {
+    r = await Y.c.req("POST", "/api/affiliate/payouts", { organizacaoId, notaFiscal: NOTA_DE_TESTE });
+    checa(`organizacaoId ${JSON.stringify(organizacaoId)} sem saldo ali: 400`, r.status === 400, `HTTP ${r.status}`);
+  }
+  r = await Y.c.req("GET", `/api/affiliate/payouts/${saqueX}/nota`);
+  checa("a nota do saque de outro afiliado: 404", r.status === 404, `HTTP ${r.status}`);
+  r = await Y.c.req("GET", "/api/affiliate/payouts");
+  checa("a lista de saques do outro não traz o dele", !JSON.stringify(r.json).includes(saqueX));
+  r = await X.c.req("GET", `/api/affiliate/payouts/${saqueX}/nota`);
+  checa("a nota do próprio saque abre", r.status === 200, `HTTP ${r.status}`);
+
+  // O teto das gravações do cadastro (arquivo cifrado ou reprocessado, e o 409 do CPF repetido).
+  const tentativas: number[] = [];
+  for (let i = 0; i < 45; i++) tentativas.push((await Y.c.req("PUT", "/api/affiliate/foto", { foto: "nao-e-imagem" })).status);
+  checa("a 41ª gravação do cadastro em uma hora é 429 (as anteriores, erro de preenchimento)", tentativas.slice(0, 40).every((s) => s === 400) && tentativas.slice(40).every((s) => s === 429), tentativas.join(","));
+  r = await Y.c.req("GET", "/api/affiliate/fiscal");
+  checa("ler o cadastro não conta no teto", r.status === 200, `HTTP ${r.status}`);
+
+  // Sessão: a roubada não sobrevive à troca de senha, nem se regravada depois do DELETE.
+  const sid = (cookie: string) => decodeURIComponent(cookie.split("=")[1]).slice(2).split(".")[0];
+  const ladrao = new Cliente();
+  await ladrao.req("POST", "/api/auth/login", { email: X.email, password: SENHA });
+  checa("a sessão do ladrão entra", (await ladrao.req("GET", "/api/affiliate/overview")).status === 200);
+  const [linha] = (await db.execute(sql`select sess, expire from sessions where sid = ${sid(ladrao.cookie)}`)).rows as { sess: unknown; expire: Date }[];
+  const NOVA = "senha-afiliados-2-nova";
+  r = await X.c.req("POST", "/api/auth/senha", { atual: SENHA, nova: NOVA });
+  checa("a troca de senha (a vítima)", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+  checa("a sessão do ladrão caiu", (await ladrao.req("GET", "/api/affiliate/overview")).status === 401);
+  await db.execute(sql`insert into sessions (sid, sess, expire) values (${sid(ladrao.cookie)}, ${JSON.stringify(linha.sess)}::json, ${linha.expire}) on conflict (sid) do update set sess = excluded.sess, expire = excluded.expire`);
+  checa("…e continua caída quando uma requisição em andamento a regrava depois do DELETE", (await ladrao.req("GET", "/api/affiliate/overview")).status === 401);
+  checa("a sessão de quem trocou a senha segue valendo", (await X.c.req("GET", "/api/affiliate/overview")).status === 200);
+  const novo = new Cliente();
+  r = await novo.req("POST", "/api/auth/login", { email: X.email, password: NOVA });
+  checa("entrar de novo com a senha nova vale", r.status === 200 && (await novo.req("GET", "/api/affiliate/overview")).status === 200, `HTTP ${r.status}`);
+  const disponivel = (await new Cliente().req("GET", "/api/public/conta/google/disponivel")).json?.ligado === true;
+  if (disponivel) {
+    // A corrida de verdade: 24 laços escrevem na sessão do ladrão enquanto a troca acontece.
+    await db.execute(sql`delete from rate_events where bucket like 'login:%'`);
+    const v2 = new Cliente();
+    const l2 = new Cliente();
+    await v2.req("POST", "/api/auth/login", { email: X.email, password: NOVA });
+    await l2.req("POST", "/api/auth/login", { email: X.email, password: NOVA });
+    let parar = false;
+    const lacos = Array.from({ length: 24 }, async () => {
+      while (!parar) await fetch(`${URL}/api/public/conta/google/entrar`, { redirect: "manual", headers: { Cookie: l2.cookie } });
+    });
+    await new Promise((res) => setTimeout(res, 100));
+    r = await v2.req("POST", "/api/auth/senha", { atual: NOVA, nova: "senha-afiliados-3-nova" });
+    await new Promise((res) => setTimeout(res, 400));
+    parar = true;
+    await Promise.all(lacos);
+    checa("com 24 requisições em laço na sessão roubada, ela ainda cai", r.status === 200 && (await l2.req("GET", "/api/affiliate/overview")).status === 401, `troca HTTP ${r.status}`);
+  } else {
+    console.log("  (login com o Google indisponível neste servidor: a corrida em laço foi pulada; o DELETE regravado acima já prova a marca)");
+  }
 }
 
 async function main() {
@@ -337,6 +509,8 @@ async function main() {
     checa("e segue recebendo na rifa dela", v.comissao?.pct === 10, String(v.comissao?.pct));
     v = await compraPeloLink(a1.id, "AFANTIGO");
     checa("mas não na rifa de outra organização", v.comissao === null);
+
+    await auditoriaDoAcesso(A, B, orgA, orgB, a1, b1);
   } finally {
     await limpar();
   }

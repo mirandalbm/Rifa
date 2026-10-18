@@ -32,6 +32,7 @@ import {
 } from "@shared/bannerPago";
 import { BANNER_TAMANHO } from "@shared/vitrine";
 import { isUniqueViolation } from "../pgError";
+import { hit } from "./antifraude";
 import { assertCampaignInScope, orgOf } from "./orgs";
 import { lancar } from "./patrocinio";
 import { getPlataforma } from "./settings";
@@ -98,6 +99,10 @@ export async function comprarBanner(
     preco = precoDoBanner(cfg, entrada.dias);
   } catch (e) {
     throw aviso(e);
+  }
+  // Abrir a imagem custa CPU, e o pedido sem saldo só cai depois dela: o ritmo por organização tem teto.
+  if ((await hit(`banner-pedido:${org}`, 10, 20)).excedeu) {
+    throw new BannerPagoError("Muitos pedidos de banner em pouco tempo. Espere alguns minutos.", 429);
   }
   // A imagem é conferida (e aberta) antes de qualquer gravação.
   const bytes = await processar(entrada.imagem, BANNER_TAMANHO.largura, BANNER_TAMANHO.altura).catch((e: Error) => {

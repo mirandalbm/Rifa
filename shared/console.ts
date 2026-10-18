@@ -94,8 +94,8 @@ export const AVISO_DO_TREVO_PADRAO: AvisoDoTrevo = { estilo: "ponto", cor: "sist
 /** Só as chaves conhecidas; valor fora da lista volta ao padrão daquela chave. */
 export function validarAvisoDoTrevo(v: unknown): AvisoDoTrevo {
   const e = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
-  const estilo = typeof e.estilo === "string" && e.estilo in ESTILOS_DO_AVISO ? (e.estilo as EstiloDoAviso) : AVISO_DO_TREVO_PADRAO.estilo;
-  const cor = typeof e.cor === "string" && e.cor in CORES_DO_AVISO ? (e.cor as CorDoAviso) : AVISO_DO_TREVO_PADRAO.cor;
+  const estilo = typeof e.estilo === "string" && Object.hasOwn(ESTILOS_DO_AVISO, e.estilo) ? (e.estilo as EstiloDoAviso) : AVISO_DO_TREVO_PADRAO.estilo;
+  const cor = typeof e.cor === "string" && Object.hasOwn(CORES_DO_AVISO, e.cor) ? (e.cor as CorDoAviso) : AVISO_DO_TREVO_PADRAO.cor;
   return { estilo, cor };
 }
 

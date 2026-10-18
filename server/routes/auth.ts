@@ -6,12 +6,13 @@ import { db } from "../db";
 import { users, auditLog, organizations } from "@shared/schema";
 import { currentRole, encerrarSessoesDoUsuario, hashPassword, verifyPassword, type SessionUser } from "../auth";
 import { senhaInvalida } from "@shared/senha";
+import { SESSAO_LEMBRAR_DIAS } from "@shared/legal";
 import { guardLogin, identify } from "../services/antifraude";
 import { sectionsFor, homeFor } from "@shared/access";
 
 export const authRouter = Router();
 
-const LEMBRAR_MS = 30 * 24 * 60 * 60 * 1000;
+const LEMBRAR_MS = SESSAO_LEMBRAR_DIAS * 24 * 60 * 60 * 1000;
 
 /** "leandro@exemplo.com" → "le****@exemplo.com": dá para reconhecer no log sem expor a conta inteira. */
 function mascararEmail(email: string): string {
@@ -56,12 +57,20 @@ authRouter.get("/me", async (req, res, next) => {
 
 /** Uma porta de entrada só: o papel no banco decide onde a pessoa cai. */
 authRouter.post("/login", async (req, res, next) => {
-  // Força bruta é barrada antes de a senha ser sequer comparada.
-  const veredito = await guardLogin(String(req.body?.email ?? ""), identify(req));
-  if (!veredito.allowed) {
-    return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+  // Força bruta é barrada antes de a senha ser sequer comparada. Esta rota é
+  // aberta e o Express 4 não pega a rejeição de uma função `async`: sem o
+  // `try`, um erro do banco aqui derrubava o processo inteiro (era o e-mail
+  // com byte nulo ou enorme).
+  try {
+    const veredito = await guardLogin(String(req.body?.email ?? ""), identify(req));
+    if (!veredito.allowed) {
+      return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+    }
+  } catch (err) {
+    return next(err);
   }
 
+  const inicioDoLogin = Date.now();
   passport.authenticate(
     "local",
     (
@@ -93,6 +102,11 @@ authRouter.post("/login", async (req, res, next) => {
         // o tipo dele só não admite.
         (req.session.cookie as { maxAge: number | null }).maxAge =
           req.body?.lembrar === true ? LEMBRAR_MS : null;
+        // Quando esta sessão começou: a troca de senha derruba as que vieram antes.
+        // É o instante em que o login COMEÇOU (antes de conferir a senha, que
+        // leva centenas de ms): quem validou a senha antiga e terminou o login
+        // depois da troca não ganha uma hora posterior à marca.
+        req.session.painelEntrouEm = inicioDoLogin;
         res.json({
           role: user.role,
           user: { name: user.name, email: user.email },
@@ -135,7 +149,7 @@ authRouter.post("/senha", async (req, res, next) => {
       .set({ passwordHash: await hashPassword(nova) })
       .where(eq(users.id, user.id));
     // Quem entrou com a senha antiga em outro aparelho sai; esta sessão fica.
-    await encerrarSessoesDoUsuario(user.id, req.sessionID);
+    await encerrarSessoesDoUsuario(user.id, req);
     await db.insert(auditLog).values({
       actorId: user.id,
       actorRole: user.role,

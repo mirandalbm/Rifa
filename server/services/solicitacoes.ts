@@ -41,6 +41,7 @@ import {
   CAMPOS_EDITAVEIS,
   MOTIVO_MAX,
   MOTIVO_MIN,
+  NOME_STATUS_SOLICITACAO,
   problemaNoAdiamento,
   protocoloDaSolicitacao,
   validarEdicao,
@@ -257,7 +258,8 @@ export async function listarSolicitacoes(req: Request, status?: string) {
   const org = orgOf(req);
   const filtros = [];
   if (org) filtros.push(eq(campanhaSolicitacoes.organizationId, org));
-  if (status) filtros.push(eq(campanhaSolicitacoes.status, status as StatusSolicitacao));
+  // O filtro vem da barra de endereço: situação desconhecida é ignorada (o enum do banco recusaria com erro).
+  if (status && Object.hasOwn(NOME_STATUS_SOLICITACAO, status)) filtros.push(eq(campanhaSolicitacoes.status, status as StatusSolicitacao));
   return db
     .select({
       id: campanhaSolicitacoes.id,

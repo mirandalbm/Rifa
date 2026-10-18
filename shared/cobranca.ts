@@ -151,6 +151,10 @@ export function validarConfigCobranca(v: unknown): ConfigCobranca {
   if (v === undefined || v === null) return CONFIG_COBRANCA_PADRAO;
   if (typeof v !== "object" || Array.isArray(v)) throw erro("Tabela de cobrança em formato inválido.");
   const e = v as Record<string, unknown>;
+  // `null` e texto vazio não são "ausente": Number(null) é 0 e zeraria a taxa como se fosse redução.
+  for (const campo of ["percentualPct", "porCotaCents"] as const) {
+    if (e[campo] === null || e[campo] === "") throw erro("Informe um número, ou deixe o campo de fora para manter o valor de agora.");
+  }
   const porCota = e.porCotaCents === undefined ? 0 : Number(e.porCotaCents);
   if (!Number.isInteger(porCota) || porCota < 0 || porCota > POR_COTA_MAX_CENTS) {
     throw erro(`O valor por cota vai de R$ 0,00 a R$ ${(POR_COTA_MAX_CENTS / 100).toFixed(2).replace(".", ",")}.`);

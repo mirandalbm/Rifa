@@ -390,3 +390,163 @@ operação ou para o globo) que mude a análise de "agregador" do Google e de qu
 pede a permissão à Meta? Antes da homologação do globo, o que a plataforma pode
 afirmar sobre ele nas peças e nos anúncios (por exemplo, "sem manipulação")?
 
+
+## Quarta rodada — rifa nacional (18/10/2026)
+
+O dono decidiu criar o conceito de **rifa nacional**: a organização pede, só o
+administrador geral aprova, o valor mínimo é de **R$ 100.000 de arrecadação
+total** (cotas × preço, configurável pela plataforma) e a rifa aprovada fica
+**fixa no topo da vitrine** de todos, com o selo "Nacional" escrito. O plano
+está em `docs/PLANO-RIFA-NACIONAL.md`. Nada disso muda cobrança, sorteio,
+apuração, reembolso ou prêmio. Estas são as dúvidas dele (R24 a R29); **o
+código só liga o interruptor depois das respostas**.
+
+**R24. [1] "Nacional" e o âmbito da autorização SPA/MF.** A autorização
+informa a abrangência territorial da promoção? Chamar a rifa de "nacional" na
+vitrine exige que a autorização cubra o território nacional? A plataforma deve
+conferir isso (por exemplo, um campo ou o arquivo do certificado) antes de
+aprovar? Hoje toda rifa é visível a todos os estados, e a plataforma não
+restringe a venda pela UF do comprador: isso muda para a nacional?
+
+**R25. [1] Promoção de maior valor.** O valor total do plano de prêmios ou da
+arrecadação prevista (R$ 100.000 ou mais) muda alguma exigência da SPA/MF
+(garantia, prestação de contas, taxa de fiscalização, certidões) para a
+promotora? A plataforma pode usar esse valor como critério para dar destaque?
+
+**R26. [2] A ordem fixa no topo é publicidade ou curadoria?** A plataforma põe
+a rifa nacional aprovada acima das outras, para todos. Isso precisa ser
+identificado como destaque e o critério ter de ser dito nos Termos (Decreto
+7.962/2013, CDC)? Aumenta a responsabilidade solidária da plataforma (CDC, art.
+7º, parágrafo único) por aquela rifa em comparação com as demais?
+
+**R27. [2] O selo "Nacional" não pode soar como aval.** Texto proposto na
+ajuda: *"Rifa nacional é a que chegou ao valor mínimo de arrecadação definido
+pela plataforma. O selo não significa aval da plataforma ao prêmio nem à
+promotora."* Pode ser assim? Falta algo (por exemplo, repetir o número da
+autorização ao lado do selo)?
+
+**R28. [2] Cobrança do topo.** O plano **não** cobra pelo destaque. Se a
+plataforma decidir cobrar um dia, é serviço distinto da taxa de venda (X.3) do
+contrato da promotora? Precisa de aceite e cláusula próprios, como a taxa de
+gestão do tráfego pago?
+
+**R29. [3] "Arrecadação prevista" ao consumidor.** O critério é cotas × preço
+(potencial, não o vendido). Se a tela disser "arrecadação prevista de R$ …",
+precisa de ressalva de que a rifa pode não vender todas as cotas e do mínimo de
+cotas vendidas para sortear? Ou é melhor não mostrar o valor ao público?
+
+## Quinta rodada — o endereço próprio da organização (18/10/2026)
+
+O dono decidiu (18/10/2026) dar a cada organização um endereço
+`<rotulo>.loteriasdobem.com.br` (plano em `docs/PLANO-SUBDOMINIO.md`): é o perfil
+da promotora e a página de destino dos anúncios, com login por endereço (sem
+cookie no domínio comum). Estas são as perguntas dele (R30 a R35). R12 e Q4
+(página de destino "da promotora") seguem valendo e dependem de R30.
+
+**R30. [1] O subdomínio da plataforma é "página da promotora"?** O endereço fica
+**dentro do domínio da plataforma** (a promotora não é titular do domínio). Para a
+vedação de "agregador" do Google e para a política da Meta, basta o subdomínio, ou
+é preciso o domínio próprio da promotora (CNAME para a plataforma)? Que elementos
+da página (nome, CNPJ, autorização, rodapé) fazem dela "da promotora"?
+
+**R31. [2] Identificação do fornecedor na página do endereço.** Decreto
+7.962/2013, art. 2º: a página que vende deve trazer nome, CNPJ e endereço do
+fornecedor. No endereço da organização, quem é o fornecedor — a promotora, a
+plataforma ou as duas? O que precisa estar visível sem rolar (topo e rodapé)? A
+identificação da plataforma pode ser pequena, desde que clara?
+
+**R32. [2] Cookies de pixel no domínio comum.** Os pixels (Meta, Google, TikTok)
+gravam cookie no domínio registrável, então o mesmo identificador aparece nos
+endereços de organizações diferentes (e no da plataforma). Isso cria
+controladoria conjunta entre promotoras? Basta o aviso por endereço (consentimento
+pedido de novo em cada um) e o texto da Privacidade, ou é preciso impedir o
+compartilhamento do cookie?
+
+**R33. [3] Desligar ou trocar o endereço, e rótulo parecido com marca.** Cláusula
+no contrato da promotora para a plataforma **desligar ou trocar o endereço a
+qualquer momento e sem aviso** por risco de phishing, ordem judicial ou
+confusão com marca (Caixa, bancos, órgãos públicos, "oficial"). Qual é a
+responsabilidade da plataforma por endereço enganoso que ela mesma liberou?
+
+**R34. [3] Propriedade do endereço.** O endereço é da plataforma e a promotora o
+usa por licença? Na rescisão ou no banimento ele é desligado e o rótulo **nunca
+volta a ninguém**? E o material impresso ou já publicado (cartaz, anúncio, post)
+que leva o endereço desligado?
+
+**R35. [3] Endereço de afiliado, depois.** Se o afiliado tiver endereço próprio
+(`af-<código>`), o destino da compra segue sendo a página da promotora (R12),
+mas o endereço carrega o nome do afiliado. Isso muda a responsabilidade do
+afiliado pela publicidade (R16) ou a análise do Google?
+
+## Sétima rodada — bandeiras dos estados (18/10/2026)
+
+O painel "Locais" da vitrine (`client/src/components/LocaisDaVitrine.tsx`)
+mostra as 27 bandeiras de estado em círculo ao lado do nome. As imagens são do
+conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (origem e licença em
+`docs/LICENCAS-DE-TERCEIROS.md`). A licença do desenho está resolvida; a
+pergunta é do **uso da bandeira em si**.
+
+**R42. [3] Uso de bandeira de estado numa plataforma comercial.** As bandeiras
+dos estados são símbolos oficiais. Mostrá-las, em tamanho pequeno e como ícone
+de seleção de local ("Locais: São Paulo") numa plataforma privada de rifas
+autorizadas, exige autorização do ente, fere alguma regra sobre símbolos
+oficiais (por exemplo, uso comercial ou sugestão de vínculo ou aval do governo
+estadual) ou precisa de aviso na tela ("não há vínculo com os governos
+estaduais")? Se houver restrição, qual é o desenho aceitável (só a sigla, a
+silhueta do estado, bandeira só em material institucional)? Até a resposta, a
+plataforma usa a bandeira só como ícone do local, sempre com o nome do estado
+escrito ao lado, e nunca em peça de divulgação nem em anúncio.
+
+## Sexta rodada — o globo e o tabelionato (18/10/2026)
+
+O responsável decidiu homologar o globo já (18/10/2026). O roteiro prático
+está em `docs/ROTEIRO-GLOBO-TABELIONATO.md`; estas são as perguntas que
+ele deixa em aberto (R36 a R41). A numeração continua a partir de R36 porque
+**R24 a R35** estão em outros ramos ainda não mesclados (rodada do endereço
+próprio e perguntas dos PRs abertos): ao mesclar, confira que não colidem.
+R23 (o que dizer sobre o globo nas peças antes da homologação) segue valendo.
+
+**R36. [1] O que é "homologar o globo" e o roteiro com fonte.** (a) Na rodada
+final (P8) você ficou de entregar o roteiro da homologação com fonte quando
+houvesse demanda; ela existe desde 18/10/2026. Entregue o roteiro com a norma e
+o órgão. (b) Concilie o Q39 (requerimento à SPA/MF, laudo técnico, auditoria,
+R$ 15 mil a R$ 50 mil) com as respostas 8.9 a 8.12 (ata notarial por sessão): o
+laudo e a auditoria vêm **além** da ata? De onde vem a faixa de valor? (c) A
+homologação é **da plataforma** (ato único) ou **de cada promotora**, no plano de
+operação (8.11)? Que documento prova que o globo está homologado, para o selo
+"em aberto" virar selo?
+
+**R37. [1] Equipamento, independência e o papel do auditor.** (a) O globo físico
+(6 globos, 10 bolas de 0 a 9 cada) precisa de laudo, certificação ou lacre? Quem
+pode fornecê-lo e operá-lo? (b) A auditoria independente é obrigatória ou pode
+ser substituída por 2 testemunhas (como o sistema aceita hoje, sempre com o
+tabelião)? (c) Quem conta como "sem vínculo": só as promotoras da sessão, ou
+também a plataforma, seus sócios, funcionários e parentes?
+
+**R38. [1] Nova extração no mesmo ato e a ata.** (a) A ata notarial precisa
+descrever **cada** nova extração (por rifa)? Basta uma ata única da sessão?
+(b) O sistema só registra a nova extração quando a rifa não tem **reserva
+esperando Pix** (15 min por padrão): o ato pode ficar **aberto** esperando a
+reserva vencer, ou a espera descaracteriza o "mesmo ato"? (c) Quantas novas
+extrações são aceitáveis numa sessão antes de reabrir a data (rifa pouco
+vendida)?
+
+**R39. [2] Dados pessoais na ata pública.** O nome do auditor, das testemunhas e
+do tabelionato fica público na página da rifa, e a gravação da sessão fica na
+plataforma de vídeo. Qual a base legal (LGPD) e que autorização escrita dessas
+pessoas é necessária? Por quanto tempo guardar a gravação? O texto da
+Privacidade já diz que a ata é pública: basta?
+
+**R40. [2] Prazo do arquivo da ata e divergência.** O sistema lança o resultado
+e sorteia as rifas na hora; o arquivo do cartório chega dias depois. (a) O
+resultado vale antes de o arquivo existir? Há prazo máximo para anexá-lo e o que
+acontece se passar? (b) O prêmio pode ser entregue antes do arquivo? (c) Se o
+relato digitado no sistema divergir da ata do cartório, qual prevalece e qual o
+procedimento de correção (hoje o sistema não edita o relato)?
+
+**R41. [2] Quem paga o cartório e o anexo "globo".** (a) A despesa do cartório e
+do auditor por sessão pode ser repassada às promotoras (taxa por sessão, parte
+do preço da rifa ou custo da plataforma)? Que cláusula do anexo "globo"
+(cláusula 7) e da tabela de cobrança (X.3, aviso de 30 dias) cobre isso?
+(b) Redija o **anexo "globo"** (texto de aceite da promotora) com o método, a
+ata, a nova extração, a falta do tabelião e o adiamento causado pelo cartório.

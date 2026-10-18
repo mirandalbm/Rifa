@@ -10,6 +10,7 @@
  * "Em breve" — nunca como link que cai em 404.
  */
 import type { Rede } from "./template";
+import { conferirDadosDaEmpresa, formatarCnpj } from "./legal";
 
 export interface LinkDoRodape {
   rotulo: string;
@@ -93,4 +94,32 @@ export const APOIOS_DE_EXEMPLO: { id: IconeDeApoio; nome: string; cor: string }[
 /** O exemplo só aparece com o rodapé inteiro vazio: qualquer cadastro real o desliga. */
 export function rodapeEmModoExemplo(redes: unknown[], apoios: unknown[]): boolean {
   return redes.length === 0 && apoios.length === 0;
+}
+
+/**
+ * O aviso de jogo responsável quando o template publicado não traz um
+ * (`textos.jogoResponsavel` vazio). É o texto que o pé do rodapé já usava;
+ * agora mora aqui e a tela só o mostra, numa versão só.
+ */
+export const AVISO_DE_JOGO_PADRAO = "Proibido para menores de 18 anos.";
+
+/** O aviso do template publicado, ou o padrão — nunca um texto digitado na tela. */
+export function avisoDeJogoResponsavel(textos: { jogoResponsavel?: string | null } | null | undefined): string {
+  return textos?.jogoResponsavel?.trim() || AVISO_DE_JOGO_PADRAO;
+}
+
+/**
+ * A primeira linha de texto oficial embaixo da logo: razão social e CNPJ dos
+ * "Dados da empresa" **publicados** (`legal` do template). Os dados passam de
+ * novo pela régua do servidor (`conferirDadosDaEmpresa`): CNPJ sem dígito
+ * certo ou campo estranho não vira texto na tela de todo apostador.
+ *
+ * Falta a razão social ou o CNPJ, devolve `null` — e a linha não aparece. A
+ * tela nunca inventa nem preenche com exemplo: quem cadastra é a plataforma,
+ * em Aparência → Rodapé e empresa.
+ */
+export function linhaDaEmpresa(legal: unknown): { razaoSocial: string; cnpj: string } | null {
+  const { dados } = conferirDadosDaEmpresa(legal);
+  if (!dados.razaoSocial || !dados.cnpj) return null;
+  return { razaoSocial: dados.razaoSocial, cnpj: formatarCnpj(dados.cnpj) };
 }

@@ -251,7 +251,8 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 ## Fica para depois da versão inicial (código, comigo)
 
 - Ligar o globo da plataforma como método de apuração, depois de homologado
-  (o código está pronto: é ligar em "Métodos de apuração", sem deploy).
+  (o código está pronto: é ligar em "Métodos de apuração", sem deploy) O roteiro com o
+  tabelionato e o checklist para ligar estão em `docs/ROTEIRO-GLOBO-TABELIONATO.md`.
 - Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases B a F; a
   A — artes prontas — e a G — pacote para postar — já estão feitas).
 - APK das maquininhas (precisa de máquina com o Android SDK).

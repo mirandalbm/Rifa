@@ -435,6 +435,49 @@ gestão do tráfego pago?
 precisa de ressalva de que a rifa pode não vender todas as cotas e do mínimo de
 cotas vendidas para sortear? Ou é melhor não mostrar o valor ao público?
 
+## Quinta rodada — o endereço próprio da organização (18/10/2026)
+
+O dono decidiu (18/10/2026) dar a cada organização um endereço
+`<rotulo>.loteriasdobem.com.br` (plano em `docs/PLANO-SUBDOMINIO.md`): é o perfil
+da promotora e a página de destino dos anúncios, com login por endereço (sem
+cookie no domínio comum). Estas são as perguntas dele (R30 a R35). R12 e Q4
+(página de destino "da promotora") seguem valendo e dependem de R30.
+
+**R30. [1] O subdomínio da plataforma é "página da promotora"?** O endereço fica
+**dentro do domínio da plataforma** (a promotora não é titular do domínio). Para a
+vedação de "agregador" do Google e para a política da Meta, basta o subdomínio, ou
+é preciso o domínio próprio da promotora (CNAME para a plataforma)? Que elementos
+da página (nome, CNPJ, autorização, rodapé) fazem dela "da promotora"?
+
+**R31. [2] Identificação do fornecedor na página do endereço.** Decreto
+7.962/2013, art. 2º: a página que vende deve trazer nome, CNPJ e endereço do
+fornecedor. No endereço da organização, quem é o fornecedor — a promotora, a
+plataforma ou as duas? O que precisa estar visível sem rolar (topo e rodapé)? A
+identificação da plataforma pode ser pequena, desde que clara?
+
+**R32. [2] Cookies de pixel no domínio comum.** Os pixels (Meta, Google, TikTok)
+gravam cookie no domínio registrável, então o mesmo identificador aparece nos
+endereços de organizações diferentes (e no da plataforma). Isso cria
+controladoria conjunta entre promotoras? Basta o aviso por endereço (consentimento
+pedido de novo em cada um) e o texto da Privacidade, ou é preciso impedir o
+compartilhamento do cookie?
+
+**R33. [3] Desligar ou trocar o endereço, e rótulo parecido com marca.** Cláusula
+no contrato da promotora para a plataforma **desligar ou trocar o endereço a
+qualquer momento e sem aviso** por risco de phishing, ordem judicial ou
+confusão com marca (Caixa, bancos, órgãos públicos, "oficial"). Qual é a
+responsabilidade da plataforma por endereço enganoso que ela mesma liberou?
+
+**R34. [3] Propriedade do endereço.** O endereço é da plataforma e a promotora o
+usa por licença? Na rescisão ou no banimento ele é desligado e o rótulo **nunca
+volta a ninguém**? E o material impresso ou já publicado (cartaz, anúncio, post)
+que leva o endereço desligado?
+
+**R35. [3] Endereço de afiliado, depois.** Se o afiliado tiver endereço próprio
+(`af-<código>`), o destino da compra segue sendo a página da promotora (R12),
+mas o endereço carrega o nome do afiliado. Isso muda a responsabilidade do
+afiliado pela publicidade (R16) ou a análise do Google?
+
 ## Sétima rodada — bandeiras dos estados (18/10/2026)
 
 O painel "Locais" da vitrine (`client/src/components/LocaisDaVitrine.tsx`)

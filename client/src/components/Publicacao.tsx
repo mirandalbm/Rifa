@@ -130,6 +130,8 @@ export function Carrossel({
       >
         <div
           className="flex h-full snap-x snap-mandatory overflow-x-auto"
+          tabIndex={0}
+          role="region"
           style={{ scrollbarWidth: "none" }}
           onScroll={(e) => {
             const el = e.currentTarget;
@@ -460,13 +462,13 @@ export function BarraDeAcoes({
           type="button"
           className={botao}
           aria-pressed={i.curti}
-          aria-label={`${i.curti ? "Descurtir" : "Curtir"} (${i.curtidas} curtida${i.curtidas === 1 ? "" : "s"})`}
+          aria-label={`${i.curti ? "Descurtir" : "Curtir"}, ${contadorCurto(i.curtidas)} ${i.curtidas === 1 ? "curtida" : "curtidas"}`}
           onClick={() => acao.mutate({ acao: "curtida", ligar: !i.curti })}
         >
           <IconeTrevo cheio={i.curti} />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.curtidas)}</span>
         </button>
-        <button type="button" className={botao} aria-label={`Comentar (${i.comentarios} comentário${i.comentarios === 1 ? "" : "s"})`} onClick={aoComentar}>
+        <button type="button" className={botao} aria-label={`Comentar, ${contadorCurto(i.comentarios)} ${i.comentarios === 1 ? "comentário" : "comentários"}`} onClick={aoComentar}>
           <IconeComentar />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.comentarios)}</span>
         </button>
@@ -474,13 +476,13 @@ export function BarraDeAcoes({
           type="button"
           className={botao}
           aria-pressed={i.republiquei}
-          aria-label={`${i.republiquei ? "Desfazer republicação" : "Republicar no seu perfil"} (${i.republicacoes})`}
+          aria-label={`${i.republiquei ? "Desfazer republicação" : "Republicar no seu perfil"}, ${contadorCurto(i.republicacoes)}`}
           onClick={() => acao.mutate({ acao: "republicacao", ligar: !i.republiquei })}
         >
           <IconeRepublicar className={i.republiquei ? "text-marca" : ""} />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.republicacoes)}</span>
         </button>
-        <button type="button" className={botao} aria-label={`Compartilhar (${i.compartilhamentos})`} onClick={() => (app?.mensagensLigado ? setCompartilhando(true) : void compartilhar())}>
+        <button type="button" className={botao} aria-label={`Compartilhar, ${contadorCurto(i.compartilhamentos)}`} onClick={() => (app?.mensagensLigado ? setCompartilhando(true) : void compartilhar())}>
           <IconeAviao />
           <span className="tnum text-[15px] font-medium">{contadorCurto(i.compartilhamentos)}</span>
         </button>

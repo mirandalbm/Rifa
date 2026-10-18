@@ -373,7 +373,7 @@ export function VerificacaoCard({
             </form>
           </Moldura>
 
-          <Moldura kit={kit} titulo="Documentos">
+          <Moldura kit={kit} titulo="Documentos de identidade">
             {extra ? <div className={`border-b border-line py-3 text-sm ${kit ? "px-5" : "px-4"}`}>{extra}</div> : null}
             <ul className="divide-y divide-line">
               {DOCUMENTOS_DO_SUJEITO[sujeito].map((tipo) => {

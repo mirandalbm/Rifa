@@ -239,8 +239,8 @@ arquitetura.
   (seção "Sorteios oficiais"), a cor de cada pessoa na conversa por cima do
   vídeo do sorteio (`CORES_DOS_NOMES`) e o **vermelho da marca** — o da
   logo, do ícone e da intro (`docs/marca/`) e o do **"+" do carrinho** no
-  tema claro (`--mais` = `--red`, pedido do produto em 14/10/2026; no escuro
-  segue verde). O "+" é ação, não estado: vermelho continua sendo erro em
+  tema claro e no escuro (`--mais` = `--red`, pedido do produto em 14/10/2026 e
+  estendido ao escuro em 18/10/2026). O "+" é ação, não estado: vermelho continua sendo erro em
   todo o resto, e nenhum aviso, pílula ou estado novo usa o vermelho fora de
   erro.
 
@@ -701,10 +701,13 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
     plataforma não publicou. Na lateral do computador recolhida, só o trevo;
     aberta, a frase. Logo enviada em Aparência substitui o desenho (com o nome
     como texto alternativo).
-  - Os ícones do app (`client/public/icons/`) são a **folha de trevo da
-    direita, vermelha** (`docs/marca/`, escolha do produto em 14/10/2026; o
-    `icon-maskable-512` é a mesma arte de sangria total do `icon-512` —
-    reduzida, deixava uma placa em volta do trevo). O título do iPhone
+  - Os ícones do app (`client/public/icons/`) são só o **trevo, com a folha
+    da direita vermelha** (`docs/marca/`, escolha do produto em 14/10/2026),
+    sem moldura nem placa: `icon-192` e `icon-512` com o trevo a 87% sobre
+    fundo transparente; `icon-maskable-512` com o trevo a 66% sobre fundo
+    transparente, dentro da zona segura de 80% (o raio do trevo fica em
+    171 px de 205); `apple-touch-icon` com o trevo a 87% sobre branco (o iOS
+    não aceita transparência). O título do iPhone
     (`apple-mobile-web-app-title`) e o nome do app instalado no manifesto de
     fábrica são "Loterias do Bem" (`NOME_PADRAO`, o curto "Loterias do"). No
     Android, o nome instalado vem do template **publicado** em Aparência →
@@ -3383,7 +3386,7 @@ emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
 
 ## Carrinho e comprar — o que não pode afrouxar
 
-Na barra da publicação, o **"+"** (vermelho da marca no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
+Na barra da publicação, o **"+"** (vermelho nos dois temas — `--mais` —, em negrito) fica no espaço do meio
 e o **comprar** (a sacola, em verde — `text-green-deep`, dinheiro entrando; no console ela segue na cor do console) no canto direito, onde era o salvar. O "+" abre
 a janela dos números (`EscolherBilhete`): os tamanhos 5, 10, 25 e 50 (ou
 uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele

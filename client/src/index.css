@@ -14,7 +14,7 @@
     --mist-2: #eaf2eb;
     --ink: #0b1f14;
     --ink-2: #3c5647;
-    --muted: #6b8475;
+    --muted: #52655a;
     --line: #e1ebe3;
     --line-2: #c6dacc;
 
@@ -39,7 +39,7 @@
 
     /* Azul da paleta (espera e prêmio). O "+" do carrinho não usa mais este token. */
     --azul: #0a6fd6;
-    /* O "+" do carrinho: vermelho da marca no claro (pedido do produto), verde no escuro (preto e verde). */
+    /* O "+" do carrinho: vermelho nos dois temas (pedido do produto, 18/10/2026; antes era verde no escuro). */
     --mais: var(--red);
     /*
      * A logo escrita "Loterias do Bem": "Loterias do" no verde do ícone e o
@@ -115,7 +115,7 @@
       --on-yellow: #ffffff;
 
       --azul: #5aa9ff;
-      --mais: var(--green-deep);
+      --mais: var(--red);
       --logo-verde: #4cc35a;
       --logo-vermelho: #ec4a50;
       --quadro-azul: #1f6fc4;
@@ -159,7 +159,7 @@
     --on-yellow: #ffffff;
 
     --azul: #5aa9ff;
-    --mais: var(--green-deep);
+    --mais: var(--red);
     --logo-verde: #4cc35a;
     --logo-vermelho: #ec4a50;
     --quadro-azul: #1f6fc4;

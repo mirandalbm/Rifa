@@ -201,7 +201,7 @@ function GraficoPorDia({ dias }: { dias: Dia[] }) {
         </span>
       </div>
       <div
-        className="flex h-40 items-end gap-[2px] border-b border-line"
+        className="flex h-40 items-end gap-[2px] overflow-x-auto border-b border-line"
         onMouseLeave={() => setAtivo(null)}
       >
         {dias.map((d, i) => (
@@ -212,7 +212,7 @@ function GraficoPorDia({ dias }: { dias: Dia[] }) {
             onFocus={() => setAtivo(i)}
             onClick={() => setAtivo(i)}
             aria-label={`${diaCurto(d.dia)}: ${formatBRL(d.receitaCents)}, ${d.pedidos} pedido(s)`}
-            className="group flex h-full flex-1 items-end justify-center focus:outline-none"
+            className="group flex h-full min-w-6 flex-1 items-end justify-center focus:outline-none"
           >
             {/* Dia sem venda aparece com zero: o traço de 3 px na base, como no Figma (e "R$ 0,00" no foco). */}
             <span

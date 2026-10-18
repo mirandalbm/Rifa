@@ -125,7 +125,8 @@ export function PublicShell({
         <div className={`mx-auto flex ${largura} items-center justify-between px-4 py-2`}>
           <div className="flex items-center gap-1">
             {antesDaMarca}
-            <Link href="/" className="text-lg">
+            {/* flex + items-center: dentro de um <a> em linha, a marca (inline-flex) ia para a linha de base e ficava ~4 px acima do centro dos botões. */}
+            <Link href="/" className="flex items-center text-lg">
               <Marca />
             </Link>
           </div>

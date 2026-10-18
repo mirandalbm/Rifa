@@ -1,3 +1,4 @@
+import { BarraDeAcessos } from "@/components/BarraDeAcessos";
 import { SociosDaOrganizacaoCard } from "@/components/SociosDaOrganizacaoCard";
 import { LegendaCard } from "@/components/Publicacao";
 import { problemaNoPremio } from "@shared/premio";
@@ -163,6 +164,7 @@ export function AdminPainel() {
 
   return (
     <PanelShell title="Painel">
+      <BarraDeAcessos />
       {!data ? (
         <Empty>Carregando…</Empty>
       ) : (
@@ -199,9 +201,9 @@ export function AdminPainel() {
               {prox ? (
                 <>
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide opacity-80">Próximo sorteio · {faltam <= 1 ? "amanhã ou hoje" : `em ${faltam} dias`}</p>
+                    <p className="text-xs font-medium uppercase tracking-wide">Próximo sorteio · {faltam <= 1 ? "amanhã ou hoje" : `em ${faltam} dias`}</p>
                     <h2 className="mt-1 truncate text-lg font-semibold">{prox.prizeTitle}</h2>
-                    <p className="tnum text-sm opacity-90">
+                    <p className="tnum text-sm">
                       {new Date(prox.drawAt).toLocaleDateString("pt-BR")}
                       {loteriaDoProximo ? ` · ${loteriaDoProximo}` : ""}
                     </p>
@@ -212,7 +214,7 @@ export function AdminPainel() {
                       [groupNumber(prox.totalQuotas - prox.soldCount), "faltam"],
                       [`${Math.round((prox.soldCount / prox.totalQuotas) * 100)}%`, "do total"],
                     ].map(([n, t]) => (
-                      <span key={t} className="flex items-center gap-1.5 rounded-md bg-branco/15 px-2 py-1">
+                      <span key={t} className="flex items-center gap-1.5 rounded-md bg-branco px-2 py-1 text-yellow">
                         <span className="tnum font-semibold">{n}</span> {t}
                       </span>
                     ))}

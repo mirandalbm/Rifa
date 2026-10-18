@@ -2475,6 +2475,7 @@ publicRouter.post("/patrocinadas/:id/clique", async (req, res, next) => {
 publicRouter.get("/tickets/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
+    res.setHeader("Cache-Control", "private, no-store");
     const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));
@@ -2490,6 +2491,7 @@ publicRouter.get("/tickets/:code", async (req, res, next) => {
 publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
+    res.setHeader("Cache-Control", "private, no-store");
     const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));

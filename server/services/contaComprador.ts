@@ -425,6 +425,12 @@ export async function excluirConta(req: Request, senha: string) {
   if (ehContaSoGoogle(c.passwordHash)) {
     // Sem senha para conferir: a pessoa digita a palavra, para não ser um toque sem querer.
     if (senha.trim().toUpperCase() !== "EXCLUIR") throw new ContaError('Digite EXCLUIR para confirmar.', 401);
+  } else if (!c.passwordHash) {
+    // Comprador antigo, sem senha para conferir: vale o telefone confirmado da
+    // sessão, como em `trocarSenha` (a tela não mostra campo de senha aqui).
+    if (sessao.confirmado !== true) {
+      throw new ContaError("Confirme o telefone com o código do WhatsApp para excluir a conta.", 401);
+    }
   } else if (!codigoRecente(sessao.porCodigoEm)) {
     // Conta com senha: a senha confirma, a menos que o código do WhatsApp
     // tenha sido provado há pouco. Entrar com a senha não dispensa a senha

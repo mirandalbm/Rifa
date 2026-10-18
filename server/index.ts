@@ -13,6 +13,7 @@ import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
 import { reconhecerSubdominio } from "./services/subdominio";
+import { exigirOrigemDoHost, protegerOHost } from "./services/enderecoDoHost";
 import { startJobs } from "./jobs";
 import { LocalDiskStorage, chaveRestauravel, storage } from "./services/storage";
 import { manifestDaPlataforma } from "./services/template";
@@ -55,6 +56,9 @@ const cspRelatorio = producao
       midiaPublica: process.env.R2_PUBLIC_URL,
     })
   : null;
+// `www` para a casa principal e `noindex` no endereço que o sistema não conhece:
+// antes de tudo, para o redirecionamento não esperar corpo nem sessão.
+app.use(protegerOHost);
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
@@ -63,8 +67,9 @@ app.use((_req, res, next) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   // Em produção o site é só HTTPS: o navegador passa a recusar a versão sem
   // cadeado (quem estiver no meio do caminho não rebaixa para HTTP e lê o
-  // cookie da sessão). Sem `includeSubDomains`: outro subdomínio do domínio
-  // não é deste sistema.
+  // cookie da sessão). Sem `includeSubDomains` (nem `preload`): o curinga dos
+  // endereços de organização pode ser desfeito, e o HSTS vale por host — cada
+  // endereço que responde recebe o dele.
   if (producao) res.setHeader("Strict-Transport-Security", "max-age=15552000");
   next();
 });
@@ -224,6 +229,9 @@ app.use((req, res, next) => {
 });
 
 app.use(reconhecerSubdominio);
+// `Origin` de quem muda estado: o mesmo `Host`. Modo relatório até o log ficar
+// limpo (`ORIGEM_POR_HOST=recusar` passa a recusar).
+app.use("/api", exigirOrigemDoHost);
 
 (async () => {
   setupAuth(app);

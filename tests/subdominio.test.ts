@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  destinoDoWww,
+  hostEhConhecido,
+  hostNormalizado,
   identificarHost,
+  motivoDeOrigemDiferente,
+  rotuloPareceMarca,
   linkDaRifaNoEndereco,
   problemaNoRotulo,
   rotuloDoAfiliado,
@@ -165,5 +170,137 @@ describe("reconhecimento do subdomínio no servidor", () => {
     }
     expect(seguiu).toBe(true);
     expect(res.locals.subdominio).toEqual({ tipo: "organizacao", slug: "rifa-solidaria" });
+  });
+});
+
+describe("rótulo: dois hífens, punycode e marcas", () => {
+  it("recusa dois hífens seguidos e o punycode", () => {
+    expect(problemaNoRotulo("a--b")).toMatch(/dois hífens/);
+    expect(problemaNoRotulo("xn--rifa-9ra")).toMatch(/dois hífens/);
+    expect(identificarHost(`a--b.${BASE}`, BASE)).toBeNull();
+    expect(identificarHost(`xn--rifa-9ra.${BASE}`, BASE)).toBeNull();
+    expect(identificarHost(`af-jo--ao.${BASE}`, BASE)).toBeNull();
+  });
+
+  it("reserva a marca da casa, do Estado, dos bancos e das redes", () => {
+    for (const r of ["loteriasdobem", "caixa", "federal", "gov", "pix", "login", "mercadopago", "google", "whatsapp"]) {
+      expect(problemaNoRotulo(r), r).toMatch(/reservado/);
+      expect(identificarHost(`${r}.${BASE}`, BASE), r).toBeNull();
+    }
+  });
+
+  it("rótulo que começa ou termina como a marca pede a ligação manual, sem ser proibido", () => {
+    for (const r of ["loteriasdobem-sul", "caixa-premios", "gov-sorteios", "oficial-moto", "rifa-oficial", "x-caixa"]) {
+      expect(rotuloPareceMarca(r), r).toBe(true);
+      expect(problemaNoRotulo(r), r).toBeNull();
+    }
+    for (const r of ["rifa-solidaria", "caixas-do-bem", "oficina", "governo"]) {
+      expect(rotuloPareceMarca(r), r).toBe(false);
+    }
+  });
+});
+
+describe("o Host que chegou", () => {
+  it("tira o ponto final, a maiúscula e a porta", () => {
+    expect(hostNormalizado("Rifa.Exemplo.com.br.")).toBe("rifa.exemplo.com.br");
+    expect(hostNormalizado("rifa.exemplo.com.br.:443", true)).toBe("rifa.exemplo.com.br");
+    expect(identificarHost(`rifa-solidaria.${BASE}.`, BASE)).toEqual({ tipo: "organizacao", slug: "rifa-solidaria" });
+  });
+
+  it("em produção só passa a porta padrão; fora dela, qualquer uma", () => {
+    expect(hostNormalizado("rifa.exemplo.com.br:8443", true)).toBeNull();
+    expect(hostNormalizado("rifa.exemplo.com.br:80", true)).toBe("rifa.exemplo.com.br");
+    expect(hostNormalizado("rifa.localhost:5000", false)).toBe("rifa.localhost");
+    expect(identificarHost(`rifa-solidaria.${BASE}:8443`, BASE, true)).toBeNull();
+    expect(identificarHost(`rifa-solidaria.${BASE}:8443`, BASE, false)).toEqual({
+      tipo: "organizacao",
+      slug: "rifa-solidaria",
+    });
+  });
+
+  it("recusa o que não parece nome de máquina", () => {
+    for (const h of ["", "a b.com", "a@b.com", "a/b.com", "a\\b.com", "a%2eb.com", "[::1]", "a.com:99999x", "user:pw@a.com"]) {
+      expect(hostNormalizado(h), h).toBeNull();
+    }
+    expect(hostNormalizado(undefined)).toBeNull();
+  });
+});
+
+describe("www e a casa principal", () => {
+  const PRINCIPAL = "https://loteriasdobem.com.br";
+
+  it("o www vai para a raiz, e a raiz não vai a lugar nenhum", () => {
+    expect(destinoDoWww("www.loteriasdobem.com.br", PRINCIPAL, true)).toBe("https://loteriasdobem.com.br");
+    expect(destinoDoWww("WWW.loteriasdobem.com.br.", PRINCIPAL, true)).toBe("https://loteriasdobem.com.br");
+    expect(destinoDoWww("loteriasdobem.com.br", PRINCIPAL, true)).toBeNull();
+  });
+
+  it("se o canônico é o www, a raiz é que vai para ele", () => {
+    const www = "https://www.loteriasdobem.com.br";
+    expect(destinoDoWww("loteriasdobem.com.br", www, true)).toBe(www);
+    expect(destinoDoWww("www.loteriasdobem.com.br", www, true)).toBeNull();
+  });
+
+  it("outro nome ou endereço de organização não é redirecionado", () => {
+    expect(destinoDoWww("rifa-solidaria.loteriasdobem.com.br", PRINCIPAL, true)).toBeNull();
+    expect(destinoDoWww("rifa.up.railway.app", PRINCIPAL, true)).toBeNull();
+    expect(destinoDoWww("www.outro.com.br", PRINCIPAL, true)).toBeNull();
+  });
+
+  it("sem PUBLIC_BASE_URL (ou torta) nada é redirecionado", () => {
+    expect(destinoDoWww("www.loteriasdobem.com.br", undefined, true)).toBeNull();
+    expect(destinoDoWww("www.loteriasdobem.com.br", "isto não é url", true)).toBeNull();
+  });
+
+  it("conhece o principal, o par e o endereço de organização; o resto é desconhecido", () => {
+    const base = "loteriasdobem.com.br";
+    expect(hostEhConhecido("loteriasdobem.com.br", PRINCIPAL, base, true)).toBe(true);
+    expect(hostEhConhecido("www.loteriasdobem.com.br", PRINCIPAL, base, true)).toBe(true);
+    expect(hostEhConhecido("rifa-solidaria.loteriasdobem.com.br", PRINCIPAL, base, true)).toBe(true);
+    expect(hostEhConhecido("rifa-solidaria.loteriasdobem.com.br", PRINCIPAL, null, true)).toBe(false);
+    expect(hostEhConhecido("rifa-production.up.railway.app", PRINCIPAL, base, true)).toBe(false);
+    expect(hostEhConhecido("10.0.0.5", PRINCIPAL, base, true)).toBe(false);
+    expect(hostEhConhecido(undefined, PRINCIPAL, base, true)).toBe(false);
+  });
+});
+
+describe("Origin do pedido que muda estado", () => {
+  const host = "loteriasdobem.com.br";
+
+  it("o mesmo Host passa", () => {
+    expect(motivoDeOrigemDiferente({ host, origin: `https://${host}` }, true)).toBeNull();
+    expect(motivoDeOrigemDiferente({ host: "localhost:5000", origin: "http://localhost:5000" })).toBeNull();
+  });
+
+  it("outro endereço da mesma família não passa (SameSite não separa subdomínio)", () => {
+    expect(motivoDeOrigemDiferente({ host, origin: `https://rifa-solidaria.${host}` }, true)).toBe("origin-de-outro-host");
+    expect(motivoDeOrigemDiferente({ host: `a.${host}`, origin: `https://b.${host}` }, true)).toBe("origin-de-outro-host");
+  });
+
+  it("origem de fora, nula ou torta não passa", () => {
+    expect(motivoDeOrigemDiferente({ host, origin: "https://golpe.com" }, true)).toBe("origin-de-outro-host");
+    expect(motivoDeOrigemDiferente({ host, origin: "null" }, true)).toBe("origin-invalida");
+    expect(motivoDeOrigemDiferente({ host, origin: "isto não é url" }, true)).toBe("origin-invalida");
+  });
+
+  it("em produção a origem precisa ser https", () => {
+    expect(motivoDeOrigemDiferente({ host, origin: `http://${host}` }, true)).toBe("origin-sem-https");
+    expect(motivoDeOrigemDiferente({ host, origin: `http://${host}` }, false)).toBeNull();
+  });
+
+  it("sem Origin, o Sec-Fetch-Site decide", () => {
+    expect(motivoDeOrigemDiferente({ host, secFetchSite: "same-origin" })).toBeNull();
+    expect(motivoDeOrigemDiferente({ host, secFetchSite: "none" })).toBeNull();
+    expect(motivoDeOrigemDiferente({ host, secFetchSite: "same-site" })).toBe("sec-fetch-site-same-site");
+    expect(motivoDeOrigemDiferente({ host, secFetchSite: "cross-site" })).toBe("sec-fetch-site-cross-site");
+  });
+
+  it("sem nenhum dos dois (curl, prova, servidor a servidor), passa", () => {
+    expect(motivoDeOrigemDiferente({ host })).toBeNull();
+    expect(motivoDeOrigemDiferente({ host, origin: "", secFetchSite: "" })).toBeNull();
+  });
+
+  it("a Origin vence o Sec-Fetch-Site", () => {
+    expect(motivoDeOrigemDiferente({ host, origin: `https://${host}`, secFetchSite: "cross-site" }, true)).toBeNull();
   });
 });

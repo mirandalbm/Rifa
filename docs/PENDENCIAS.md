@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (`db:push` de produção feito e conferido; auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
+Última atualização: 18/10/2026 (subdomínio PR 1: `www`, `noindex` e `Origin` por host em modo relatório; `__Host-rifa.sid` aguarda o seu OK).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -593,9 +593,16 @@ middleware que marca a requisição; nenhuma rota usa o destino.
 - [ ] **[advogado]** R30 a R35 (`docs/PERGUNTAS-AO-ADVOGADO.md`, quinta rodada).
 - [ ] **[você]** Cadastrar o curinga `*.loteriasdobem.com.br` no Railway; escolher o
   domínio principal canônico (raiz ou `www`); aprovar a lista de reservados.
-- [ ] **[código]** PR 1: endurecimento que independe do domínio (`__Host-rifa.sid`,
-  `Origin` por host em modo relatório, correções de `identificarHost`, `www` para o
-  principal).
+- [x] **[código]** PR 1, parte feita (18/10/2026): `identificarHost()` corrigido (dois
+  hífens e `xn--`, ponto final, porta só 80/443 em produção) e reservados com as marcas;
+  `www` → principal (301/308) e `X-Robots-Tag: noindex` em host desconhecido
+  (`protegerOHost`); `Origin` por host em **modo relatório** (`exigirOrigemDoHost`, log
+  `[origem]`; `ORIGEM_POR_HOST=recusar` passa a recusar). Só age com `PUBLIC_BASE_URL`.
+- [ ] **[você]** Ler o log `[origem]` em produção por 1 a 2 semanas (WebView do Android e
+  POS incluídos) e então pôr `ORIGEM_POR_HOST=recusar` no Railway.
+- [ ] **[decisão → código]** PR 1(a): `__Host-rifa.sid` em produção. **Todo mundo sai da
+  conta uma vez** (pergunta 11 do plano): diga o dia e o horário; o código fica pronto
+  e só entra com o seu OK.
 - [ ] **[código]** PR 2: guarda do endereço no servidor, `organizations.endereco_ativo`
   (`db:push` antes), `GET /api/public/endereco`, `npm run subdominio`, entradas do `isolation`.
 - [ ] **[código]** PR 3: roteador por endereço no SPA (+ rodada de `npm run telas` com `*.localhost`).

@@ -1,7 +1,8 @@
 # Plano: o endereço próprio da organização (`<rotulo>.loteriasdobem.com.br`)
 
-Data: 18/10/2026. Estado: **plano, ainda não existe no código** (existe só a regra
-pura e o middleware que marca a requisição; nenhuma rota usa o destino).
+Data: 18/10/2026. Estado: **plano; o PR 1 está no código** (regra pura corrigida, `www`,
+`noindex`, `Origin` por host em modo relatório — falta só o cookie `__Host-`, que espera a
+pergunta 11); do resto, existe o middleware que marca a requisição e nenhuma rota usa o destino.
 Ler com `CLAUDE.md` (invariantes 11 e 15 e a seção "Multi-organizador"),
 `docs/SEGURANCA.md` e `docs/PERGUNTAS-AO-ADVOGADO.md` (quinta rodada, R30 a R35).
 
@@ -738,7 +739,7 @@ sem a variável está marcado.
 | # | PR | Conteúdo | Sem `SUBDOMINIO_BASE` | Risco |
 |---|---|---|---|---|
 | 0 | **Este plano** + R30 a R35 + seção em `PENDENCIAS.md` | documentos | — | nenhum |
-| 1 | **Endurecimento que independe do domínio** | (a) `__Host-rifa.sid` em produção; (b) `exigirOrigemDoHost` em modo relatório; (c) `shared/subdominio.ts` corrigido (`--`, ponto final, porta, marcas) + testes; (d) `www` → principal; (e) `X-Robots-Tag` para host desconhecido | **age** (a, b, d, e). (a) desloga todos uma vez; (b) só registra; (d) é o único efeito visível | **médio** pelo (a): avisar antes e fazer em horário calmo. (b) em relatório não derruba nada |
+| 1 | **Endurecimento que independe do domínio** — *feito (b, c, d, e) em 18/10/2026; (a) aguarda o OK da pergunta 11* | (a) `__Host-rifa.sid` em produção; (b) `exigirOrigemDoHost` em modo relatório; (c) `shared/subdominio.ts` corrigido (`--`, ponto final, porta, marcas) + testes; (d) `www` → principal; (e) `X-Robots-Tag` para host desconhecido | **age** (a, b, d, e). (a) desloga todos uma vez; (b) só registra; (d) é o único efeito visível | **médio** pelo (a): avisar antes e fazer em horário calmo. (b) em relatório não derruba nada |
 | 2 | **Guarda do endereço no servidor** | `guardaDoEndereco`, `hostDaRequisicao`, cache, `GET /api/public/endereco`, classificador de rotas (+ teste de cobertura), 404 com status, canonicalização `/o/<rótulo>`, redirecionamentos ao principal, bloqueio de painel/webhook no endereço; coluna `organizations.endereco_ativo` e a rota `PUT /organizacoes/:id/endereco` (com a auditoria); `npm run subdominio` (servidor) e entradas do `isolation` | **inerte** (sem base, nenhum host é endereço; a coluna fica sem uso) | **médio**: é um middleware global; o teste de cobertura e a prova seguram. `db:push` **antes** do código |
 | 3 | **SPA: roteador por endereço** | `RoteadorPorEndereco`, `useEndereco`, `useLocationDoEndereco`, console filtrado, botão do Google, intro e faixa de instalar escondidos no endereço, carrinho e "Minhas compras" do endereço; `npm run telas` com a rodada `*.localhost`; registro em `VERSOES.md` | **inerte** (`/api/public/endereco` responde `principal`) | **médio**: mexe na navegação, mas só troca o `Router` quando é endereço |
 | 4 | **URLs absolutas** | `urls.ts` (os três auxiliares), artes, kit do afiliado, curtos, QR do perfil, WhatsApp, push, compartilhar, marketing por servidor, **tráfego (`linkDoAnuncio`)** + varredura de URL no teste | **inerte** (cai no caminho de hoje) | **médio-alto** pela atribuição: o tráfego e o `?ref=` mudam de host. Provar com `npm run trafego-criacao`, `npm run afiliados`, `npm run artes`, `npm run marketing`, `npm run perfil` |

@@ -565,6 +565,13 @@ async function rotasDoPainelDoOrganizador(eu: Lado, vizinho: Lado) {
     const patro = await lista("/api/admin/patrocinio");
     checa("o patrocínio não traz o reembolso do vizinho", !patro.includes(reembolso.id) && !patro.includes(`PR-ISO${sufixo}`));
 
+    // ---------- liberar comissão é liberar dinheiro: o organizador libera a dele, não a do vizinho
+    const pedidoDoVizinho = await um<{ id: string }>(sql`select id from orders where code = ${vizinho.orderCode}`);
+    const comissaoDoVizinho = await um<{ id: string }>(sql`insert into commissions (affiliate_id, order_id, campaign_id, amount_cents, pct, available_at) values (${vizinho.cambistaId}::uuid, ${pedidoDoVizinho.id}::uuid, ${c}::uuid, 100, 10, now() - interval '1 day') returning id`);
+    limpezas.push(() => db.execute(sql`delete from commissions where id = ${comissaoDoVizinho.id}::uuid`));
+    const liberar = await pedir(eu.cookie, "/api/admin/finance/release", { method: "POST" });
+    checa("liberar comissões não toca a do vizinho", liberar.status === 200 && (await sel<{ s: string }>(sql`select status::text as s from commissions where id = ${comissaoDoVizinho.id}::uuid`))[0]?.s === "pending", `HTTP ${liberar.status}`);
+
     // ---------- o corpo e a query não trocam a organização
     const orgDe = async (id: string) => (await sel<{ l: string; p: number }>(sql`select liberacao_comissao::text as l, prazo_estorno_dias as p from organizations where id = ${id}::uuid`))[0];
     const antesViz = await orgDe(vizinho.orgId);
@@ -859,6 +866,9 @@ async function rotasDaPlataforma(eu: Lado, outro: Lado) {
     ["POST criar organização", "/api/admin/organizacoes", { method: "POST", body: '{"name":"Outra organização"}' }],
     ["POST criar acesso de organizador", `/api/admin/organizacoes/${eu.orgId}/acessos`, { method: "POST", body: '{"name":"Outro","email":"outro@rifa.teste","password":"senha-forte-1234"}' }],
     ["GET antifraude", "/api/admin/antifraude", {}],
+    ["PUT limites do antifraude", "/api/admin/antifraude/limites", { method: "PUT", body: "{}" }],
+    ["POST bloqueio manual do antifraude", "/api/admin/antifraude/bloqueios", { method: "POST", body: '{"kind":"phone","value":"11999990000"}' }],
+    ["DELETE bloqueio do antifraude", "/api/admin/antifraude/bloqueios/00000000-0000-0000-0000-000000000000", { method: "DELETE" }],
     ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
     ["GET auditoria", "/api/admin/audit", {}],
     ["GET carteira de cobrança", "/api/admin/cobranca", {}],

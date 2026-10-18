@@ -1493,13 +1493,13 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/cobranca/notificacoes/:id/cancelar` | `cobranca-test.ts`, `isolation-test.ts` |
 | GET | `/cobranca/extrato` | `cobranca-test.ts`, `isolation-test.ts`, `presente-test.ts` |
 | GET | `/antifraude` | `acessos-test.ts`, `isolation-test.ts` |
-| PUT | `/antifraude/limites` | `acessos-test.ts` |
-| POST | `/antifraude/bloqueios` | `acessos-test.ts` |
-| DELETE | `/antifraude/bloqueios/:id` | `acessos-test.ts` |
+| PUT | `/antifraude/limites` | `acessos-test.ts`, `isolation-test.ts` |
+| POST | `/antifraude/bloqueios` | `acessos-test.ts`, `isolation-test.ts` |
+| DELETE | `/antifraude/bloqueios/:id` | `acessos-test.ts`, `isolation-test.ts` |
 | GET | `/payment-methods` | `isolation-test.ts` |
 | PUT | `/payment-methods` | `isolation-test.ts` |
 | GET | `/finance` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +1 |
-| POST | `/finance/release` | `guarda-test.ts`, `pagarme-test.ts` |
+| POST | `/finance/release` | `guarda-test.ts`, `isolation-test.ts`, `pagarme-test.ts` |
 | GET | `/payouts/:id/nota` | `fiscal-test.ts`, `isolation-test.ts` |
 | POST | `/payouts/:id/paid` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +1 |
 | GET | `/template` | `aparencia-test.ts`, `contrato-promotora-test.ts`, `isolation-test.ts` |

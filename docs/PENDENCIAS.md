@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (subdomínio PR 4: os links da rifa saem pelo endereço da organização; PRs 1 a 3 mesclados; `__Host-rifa.sid` aguarda o seu OK).
+Última atualização: 18/10/2026 (subdomínio PR 4: os links da rifa saem pelo endereço da organização; PRs 1 a 3 mesclados; `__Host-rifa.sid` aguarda o seu OK; melhorar o editor de imagem e vídeo registrado como pendência futura; `db:push` de produção feito e conferido; auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -1044,6 +1044,35 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [ ] **[depois da versão inicial]** Melhorar muito o editor de imagem e de
+  vídeo do painel (pedido do dono em 18/10/2026: "no futuro, melhorar muito").
+  Por ora fica como está (artes prontas, editor de imagem, capa e corte do
+  vídeo, reels gerado). O que a conversa de 18/10 apurou, para quando voltar:
+  - **Não dá para embutir Shotcut, Kdenlive, GIMP ou Darktable**: são
+    programas de computador (não rodam dentro de uma página) e são GPL —
+    misturar o código deles ao nosso cria obrigação de licença. O caminho é
+    **construir no nosso editor** o que eles têm de mais usado, usando o motor
+    por baixo: o `ffmpeg` do trabalhador (fila no Postgres, o mesmo do reels
+    gerado) para cortar vários trechos, juntar, pôr texto e legenda, e o
+    `sharp`/canvas para a foto. O processo do site continua sem recomprimir
+    vídeo.
+  - **Regras que valem para qualquer ferramenta nova**: todo texto que vira
+    imagem ou vídeo passa antes pela régua (sem link, telefone nem Pix por
+    fora, como o `/editor/conferir`); o recorte por organização; limite por
+    pessoa; nada de preço, número ou prêmio vindo do navegador.
+  - **O que precisa de provedor pago por unidade** (já previsto em
+    `docs/PLANO-FERRAMENTAS.md`): remover fundo, legendas por transcrição e
+    vídeo gerado por IA. Seria cobrado pelo saldo da organização, como o
+    assistente, com o pedido montado só com os dados públicos da rifa.
+  - **OpenMontage** (vídeo por IA, código aberto) foi só avaliado: é feito para
+    rodar no computador de quem desenvolve, com assistente de código e chaves
+    de provedores pagos, e a licença é **AGPL-3.0**, que pode obrigar a
+    publicar o código de um serviço que o use pela rede. **[você] Antes de
+    qualquer uso no servidor, perguntar ao advogado** (juntar às perguntas de
+    `docs/PERGUNTAS-AO-ADVOGADO.md`). Não entra no repositório por ora.
+  - **Sobra, sem custo**: uma página de ajuda com links para baixar essas
+    ferramentas gratuitas, para quem edita fora (só links `https:` de sites
+    oficiais, conferidos antes, avisando que são externos). Não foi feita.
 - [ ] **[depois da versão inicial]** Ferramentas de imagem e vídeo para
   divulgar a rifa (artes prontas com os dados da rifa, recriar a partir de
   uma referência com IA de visão, editor de imagem, vídeo leve, IA

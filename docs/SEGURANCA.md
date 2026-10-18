@@ -87,6 +87,16 @@ O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
 
+### 18/10/2026 — acesso da plataforma
+
+Escopo: as 267 rotas de `/api/admin` e as telas do master. O relatório (o que
+foi conferido, o que foi corrigido e o que ficou aberto) está em
+`docs/AUDITORIA-ACESSO-PLATAFORMA.md`. Em resumo: id fora do formato respondia
+500 em mais de setenta rotas; arquivar organização tinha cópia própria do
+segundo fator, sem limite de tentativas; configuração com campo ausente voltava
+ao padrão e dois cartões salvos juntos se perdiam; auditoria gravada antes da
+decisão (ou fora da transação do resultado do sorteio).
+
 ### 02/10/2026
 
 Escopo: o que nasceu depois da revisão de 28/09 — mensagens (foto, presença e

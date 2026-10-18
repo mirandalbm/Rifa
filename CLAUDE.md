@@ -1761,8 +1761,9 @@ permite cobrar dela depois, e o aceite é a prova.
 - **Arquivar não apaga.** `archived_at` tira a organização da lista padrão e
   fecha a porta de todos dela; venda, cota, comissão e cobrança seguem nos
   relatórios. `DELETE` de organização não existe, de propósito.
-- **Arquivar pede senha E código do autenticador.** Sem segundo fator ligado,
-  não arquiva — não há caminho alternativo.
+- **Arquivar pede senha E código do autenticador**, pela mesma
+  `conferirSegundoFatorAgora()` do resultado do sorteio (cada tentativa conta no
+  limite). Sem segundo fator ligado, não arquiva — não há caminho alternativo.
 - **Rifa no ar ou esperando sorteio barra o arquivamento**, no mesmo `UPDATE`
   que arquiva. A publicação trava a linha da organização (`FOR SHARE`) e recusa
   promotora arquivada.

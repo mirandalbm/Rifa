@@ -23,6 +23,17 @@ export const BOTOES_DO_CONSOLE = [
 export type BotaoDoConsole = (typeof BOTOES_DO_CONSOLE)[number]["chave"];
 
 /**
+ * No endereço da organização o console tem só o que é dela: o Início (o perfil
+ * da organização), o Carrinho e o Perfil da conta. Reels, Mensagens e Buscar
+ * são da plataforma inteira — mostrariam rifa de outra organização dentro do
+ * endereço dela (docs/PLANO-SUBDOMINIO.md, cap. 7.7).
+ */
+const CHAVES_DO_ENDERECO: readonly BotaoDoConsole[] = ["inicio", "carrinho", "perfil"];
+export function botoesNoEndereco(noEndereco: boolean) {
+  return noEndereco ? BOTOES_DO_CONSOLE.filter((b) => CHAVES_DO_ENDERECO.includes(b.chave)) : BOTOES_DO_CONSOLE;
+}
+
+/**
  * O botão aceso para o endereço de agora. A rifa, o perfil de organização e
  * o estado são "Início" (vêm da vitrine); as telas da conta são "Perfil".
  */

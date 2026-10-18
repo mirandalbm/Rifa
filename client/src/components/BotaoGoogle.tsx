@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { TONS_DO_BOTAO } from "@/components/bits";
+import { noEnderecoDaOrganizacao } from "@/lib/endereco";
 
 /**
  * "Continuar com o Google": só aparece se a plataforma tiver o acesso
@@ -9,7 +10,8 @@ import { TONS_DO_BOTAO } from "@/components/bits";
  */
 export function BotaoGoogle({ volta = "/" }: { volta?: string }) {
   const { data } = useQuery<{ ligado: boolean }>({ queryKey: ["/api/public/conta/google/disponivel"] });
-  if (!data?.ligado) return null;
+  // O login do Google é um só, no domínio principal (a URL de retorno é uma): no endereço da organização não há o botão.
+  if (!data?.ligado || noEnderecoDaOrganizacao()) return null;
   return (
     <div>
       <a

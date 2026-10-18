@@ -1,3 +1,4 @@
+import { noEnderecoDaOrganizacao } from "@/lib/endereco";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { TrevoDaMarca } from "@/components/TrevoDaMarca";
 import {
@@ -40,6 +41,8 @@ function marcarVista() {
 /** Decide uma vez, ao abrir o app: a intro não aparece ao navegar entre telas. */
 function mostrarAgora(): boolean {
   if (typeof window === "undefined") return false;
+  // No endereço da organização a marca é dela: a intro é da plataforma (cap. 7.7 do plano do subdomínio).
+  if (noEnderecoDaOrganizacao()) return false;
   let emMoldura = false;
   try {
     emMoldura = window.self !== window.top;

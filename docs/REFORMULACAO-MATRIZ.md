@@ -8,8 +8,8 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 867 |
 | Rotas da API | 489, das quais 486 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 68 |
-| Testes de regra (`tests/`) | 145 arquivos |
+| Provas contra a API (`npm run …`) | 69 |
+| Testes de regra (`tests/`) | 146 arquivos |
 | Destinos decididos | 974 de 974 |
 
 ## 1. Telas
@@ -1742,14 +1742,14 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +3 |
 | PUT | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +3 |
 | PUT | `/conta/nota` | `nota-test.ts` |
-| GET | `/endereco` | `subdominio-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/endereco` | `subdominio-spa-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/app` | `buscar-test.ts`, `divulgacao-test.ts`, `grupos-test.ts` +5 |
 | GET | `/selos` | `verificacao-test.ts` |
 | PUT | `/campaigns/:slug/acoes/:acao` | `publicacao-test.ts` |
 | POST | `/campaigns/:slug/compartilhamentos` | `publicacao-test.ts` |
 | POST | `/carrinho` | `carrinho-test.ts`, `publicacao-test.ts`, `subdominio-test.ts` +1 |
 | GET | `/conta/salvos` | `publicacao-test.ts` |
-| GET | `/conta/bilhetes` | `bilhetes-test.ts`, `isolation-test.ts` |
+| GET | `/conta/bilhetes` | `bilhetes-test.ts`, `isolation-test.ts`, `subdominio-test.ts` |
 | GET | `/u/:apelido/republicacoes` | `publicacao-test.ts` |
 | GET | `/u/:apelido` | `bilhetes-test.ts`, `comentarios-test.ts`, `publicacao-test.ts` +3 |
 | POST | `/u/:apelido/seguir` | `nota-test.ts`, `seguir-pessoas-test.ts` |
@@ -1788,7 +1788,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts`, `conta-test.ts`, `publico-test.ts` |
 | POST | `/my-quotas/request-code` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | POST | `/my-quotas/verify` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
-| GET | `/my-quotas` | `chamados-test.ts`, `conta-test.ts` |
+| GET | `/my-quotas` | `chamados-test.ts`, `conta-test.ts`, `subdominio-test.ts` |
 | GET | `/conta/google/disponivel` | `afiliados-test.ts`, `google-test.ts` |
 | GET | `/conta/google/entrar` | `afiliados-test.ts`, `google-test.ts`, `subdominio-test.ts` +1 |
 | GET | `/conta/google/ligar` | `google-test.ts` |
@@ -1797,10 +1797,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/conta/telefone/codigo` | `bonus-test.ts`, `conta-test.ts`, `google-test.ts` |
 | POST | `/conta/telefone/confirmar` | `bonus-test.ts`, `conta-test.ts`, `google-test.ts` |
 | DELETE | `/conta/google` | `google-test.ts` |
-| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +20 |
+| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +21 |
 | POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `publico-test.ts` +1 |
 | POST | `/conta/sair` | `bilhetes-test.ts`, `conta-test.ts` |
-| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +20 |
+| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +21 |
 | PUT | `/conta/senha` | `conta-test.ts` |
 | PUT | `/conta/cep` | `conta-test.ts` |
 | PUT | `/conta/perfil-publico` | `perfil-test.ts` |
@@ -1945,6 +1945,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `sorteio-comentarios` | `scripts/sorteio-comentarios-test.ts` |
 | `sorteios` | `scripts/sorteios-oficiais-test.ts` |
 | `subdominio` | `scripts/subdominio-test.ts` |
+| `subdominio-spa` | `scripts/subdominio-spa-test.ts` |
 | `telas` | `scripts/telas.ts` |
 | `trafego` | `scripts/trafego-test.ts` |
 | `trafego-criacao` | `scripts/trafego-criacao-test.ts` |

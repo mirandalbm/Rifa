@@ -23,7 +23,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { archiveOrganization, restoreOrganization } from "../server/services/orgs";
-import { auditLog, campaigns, organizations, users } from "../shared/schema";
+import { auditLog, buyers, campaigns, orders, organizations, users } from "../shared/schema";
 
 const BASE = process.env.SUBDOMINIO_BASE ?? "loteriasdobem.test";
 const ALVO = new globalThis.URL(baseUrl());
@@ -86,8 +86,16 @@ const SLUGS = ["sub-prova-a", "sub-prova-b", "sub-prova-arq", "sub-prova-ban", "
 const EMAILS = ["sub-prova-org@teste.rifa", "sub-prova-admin@teste.rifa"];
 const SENHA = "senha-subdominio-1";
 const h = (rotulo: string) => `${rotulo}.${BASE}`;
+const TEL_COMPRADOR = "11966680001";
+const CPF_COMPRADOR = "52998224725";
 
 async function limpar() {
+  const compradores = (await db.execute(sql`select id from buyers where phone = ${TEL_COMPRADOR}`)).rows as { id: string }[];
+  for (const c of compradores) {
+    await db.execute(sql`delete from orders where buyer_id = ${c.id}`);
+    await db.execute(sql`delete from buyers where id = ${c.id}`);
+  }
+  await db.execute(sql`delete from rate_events where bucket like 'cadastro:%'`);
   const orgs = await db.select({ id: organizations.id }).from(organizations).where(inArray(organizations.slug, SLUGS));
   const ids = orgs.map((o) => o.id);
   if (ids.length) {
@@ -213,6 +221,7 @@ async function main() {
     const A = h(a.slug);
     r = await pedir(A, "GET", "/api/public/endereco");
     checa("/endereco diz a organização", r.status === 200 && r.json?.tipo === "organizacao" && r.json?.slug === a.slug && !("id" in (r.json ?? {})), JSON.stringify(r.json));
+    checa("/endereco diz o domínio principal, para onde o SPA leva o que é da plataforma", /^https?:\/\/[^/]+$/.test(String(r.json?.principal ?? "")), JSON.stringify(r.json));
     checa("/endereco não é guardado e varia por Host", /no-store/.test("no-store") && r.status === 200);
     r = await pedir(A, "GET", "/");
     checa("a raiz serve a casca do app (200)", r.status === 200 && /<html|<!doctype/i.test(r.texto), `HTTP ${r.status}`);
@@ -312,6 +321,45 @@ async function main() {
     }
     r = await pedir(A, "GET", "/", {});
     checa("o ponto final do Host é o mesmo endereço", (await pedir(A + ".", "GET", "/api/public/endereco")).json?.tipo === "organizacao");
+
+
+    // ------------------------------------------------ "Minhas compras" e os bilhetes: só o que é da organização do endereço
+    {
+      const cadastro = await pedir("localhost", "POST", "/api/public/conta", {
+        corpo: { apelido: "subprova" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 8), cep: "01310-100", nome: "Compradora Prova", telefone: TEL_COMPRADOR, cpf: CPF_COMPRADOR, senha: SENHA },
+      });
+      checa("conta da compradora criada", cadastro.status === 201, `HTTP ${cadastro.status} ${cadastro.json?.message ?? ""}`);
+      const [comp] = await db.select().from(buyers).where(eq(buyers.phone, TEL_COMPRADOR));
+      let codigo = 96_300_000;
+      for (const rf of [rifaA, rifaB]) {
+        await db.insert(orders).values({
+          code: codigo++,
+          campaignId: rf.id,
+          buyerId: comp!.id,
+          quantity: 2,
+          amountCents: 2 * rf.priceCents,
+          status: "paid",
+          method: "pix_online",
+          viaConta: true,
+          paidAt: new Date(),
+          expiresAt: new Date(Date.now() + 86_400_000),
+        });
+      }
+      const sessao = cadastro.cookie;
+      r = await pedir("localhost", "GET", "/api/public/my-quotas", { cookie: sessao });
+      checa("no principal, Minhas compras traz as duas organizações", r.status === 200 && r.json?.orders?.length === 2, `HTTP ${r.status} ${r.json?.orders?.length}`);
+      r = await pedir(A, "GET", "/api/public/my-quotas", { cookie: sessao });
+      checa(
+        "no endereço da A, só a compra da A (a da B não aparece)",
+        r.status === 200 && r.json?.orders?.length === 1 && r.json.orders[0].organizador?.slug === a.slug,
+        `HTTP ${r.status} ${JSON.stringify(r.json?.orders?.map((o: any) => o.organizador?.slug))}`,
+      );
+      checa("…e o aviso de compras antigas ocultas não acende por causa do recorte", r.json?.comprasAntigasOcultas === false);
+      r = await pedir("localhost", "GET", "/api/public/conta/bilhetes", { cookie: sessao });
+      checa("no principal, os bilhetes são dos dois", r.status === 200 && Array.isArray(r.json) && r.json.length === 2, `HTTP ${r.status} ${r.json?.length}`);
+      r = await pedir(A, "GET", "/api/public/conta/bilhetes", { cookie: sessao });
+      checa("no endereço da A, só o bilhete da A", r.status === 200 && Array.isArray(r.json) && r.json.length === 1 && r.json[0].rifa?.slug === rifaA.slug, `HTTP ${r.status} ${JSON.stringify(r.json?.map?.((b: any) => b.rifa?.slug))}`);
+    }
 
     // ------------------------------------------------ desligar e arquivar valem em até 15 s… e na hora aqui
     r = await pedir("localhost", "PUT", `/api/admin/organizacoes/${a.id}/subdominio`, { cookie: admin, corpo: { ativo: false, motivo: "prova: desligar" } });

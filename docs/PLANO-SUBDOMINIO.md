@@ -751,7 +751,7 @@ sem a variável está marcado.
 | 0 | **Este plano** + R30 a R35 + seção em `PENDENCIAS.md` | documentos | — | nenhum |
 | 1 | **Endurecimento que independe do domínio** — *feito (b, c, d, e) em 18/10/2026; (a) aguarda o OK da pergunta 11* | (a) `__Host-rifa.sid` em produção; (b) `exigirOrigemDoHost` em modo relatório; (c) `shared/subdominio.ts` corrigido (`--`, ponto final, porta, marcas) + testes; (d) `www` → principal; (e) `X-Robots-Tag` para host desconhecido | **age** (a, b, d, e). (a) desloga todos uma vez; (b) só registra; (d) é o único efeito visível | **médio** pelo (a): avisar antes e fazer em horário calmo. (b) em relatório não derruba nada |
 | 2 | **Guarda do endereço no servidor** — *feito em 18/10/2026 (a rota do interruptor é `PUT /organizacoes/:id/subdominio`, porque `/endereco` já é o CEP; os curtos de outra organização ficaram para o PR 4)* | `guardaDoEndereco`, `hostDaRequisicao`, cache, `GET /api/public/endereco`, classificador de rotas (+ teste de cobertura), 404 com status, canonicalização `/o/<rótulo>`, redirecionamentos ao principal, bloqueio de painel/webhook no endereço; coluna `organizations.endereco_ativo` e a rota `PUT /organizacoes/:id/endereco` (com a auditoria); `npm run subdominio` (servidor) e entradas do `isolation` | **inerte** (sem base, nenhum host é endereço; a coluna fica sem uso) | **médio**: é um middleware global; o teste de cobertura e a prova seguram. `db:push` **antes** do código |
-| 3 | **SPA: roteador por endereço** | `RoteadorPorEndereco`, `useEndereco`, `useLocationDoEndereco`, console filtrado, botão do Google, intro e faixa de instalar escondidos no endereço, carrinho e "Minhas compras" do endereço; `npm run telas` com a rodada `*.localhost`; registro em `VERSOES.md` | **inerte** (`/api/public/endereco` responde `principal`) | **médio**: mexe na navegação, mas só troca o `Router` quando é endereço |
+| 3 | **SPA: roteador por endereço** — *feito em 18/10/2026 (junto da leva 21; ver 14.1)* | `RoteadorPorEndereco`, `useEndereco`, `useLocationDoEndereco`, console filtrado, botão do Google, intro e faixa de instalar escondidos no endereço, carrinho e "Minhas compras" do endereço; `npm run telas` com a rodada `*.localhost`; registro em `VERSOES.md` | **inerte** (`/api/public/endereco` responde `principal`) | **médio**: mexe na navegação, mas só troca o `Router` quando é endereço |
 | 4 | **URLs absolutas** | `urls.ts` (os três auxiliares), artes, kit do afiliado, curtos, QR do perfil, WhatsApp, push, compartilhar, marketing por servidor, **tráfego (`linkDoAnuncio`)** + varredura de URL no teste | **inerte** (cai no caminho de hoje) | **médio-alto** pela atribuição: o tráfego e o `?ref=` mudam de host. Provar com `npm run trafego-criacao`, `npm run afiliados`, `npm run artes`, `npm run marketing`, `npm run perfil` |
 | 5 | **Pixels, cookies e Privacidade** | organização do endereço na raiz, `cookie_domain` (GA4/Ads), texto da Privacidade e `GUARDADO_NO_NAVEGADOR`, relatório de CSP com o host | **inerte** | baixo |
 | 6 | **SEO** | marcador no `index.html` (canonical, Open Graph, robots), `robots.txt` e `sitemap.xml` por host, `noindex` nas áreas de conta | o marcador age (canonical do principal para ele mesmo, `og:*` novos); sem endereço, nada de sitemap de organização | baixo-médio (muda o HTML servido; o hash da CSP não muda, conferir) |
@@ -836,8 +836,12 @@ Vão em `docs/PERGUNTAS-AO-ADVOGADO.md`, "Quinta rodada". Resumo:
 ## 14. Suposições não conferidas
 
 1. **wouter 3.3.5:** `Router` aceita `hook` e `hrefs`, e o `hook` recebe o `navigate`
-   com as opções de `replace`. `node_modules` não existe nesta cópia e a versão
-   instalada não foi aberta. O PR 3 começa por um teste que monta o `Router`.
+   com as opções de `replace`. **Conferida no PR 3** (`tests/enderecoRoteador.test.ts`
+   monta o `Router` com o hook e lê o `href` dos `Link` e a rota casada): o hook
+   devolve `[caminho, navegar]`, o `Link` usa `hrefs` e passa o caminho lógico ao
+   `navegar`. Dois detalhes que mordem: o `Router` refaz o roteador quando o
+   `hook` muda de referência (por isso `criarHookDoEndereco()` guarda um por
+   endereço) e o `Link` com `~` ignora a base.
 2. **`req.ip` é lido a cada acesso** a partir de `X-Forwarded-For` (getter do
    Express), e reescrever o cabeçalho antes dele funciona. Confirmar com a versão
    do Express instalada no PR 8.

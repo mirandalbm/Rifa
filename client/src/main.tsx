@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { registrarPwa } from "./lib/pwa";
+import { carregarEndereco } from "@/lib/endereco";
 import { marcarAnuncioPelaUrl } from "./lib/origem";
 import { marcarIndicacaoPelaUrl } from "./lib/indicacao";
 import { guardarUtmDaUrl } from "./lib/marketing";
@@ -15,4 +16,9 @@ guardarUtmDaUrl();
 // Chegou pelo link de indicação de alguém? Fica guardado para a compra.
 marcarIndicacaoPelaUrl();
 
-createRoot(document.getElementById("root")!).render(<App />);
+// De quem é este endereço? Antes do primeiro desenho: o endereço da organização
+// não pode piscar a vitrine da plataforma. Resposta rápida (sem banco) e, se
+// falhar, segue como o domínio principal.
+carregarEndereco().finally(() => {
+  createRoot(document.getElementById("root")!).render(<App />);
+});

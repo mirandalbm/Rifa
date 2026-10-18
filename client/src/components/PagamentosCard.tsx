@@ -154,8 +154,8 @@ export function PagamentosCard() {
               Aceitar pedidos de reembolso
               <span className="block text-xs text-muted">
                 Desligado por padrão: numa rifa, a compra é participação. Ligado, o comprador
-                logado pode pedir reembolso em "Minhas cotas", antes do sorteio, com o print do
-                bilhete; a organização decide em Atendimento, e o protocolo e o prazo de
+                logado pode pedir reembolso em "Minhas cotas", antes do sorteio (o print do
+                bilhete é opcional); a organização decide em Atendimento, e o protocolo e o prazo de
                 devolução saem sozinhos. Com Pix, o dinheiro volta para a mesma conta que pagou.
                 Estorno avisado pelo próprio banco é registrado mesmo com esta opção desligada.
               </span>

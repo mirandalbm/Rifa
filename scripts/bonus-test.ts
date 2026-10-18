@@ -360,6 +360,53 @@ async function main() {
       livroCaio.map((l) => `${l.motivo}:${l.quantidade}:${l.chave.split(":")[0]}`).join(","),
     );
 
+    // Quem se cadastra com o telefone de outra pessoa NÃO herda o saldo nem os avisos de
+    // compra dela: é a linha do telefone, e só o código do WhatsApp prova o número.
+    console.log("\n  · conta cadastrada com o telefone de outra pessoa");
+    const TEL_VITIMA = "11955551010";
+    const [vitima] = await db.insert(buyers).values({ name: "Vitima Convidada", phone: TEL_VITIMA, bonusSaldo: 4 }).returning();
+    // A compra do dono, feita sem entrar na conta: é por ela que o aviso de sorteio chega.
+    await db.insert(orders).values({ code: 93_000_010 + Math.floor(Math.random() * 1000), campaignId: aceita.id, buyerId: vitima.id, quantity: 1, amountCents: 500, status: "paid", paidAt: new Date() });
+    await db.execute(sql`insert into notificacoes (buyer_id, tipo, chave, titulo, corpo, url) values
+      (${vitima.id}, 'sorteio_chegando', 'aud:1', 'Sorteio nas próximas 24 horas', 'Moto — ainda dá para garantir seus números.', '/r/bonus-aceita'),
+      (${vitima.id}, 'resultado', 'aud:2', 'Saiu o resultado: Moto', 'Número sorteado: 0042.', '/r/bonus-aceita'),
+      (${vitima.id}, 'comentario', 'aud:3', 'A promotora respondeu seu comentário', 'Obrigado!', '/r/bonus-aceita')`);
+    await db.execute(sql`delete from rate_events where bucket like 'cadastro:%'`);
+    const golpista = new Cliente("aparelho-golpista");
+    const cpfGolpista = (() => {
+      const b = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));
+      const dv = (n: number[]) => { const r2 = (n.reduce((t, d, i) => t + d * (n.length + 1 - i), 0) * 10) % 11; return r2 === 10 ? 0 : r2; };
+      const d1 = dv(b);
+      return [...b, d1, dv([...b, d1])].join("");
+    })();
+    r = await golpista.req("POST", "/api/public/conta", { apelido: "gp" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 10) + "x", cep: "01310-100", nome: "Quem Tomou O Numero", telefone: TEL_VITIMA, cpf: cpfGolpista, senha: "senha-golpe-1" });
+    checa("o cadastro com o telefone alheio entra, mas sem o telefone provado", r.status === 201 && r.json?.telefoneConfirmado === false, `HTTP ${r.status}`);
+    r = await golpista.req("GET", "/api/public/bonus");
+    checa("o saldo da linha do telefone não aparece (0) e a tela é avisada", r.status === 200 && r.json?.saldo === 0 && r.json?.telefoneConfirmado === false && r.json?.extrato?.length === 0, `saldo ${r.json?.saldo}`);
+    r = await golpista.req("POST", "/api/public/bonus/resgatar", { campaignId: aceita.id, quantidade: 2 });
+    checa("resgatar o bônus da linha: 403", r.status === 403, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    checa("o saldo da vítima segue intacto", (await saldo(TEL_VITIMA)) === 4, String(await saldo(TEL_VITIMA)));
+    r = await golpista.req("GET", "/api/public/notificacoes");
+    const tipos = (r.json?.lista ?? []).map((n: { tipo: string }) => n.tipo);
+    checa("os avisos de compra (sorteio, resultado) ficam de fora", r.status === 200 && !tipos.includes("sorteio_chegando") && !tipos.includes("resultado"), tipos.join(","));
+    checa("e os outros avisos da conta aparecem", tipos.includes("comentario"), tipos.join(","));
+    checa("o número do trevo não conta o que está escondido", r.json?.naoLidas === 1, String(r.json?.naoLidas));
+    // Quem só segue a organização (sem comprar essa rifa) segue vendo o aviso dela.
+    await db.execute(sql`insert into notificacoes (buyer_id, tipo, chave, titulo, corpo, url) select ${vitima.id}, 'sorteio_chegando', 'aud:4', 'Sorteio nas próximas 24 horas', 'Outra rifa', '/r/bonus-nao-aceita'`);
+    r = await golpista.req("GET", "/api/public/notificacoes");
+    checa("o aviso de uma rifa em que o telefone não comprou aparece", (r.json?.lista ?? []).some((n: { corpo: string }) => n.corpo === "Outra rifa"), String(r.json?.lista?.length));
+    await db.execute(sql`delete from notificacoes where chave = 'aud:4'`);
+    r = await golpista.req("GET", "/api/public/notificacoes/resumo");
+    checa("o resumo do trevo também", r.json?.naoLidas === 1, String(r.json?.naoLidas));
+    // O dono prova o número pelo código: o saldo e os avisos aparecem.
+    r = await golpista.req("POST", "/api/public/conta/telefone/codigo", {});
+    r = await golpista.req("POST", "/api/public/conta/telefone/confirmar", { codigo: r.json?.devCode });
+    checa("o código do WhatsApp prova o número da conta", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await golpista.req("GET", "/api/public/bonus");
+    checa("provado o telefone, o saldo aparece", r.json?.saldo === 4 && r.json?.telefoneConfirmado === true, `saldo ${r.json?.saldo}`);
+    r = await golpista.req("GET", "/api/public/notificacoes");
+    checa("e os avisos de compra também", (r.json?.lista ?? []).length === 3 && r.json?.naoLidas === 3, `${(r.json?.lista ?? []).length} / ${r.json?.naoLidas}`);
+
     // Desligado: nada se resgata e nada acumula.
     await admin.req("PUT", "/api/admin/bonus/config", { bonusLigado: false });
     await db.update(buyers).set({ bonusSaldo: 5 }).where(eq(buyers.phone, TEL.indicador));

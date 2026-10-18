@@ -143,10 +143,60 @@ async function main() {
     checa("faixa de dias ao contrário é recusada", r.status === 400, r.json?.message);
     await admin.req("PUT", "/api/admin/banner-pago/config", { ligado: true, precoDiaCents: 1000, diasMin: 1, diasMax: 5, vagas: 1, segundos: 5 });
 
+    // O PUT parte da configuração atual: uma chave só não zera o resto nem desliga o produto.
+    console.log("  — o PUT parte da configuração atual (uma chave só)");
+    const antesDaChave = (await admin.req("GET", "/api/admin/banner-pago")).json?.config;
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { precoDiaCents: 1200 });
+    checa(
+      "mandar só o preço do dia troca só o preço",
+      r.status === 200 && r.json?.precoDiaCents === 1200 && r.json?.ligado === true && r.json?.diasMax === 5 && r.json?.vagas === 1 && r.json?.segundos === 5,
+      JSON.stringify(r.json),
+    );
+    checa("…e o bloco do clique segue como estava", JSON.stringify(r.json?.clique) === JSON.stringify(antesDaChave?.clique), JSON.stringify(r.json?.clique));
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { clique: { precoCents: 250 } });
+    checa(
+      "uma chave só dentro de clique troca só ela (o resto do clique e do produto fica)",
+      r.status === 200 && r.json?.clique?.precoCents === 250 && r.json?.clique?.ligado === false && r.json?.clique?.minimoCliques === antesDaChave?.clique?.minimoCliques && r.json?.precoDiaCents === 1200 && r.json?.ligado === true,
+      JSON.stringify(r.json),
+    );
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { clique: { minimoCliques: 500, maximoCliques: 100 } });
+    checa("máximo de cliques menor que o mínimo: 400", r.status === 400, r.json?.message);
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { clique: { faixas: [{ aPartirDe: 500, descontoPct: 9 }, { aPartirDe: 900, descontoPct: 9 }] } });
+    checa("faixa em que o desconto não cresce: 400", r.status === 400, r.json?.message);
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { clique: "ligado" });
+    checa("clique que não é objeto: 400", r.status === 400, r.json?.message);
+    r = await admin.req("GET", "/api/admin/banner-pago");
+    checa("a recusa não mexeu em nada", r.json?.config?.clique?.precoCents === 250 && r.json?.config?.clique?.minimoCliques === antesDaChave?.clique?.minimoCliques && r.json?.config?.ligado === true);
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", {});
+    checa("corpo vazio não muda nada", r.status === 200 && r.json?.precoDiaCents === 1200 && r.json?.ligado === true && r.json?.clique?.precoCents === 250, JSON.stringify(r.json));
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { clique: { precoCents: antesDaChave?.clique?.precoCents ?? 100 }, precoDiaCents: 1000, golpe: "x" });
+    checa("volta ao que era, chave desconhecida descartada", r.status === 200 && r.json?.precoDiaCents === 1000 && !("golpe" in r.json) && JSON.stringify(r.json?.clique) === JSON.stringify(antesDaChave?.clique), JSON.stringify(r.json));
+
     // O saldo de partida: R$ 100,00 a mais que o de antes.
     r = await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: org.organizacaoId, valorCents: 10_000, descricao: "banner-teste: saldo de partida" });
     checa("a plataforma credita saldo para o teste", r.status === 200, `HTTP ${r.status}`);
     const base = saldoAntes + 10_000;
+
+    /* ---------------- desconto por período ---------------- */
+    console.log("  — desconto por período (faixasDia)");
+    const rifaD = await novaRifa(org.organizacaoId, "banner-teste-d");
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { faixasDia: [{ aPartirDe: 3, descontoPct: 10 }] });
+    checa("a plataforma grava a faixa por período sem tocar no resto", r.status === 200 && r.json?.faixasDia?.length === 1 && r.json?.precoDiaCents === 1000 && r.json?.vagas === 1, JSON.stringify(r.json));
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { faixasDia: [{ aPartirDe: 9, descontoPct: 10 }] });
+    checa("faixa acima do máximo de dias: 400", r.status === 400, r.json?.message);
+    r = await pedido(marina, rifaD.id, { dias: 3 });
+    const pD = r.json?.id as string;
+    checa("3 dias a R$ 10,00 com 10%: R$ 27,00", r.status === 201 && r.json?.valorPagoCents === 2700, `HTTP ${r.status} ${JSON.stringify(r.json?.valorPagoCents)}`);
+    checa("…e o saldo sai o valor com desconto", (await saldoDe(org.organizacaoId)) === base - 2700);
+    const [feitoD] = await db.select().from(bannerPedidos).where(eq(bannerPedidos.id, pD));
+    checa("o pedido fotografa o desconto, e é do modo dia sem clique", feitoD?.descontoPct === 10 && feitoD?.modo === "dia" && feitoD?.cliquesComprados === null && feitoD?.cliquesUsados === 0 && feitoD?.precoCliqueCents === null && feitoD?.precoDiaCents === 1000, JSON.stringify(feitoD && { d: feitoD.descontoPct, m: feitoD.modo }));
+    r = await marina.req("POST", `/api/admin/banner-pago/pedidos/${pD}/cancelar`);
+    checa("cancelado, o valor com desconto volta inteiro", r.status === 200 && (await saldoDe(org.organizacaoId)) === base);
+    await admin.req("PUT", "/api/admin/banner-pago/config", { faixasDia: [] });
+    r = await pedido(marina, rifaD.id, { dias: 3 });
+    checa("sem a faixa, volta a ser dias × preço (R$ 30,00)", r.status === 201 && r.json?.valorPagoCents === 3000, `${r.json?.valorPagoCents}`);
+    await marina.req("POST", `/api/admin/banner-pago/pedidos/${r.json?.id}/cancelar`);
+    checa("…e o cancelamento devolve", (await saldoDe(org.organizacaoId)) === base);
 
     /* ---------------- pedir ---------------- */
     console.log("  — pedir");
@@ -156,6 +206,21 @@ async function main() {
     checa("título curto: 400", r.status === 400, r.json?.message);
     r = await pedido(marina, rifaA.id, { imagem: "data:text/html;base64,PHNjcmlwdD4=" });
     checa("arquivo que não é imagem: 400", r.status === 400, r.json?.message);
+    // Auditoria do acesso marketing: dias que não são número e o ritmo dos pedidos.
+    for (const dias of [[2], "", true, "2x"]) {
+      r = await pedido(marina, rifaA.id, { dias });
+      checa(`dias ${JSON.stringify(dias)} não é número: 400`, r.status === 400, r.json?.message);
+    }
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { precoDiaCents: "" });
+    checa("a plataforma não zera o preço mandando vazio (400)", r.status === 400, r.json?.message);
+    r = await admin.req("GET", "/api/admin/banner-pago");
+    checa("…e o preço segue o que era", r.json?.config?.precoDiaCents === 1000, JSON.stringify(r.json?.config));
+    // Abrir a imagem custa CPU e o pedido sem saldo só cai depois dela: 20 pedidos a cada 10 minutos por organização.
+    await db.execute(sql`delete from rate_events where bucket like 'banner-pedido:%'`);
+    const rajada: number[] = [];
+    for (let i = 0; i < 24; i++) rajada.push((await pedido(marina, rifaA.id, { imagem: "data:text/html;base64,PHNjcmlwdD4=" })).status);
+    checa("pedidos em rajada: param no teto e respondem 429", rajada.slice(0, 20).every((x) => x === 400) && rajada.slice(20).every((x) => x === 429), rajada.join());
+    await db.execute(sql`delete from rate_events where bucket like 'banner-pedido:%'`);
     r = await pedido(marina, rifaVizinha.id);
     checa("rifa do vizinho: 404", r.status === 404, `HTTP ${r.status}`);
     r = await pedido(marina, rifaRascunho.id);

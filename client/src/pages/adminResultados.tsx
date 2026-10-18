@@ -67,7 +67,7 @@ export function AdminResultados() {
             value={organizacao}
             onChange={(e) => setOrganizacao(e.target.value)}
             aria-label="Organização"
-            className="campo w-auto text-sm"
+            className="campo w-auto max-w-full text-sm"
           >
             <option value="">Todas as organizações</option>
             {orgs.map((o) => (
@@ -150,7 +150,7 @@ export function AdminResultados() {
                 <ul className="divide-y divide-line px-5 pb-2" aria-label="Rifas que mais vendem">
                   {data.rifas.map((r) => (
                     <li key={r.id} className="py-3 text-sm">
-                      <Link href={`/r/${r.slug}`} className="block truncate font-semibold hover:underline" title={r.premio}>
+                      <Link href={`/r/${r.slug}`} className="block truncate py-1 font-semibold hover:underline" title={r.premio}>
                         {r.premio}
                       </Link>
                       <dl className="mt-1 space-y-0.5 text-xs">

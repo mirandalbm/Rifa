@@ -178,3 +178,12 @@ describe("consentimento biométrico", () => {
     expect(chaveDoConsentimento({ automatico: true })).not.toBe(chaveDoConsentimento({ automatico: false }));
   });
 });
+
+describe("o tipo da chave Pix é só o da lista", () => {
+  it("chave do protótipo não vira tipo (com `in`, \"constructor\" passava e gravava um tipo inventado)", () => {
+    for (const tipo of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+      expect(() => validarPix({ tipo, chave: "123e4567-e89b-12d3-a456-426614174000" })).toThrow(/tipo da chave Pix/);
+    }
+    expect(validarPix({ tipo: "aleatoria", chave: "123e4567-e89b-12d3-a456-426614174000" }).tipo).toBe("aleatoria");
+  });
+});

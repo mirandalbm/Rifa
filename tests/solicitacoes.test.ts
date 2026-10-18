@@ -3,6 +3,7 @@ import {
   ADIAMENTO_MAX_DIAS,
   podeExcluir,
   problemaNoAdiamento,
+  problemaNosLimitesDoPedido,
   protocoloDaSolicitacao,
   validarEdicao,
 } from "@shared/solicitacoes";
@@ -101,4 +102,31 @@ describe("podeExcluir", () => {
 
 it("protocolo RS no dia de São Paulo", () => {
   expect(protocoloDaSolicitacao(new Date("2026-09-28T02:00:00Z"), () => 42)).toBe("RS-20260927-000042");
+});
+
+describe("limites do pedido e da reserva (rascunho e rifa publicada leem a mesma régua)", () => {
+  const ok = { minPerOrder: 1, maxPerOrder: 1000, reservationTtlMin: 15 };
+
+  it("aceita o que o painel oferece", () => {
+    expect(problemaNosLimitesDoPedido(ok)).toBeNull();
+    expect(problemaNosLimitesDoPedido({ minPerOrder: 5, maxPerOrder: 5, reservationTtlMin: 5 })).toBeNull();
+    expect(problemaNosLimitesDoPedido({ minPerOrder: 1, maxPerOrder: 10_000, reservationTtlMin: 60 })).toBeNull();
+  });
+
+  it("recusa reserva de 0 minuto, de dias, mínimo acima do máximo e fração", () => {
+    for (const ruim of [
+      { reservationTtlMin: 0 },
+      { reservationTtlMin: -5 },
+      { reservationTtlMin: 99_999 },
+      { reservationTtlMin: 4 },
+      { reservationTtlMin: 61 },
+      { minPerOrder: 0 },
+      { minPerOrder: 2000 },
+      { maxPerOrder: 10_001 },
+      { maxPerOrder: 1.5 },
+      { maxPerOrder: NaN },
+    ]) {
+      expect(problemaNosLimitesDoPedido({ ...ok, ...ruim }), JSON.stringify(ruim)).not.toBeNull();
+    }
+  });
 });

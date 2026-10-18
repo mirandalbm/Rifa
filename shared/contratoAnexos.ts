@@ -39,7 +39,7 @@ export const TITULO_MAX = 120;
 export const ANEXO_MIN = 50;
 
 export function ehModalidade(v: unknown): v is ModalidadeDeAnexo {
-  return typeof v === "string" && v in MODALIDADES_DE_ANEXO;
+  return typeof v === "string" && Object.hasOwn(MODALIDADES_DE_ANEXO, v);
 }
 
 /** O que a rifa usa, lido dos dados dela — nunca de uma escolha da promotora. */

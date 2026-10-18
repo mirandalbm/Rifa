@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (PR #266 mesclada; respostas da Seção 1 registradas).
+Última atualização: 18/10/2026 (auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -19,15 +19,57 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 - [x] **[decisão]** Largura da publicação da rifa: decidido em 18/10/2026, fica a atual (1408 px no computador, `larga ampla`). Nada a mudar.
 - [x] **[decisão]** Cor dos ícones de compra: decidido em 18/10/2026, o "+" é vermelho nos dois temas (`--mais` = `--red`, registro 202 de `docs/VERSOES.md`); a sacola segue verde.
 - [x] **[código]** Ícone do topo à esquerda centralizado na vertical (18/10/2026: `AppShell.tsx`, o link da marca ficou `flex items-center`; registro 201 de `docs/VERSOES.md`).
-- [ ] **[decisão]** "Rifas perto de" vira "Locais": painel com todos os
-  estados. Decidido em 18/10/2026: bandeiras do conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (estilo `circle`, copiadas e otimizadas, sem dependência), com a origem em `docs/LICENCAS-DE-TERCEIROS.md`; a dúvida sobre usar bandeira de estado numa plataforma comercial vai para `docs/PERGUNTAS-AO-ADVOGADO.md`. Falta: eu implementar.
-- [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo. Decidido em 18/10/2026: no rodapé da plataforma, em duas linhas (razão social e CNPJ dos Dados da empresa publicados; e o aviso de jogo responsável). Falta: eu implementar.
+- [x] **[código]** "Rifas perto de" virou "Locais" (18/10/2026): painel com "Nacional" no alto (limpa a escolha manual) e os 27 estados com a bandeira de cada um (`LocaisDaVitrine.tsx`, bandeiras CC0 do `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, em `client/public/bandeiras/`, sem dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** o advogado responder a **R42** de `docs/PERGUNTAS-AO-ADVOGADO.md` (uso de bandeira de estado numa plataforma comercial); até lá a bandeira é só o ícone do local, com o nome junto, e fora de peça de divulgação e de anúncio.
+- [x] **[código]** Texto oficial abaixo do nome e da logo do rodapé da plataforma (18/10/2026): razão social e CNPJ dos Dados da empresa **publicados** (a linha some se faltar dado) e o aviso de jogo responsável, sem bandeiras (`RodapeDaPlataforma.tsx`, `linhaDaEmpresa()` em `shared/rodape.ts`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** a plataforma cadastrar e **publicar** os Dados da empresa em Aparência → Rodapé e empresa — sem isso, só o aviso aparece.
 - [ ] **[decisão]** Rifa nacional: valor mínimo, aprovação só pelo admin e
-  ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço; falta o valor em reais). Falta: plano e implementação.
+  ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço), R$ 100.000, configurável. Plano em `docs/PLANO-RIFA-NACIONAL.md` (PR #268). **PR 1 feito (18/10/2026): as regras puras e a configuração** (`shared/rifaNacional.ts`, `rifaNacional` em `shared/plataforma.ts`, `tests/rifaNacional.test.ts`), nada ligado. Falta: PRs 2 a 6 do plano (esquema, serviço e rotas, vitrine, telas, texto jurídico) e as decisões abaixo (seção 0b).
 - [ ] **[decisão]** Banners por estado (carrossel de 5 em cada estado e no
   nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
   afiliado, cambista, plataforma, marketing), um PR por acesso.
+  - [x] Organizador (18/10/2026): `docs/AUDITORIA-ACESSO-ORGANIZADOR.md`, 13
+    defeitos corrigidos. **Ficaram para decidir**: a rifa da Federal fora de um
+    sorteio oficial, em que o organizador digita os 5 prêmios; os pacotes que
+    mudam depois de publicada; nome e CNPJ da promotora editáveis com rifa no ar
+    (e o CNPJ sem dígito conferido); a senha inicial do afiliado que a
+    organização cria; e o parecer do `revisor-de-invariantes` sobre os commits
+    de dinheiro e isolamento.
+
+## 0b. Rifa nacional — decisões adotadas no código, a confirmar
+
+O PR 1 do plano (`docs/PLANO-RIFA-NACIONAL.md`, seção 8) codificou as
+**propostas do próprio plano** para o que o responsável ainda não decidiu
+(seção "Decisões que ainda faltam" do plano). Cada uma está em
+`shared/rifaNacional.ts` e muda com uma linha; nada está ligado, então
+nenhuma delas vale para ninguém ainda. Marque aqui quando confirmar.
+
+- [ ] **[decisão]** Ordem entre as nacionais: **opção A** (aprovada há mais
+  tempo primeiro, `id` desempata; sem data legível por último) —
+  `compararNacionais()`. Se for B ou C, é só esta função (e C acrescenta a
+  coluna `nacional_ordem`). Plano, decisão 1.
+- [ ] **[decisão]** Teto no topo: **3**, configurável de 1 a 10; a que passa
+  do teto **cai no resto da vitrine** (ordenada por proximidade), nunca some;
+  o teto é aplicado ao montar a lista, não barra a aprovação. Plano, decisão 2.
+- [ ] **[decisão]** O mínimo é **inclusivo** (`>=`: exatamente R$ 100.000,00
+  atinge) — `atingeOMinimo()`. Plano, decisão 5.
+- [ ] **[decisão]** Interruptor **nasce desligado**; desligado, a vitrine
+  **ignora** as nacionais (volta ao `ordenarPorProximidade()` de antes, sem
+  apagar nada). Plano, decisão 4.
+- [ ] **[decisão]** Limites da configuração que o plano não deu: mínimo de
+  R$ 0,01 até **R$ 100 milhões** (teto de sanidade, o plano diz "ex.").
+- [ ] **[decisão]** `ordenarVitrine()` recebe o interruptor junto com o teto
+  (`{ ligado, teto }`), em vez de só `{ teto }` como no rascunho do plano:
+  quem esquecer de passar o interruptor não liga a regra sem querer.
+- [ ] **[decisão]** Só `nacionalStatus === "aprovada"` vai ao topo; pedido
+  `em_analise` é rifa comum. Escopo do topo: só o feed da vitrine (decisão 6
+  do plano; `/estado/UF`, Reels, Buscar e perfil seguem como estão).
+- [ ] **[decisão]** O mínimo mudado na configuração não derruba a aprovada
+  (retrato em `nacional_minimo_cents`, PR 2); `mesclarConfigRifaNacional()`
+  já parte da configuração atual para a rota de gravar (PR 3 ou 5).
+- Ficam abertas as decisões 3 (travar ou invalidar total e preço), 7
+  (rifa da própria plataforma), 8 (tirar do ar e o selo depois do sorteio),
+  9 (selo nas artes), 10 (cobrança do topo), 12, 13 e as respostas R24 a R29
+  do advogado — nenhuma afeta o PR 1.
 
 ### Respostas de 18/10/2026 (seções 1 e 2 das perguntas)
 
@@ -203,13 +245,23 @@ travar o resto, e a gente vê no dia seguinte.
   conhece todos os painéis), as ações "o que falta para publicar" e "o que
   falta para sacar" e a base de conhecimento gerada do sistema
   (`npm run base-ia`).
+- [x] **[código]** O **pacote do Lucky para colar** (cronograma 5): o passo a
+  passo numerado, as instruções do agente em bloco pronto, a tabela das 11
+  ações do tipo Client (descrição, parâmetros e esquema JSON de cada uma), a
+  ordem de ligar (D8) e o teste de fumaça com recusas, em
+  **`docs/PACOTE-LUCKY.md`** — gerado do código (`npm run pacote-lucky`,
+  `shared/pacoteLucky.ts`), e `tests/pacoteLucky.test.ts` falha se ele
+  divergir.
 - [ ] **[você]** Chatbase: em Actions, cadastrar cada ação da lista de
   Aparência → Assistente de IA ("Ações do assistente") como ação do tipo
-  **Client**, com o mesmo nome e os mesmos parâmetros. Ação não cadastrada lá
-  simplesmente não é pedida.
+  **Client**, com o mesmo nome e os mesmos parâmetros — **passo 3 de
+  `docs/PACOTE-LUCKY.md`** (descrição e esquema prontos para colar). Ação não
+  cadastrada lá simplesmente não é pedida.
 - [ ] **[você]** Chatbase: criar a conta e o agente **Lucky**, colar as
-  instruções do roteiro (`docs/ROTEIRO-ASSISTENTE-IA.md`) e subir os arquivos
-  de `npm run base-ia` (gerado com o banco de produção) em Sources → Files;
+  instruções (**passos 1 e 2 de `docs/PACOTE-LUCKY.md`**, o bloco pronto; o
+  rascunho antigo está em `docs/ROTEIRO-ASSISTENTE-IA.md`) e subir os arquivos
+  de `npm run base-ia` (gerado com o banco de produção, ou pelo workflow "Base
+  do Lucky" — passo 4) em Sources → Files;
   copiar o **id do agente** e criar uma **chave da API** (Settings →
   API keys). A chave vai só no Railway (`CHATBASE_API_KEY`); o id vai em
   Aparência → Assistente de IA, e só então liga. Para liberar organizador e
@@ -425,6 +477,19 @@ travar o resto, e a gente vê no dia seguinte.
 
 ## 3. Segurança e acessos (no painel)
 
+- [ ] **[produto e contador]** Recarga de patrocínio estornada no provedor depois
+  de gasta: `estornarRecarga()` tira o que ainda há no saldo e deixa o resto
+  (`faltouCents`) na auditoria `patrocinio.recarga.estornada` e no log
+  (`[patrocinio] recarga … estornada`). Decidir o que fazer com esse resto (saldo
+  negativo que trava, retenção cautelar automática ou cobrança à parte) —
+  `docs/AUDITORIA-ACESSO-MARKETING.md`.
+- [ ] **[advogado]** Revogar os cookies não alcança o pedido já criado com o
+  consentimento (o servidor ainda manda a compra, com o telefone em hash, quando
+  o Pix cai), e o telefone em hash vai também ao pixel da organização.
+- [ ] **[você]** No primeiro evento de compra de verdade na Meta e no TikTok,
+  conferir o formato (`client_user_agent` e IP da Meta, o cabeçalho
+  `Access-Token` do TikTok): hoje só foi provado contra um provedor de mentira.
+
 - [ ] **[você]** Ativar o segundo fator (Configurações). Também é exigido
   para arquivar organização.
 - [ ] **[você]** Trocar a senha do administrador (passou pela conversa) e
@@ -445,6 +510,22 @@ travar o resto, e a gente vê no dia seguinte.
   180 capturas, log do servidor e `npm audit`; uma falha alta e quatro médias
   corrigidas, com prova. Registro e o que ficou para depois em
   `docs/SEGURANCA.md`.
+- [x] Auditoria do acesso público (18/10/2026): uma falha alta (login anônimo
+  derrubava o servidor), várias médias e baixas corrigidas, com prova. Relatório
+  em `docs/AUDITORIA-ACESSO-PUBLICO.md`.
+- [ ] **[decisão]** O que a auditoria do acesso público deixou aberto
+  (`docs/AUDITORIA-ACESSO-PUBLICO.md`, "Ficou aberto"): a vitrine devolve todas
+  as rifas de uma vez (sem paginação); `/cartelas` sem limite por IP; a página
+  da rifa de promotora banida ainda mostra o nome e o "Seguir"; e-mail e telefone
+  crus por 2 h em `rate_events`; `robots.txt` e `noindex`.
+- [x] Auditoria do acesso apostador (18/10/2026): três falhas altas (trocar
+  a senha e excluir a conta com a sessão roubada, bônus e avisos herdados por
+  quem cadastra o telefone de outra pessoa, sessão expulsa que voltava) e o
+  resto, com prova. **`db:push` antes do código** (`buyers.sessoes_validas_desde`).
+  O que ficou aberto — inclusive a mesma corrida de sessão no painel — está em
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`.
+- [ ] **[código]** A mesma marca de sessão (`sessoes_validas_desde`) para as
+  contas do painel (`users`): hoje só o apostador tem (achado 4 da auditoria).
 
 ## 3b. Decisões de produto (1º/10/2026)
 
@@ -495,6 +576,34 @@ código só depois do plano combinado com ele.
   `feature-media-library-page`, `claude/zen-davinci-rw3i6v`,
   `claude/rename-jogo-do-bicho-glo23j` (esta já copiada para o repositório do
   jogo do bicho).
+
+## 4b. Subdomínio do organizador (plano em `docs/PLANO-SUBDOMINIO.md`)
+
+Decidido em 18/10/2026: `<rotulo>.loteriasdobem.com.br` só para a organização
+(o de afiliado, `af-<código>`, fica para depois), login por endereço, nenhum
+cookie no domínio base. Existe só a regra pura (`shared/subdominio.ts`) e o
+middleware que marca a requisição; nenhuma rota usa o destino.
+
+- [ ] **[decisão]** As 12 perguntas do capítulo 12 do plano (rótulo = slug com
+  interruptor por organização, marca no endereço, páginas globais, domínio
+  principal canônico, organização suspensa, Google no endereço, anúncio sem
+  endereço, indexação, PWA, lista de reservados e marcas, cookie `__Host-`,
+  PSL e Cloudflare).
+- [ ] **[advogado]** R30 a R35 (`docs/PERGUNTAS-AO-ADVOGADO.md`, quinta rodada).
+- [ ] **[você]** Cadastrar o curinga `*.loteriasdobem.com.br` no Railway; escolher o
+  domínio principal canônico (raiz ou `www`); aprovar a lista de reservados.
+- [ ] **[código]** PR 1: endurecimento que independe do domínio (`__Host-rifa.sid`,
+  `Origin` por host em modo relatório, correções de `identificarHost`, `www` para o
+  principal).
+- [ ] **[código]** PR 2: guarda do endereço no servidor, `organizations.endereco_ativo`
+  (`db:push` antes), `GET /api/public/endereco`, `npm run subdominio`, entradas do `isolation`.
+- [ ] **[código]** PR 3: roteador por endereço no SPA (+ rodada de `npm run telas` com `*.localhost`).
+- [ ] **[código]** PR 4: URLs absolutas pelo endereço (artes, kit do afiliado, curtos, QR,
+  WhatsApp, push, tráfego pago, marketing por servidor).
+- [ ] **[código]** PR 5: pixels, cookies e Privacidade por endereço. PR 6: canonical, Open
+  Graph, `robots.txt` e `sitemap.xml` por host. PR 7: ligar (`SUBDOMINIO_BASE`).
+- [ ] **[código, depois]** Cloudflare (`ipViaCloudflare`), Lista de Sufixos Públicos,
+  login do Google por *hand-off*, manifesto e PWA por endereço, endereço de afiliado.
 
 ## 5. Fase 5 (plano em `docs/PLANO-FASE5.md`)
 
@@ -623,6 +732,70 @@ Na ordem de entrega do plano:
 - [ ] **[você]** Banner pago: definir o **preço do dia** e as **vagas** em
   Banner na vitrine e ligar o produto quando quiser vender (roda `db:push`
   antes: tabela `banner_pedidos`).
+- [ ] **Banner pago por clique** (`docs/PLANO-BANNER-POR-CLIQUE.md`, cronograma
+  4; um PR por passo da seção 8.2):
+  - [x] **Passo 1 — regras e esquema, sem mudar comportamento** (18/10/2026):
+    configuração (`faixasDia` e o bloco `clique`, nasce desligado), contas
+    puras, `validarFaixas()` extraída do patrocínio, colunas e tabelas
+    (`banner_cliques`, `banner_diario`) e o `PUT /banner-pago/config` a partir
+    da configuração atual. **Falta no ambiente:** o `db:push` **antes** do
+    código (`docs/ORDEM-DE-LANCAMENTO.md`).
+  - [ ] Passos 2 a 6: clique honesto sem cobrar, comprar por clique e fila,
+    telas, fechamento da documentação e venda atribuída (coluna
+    `orders.banner_pedido_id`, por produto).
+  - [ ] **[você]** Padrões de fábrica propostos, a confirmar no painel quando
+    o modo for ligado: preço do clique R$ 1,00, prazo máximo 30 dias, pacote
+    mínimo 100 (o responsável citou 1.000 cliques; é configuração, o admin
+    decide) e **teto de cliques por pedido 10.000** (proposta do passo 1:
+    R$ 10.000,00 ao preço de fábrica, igual à recarga máxima do saldo; o
+    documento de preços não dizia). Faixas de desconto por volume de cliques e
+    por período, preço do dia e mínimo de dias (itens 1 a 3 do documento de
+    preços) seguem sem resposta — nada disso está escrito no código fora do
+    padrão de fábrica.
+  - **Decisões técnicas 8 a 10 do plano — _adotada, a confirmar_** (a proposta
+    do próprio plano; entram no passo 2):
+    - [ ] **(8) Comprovante da exibição por slide visível** (proposta B): a
+      tela só pede o comprovante depois de ver o slide por 1 s, em
+      `POST …/banners-pagos/exibicoes`; `GET /banners` segue público e
+      cacheável. Alternativa A (assinar na entrega da lista) descartada por
+      contar como visto o slide que talvez não apareceu.
+    - [ ] **(9) Teto por IP do banner = `CLIQUES_POR_IP` (3)**, o mesmo das
+      patrocinadas. Se a vitrine (a página mais vista) esbarrar no teto
+      cedo demais, vira constante própria — o teto erra para o lado de não
+      cobrar.
+    - [ ] **(10) Guarda de `banner_cliques`: 90 dias**, com o expurgo no
+      relógio de limpeza (hoje `patrocinio_cliques` também não tem expurgo).
+      A **Privacidade** (`shared/legal.ts`) precisará de uma frase nova **só
+      quando o passo 2 gravar o primeiro clique** (aparelho e IP em hash, 90
+      dias, base legal) — o passo 1 não grava nada, então o texto não muda
+      agora; o `rifa.device` já diz que o hash do aparelho conta "visita e
+      clique".
+  - **Do parecer do revisor de invariantes (passo 1, sem achado grave)** — para
+    o passo 2 e seguintes:
+    - [ ] `encerrarBannersPagos()` (ramo "perdeu a rifa") devolve a sobra por
+      `dias`; no pedido `modo='clique'` tem de usar `sobraDoBannerPorClique`
+      (ou valor pago − `gastoDoBannerPorClique`), e todo encerramento grava
+      `encerrado_por`.
+    - [ ] O texto "Arte de banner pago… N dia(s)" (`caixa.ts`) e a descrição
+      do livro em `comprarBanner` precisam de versão para o modo clique
+      (`resumoDoPedido()` já existe).
+    - [ ] `getPlataforma()` volta à configuração de fábrica INTEIRA se o
+      bloco `bannerPago` guardado deixar de passar na régua: criar um
+      `bannerPagoGuardado()` tolerante (como `configIAGuardada`) **antes** de
+      apertar qualquer regra do bloco `clique`.
+    - [ ] Ver o que o `drizzle-kit push` imprime numa segunda rodada: o
+      `ck_banner_pedido_modo` é o primeiro `check()` do repositório e o
+      Postgres normaliza a expressão — pode listar como diferente a cada
+      push (ruído: drop e recreate sobre linhas que já passam).
+    - [ ] O `PUT` lê e grava sem trava (duas edições simultâneas de chaves
+      diferentes: a última vence). Mesmo padrão de `setPlataforma`; só o
+      master chega aqui.
+  - [ ] **[decisão]** Ainda abertas no plano: encerrar o banner por clique
+    antes de ir ao ar com a sobra em crédito (item 4), o teto próprio por IP
+    (9) e as perguntas ao advogado e ao contador (final da seção 9). Já
+    decididas em 18/10/2026: preço, pacote mínimo e prazo são configuração da
+    plataforma; vagas compartilhadas; o clique da própria organização não
+    conta; os slides pagos giram por visita; venda atribuída por produto.
 - [ ] **[você]** Subir os banners da plataforma (Aparência → Banners da
   vitrine) e orientar as organizações a postarem stories.
 - [x] Painel de resultados do organizador (painel → Resultados): receita,
@@ -690,7 +863,8 @@ Na ordem de entrega do plano:
   3 a 9 do pacote também foram respondidos (05 e 06/10/2026) e estão no
   código, e os prazos de guarda do antifraude foram confirmados em
   07/10/2026. Do advogado falta só o contrato da promotora (versão final em
-  09/10/2026); o globo fica desligado até a demanda justificar o cartório.
+  09/10/2026); o globo segue desligado, mas a homologação foi decidida em
+  18/10/2026 (`docs/ROTEIRO-GLOBO-TABELIONATO.md`).
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo. O texto-base já foi validado pelo advogado
@@ -1443,13 +1617,19 @@ Na ordem de entrega do plano:
   termo publicado veem o aviso de texto desatualizado). `npm run guarda`
   prova. A organização sem CNPJ cadastrado aparece como "CNPJ ainda não
   cadastrado" — cadastre o CNPJ de cada promotora.
-- [ ] **Homologar o globo** (você, com o advogado): **fica desligado até a
-  demanda comercial justificar o custo do cartório** (advogado, 07/10/2026).
-  Quando for a hora: parceria com um Tabelionato de Notas, que lavra a ata
-  notarial de cada sessão de extração (é o que a SPA/MF exige para sorteio
-  fora da Loteria Federal); então ligar o globo em "Métodos de apuração",
-  cadastrar a sessão no calendário e anexar o arquivo da ata depois do
-  resultado.
+- [ ] **Homologar o globo** (você, com o advogado): **decidido em 18/10/2026
+  fazer já**, sem esperar a demanda comercial (a posição de 07/10/2026 era
+  deixar desligado até o custo do cartório se justificar). O roteiro está em
+  `docs/ROTEIRO-GLOBO-TABELIONATO.md`: o que contratar (Tabelionato de Notas,
+  que lavra a ata notarial de cada sessão, mais auditor ou 2 testemunhas), as
+  perguntas ao cartório, o dia da sessão minuto a minuto, cada campo da ata
+  como o código exige hoje e o checklist para ligar o globo em "Métodos de
+  apuração". **O globo segue desligado** até esse checklist estar inteiro e o
+  anexo "globo" do contrato estar publicado. Depende do advogado: as perguntas
+  **R36 a R41** (`docs/PERGUNTAS-AO-ADVOGADO.md`, quarta rodada), em especial
+  conciliar o Q39 (laudo e auditoria, R$ 15 mil a R$ 50 mil, sem fonte) com a
+  ata notarial por sessão. Depende de você: escolher o cartório, o auditor ou
+  as testemunhas, o equipamento e quem paga.
 
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o
@@ -1593,6 +1773,17 @@ Na ordem de entrega do plano:
   teste numa Ton (lista em `docs/MAQUININHAS.md`, "Stone por deeplink").
 - [ ] **[código]** Compilar o APK das maquininhas — precisa de máquina com o
   Android SDK.
+- [ ] **[código, antes de publicar o APK]** A ponte da maquininha vale para
+  **toda página** que a WebView abrir: `addJavascriptInterface` expõe
+  `RifaPOSNative` a qualquer origem, o `onPageFinished` injeta o shim em
+  qualquer endereço e a `WebViewClient` não restringe a navegação — um link
+  externo aberto dentro do app (o perfil de uma organização tem links
+  `https:`) poderia mandar imprimir ou abrir uma cobrança de valor qualquer
+  na maquininha do cambista. Falta, em `MainActivity.kt`: `shouldOverrideUrlLoading`
+  deixando só a origem de `BuildConfig.APP_URL` na WebView e abrindo o resto no
+  navegador do aparelho; injetar o shim só se `url` for dessa origem (ou trocar
+  por `WebViewCompat.addWebMessageListener` com `allowedOriginRules`). Não dá para
+  provar aqui (sem Android SDK): `docs/AUDITORIA-ACESSO-CAMBISTA.md`.
 - [x] **Pôster dos vídeos** (rifa, reels e story): o quadro sai em segundo
   plano pelo `ffmpeg` local, se o servidor o tiver, e degrada para "sem
   pôster" sem ele (seção "Pôster do vídeo" do `CLAUDE.md`, `npm run

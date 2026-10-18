@@ -221,10 +221,19 @@ async function main() {
       ["mais de oito pacotes", [10_000, 11_000, 12_000, 13_000, 14_000, 15_000, 16_000, 17_000, 18_000]],
       ["pacotes que não são lista", "10000"],
       ["pacote que não é número", ["abc"]],
+      ["pacote dentro de uma lista", [[10_000]]],
+      ["pacote booleano", [true]],
     ] as [string, unknown][]) {
       r = await admin.req("PUT", "/api/admin/trafego/config", { pacotesCents: pacotes });
       checa(`${nome} é recusado (400)`, r.status === 400, `HTTP ${r.status}`);
     }
+    // Auditoria do acesso marketing: o que não é número não vira 0% de taxa (vazio, lista e booleano passavam pelo Number()).
+    for (const taxa of ["", [], true, "  ", {}]) {
+      r = await admin.req("PUT", "/api/admin/trafego/config", { taxaPct: taxa });
+      checa(`taxa de gestão ${JSON.stringify(taxa)} é recusada (400)`, r.status === 400 && /Taxa de gestão/.test(r.json?.message ?? ""), `HTTP ${r.status}`);
+    }
+    r = await admin.req("GET", "/api/admin/trafego");
+    checa("…e a taxa segue 20%", r.json?.config?.taxaPct === 20, `${r.json?.config?.taxaPct}`);
     r = await admin.req("PUT", "/api/admin/trafego/config", { pacotesCents: [50_000, 10_000, 25_000] });
     checa("os pacotes entram em ordem crescente", r.status === 200 && JSON.stringify(r.json?.pacotesCents) === JSON.stringify([10_000, 25_000, 50_000]), JSON.stringify(r.json));
     r = await marina.req("GET", "/api/admin/trafego");
@@ -252,6 +261,14 @@ async function main() {
     checa("rede que a plataforma não oferece é recusada (400)", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await pedido(marina, rifaA.id, { investimentoCents: 9_999 });
     checa("abaixo do investimento mínimo é recusado (400)", r.status === 400, `HTTP ${r.status}`);
+    for (const valor of [[20_000], true, "", "20000x", { v: 20_000 }]) {
+      r = await pedido(marina, rifaA.id, { investimentoCents: valor, aceiteTexto: "x" });
+      checa(`investimento ${JSON.stringify(valor)} não é número: 400, sem reservar`, r.status === 400 && (await saldoDe(orgId)) === BASE, `HTTP ${r.status}`);
+    }
+    for (const verba of [[2_000], true, ""]) {
+      r = await pedido(marina, rifaA.id, { verbaDiaCents: verba });
+      checa(`valor por dia ${JSON.stringify(verba)} não é número: 400`, r.status === 400, `HTTP ${r.status}`);
+    }
     r = await pedido(marina, rifaA.id, { observacao: "me chama no 11 98888-7777" });
     checa("observação com telefone é recusada (400)", r.status === 400, `HTTP ${r.status}`);
     // O aceite da taxa: 422, depois do erro de preenchimento e antes de reservar ou gravar qualquer coisa.
@@ -385,6 +402,10 @@ async function main() {
     const saldoNoAr = await saldoDe(orgId);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: amanha(), rede: "google", gastoCents: 100 });
     checa("dia que ainda não chegou é recusado (400)", r.status === 400, `HTTP ${r.status}`);
+    for (const gasto of [[100], true, "", "100x"]) {
+      r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "google", gastoCents: gasto });
+      checa(`gasto ${JSON.stringify(gasto)} não é número: 400`, r.status === 400, `HTTP ${r.status}`);
+    }
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "tiktok", gastoCents: 100 });
     checa("rede fora da campanha é recusada (400)", r.status === 400, `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/trafego/campanhas/${idA}/gastos`, { dia: hoje(), rede: "google", gastoCents: 5_001 });

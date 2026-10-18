@@ -1,6 +1,6 @@
 /** Ajustes gerais, com valor padrão quando o administrador ainda não preencheu. */
 import { tabelaVigente, type ConfigCobranca } from "@shared/cobranca";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { appSettings, type OrganizerInfo } from "@shared/schema";
 import {
@@ -34,16 +34,18 @@ export async function getOrganizer(): Promise<OrganizerInfo> {
 }
 
 export async function setOrganizer(info: OrganizerInfo): Promise<OrganizerInfo> {
-  const nome = info.nome?.trim();
+  // Vem do corpo da requisição: número ou lista no lugar do texto quebrava no `trim()` (500).
+  const texto = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const nome = texto(info.nome);
   if (!nome || nome.length < 2) {
     throw Object.assign(new Error("Informe o nome da administradora da rifa."), { status: 400 });
   }
   const value: OrganizerInfo = {
     nome,
-    cnpj: info.cnpj?.trim() || undefined,
-    contato: info.contato?.trim() || undefined,
-    cidade: info.cidade?.trim() || undefined,
-    observacao: info.observacao?.trim() || PADRAO.observacao,
+    cnpj: texto(info.cnpj) || undefined,
+    contato: texto(info.contato) || undefined,
+    cidade: texto(info.cidade) || undefined,
+    observacao: texto(info.observacao) || PADRAO.observacao,
   };
 
   await db
@@ -99,51 +101,82 @@ export async function setPaymentMethods(
 
 const PLATAFORMA_KEY = "plataforma";
 
-export async function getPlataforma(): Promise<ConfigPlataforma> {
-  const [row] = await db
+type Leitor = Pick<typeof db, "select">;
+
+let ultimoAvisoDaConfig: string | null = null;
+
+async function lerPlataforma(exec: Leitor): Promise<ConfigPlataforma> {
+  const [row] = await exec
     .select()
     .from(appSettings)
     .where(eq(appSettings.key, PLATAFORMA_KEY));
   if (!row) return CONFIG_PADRAO;
   try {
     return validarConfigPlataforma(row.value as Partial<ConfigPlataforma>);
-  } catch {
+  } catch (e) {
+    // Voltar ao padrão em silêncio desliga tudo (interruptores, cobrança,
+    // provedor) sem ninguém saber: ao menos o motivo vai ao log.
+    // Uma vez por motivo: a leitura corre em caminho quente (pedido, vitrine) e o log encheria.
+    const motivo = (e as Error).message;
+    if (motivo !== ultimoAvisoDaConfig) {
+      ultimoAvisoDaConfig = motivo;
+      console.error("[plataforma] a configuração guardada não passa mais na régua; valendo o padrão:", motivo);
+    }
     return CONFIG_PADRAO;
   }
 }
+
+export async function getPlataforma(): Promise<ConfigPlataforma> {
+  return lerPlataforma(db);
+}
+
+/** Trava (de transação) que serializa quem grava a configuração da plataforma. */
+const TRAVA_DA_CONFIGURACAO = 811_920;
 
 /**
  * Grava a escolha. Provedor sem credencial no servidor é recusado aqui: a
  * troca seria aceita e a próxima venda quebraria na hora do Pix, com o
  * comprador na frente da tela.
+ *
+ * Ler a configuração, juntar o que veio e gravar acontece numa transação com
+ * trava: dois cartões salvos ao mesmo tempo (o último a gravar vencia e
+ * perdia o outro) esperam um pelo outro.
  */
 export async function setPlataforma(
-  candidato: Partial<ConfigPlataforma>,
+  candidato: Partial<ConfigPlataforma> | ((atual: ConfigPlataforma) => Partial<ConfigPlataforma>),
 ): Promise<ConfigPlataforma> {
-  // Parte da configuração atual: quem salva um pedaço (Pagamentos, Bônus)
-  // não apaga o resto por omissão. Campo `undefined` não conta como enviado.
-  const enviados = Object.fromEntries(Object.entries(candidato).filter(([, v]) => v !== undefined));
-  const value = validarConfigPlataforma({ ...(await getPlataforma()), ...enviados });
-  if (value.provedorPix) {
-    const faltando = CREDENCIAIS_PROVEDOR[value.provedorPix].filter((v) => !process.env[v]);
-    if (faltando.length) {
-      throw Object.assign(
-        new Error(
-          `Para usar ${NOME_PROVEDOR[value.provedorPix]}, configure no Railway: ${faltando.join(", ")}.`,
-        ),
-        { status: 400 },
-      );
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${TRAVA_DA_CONFIGURACAO})`);
+    const atual = await lerPlataforma(tx);
+    // Com função, o candidato é calculado aqui dentro, com a configuração lida
+    // sob a trava: a validação que depende do que está gravado (o aviso de 30
+    // dias da tabela) não compara com uma leitura que já ficou velha.
+    const pedido = typeof candidato === "function" ? candidato(atual) : candidato;
+    // Parte da configuração atual: quem salva um pedaço (Pagamentos, Bônus)
+    // não apaga o resto por omissão. Campo `undefined` não conta como enviado.
+    const enviados = Object.fromEntries(Object.entries(pedido).filter(([, v]) => v !== undefined));
+    const value = validarConfigPlataforma({ ...atual, ...enviados });
+    if (value.provedorPix) {
+      const faltando = CREDENCIAIS_PROVEDOR[value.provedorPix].filter((v) => !process.env[v]);
+      if (faltando.length) {
+        throw Object.assign(
+          new Error(
+            `Para usar ${NOME_PROVEDOR[value.provedorPix]}, configure no Railway: ${faltando.join(", ")}.`,
+          ),
+          { status: 400 },
+        );
+      }
     }
-  }
 
-  await db
-    .insert(appSettings)
-    .values({ key: PLATAFORMA_KEY, value })
-    .onConflictDoUpdate({
-      target: appSettings.key,
-      set: { value, updatedAt: new Date() },
-    });
-  return value;
+    await tx
+      .insert(appSettings)
+      .values({ key: PLATAFORMA_KEY, value })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { value, updatedAt: new Date() },
+      });
+    return value;
+  });
 }
 
 /**

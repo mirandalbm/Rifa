@@ -14,6 +14,8 @@
  * que comprou.
  */
 
+import { numeroDoCorpo } from "./inteiro";
+
 export const ALCANCES = {
   cidade: "Cidade",
   estado: "Estado",
@@ -26,6 +28,9 @@ export const JANELA_DO_CLIQUE_HORAS = 24;
 export const JANELA_DA_VENDA_DIAS = 7;
 export const RECARGA_MAXIMA_CENTS = 1_000_000;
 export const CLIQUES_MAX_POR_ANUNCIO = 100_000;
+
+/** Quantas faixas de desconto uma tabela pode ter. */
+export const FAIXAS_MAX = 6;
 
 export interface FaixaDeDesconto {
   /** A partir de quantos cliques vale o desconto. */
@@ -60,9 +65,35 @@ export const CONFIG_PATROCINIO_PADRAO: ConfigPatrocinio = {
 const erro = (m: string) => Object.assign(new Error(m), { status: 400 });
 
 function inteiro(v: unknown, min: number, max: number, nome: string): number {
-  const n = Number(v);
+  const n = numeroDoCorpo(v);
   if (!Number.isInteger(n) || n < min || n > max) throw erro(`${nome}: de ${min} a ${max}.`);
   return n;
+}
+
+/**
+ * A régua das faixas de desconto por volume, comum a quem vende por clique
+ * (patrocinadas, banner por clique) e a quem vende por dia (banner): ordenadas,
+ * sem repetir e **com o desconto sempre crescendo**, para o pacote maior nunca
+ * sair mais caro por unidade que o menor. Devolve as faixas ordenadas; as
+ * mensagens citam a `unidade` ("cliques", "dias"). Erro de preenchimento é 400.
+ */
+export function validarFaixas(
+  brutas: unknown[],
+  opcoes: { aPartirDeMax: number; unidade: string },
+): FaixaDeDesconto[] {
+  if (brutas.length > FAIXAS_MAX) throw erro(`Até ${FAIXAS_MAX} faixas de desconto.`);
+  const faixas = brutas
+    .map((f: any, i) => ({
+      aPartirDe: inteiro(f?.aPartirDe, 2, opcoes.aPartirDeMax, `Faixa ${i + 1}, a partir de (${opcoes.unidade})`),
+      descontoPct: inteiro(f?.descontoPct, 1, 60, `Faixa ${i + 1}, desconto (%)`),
+    }))
+    .sort((x, y) => x.aPartirDe - y.aPartirDe);
+  for (let i = 1; i < faixas.length; i++) {
+    if (faixas[i].aPartirDe === faixas[i - 1].aPartirDe) throw erro(`Duas faixas começam no mesmo número de ${opcoes.unidade}.`);
+    // Pacote maior nunca sai mais caro por unidade que o menor.
+    if (faixas[i].descontoPct <= faixas[i - 1].descontoPct) throw erro("O desconto precisa crescer junto com a faixa.");
+  }
+  return faixas;
 }
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -75,19 +106,10 @@ export function validarConfigPatrocinio(bruto: unknown): ConfigPatrocinio {
     estado: inteiro(b.precos?.estado ?? p.precos.estado, 1, 10_000, "Preço do clique no estado (centavos)"),
     nacional: inteiro(b.precos?.nacional ?? p.precos.nacional, 1, 10_000, "Preço do clique no Brasil (centavos)"),
   };
-  const faixasBrutas: unknown[] = Array.isArray(b.faixas) ? b.faixas : p.faixas;
-  if (faixasBrutas.length > 6) throw erro("Até 6 faixas de desconto.");
-  const faixas = faixasBrutas
-    .map((f: any, i) => ({
-      aPartirDe: inteiro(f?.aPartirDe, 2, CLIQUES_MAX_POR_ANUNCIO, `Faixa ${i + 1}, a partir de (cliques)`),
-      descontoPct: inteiro(f?.descontoPct, 1, 60, `Faixa ${i + 1}, desconto (%)`),
-    }))
-    .sort((x, y) => x.aPartirDe - y.aPartirDe);
-  for (let i = 1; i < faixas.length; i++) {
-    if (faixas[i].aPartirDe === faixas[i - 1].aPartirDe) throw erro("Duas faixas começam no mesmo número de cliques.");
-    // Pacote maior nunca sai mais caro por clique que o menor.
-    if (faixas[i].descontoPct <= faixas[i - 1].descontoPct) throw erro("O desconto precisa crescer junto com a faixa.");
-  }
+  const faixas = validarFaixas(Array.isArray(b.faixas) ? b.faixas : p.faixas, {
+    aPartirDeMax: CLIQUES_MAX_POR_ANUNCIO,
+    unidade: "cliques",
+  });
   return {
     precos,
     faixas,
@@ -113,7 +135,7 @@ export function descontoPara(faixas: FaixaDeDesconto[], cliques: number): number
  * e o organizador nunca paga fração de centavo a mais).
  */
 export function precoDoPacote(cfg: ConfigPatrocinio, alcance: Alcance, cliques: number) {
-  if (!(alcance in ALCANCES)) throw erro("Alcance desconhecido.");
+  if (typeof alcance !== "string" || !Object.hasOwn(ALCANCES, alcance)) throw erro("Alcance desconhecido.");
   if (!Number.isInteger(cliques) || cliques < cfg.minimoCliques) throw erro(`O pacote mínimo é de ${cfg.minimoCliques} cliques.`);
   if (cliques > CLIQUES_MAX_POR_ANUNCIO) throw erro(`O pacote máximo é de ${CLIQUES_MAX_POR_ANUNCIO} cliques.`);
   const precoCliqueCents = cfg.precos[alcance];

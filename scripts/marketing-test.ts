@@ -253,6 +253,59 @@ async function main() {
     r = await orgB.req("GET", "/api/admin/marketing");
     checa("B não vê a campanha de A", !r.json?.campanhas?.some((c: any) => c.campanha === "moto-junho"));
 
+    // Auditoria do acesso marketing: o relatório é agrupado no banco, pelo mesmo rótulo de sempre.
+    const pedidosDaCampanha: number[] = [];
+    pedidosDaCampanha.push(await comprar(rA, { utm: { gclid: "G1" } }));
+    pedidosDaCampanha.push(await comprar(rA, { utm: { source: "google", medium: "cpc", campaign: "c-google", gclid: "G2" } }));
+    const pagoDaGoogle = await comprar(rA, { utm: { source: "google", medium: "cpc", campaign: "c-google" } });
+    pedidosDaCampanha.push(pagoDaGoogle);
+    pedidosDaCampanha.push(await comprar(rA, { utm: { ttclid: "T1" } }));
+    await pagar(pagoDaGoogle);
+    r = await orgA.req("GET", "/api/admin/marketing?dias=7");
+    const campanhasA = r.json?.campanhas as { fonte: string; meio: string; campanha: string; pedidos: number; vendas: number; receitaCents: number }[];
+    const googleC = campanhasA?.find((c) => c.campanha === "c-google");
+    checa("a mesma fonte, meio e campanha somam, com ou sem o clique do anúncio (2 pedidos, 1 venda de R$ 10,00)", googleC?.fonte === "google" && googleC.meio === "cpc" && googleC.pedidos === 2 && googleC.vendas === 1 && googleC.receitaCents === 1000, JSON.stringify(campanhasA));
+    checa("só o identificador de clique do Google vira google / cpc / (sem campanha)", campanhasA?.some((c) => c.fonte === "google" && c.meio === "cpc" && c.campanha === "(sem campanha)" && c.pedidos === 1));
+    checa("só o do TikTok vira tiktok / cpc", campanhasA?.some((c) => c.fonte === "tiktok" && c.meio === "cpc" && c.pedidos === 1));
+    checa("a campanha de antes segue lá (instagram / cpc / moto-junho)", campanhasA?.some((c) => c.fonte === "instagram" && c.campanha === "moto-junho" && c.vendas === 1));
+    r = await orgB.req("GET", "/api/admin/marketing?dias=7");
+    checa("B continua sem ver nada disso", !r.json?.campanhas?.some((c: any) => ["c-google", "(sem campanha)"].includes(c.campanha) || c.fonte === "tiktok"), JSON.stringify(r.json?.campanhas));
+    r = await admin.req("GET", "/api/admin/marketing?dias=7");
+    const daPlataforma = (r.json?.campanhas ?? []) as { campanha: string; pedidos: number }[];
+    checa("a plataforma soma as de todas", daPlataforma.some((c) => c.campanha === "c-google" && c.pedidos === 2) && daPlataforma.some((c) => c.campanha === "moto-junho"));
+    void pedidosDaCampanha;
+
+    // O pixel guardado é conferido de novo na saída: valor torto no banco não vai à tela de ninguém.
+    await db.execute(sql`update organizations set pixels = ${JSON.stringify({ meta: "123456789012345 <script>alert(1)</script>", ga4: "G-ABC123XYZ9" })}::jsonb where id = ${A.id}::uuid`);
+    r = await new Cliente().req("GET", `/api/public/marketing?organizacao=${A.slug}`);
+    checa("pixel torto no banco: a página da organização sai sem pixel", r.json?.organizacao === null, JSON.stringify(r.json));
+    await db.execute(sql`update organizations set pixels = ${JSON.stringify({ meta: "1234567890123456" })}::jsonb where id = ${A.id}::uuid`);
+    r = await new Cliente().req("GET", `/api/public/marketing?organizacao=${A.slug}`);
+    checa("pixel certo no banco: sai como estava", r.json?.organizacao?.meta === "1234567890123456", JSON.stringify(r.json));
+
+    // Atalhos: o link do perfil só leva a https; o curto só leva a caminho do próprio site.
+    await db.execute(sql`update organizations set links = ${JSON.stringify([
+      { rotulo: "torto", url: "javascript:alert(1)" },
+      { rotulo: "sem https", url: "http://exemplo.com.br/" },
+      { rotulo: "ok", url: "https://exemplo.com.br/ola" },
+    ])}::jsonb where id = ${A.id}::uuid`);
+    const sair = (caminho: string) => fetch(URL + caminho, { redirect: "manual", headers: { "User-Agent": NAVEGADOR } });
+    for (const [i, nome] of [[0, "javascript:"], [1, "http:"]] as [number, string][]) {
+      const res = await sair(`/l/${A.slug}/${i}`);
+      checa(`link do perfil com ${nome} guardado no banco: 404, sem redirecionar`, res.status === 404 && !res.headers.get("location"), `HTTP ${res.status}`);
+    }
+    const bom = await sair(`/l/${A.slug}/2`);
+    checa("link https do perfil: 302 para o endereço cadastrado", bom.status === 302 && bom.headers.get("location") === "https://exemplo.com.br/ola", `HTTP ${bom.status} ${bom.headers.get("location")}`);
+    for (const indice of ["-1", "1.5", "abc", "1e0", "Infinity", "99999999999999999999"]) {
+      const res = await sair(`/l/${A.slug}/${indice}`);
+      checa(`/l/…/${indice}: 404`, res.status === 404, `HTTP ${res.status}`);
+    }
+    for (const codigo of ["AAAAAA", "abc", "..%2f..%2fetc", "%0d%0aLocation:%20golpe", "A".repeat(300)]) {
+      const res = await sair(`/c/${codigo}`);
+      checa(`/c/${codigo.slice(0, 20)}: volta para a vitrine, nunca para fora`, res.status === 302 && res.headers.get("location") === "/", `HTTP ${res.status} ${res.headers.get("location")}`);
+    }
+    await db.execute(sql`update organizations set links = '[]'::jsonb where id = ${A.id}::uuid`);
+
     // Apagar os pixels: volta a não carregar nada nem mandar nada.
     await admin.req("PUT", "/api/admin/marketing", { pixels: {} });
     await orgA.req("PUT", "/api/admin/marketing", { pixels: {} });

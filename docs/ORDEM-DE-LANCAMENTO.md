@@ -127,6 +127,25 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   `taxa_aceite_versao` e `taxa_aceite_sha256` da taxa cobrada na aprovação
   (sem elas, o pedido e a lista dão 500; a campanha de antes fica com a
   marca nula e segue com a taxa diária).
+  E a coluna `buyers.sessoes_validas_desde` (a marca que derruba a sessão
+  expulsa que foi regravada; sem ela, toda requisição de apostador logado dá
+  500 — o middleware de `setupAuth` a lê). E a coluna
+  `users.sessoes_validas_desde` (a mesma marca para as sessões do painel:
+  sem ela, o login do painel e toda requisição de usuário logado dão 500 —
+  `deserializeUser` a lê). A sessão do painel aberta antes do deploy não
+  tem `painelEntrouEm` e só cai se a conta ganhar a marca (troca de senha).
+  E as do banner pago por clique (passo 1 do `docs/PLANO-BANNER-POR-CLIQUE.md`):
+  em `banner_pedidos`, as colunas `modo` (padrão `dia`), `cliques_comprados`,
+  `cliques_usados` (padrão 0), `preco_clique_cents`, `desconto_pct` (padrão 0)
+  e `encerrado_por`; a coluna `preco_dia_cents` **deixa de ser obrigatória**
+  (`DROP NOT NULL`, sem perda) e o `check` `ck_banner_pedido_modo`; as tabelas
+  `banner_cliques` e `banner_diario`. Todo pedido de antes cumpre o `check`
+  (modo `dia`, sem clique, com o preço do dia), então o `db:push` não toca em
+  linha e **não pede confirmação de perda**. Sem a coluna `desconto_pct`, o
+  pedido do banner dá 500 (o `INSERT` a grava); as tabelas novas não quebram
+  nada sem o `db:push` (nada grava nelas até o passo 2). Uma coisa a saber: o
+  `drizzle-kit` não troca a expressão de um `check` que já existe — o
+  `ck_banner_pedido_modo` nasce certo no primeiro `db:push`.
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Criar o serviço do trabalhador (o gerador de vídeo) no Railway, com
   `npm run start:worker` e só o `DATABASE_URL` (passo a passo em
@@ -251,7 +270,8 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 ## Fica para depois da versão inicial (código, comigo)
 
 - Ligar o globo da plataforma como método de apuração, depois de homologado
-  (o código está pronto: é ligar em "Métodos de apuração", sem deploy).
+  (o código está pronto: é ligar em "Métodos de apuração", sem deploy) O roteiro com o
+  tabelionato e o checklist para ligar estão em `docs/ROTEIRO-GLOBO-TABELIONATO.md`.
 - Ferramentas de imagem e vídeo (`docs/PLANO-FERRAMENTAS.md`, fases B a F; a
   A — artes prontas — e a G — pacote para postar — já estão feitas).
 - APK das maquininhas (precisa de máquina com o Android SDK).

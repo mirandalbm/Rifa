@@ -19,7 +19,7 @@ import { randomInt } from "node:crypto";
 import type { Request } from "express";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { buyers, campaigns, comentarios, denuncias, organizations } from "@shared/schema";
+import { auditLog, buyers, campaigns, comentarios, denuncias, organizations } from "@shared/schema";
 import {
   DENUNCIAS_POR_DIA,
   DENUNCIA_TEXTO_MAX,
@@ -348,6 +348,18 @@ export async function decidirDenuncia(req: Request, id: string, entrada: { acao?
       .where(and(eq(denuncias.id, id), eq(denuncias.status, "aberta")))
       .returning({ id: denuncias.id });
     if (!r.length) throw new SegurancaError("Esta denúncia já foi decidida.", 409);
+    // A auditoria vai na transação, depois do `UPDATE`: só registra o que
+    // aconteceu (antes, ia primeiro e gravava "banir" mesmo quando a decisão
+    // era recusada, com o texto da ação vindo solto do corpo).
+    await tx.insert(auditLog).values({
+      actorId: req.user!.id,
+      actorRole: req.user!.role,
+      action: `denuncia.${acao}`,
+      entity: "denuncia",
+      entityId: id,
+      diff: { resposta: resposta || null } as never,
+      ip: req.ip,
+    });
     const agora = new Date();
     if (acao === "travar") {
       await tx

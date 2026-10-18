@@ -13,6 +13,7 @@ import {
   uniqueIndex,
   primaryKey,
   real,
+  check,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
@@ -290,6 +291,15 @@ export const users = pgTable(
     active: boolean("active").notNull().default(true),
     /** Quando abriu o sino do painel pela última vez: o que veio depois conta como novo. */
     avisosVistosEm: timestamp("avisos_vistos_em"),
+    /**
+     * Sessão do painel que começou antes deste instante não vale mais (trocou
+     * ou redefiniu a senha, desligou o acesso). Apagar as linhas de `sessions`
+     * não basta: uma requisição da sessão expulsa que já estava em andamento a
+     * regrava depois do `DELETE` (o `connect-pg-simple` faz `INSERT … ON
+     * CONFLICT DO UPDATE`). Quem confere é o middleware de `setupAuth`,
+     * contra `session.painelEntrouEm`. A mesma ideia de `buyers.sessoes_validas_desde`.
+     */
+    sessoesValidasDesde: timestamp("sessoes_validas_desde"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_users_email").on(t.email)],
@@ -322,6 +332,15 @@ export const buyers = pgTable(
      * com o número de outro veria as compras dele.
      */
     telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
+    /**
+     * Sessões desta conta que começaram ANTES deste instante não valem mais
+     * (trocou a senha, provou o telefone, excluiu). Apagar as linhas de
+     * `sessions` não basta: uma requisição da sessão expulsa que já estava em
+     * andamento a regrava depois do `DELETE` (o `connect-pg-simple` faz
+     * `INSERT … ON CONFLICT DO UPDATE`). Quem confere é o middleware de
+     * `setupAuth`, a cada requisição, contra `session.buyer.entrouEm`.
+     */
+    sessoesValidasDesde: timestamp("sessoes_validas_desde"),
     /**
      * Compras feitas antes da conta, pelo telefone, que passaram a ser da
      * conta porque o CPF delas bateu com o do cadastro. Vale para o que
@@ -2367,10 +2386,29 @@ export const bannerPedidos = pgTable(
     titulo: text("titulo").notNull(),
     mime: text("mime").notNull(),
     bytes: bytea("bytes").notNull(),
+    /**
+     * A janela em dias nos dois modos: no modo dia, os dias comprados; no modo
+     * clique, o prazo máximo fotografado da configuração do dia da compra.
+     */
     dias: integer("dias").notNull(),
-    /** O preço do dia fotografado na compra: mudar a tabela não mexe no que já foi pago. */
-    precoDiaCents: integer("preco_dia_cents").notNull(),
+    /**
+     * O preço do dia fotografado na compra: mudar a tabela não mexe no que já
+     * foi pago. Nulo no modo clique (não tem preço do dia).
+     */
+    precoDiaCents: integer("preco_dia_cents"),
     valorPagoCents: integer("valor_pago_cents").notNull(),
+    /** dia | clique (`MODOS_DO_BANNER`). O padrão cobre todos os pedidos de antes. */
+    modo: text("modo").notNull().default("dia"),
+    /** O pacote de cliques (nulo no modo dia). */
+    cliquesComprados: integer("cliques_comprados"),
+    /** Anda de 1 em 1, só por `UPDATE` condicional (`cliques_usados < cliques_comprados`). */
+    cliquesUsados: integer("cliques_usados").notNull().default(0),
+    /** O preço do clique fotografado na compra (nulo no modo dia). */
+    precoCliqueCents: integer("preco_clique_cents"),
+    /** A faixa de desconto aplicada (por dias ou por cliques), fotografada. */
+    descontoPct: integer("desconto_pct").notNull().default(0),
+    /** cliques | prazo | rifa_fora (`ENCERRADO_POR`): a tela diz por que acabou. */
+    encerradoPor: text("encerrado_por"),
     /** em_analise | aprovado | no_ar | encerrado | recusado | cancelado */
     status: text("status").notNull().default("em_analise"),
     motivo: text("motivo"),
@@ -2388,6 +2426,74 @@ export const bannerPedidos = pgTable(
       .where(sql`${t.status} in ('em_analise','aprovado','no_ar')`),
     index("ix_banner_pedidos_status").on(t.status, t.aprovadoEm),
     index("ix_banner_pedidos_org").on(t.organizationId, t.createdAt),
+    // O dado nunca fica pela metade: cada modo carrega as colunas dele e só elas.
+    check(
+      "ck_banner_pedido_modo",
+      sql`(${t.modo} = 'dia' and ${t.cliquesComprados} is null and ${t.precoCliqueCents} is null
+            and ${t.cliquesUsados} = 0 and ${t.precoDiaCents} is not null)
+        or (${t.modo} = 'clique' and ${t.cliquesComprados} is not null and ${t.cliquesComprados} > 0
+            and ${t.cliquesUsados} <= ${t.cliquesComprados}
+            and ${t.precoCliqueCents} is not null and ${t.precoCliqueCents} > 0)`,
+    ),
+  ],
+);
+
+/**
+ * Clique do banner pago (`docs/PLANO-BANNER-POR-CLIQUE.md`): espelho de
+ * `patrocinio_cliques`, com contas à parte (as duas têm chave estrangeira para
+ * o próprio produto e o painel das patrocinadas junta as duas). Gravado nos
+ * dois modos — no modo dia custa zero. Nada grava aqui até o passo 2 do plano.
+ */
+export const bannerCliques = pgTable(
+  "banner_cliques",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pedidoId: uuid("pedido_id")
+      .notNull()
+      .references(() => bannerPedidos.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull(),
+    campaignId: uuid("campaign_id").notNull(),
+    /** O aparelho em hash: um clique por aparelho a cada 24 h, por pedido. */
+    visitanteHash: text("visitante_hash").notNull(),
+    /** IP em hash: um IP cobra no máximo `CLIQUES_POR_IP` por pedido em 24 h. */
+    ipHash: text("ip_hash"),
+    /** O que este clique gastou do pacote (`gastoAte(n) − gastoAte(n−1)`); zero no modo dia. */
+    valorCents: integer("valor_cents").notNull(),
+    uf: text("uf"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_banner_clique_visitante").on(t.pedidoId, t.visitanteHash, t.createdAt),
+    index("idx_banner_clique_ip").on(t.pedidoId, t.ipHash, t.createdAt),
+    index("idx_banner_clique_atribuicao").on(t.visitanteHash, t.campaignId, t.createdAt),
+  ],
+);
+
+/**
+ * Os números do dia do banner pago, por pedido e estado de quem olhou: é
+ * daqui que o painel lê (somar dias, nunca varrer cliques nem `COUNT(*)`).
+ * Incrementado por upsert.
+ */
+export const bannerDiario = pgTable(
+  "banner_diario",
+  {
+    pedidoId: uuid("pedido_id")
+      .notNull()
+      .references(() => bannerPedidos.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull(),
+    /** Dia no fuso de São Paulo (AAAA-MM-DD). */
+    dia: text("dia").notNull(),
+    /** Estado de quem olhou ("" quando não se sabe). */
+    uf: text("uf").notNull().default(""),
+    exibicoes: integer("exibicoes").notNull().default(0),
+    cliques: integer("cliques").notNull().default(0),
+    /** Cliques recusados: robô, repetido em 24 h, pacote esgotado. */
+    barrados: integer("barrados").notNull().default(0),
+    gastoCents: integer("gasto_cents").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pedidoId, t.dia, t.uf] }),
+    index("idx_banner_diario_org").on(t.organizationId, t.dia),
   ],
 );
 

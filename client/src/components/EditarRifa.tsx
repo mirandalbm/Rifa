@@ -39,7 +39,7 @@ function Campo({
   id: string;
   rotulo: string;
   children: React.ReactNode;
-  dica?: string;
+  dica?: React.ReactNode;
 }) {
   return (
     <div>
@@ -179,7 +179,7 @@ export function EditarRifaCard({
         {/* Os seis números em duas colunas (o Figma, nó 54:4503): com o menu aberto no tablet, três quebravam os rótulos. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {rascunho ? (
-            <Campo id={`ed-preco-${rifa.id}`} rotulo="Preço da cota (centavos)" dica={formatBRL(Number(f.priceCents) || 0)}>
+            <Campo id={`ed-preco-${rifa.id}`} rotulo="Preço da cota (centavos)" dica={<span className="tnum">{formatBRL(Number(f.priceCents) || 0)}</span>}>
               <input
                 id={`ed-preco-${rifa.id}`}
                 type="number"

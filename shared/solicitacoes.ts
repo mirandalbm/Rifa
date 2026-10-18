@@ -63,6 +63,25 @@ const DESCRICAO_MAX = 5000;
 export const RESERVA_MIN = 5;
 export const RESERVA_MAX = 60;
 
+/**
+ * Mínimo e máximo de cotas por pedido e o tempo da reserva. A mesma régua no
+ * rascunho (criar e editar na hora) e no pedido de edição da rifa publicada:
+ * antes o rascunho aceitava reserva de 0 minuto (o Pix nascia vencido) ou de
+ * 69 dias (a cota presa por quem não pagou) e mínimo maior que o máximo.
+ */
+export function problemaNosLimitesDoPedido(l: { minPerOrder: number; maxPerOrder: number; reservationTtlMin: number }): string | null {
+  for (const n of [l.minPerOrder, l.maxPerOrder, l.reservationTtlMin]) {
+    if (!Number.isInteger(n)) return "Mínimo, máximo e tempo da reserva são números inteiros.";
+  }
+  if (l.minPerOrder < 1) return "O mínimo por pedido é pelo menos 1 cota.";
+  if (l.maxPerOrder < l.minPerOrder) return "O máximo por pedido não pode ser menor que o mínimo.";
+  if (l.maxPerOrder > 10_000) return "O máximo por pedido é de até 10.000 cotas.";
+  if (l.reservationTtlMin < RESERVA_MIN || l.reservationTtlMin > RESERVA_MAX) {
+    return `O tempo da reserva vai de ${RESERVA_MIN} a ${RESERVA_MAX} minutos.`;
+  }
+  return null;
+}
+
 function inteiro(v: unknown): number | null {
   const n = typeof v === "string" && v.trim() !== "" ? Number(v) : v;
   return typeof n === "number" && Number.isInteger(n) ? n : null;
@@ -101,15 +120,12 @@ export function validarEdicao(
     novo[campo] = n;
   }
 
-  const min = novo.minPerOrder as number;
-  const max = novo.maxPerOrder as number;
-  if (min < 1) return { ok: false, erro: "O mínimo por pedido é pelo menos 1 cota." };
-  if (max < min) return { ok: false, erro: "O máximo por pedido não pode ser menor que o mínimo." };
-  if (max > 10_000) return { ok: false, erro: "O máximo por pedido é de até 10.000 cotas." };
-  const ttl = novo.reservationTtlMin as number;
-  if (ttl < RESERVA_MIN || ttl > RESERVA_MAX) {
-    return { ok: false, erro: `O tempo da reserva vai de ${RESERVA_MIN} a ${RESERVA_MAX} minutos.` };
-  }
+  const limites = problemaNosLimitesDoPedido({
+    minPerOrder: novo.minPerOrder as number,
+    maxPerOrder: novo.maxPerOrder as number,
+    reservationTtlMin: novo.reservationTtlMin as number,
+  });
+  if (limites) return { ok: false, erro: limites };
   const pct = novo.commissionPctDefault as number;
   if (pct < 0 || pct > 50) return { ok: false, erro: "A comissão padrão vai de 0 a 50%." };
 

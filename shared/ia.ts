@@ -142,8 +142,8 @@ export const CONTEXTO_DO_PAPEL: Record<TitularDaIA["tipo"], string> = {
     "Você atende um afiliado que divulga rifas e recebe comissão. Ele só alcança o painel do afiliado: links, cupons, divulgações, comissões, saque e cadastro fiscal. Não explique telas da organização nem da plataforma.",
 };
 
-const MARCA_DO_CONTEXTO = "⟦contexto do sistema⟧";
-const FIM_DO_CONTEXTO = "⟦fim do contexto⟧";
+export const MARCA_DO_CONTEXTO = "⟦contexto do sistema⟧";
+export const FIM_DO_CONTEXTO = "⟦fim do contexto⟧";
 
 /** A mensagem que sai para o Chatbase: o contexto do papel na frente, depois o que a pessoa escreveu. */
 export function comContexto(mensagem: string, tipo: TitularDaIA["tipo"]): string {

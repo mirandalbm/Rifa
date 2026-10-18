@@ -107,7 +107,7 @@ arquitetura.
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `shared/premio.ts` (prêmio sem dinheiro nem item proibido na rifa autorizada), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
-| venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts`, `scripts/cambista-test.ts` (`npm run cambista`) |
+| venda física e acerto | `server/routes/seller.ts`, `shared/vendaFisica.ts` (o código da venda na URL, o meio, o comprovante da maquininha, o teto de vendas), `server/services/settlements.ts`, `scripts/cambista-test.ts` (`npm run cambista`), `tests/vendaFisica.test.ts`, `docs/AUDITORIA-ACESSO-CAMBISTA.md` |
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md`; Stone por deeplink em `android/app/src/ton/` e `RetornoDeApp.kt`, provada sem SDK por `npm run stone` |
@@ -116,6 +116,7 @@ arquitetura.
 | fila de trabalho pesado e o trabalhador (processo à parte), o reels gerado com as fotos da rifa (Fase F) | `shared/fila.ts` (regras), `server/services/fila.ts` (enfileirar, tomar, terminar, devolver os presos, receber), `server/worker.ts` e `server/trabalhos/` (o laço e os tipos), `shared/reelsGerado.ts` (roteiro, comando do `ffmpeg`, texto gravado), `faixaDoReelsGerado()` em `server/services/arteDesenho.ts`, `server/services/reelsGerado.ts` (pedir, situação, receber), `/campaigns/:id/reels-gerado` em `server/routes/admin.ts`, relógio em `server/jobs/index.ts` (trava 811022), `client/src/components/GerarReels.tsx` (no cartão Reels da rifa), `scripts/fila-test.ts`, `tests/fila.test.ts`, `tests/reelsGerado.test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
+| pacotes de cotas da rifa (desconto de 0 a 50%, sem pedido de valor zero ou negativo) e a comissão própria do cambista e do afiliado no cadastro (0 a 50) | `validarPacotes()` em `shared/pacotes.ts` (`PUT /campaigns/:id/packages`), o total ≥ 1 centavo em `prepararPedido()` (`server/services/orders.ts`), `lerComissaoDoCadastro()` em `shared/afiliados.ts` (`POST /sellers`, `POST /affiliates`, `PATCH /affiliates/:id`), `tests/pacotes.test.ts`, `tests/afiliados.test.ts`, `docs/AUDITORIA-ACESSO-ORGANIZADOR.md` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
 | Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
@@ -151,6 +152,7 @@ arquitetura.
 | contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts`; os anexos por modalidade (cláusula 7): `shared/contratoAnexos.ts` (modalidades e régua), `server/services/contratoAnexos.ts` (`anexosDaPublicacao`, `exigirAnexoNaRifa`), `/contrato-promotora/anexos*`, `AnexosDaOrganizacao`/`AnexosDaPlataforma` no mesmo cartão, `scripts/contrato-anexos-test.ts`, `tests/contratoAnexos.test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | sócios e diretores da organização (CPF, declaração da lista, compra recusada) | `shared/socios.ts` (regras), `server/services/socios.ts` (`cpfDeSocio`, `problemaDosSocios`), `/organizacoes/:id/socios*` em `server/routes/admin.ts`, `client/src/components/SociosDaOrganizacaoCard.tsx` (Configurações → Organização e perfil), `scripts/apuracao-test.ts`, `tests/juridico2.test.ts` |
+| "Locais": o painel de estados com a bandeira (antes "Rifas perto de") | `shared/locais.ts` (os 27 locais e o caminho da bandeira), `client/src/components/LocaisDaVitrine.tsx` (o painel), `client/src/components/SeletorDeRegiao.tsx` (o botão no topo e na lateral, `useRegiaoDaVitrine`), `client/src/lib/regiao.ts` (a escolha), `client/public/bandeiras/`, `docs/LICENCAS-DE-TERCEIROS.md`, `tests/locais.test.ts` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
@@ -198,14 +200,14 @@ arquitetura.
 | tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `ContagemDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
 | sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
-| rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
+| rodapé da plataforma: colunas de links, redes sociais, espaço de apoio e o texto oficial embaixo da logo (razão social e CNPJ dos Dados da empresa publicados, e o aviso de jogo responsável) | `shared/rodape.ts` (colunas, `linhaDaEmpresa()`, `avisoDeJogoResponsavel()`), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | intro animada da marca ao abrir o app (celular e tablet), a abertura antes do JavaScript, o trevo do ícone e a logo escrita do topo, e os arquivos da marca (logo oficial, ícones, vídeo da intro) | `client/src/lib/intro.ts` (quando aparece, o trevo em geometria e cores, as posições, a abertura), `client/src/components/IntroDaMarca.tsx`, `client/src/components/TrevoDaMarca.tsx`, `Marca`/`LogoEscrita` em `client/src/components/Marca.tsx`, `#abertura` em `client/index.html`, `npm run logo-escrita`, `tests/marca.test.ts`, `.intro-*` em `client/src/index.css`, `client/public/intro/`, `docs/marca/`, `tests/intro.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem), os agentes (`implementador-da-rifa`, `revisor-de-invariantes`, `conferente-de-telas`, `pesquisador-de-integracao`, `analista-de-csp`), o fluxo entre eles e as skills de terceiros que o projeto usa (com o ajuste de cada uma) | `docs/AGENTES-E-SKILLS.md` (o guia), `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/`, `skills-lock.json`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
 | assistente de IA nos painéis (Chatbase): conversa pelo servidor, coluna, uso e configuração | `shared/ia.ts` (regras, papéis, titular, barreira de dado pessoal), `server/services/chatbase.ts` (cliente da API v2), `server/services/ia.ts` (conversa e uso), `server/routes/ia.ts` (`/api/ia/*`), `/ia/config` em `server/routes/admin.ts`, `assistenteIA` em `shared/plataforma.ts`, `ia_conversas`/`ia_uso` em `shared/schema.ts`, `client/src/lib/assistente.ts` (coluna aberta lembrada), `client/src/components/AssistenteDoPainel.tsx` (botão e coluna, em `PanelShell`), `AssistenteIACard.tsx` (Aparência), `scripts/ia-test.ts`, `tests/ia.test.ts`, `tests/chatbase.test.ts`, `tests/assistente.test.ts` |
 | cobrança do assistente de IA (assinatura com franquia, pacotes avulsos, Pix da plataforma, débito por mensagem, vencimento, relatório e ajuste de crédito da plataforma) | `shared/iaCobranca.ts` (regras), `server/services/iaCobranca.ts` (conta, livro, Pix, débito, `ajustarCreditosIA`, `relatorioDaIA`, `extratoDaIA`), `/ia/relatorio`, `/ia/lancamentos` e `/ia/ajustes` em `server/routes/admin.ts`, `client/src/components/UsoDoAssistenteCard.tsx` (em Aparência), `ia_contas`/`ia_pagamentos`/`ia_lancamentos` em `shared/schema.ts`, `/api/ia/conta` e `/api/ia/pagamentos` em `server/routes/ia.ts`, `confirmarPagamentoIA` no webhook, relógio em `server/jobs/index.ts`, `client/src/components/PlanoDoAssistente.tsx` (o plano na coluna), preços em `AssistenteIACard.tsx`, `scripts/ia-test.ts`, `tests/iaCobranca.test.ts` |
 | ações do assistente de IA no sistema (consultar, publicar, legenda, excluir, estorno; confirmação e auditoria) | `shared/iaAcoes.ts` (catálogo, entrada, barreira do resultado), `server/services/iaAcoes.ts` (o que cada ação faz, no recorte), `tratarChamadas`/`seguirComAcoes`/`decidirAcaoDaIA` em `server/services/ia.ts`, `enviarResultado` em `server/services/chatbase.ts`, `ia_acoes` em `shared/schema.ts`, `/api/ia/acoes/:id/confirmar\|recusar` em `server/routes/ia.ts`, `CartaoDaAcao` em `AssistenteDoPainel.tsx`, a lista para o Chatbase em `AssistenteIACard.tsx`, `scripts/ia-acoes-test.ts`, `tests/iaAcoes.test.ts` |
-| roteiro do assistente de IA (o Lucky): as decisões D1–D8, as instruções do agente e como ele aprende; o papel de quem fala (`comContexto()`/`CONTEXTO_DO_PAPEL` em `shared/ia.ts`) e a base de conhecimento gerada do sistema | `docs/ROTEIRO-ASSISTENTE-IA.md`, `scripts/base-ia.ts` (`npm run base-ia`) |
+| roteiro do assistente de IA (o Lucky): as decisões D1–D8, as instruções do agente e como ele aprende; o papel de quem fala (`comContexto()`/`CONTEXTO_DO_PAPEL` em `shared/ia.ts`) e a base de conhecimento gerada do sistema | `docs/ROTEIRO-ASSISTENTE-IA.md`, `scripts/base-ia.ts` (`npm run base-ia`); o **pacote para colar no Chatbase** (passo a passo, instruções do agente, as ações do tipo Client com esquema JSON, ordem de ligar e teste de fumaça) é **gerado do código** — `docs/PACOTE-LUCKY.md` (**nunca à mão: `npm run pacote-lucky`**), `shared/pacoteLucky.ts` (`instrucoesDoAgente()`, `montarPacote()`), `scripts/pacote-lucky.ts`, `tests/pacoteLucky.test.ts` (falha se o arquivo divergir). **Ação nova em `ACOES_DA_IA`, mudança de papel em `CONTEXTO_DO_PAPEL` ou de regra citada nas instruções: rode `npm run pacote-lucky` no mesmo PR** |
 | segurança: onde mora cada defesa, lista de conferência de rota nova e as revisões | `docs/SEGURANCA.md` |
 | versões (celular, tablet, computador): registro das mudanças do celular, levas, mapa das telas e auditoria | `docs/VERSOES.md` (guia, mapa e registro — **anote no mesmo PR**), `scripts/telas.ts` (`npm run telas`), `tests/versoes.test.ts` |
 
@@ -478,10 +480,9 @@ arquitetura.
   - **O estado e a contagem no Início do celular**: o estado mora **no
     topo, só o ícone do local** (o pino), à esquerda da varinha
     (`noTopo` do `PublicShell`, a vitrine o passa) — saiu da faixa a
-    pedido, a caixa da sigla incomodava. O `<select>` de verdade fica por
-    cima do ícone, transparente (o toque, o teclado e o leitor de tela são
-    dele), e o estado escolhido vai no rótulo ("Rifas perto de: São
-    Paulo") e no `title` — o ícone sozinho não diz qual é. Na faixa fica
+    pedido, a caixa da sigla incomodava. É um botão ("Locais", abaixo) com o
+    estado escolhido no rótulo ("Locais: São Paulo") e no `title` — o ícone
+    sozinho não diz qual é. Na faixa fica
     só a **contagem do próximo sorteio**, como um **banner pequeno de
     ponta a ponta** (`ContagemDoSorteio`, a cara da tela do sorteio: fundo
     escuro, cantos arredondados como o carrossel de cima), tudo
@@ -497,11 +498,39 @@ arquitetura.
     (nem oficial nem de rifa), "Sorteios". **É só do celular**:
     do tablet em diante a contagem não existe — lá a tela do sorteio
     principal é a coluna ao vivo, já definida. **O seletor de estado
-    ("Rifas perto de") não fica mais na faixa do feed**: no tablet e no
+    ("Locais") não fica mais na faixa do feed**: no tablet e no
     celular é o pino do topo (`SeletorDeRegiao`); no computador é um item
     da lateral logo abaixo do Início, com a sigla embaixo quando recolhida
-    e "Rifas perto de: <estado>" quando abre. A lateral mostra o seletor só
+    e "Locais" com o estado quando abre. A lateral mostra o seletor só
     na vitrine (rota `/`). Escolher num lugar muda no outro (`ouvirRegiao`).
+  - **"Locais" (antes "Rifas perto de")**: o pino é um botão que abre um
+    painel (`LocaisDaVitrine`, diálogo pela `Janela`, num portal no `body`)
+    com **"Nacional" no alto** (a bandeira do Brasil; Brasil todo, sem
+    prioridade de estado) e depois os **27 estados**, cada um com a
+    **bandeira em círculo** e o nome escrito ao lado — o escolhido com "✓
+    Escolhido" e `aria-pressed`, nunca só a cor; a bandeira é enfeite (`alt`
+    vazio) porque o nome está no botão. **A escolha vai para o mesmo lugar
+    de antes** (`regiao.ts`, `useRegiaoDaVitrine` → `escolhaDoLocal()` →
+    `gravarRegiao`): o estado escolhido é o que vai na frente; **"Nacional"
+    só LIMPA a escolha manual** (`null`) — não esconde estado nenhum e não
+    muda a ordem automática de sempre (o CEP e a cidade da conta, quando há
+    conta). **Quem ordena segue sendo `ordenarPorProximidade()`** (cidade,
+    estado, resto, estável), que não foi tocada, e a **única página que
+    filtra é `/estado/UF`**; nenhum filtro entra aqui (`tests/locais.test.ts`
+    prova que nenhuma escolha reduz a lista). O rótulo do botão diz o que
+    está valendo (`rotuloDoLocalEmVigor()`, `aria-label` e `title`): "Locais:
+    São Paulo", "Locais: Nacional" ou, sem escolha e com conta, "Locais:
+    Nacional (automático: RJ)". Quando a rifa nacional existir (plano em
+    `docs/`), ela passa a liderar o feed por outra função, sem mudar o painel. As
+    bandeiras são arquivos do próprio site (`client/public/bandeiras/<uf>.svg`, mais `br.svg`,
+    conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, sem
+    dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`, a dúvida do uso
+    da bandeira de estado em plataforma comercial é a R24 de
+    `docs/PERGUNTAS-AO-ADVOGADO.md`) — a CSP não muda. Só ícone do local,
+    com o nome do estado junto: **nunca em peça de divulgação nem em
+    anúncio** até a resposta do advogado. `shared/locais.ts` (os 27 locais e
+    o caminho), `tests/locais.test.ts` (um arquivo por estado, SVG sem
+    script, o painel).
   - **O voltar do aparelho fecha** (`#sorteio`, `useSorteioDoInicio()`):
     abrir empurra a marca no histórico, fechar a tira; chegar com
     `#sorteio` abre direto.
@@ -559,11 +588,17 @@ arquitetura.
     cheia não sair da vista.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
   no celular isso mora em `/perfil/configuracoes`), no desenho de rodapé de produto:
-  **à esquerda** a logo, o texto de apresentação do template e, embaixo do
-  texto, as **redes sociais em botão redondo**; **no meio** o espaço de
+  **à esquerda** a logo, **duas linhas de texto oficial** (a razão social e
+  o CNPJ — os "Dados da empresa" **publicados** no template, `linhaDaEmpresa()`
+  em `shared/rodape.ts`, que os confere de novo na régua e **some a linha se
+  faltar um dos dois**, nunca digitados no código nem inventados — e o aviso
+  de jogo responsável, `avisoDeJogoResponsavel()`, **uma versão só**: o pé
+  ficou só com o selo "18+"), o texto de apresentação do template e, embaixo
+  do texto, as **redes sociais em botão redondo**; **sem bandeiras** (elas
+  são só do painel "Locais"); **no meio** o espaço de
   apoio (as logos, com o atalho da central de ajuda); **à direita quatro
   colunas** com o título em negrito (Plataforma, Rifas, Ajuda, Legal); no
-  pé, o © e o 18+ com o aviso de jogo responsável, o Pix e os cookies. No
+  pé, o © e o selo 18+, o Pix e os cookies. No
   tablet as colunas ficam ao lado da logo e o apoio desce para uma linha
   própria.
   - **As colunas moram em `shared/rodape.ts`** (`COLUNAS_DO_RODAPE`), e
@@ -1164,6 +1199,38 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
   cambista` corre os dois juntos.
 - O cambista deve à casa; o afiliado recebe dela. Direções opostas, mesma
   máquina de comissão.
+- **O cambista é preso à organização do usuário, e organização nula não é
+  cambista**: o login e a sessão recusam cambista sem organização (como o
+  organizador) e o `sellerRouter` recusa (403) de novo — o recorte nulo é o da
+  plataforma e abriria as rifas de todas. A tela só oferece rifa que vende
+  (nem demonstração, nem travada pela plataforma, nem rascunho); quem barra é
+  a reserva.
+- **O que vem da URL e do corpo tem formato** (`shared/vendaFisica.ts`): o
+  código da venda é inteiro em dígitos (`codigoDaVenda()`; o resto é 404, nunca
+  `NaN` no SQL), o meio é o texto exato `dinheiro` ou `pix_maquininha`, e o
+  comprovante da maquininha (NSU, até 40 letras, números e `. _ / -`; terminal
+  até 60, uma linha) tem forma e teto: ele sai **impresso no bilhete, que é
+  público pelo código** — texto livre ali seria "pague no Pix para…". Preço,
+  meio e afiliado nunca vêm do corpo.
+- **O meio e o comprovante gravam no mesmo `UPDATE` que paga**
+  (`settleOrderAsPaid`), não antes: duas confirmações ao mesmo tempo com meios
+  diferentes deixavam no pedido pago o meio de quem perdeu a corrida.
+- **Teto de vendas novas por cambista** (`VENDAS_DO_CAMBISTA_POR_JANELA`, 120 em
+  10 min, `cambista-venda:<id>`, 429): a venda dele é isenta dos limites de
+  comprador, e sem teto uma conta reservaria o estoque da rifa sem parar. Conta
+  depois do erro de preenchimento e do recorte; cancelar e confirmar não contam.
+- **Número repetido no pedido é um número só** (`prepararPedido()`): `[7, 7, 7]`
+  cobrava três cotas por uma. Vale para todo canal.
+- **Reservas grandes ao mesmo tempo não dão deadlock**: `insertNumbers()` insere
+  em ordem crescente (cada linha espera a da outra transação que já tomou o
+  mesmo número; candidatos sorteados em ordens diferentes se esperavam em
+  ciclo — seis pedidos de 800 cotas em paralelo: metade era 500) e devolve na
+  ordem do sorteio (o viés de guardar sempre os menores seria pior). O resto
+  que ainda assim cruzar (rodadas de sorteio são comandos separados) recomeça a
+  transação inteira (`comCodigoLivre`, `isDeadlock()`, até 6 vezes, com espera
+  aleatória; depois, 503 em português). `npm run cambista` prova.
+- **"Vendas de hoje" é o dia de São Paulo**, não o do banco (UTC): às 21h o
+  contador zerava e a venda do evento caía no dia seguinte.
 
 ## Bilhete — o que não pode afrouxar
 
@@ -1586,6 +1653,16 @@ Por isso o limite mais apertado é o de reserva em aberto
   vencer (`purgarGuardaDoAntifraude()`, no relógio de limpeza); o bloqueio
   sem prazo fica até a plataforma tirar. Mudou o prazo, o texto acompanha
   (lê das mesmas constantes). `npm run pix-tardio` prova.
+- **O balde nunca é texto cru e longo** (`chaveDoBalde()` em
+  `server/services/balde.ts`): o balde vem, muitas vezes, do que a pessoa digitou
+  (o e-mail do login, o telefone do código), e a linha do índice `idx_rate_bucket`
+  tem teto de ~2,7 KB. Texto longo (mais de 200 letras) ou com byte nulo vira o
+  começo legível mais a impressão do todo — o mesmo texto cai sempre no mesmo
+  balde. Foi assim que `POST /api/auth/login` com um e-mail enorme derrubava o
+  servidor (a rota `async` não tinha `try`, e o Express 4 não pega a rejeição).
+  **Rota `async` do Express 4 leva `try/catch` com `next(err)`, sem exceção**; e o
+  byte nulo (`%00` no endereço, `\u0000` no JSON) é recusado na porta, uma vez, para
+  todas as rotas (`shared/semNulo.ts`, 400). `npm run publico` prova.
 - **`rate_events` é lixo com data.** O relógio limpa o que passou de 2 horas
   (`purgeRateEvents`, trava de aplicação 811004). Sem isso a tabela só cresce.
 - **A reserva em aberto é conferida de novo dentro da transação que grava o
@@ -1657,6 +1734,13 @@ tem atrás.
 - **404, não 403, para o dado do vizinho.** "Existe, mas não é sua" já entrega
   que o id é válido — dá para varrer a plataforma contando rifa alheia. 403
   fica só para rota que é da plataforma e todo mundo sabe que existe.
+- **Promotora arquivada ou banida não existe para o público**, além do perfil:
+  a vitrine, os Reels e a busca (`listPublicCampaigns()`), a contagem de
+  estados, o termo de afiliado, o pixel público, o link do perfil (`/l/…`) e o
+  endereço curto (`/c/…`) seguem a mesma régua. A rifa **travada** segue com a
+  página e o aviso (é regra), mas fora das listas. A página da rifa só oferece
+  compra onde `rifaAVenda()` diz que vende (a mesma régua do feed e do carrinho):
+  sorteada, encerrada ou esgotada mostra o motivo, nunca o botão.
 - **Rascunho não existe para o público.** Toda rota pública por `slug` responde
   404 (igual a inexistente) para rifa em rascunho — página, regulamento,
   mapa de números, número, prêmios, ranking e últimas compras. Responder "só
@@ -1666,6 +1750,13 @@ tem atrás.
   trazem a campanha no caminho; sem buscar o dono antes, o id do vizinho
   apaga o banner dele. E a conferência vem **antes** do `DELETE`, senão a
   linha já sumiu quando a checagem roda.
+- **Id fora do formato é 404, nunca 500.** `adminRouter.param()` confere os
+  ids do caminho (`id`, `mediaId`, `prizedId`, `socioId`, `sellerId`,
+  `campaignId`, `affiliateId`, `fotoId`) e `assertCampaignInScope()` recusa o id
+  vazio ou torto que vem do corpo: nome de parâmetro de id novo entra na lista.
+  **`featured` e `sortWeight` (a ordem da vitrine) são da plataforma**: o
+  organizador que os manda em `POST /campaigns`, `PATCH` ou `/editar` os tem
+  descartados (`semOrdemDaVitrine()`). `npm run isolation` prova.
 - **Campanha não muda de dono por `PATCH`.** Seria transferir venda, cota e
   comissão de uma administradora para outra com um campo de formulário.
 - **Organizador sem organização é recusado na entrada.** Recorte nulo abre
@@ -1762,8 +1853,9 @@ permite cobrar dela depois, e o aceite é a prova.
 - **Arquivar não apaga.** `archived_at` tira a organização da lista padrão e
   fecha a porta de todos dela; venda, cota, comissão e cobrança seguem nos
   relatórios. `DELETE` de organização não existe, de propósito.
-- **Arquivar pede senha E código do autenticador.** Sem segundo fator ligado,
-  não arquiva — não há caminho alternativo.
+- **Arquivar pede senha E código do autenticador**, pela mesma
+  `conferirSegundoFatorAgora()` do resultado do sorteio (cada tentativa conta no
+  limite). Sem segundo fator ligado, não arquiva — não há caminho alternativo.
 - **Rifa no ar ou esperando sorteio barra o arquivamento**, no mesmo `UPDATE`
   que arquiva. A publicação trava a linha da organização (`FOR SHARE`) e recusa
   promotora arquivada.
@@ -1775,6 +1867,12 @@ permite cobrar dela depois, e o aceite é a prova.
   de quem trocou e encerra as demais; redefinir a de outra pessoa encerra
   todas (`encerrarSessoesDoUsuario`). Senão a sessão roubada sobrevive à
   troca que existia para encerrá-la.
+  **E o `DELETE` em `sessions` não basta**: uma requisição em andamento da
+  sessão expulsa a regravava (`connect-pg-simple` faz `INSERT … ON CONFLICT DO
+  UPDATE`). A conta tem a marca `users.sessoes_validas_desde` e a sessão do
+  painel, `painelEntrouEm` (gravado no login); o middleware de `setupAuth`
+  derruba a sessão mais velha que a marca. Desligar o acesso também a grava.
+  `npm run afiliados` prova (com 24 requisições em laço).
 - **A conta do afiliado é da plataforma** — inclusive a do afiliado antigo,
   que ainda tem a organização no usuário: a organização não redefine a
   senha nem desliga (403, no `npm run isolation`). Ele trabalha para várias.
@@ -2378,6 +2476,42 @@ de outra pessoa e passa a ver — e pedir reembolso — das compras dela.
   confirmada). **Sem `regenerate`**: o "lembrar" e o resto da sessão ficam, ela
   passa a valer como confirmada e as outras da conta saem. O
   `/my-quotas/verify` segue sendo a entrada sem conta, que troca a sessão.
+- **Entrar pela senha não dispensa a senha para trocá-la nem para excluir a
+  conta.** `trocarSenha()` e `excluirConta()` pedem a senha atual — ou o
+  código do WhatsApp provado **nesta sessão há no máximo 30 minutos**
+  (`buyer.porCodigoEm`, `codigoRecente()` em `shared/contaComprador.ts`; só
+  `/my-quotas/verify` e `/conta/telefone/confirmar` o gravam). `sessao.confirmado`
+  (telefone provado) não basta: a sessão de quem entrou pela senha numa conta
+  de telefone confirmado também é "confirmada", e a sessão roubada trocaria a
+  senha sem saber a atual e tranca o dono do lado de fora. Conta sem senha para
+  conferir (comprador antigo, só Google) segue pelo telefone da sessão. Excluir
+  com senha errada conta no mesmo limite do login (`guardLogin`). `GET /conta`
+  devolve `sessaoConfirmada` = "provou o código há pouco" (a tela pede a senha
+  atual quando falso).
+- **Sessão expulsa não volta** (`buyers.sessoes_validas_desde`,
+  `buyer.entrouEm` na sessão): `encerrarOutrasSessoes(buyerId, req)` grava a
+  marca na conta, renova a sessão que fica e só depois apaga as linhas de
+  `sessions`; o middleware de `setupAuth` derruba (`req.session.buyer`
+  desfeito) a sessão que começou antes da marca ou de conta excluída, a cada
+  requisição de `/api` — porque uma requisição em andamento da sessão expulsa a
+  regravava depois do `DELETE` (`INSERT … ON CONFLICT`, provado). Sessão sem
+  `entrouEm` (anterior a esta regra) só cai quando a conta ganha a marca.
+- **Cadastro com o telefone de outra pessoa não herda o que é da linha do
+  telefone.** O comprador convidado (comprou sem entrar, sem CPF gravado) vira
+  conta de quem digitar o número dele, com o telefone **não provado**. As compras
+  já ficavam escondidas (`pedidoVisivel`); o **saldo de bônus** (e o progresso e
+  o extrato) só aparecem e só se resgatam com o telefone provado (`GET /bonus`
+  devolve saldo 0 e `telefoneConfirmado: false`; `POST /bonus/resgatar` é 403),
+  e os **avisos de compra** (`AVISOS_DE_COMPRA`: sorteio chegando, marcado,
+  adiado, resultado) de uma rifa em que a linha tem pedido pago que a conta não
+  enxerga não aparecem na central, no resumo do trevo nem em "marcar como
+  lidas" (`avisosEscondidos()` em `server/services/notificacoes.ts`). Quem
+  comprou dentro da conta, quem tem o CPF das compras provado e quem só segue a
+  organização veem tudo. Dado novo preso à linha do comprador (e não ao pedido)
+  passa pela mesma régua.
+- **Id e código do navegador nunca vão crus ao Postgres.** Código de pedido
+  passa por `codigoDoPedido()` (inteiro de `int4`), id de story, chamado, anexo e
+  rifa por `ehUuid()`: fora do formato é 404, nunca 500 (`npm run conta` varre).
 - **Excluir é anonimizar** (LGPD): nome, telefone, CPF, e-mail e senha saem;
   o telefone vira `removido:<id>`; as mensagens enviadas perdem o número.
   Compras, bilhetes e recibos ficam, pelo prazo legal. Com reembolso em
@@ -2422,10 +2556,13 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   vitrine errado sem ninguém ver. Por isso `cidade` saiu do `PATCH` genérico.
 - **O CEP é atalho, não porteiro.** `consultarCep()` tem prazo de 3 s e toda
   falha vira resposta (`indisponivel`, `nao_encontrado`); a tela deixa
-  digitar à mão.
+  digitar à mão. **E tem limite por endereço** (`GET /cep/:cep`: 120 em 10 min,
+  `hit` com `ipHash`) e por conta (`trocarCep`: 20 por hora): rota aberta que
+  chama o ViaCEP sem limite era um proxy grátis, e o ViaCEP bloquearia o
+  servidor.
 - **A região de quem compra vem do CEP do cadastro** (`buyers.cep`, `cidade`,
   `uf`; o CEP é obrigatório ao criar conta). O seletor de estado da vitrine
-  vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só
+  ("Locais", o painel com os 27 estados) vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só
   ele. CEP inexistente é recusado; serviço de CEP fora do ar **não** barra o
   cadastro — guarda o CEP e o relógio completa cidade e UF
   (`completarRegioesPendentes`, trava 811009).
@@ -4581,6 +4718,25 @@ aí o próximo entra sozinho.
   (o do vizinho é 404); o organizador vê só os números dele e nunca a fila
   dos outros. Configuração e ajuste de
   saldo são da plataforma (403 no `npm run isolation`).
+- **Quem compra é a organização, com o saldo dela** (auditoria do marketing,
+  18/10/2026): a plataforma que pede anúncio recebe 403 — como no banner pago
+  e no tráfego pago, ela não gasta o saldo da organização por ela (o ajuste de
+  saldo é o caminho). Só rifa no ar **e à venda**: demonstração e rifa travada
+  são 409 (`fila()` e o relógio de encerramento também as largam, e o que não
+  foi gasto volta como crédito). O alcance e o estado são chave da lista
+  (`Object.hasOwn`, nunca `in`: `constructor` passava) e os cliques são número
+  de verdade (`numeroDoCorpo()`: `[100]` e `true` valiam).
+- **Teto no que chama o provedor ou enche a conversa**: a recarga é 10 por hora
+  por organização (`recarga:<org>`, 429 — cada uma chama o Pix da plataforma e
+  as pendentes nunca somem) e a mensagem do reembolso, 30 a cada 10 minutos por
+  pessoa; o erro de preenchimento sai antes de contar.
+- **Pix da recarga devolvido no provedor tira o crédito** (`estornarRecarga()`,
+  o evento `refunded` do webhook, depois do assistente e antes do pedido):
+  `paga` → `estornada` num `UPDATE` condicional com a linha da organização
+  travada, e o débito sai pelo livro (`recarga-estorno:<id>`, uma vez só) **até
+  onde o saldo alcança** — o saldo nunca fica negativo. O que a organização já
+  gastou não volta sozinho: `faltouCents` na auditoria
+  (`patrocinio.recarga.estornada`) e no log, como a comissão já sacada.
 - **Propaganda se identifica**: cada cartão diz "Patrocinada" em texto.
   Quem olha vê cidade, estado e Brasil nessa ordem, uma vez por rifa.
 - Template publicado antes do bloco existir ganha o bloco antes do feed
@@ -4681,6 +4837,11 @@ do dia, mínimo e máximo de dias, vagas e segundos na tela são da plataforma
 - **Propaganda se identifica**: o cartão leva "Patrocinado" em texto, no
   canto. A arte é reprocessada (WebP 1200×600) e fica no banco; o título é o
   texto alternativo.
+- **Pedido tem teto de ritmo**: abrir a imagem custa CPU e o pedido sem saldo
+  só cai depois dela — 20 pedidos a cada 10 minutos por organização
+  (`banner-pedido:<org>`, 429, depois do erro de título e dias). Os dias e a
+  tabela da plataforma são número de verdade (`numeroDoCorpo()`: vazio e lista
+  não viram 0).
 - **Rifa com banner pago não se apaga** (422, FK `restrict` e checagem em
   `excluirRifa`): dinheiro envolvido.
 - **Recorte**: o pedido, a arte e o cancelamento do vizinho são 404; decidir
@@ -5364,7 +5525,9 @@ abaixo).
   (`validarPixels`: Meta, GA4, Google Ads e rótulo, TikTok); quem monta o
   código que roda no navegador é `client/src/lib/marketing.ts`, chamando as
   funções oficiais com o número. Campo livre viraria script de terceiro na
-  tela de todo apostador.
+  tela de todo apostador. **O guardado é conferido de novo na saída**
+  (`pixelsSeguros()`, `pixelsPublicos()`): valor torto no banco vira "sem
+  pixel", nunca vai à tela.
 - **Consentimento antes do pixel** (LGPD). Sem o "Aceitar" do aviso
   (`rifa.cookies`, no aparelho, com versão), nenhum script carrega. Recusar
   é tão fácil quanto aceitar (dois botões iguais) e a tela do perfil
@@ -5379,7 +5542,12 @@ abaixo).
 - **Cada evento vai só para os pixels da página** (`trackSingle`,
   `send_to`, `ttq.instance`): na SPA o pixel da promotora A continuaria
   iniciado na rifa da B. A página diz de quem é
-  (`definirOrganizacaoDaPagina`) e sai limpando.
+  (`definirOrganizacaoDaPagina`) e sai limpando. **Só o evento não basta**:
+  pixel não se descarrega, e o da A, depois do `init`, segue na página e escuta
+  os botões e os formulários da B (a medição automática e a correspondência
+  avançada da Meta leem o que se digita). Sobrou pixel que não é desta página
+  (`pixelsForaDaPagina()`), `carregarPixels()` recarrega — a página nova nasce
+  só com os dela.
 - **A compra conta pelo servidor, uma vez.** Na transação que confirma o
   pagamento, `enfileirarCompra` grava uma linha por destino com pixel **e**
   chave (`marketing_eventos`, único por pedido+dono+provedor); os destinos
@@ -5398,7 +5566,12 @@ abaixo).
   sabe só se existe. Campo ausente mantém, vazio apaga.
 - **UTM é estatística**, como a origem: `validarUtm` só guarda as chaves
   conhecidas, limpas e curtas (`orders.utm`); o relatório "Vendas por
-  campanha" agrupa por fonte/meio/campanha com o recorte de `orgOf`.
+  campanha" agrupa por fonte/meio/campanha com o recorte de `orgOf` — **no
+  banco** (`group by`, até 500 linhas): trazer cada pedido com UTM de 90 dias
+  para a memória cresceria com a venda, e a plataforma não tem recorte.
+  O endereço curto e o link do perfil conferem `https:` de novo no
+  redirecionamento (`clicarLinkDoPerfil()`): um valor torto no banco
+  (`javascript:`, `http:`) é 404, nunca um `Location`.
 - `npm run marketing` prova tudo isso contra a API de verdade (o envio é
   injetado: a prova não sai para a internet).
 

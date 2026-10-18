@@ -14,6 +14,8 @@
  * que comprou.
  */
 
+import { numeroDoCorpo } from "./inteiro";
+
 export const ALCANCES = {
   cidade: "Cidade",
   estado: "Estado",
@@ -60,7 +62,7 @@ export const CONFIG_PATROCINIO_PADRAO: ConfigPatrocinio = {
 const erro = (m: string) => Object.assign(new Error(m), { status: 400 });
 
 function inteiro(v: unknown, min: number, max: number, nome: string): number {
-  const n = Number(v);
+  const n = numeroDoCorpo(v);
   if (!Number.isInteger(n) || n < min || n > max) throw erro(`${nome}: de ${min} a ${max}.`);
   return n;
 }
@@ -113,7 +115,7 @@ export function descontoPara(faixas: FaixaDeDesconto[], cliques: number): number
  * e o organizador nunca paga fração de centavo a mais).
  */
 export function precoDoPacote(cfg: ConfigPatrocinio, alcance: Alcance, cliques: number) {
-  if (!(alcance in ALCANCES)) throw erro("Alcance desconhecido.");
+  if (typeof alcance !== "string" || !Object.hasOwn(ALCANCES, alcance)) throw erro("Alcance desconhecido.");
   if (!Number.isInteger(cliques) || cliques < cfg.minimoCliques) throw erro(`O pacote mínimo é de ${cfg.minimoCliques} cliques.`);
   if (cliques > CLIQUES_MAX_POR_ANUNCIO) throw erro(`O pacote máximo é de ${CLIQUES_MAX_POR_ANUNCIO} cliques.`);
   const precoCliqueCents = cfg.precos[alcance];

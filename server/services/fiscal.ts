@@ -115,7 +115,8 @@ export async function salvarDadosFiscais(affiliateId: string, bruto: unknown) {
 }
 
 export async function salvarDocumento(affiliateId: string, tipo: string, dataUrl: unknown) {
-  if (!(tipo in DOCUMENTOS)) throw new FiscalError("Tipo de documento desconhecido.");
+  // `Object.hasOwn`, nunca `in`: "constructor" e "toString" são chaves do protótipo e gravavam um documento de tipo inventado.
+  if (!Object.hasOwn(DOCUMENTOS, tipo)) throw new FiscalError("Tipo de documento desconhecido.");
   const m = /^data:[a-z/+.-]+;base64,([A-Za-z0-9+/=]+)$/i.exec(String(dataUrl ?? ""));
   if (!m) throw new FiscalError("Envie uma foto (JPG, PNG, WebP) ou um PDF.");
   const bruto = Buffer.from(m[1], "base64");

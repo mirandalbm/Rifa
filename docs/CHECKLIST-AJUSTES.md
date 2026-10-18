@@ -25,10 +25,10 @@ aparelho.
 - [x] **5. Ícone do topo à esquerda não centralizado verticalmente** — **[código]** (feito em 18/10/2026)
   - Feito: o link da marca no topo (`PublicShell`) passou a `flex items-center`; o trevo e a frase ficam no mesmo centro vertical dos botões (28 px) em 390 e 820, claro e escuro. Registro 201 de `docs/VERSOES.md`.
   - Ajuste de alinhamento no topo mobile (`AppShell.tsx`, bloco `<header … lg:hidden>`, a `Marca`). Precisa conferir nas três larguras com `npm run telas` antes do PR.
-- [ ] **6. Seletor "Rifas perto de" vira "Locais"** — **[decisão]**
+- [x] **6. Seletor "Rifas perto de" vira "Locais"** — **[decisão]** (feito em 18/10/2026: `LocaisDaVitrine.tsx`, bandeiras CC0; falta a resposta do advogado, R24)
   - Trocar o texto, tirar o `<select>` e abrir um painel com **todos os estados**.
   - Bandeiras: o projeto não tem imagens de bandeiras de estado. Opções: (a) vocês enviam as imagens das bandeiras; (b) usamos a sigla do estado num selo como ícone enquanto isso.
-- [ ] **3. Texto oficial abaixo do nome e da logo no "roadmap" de baixo** — **[decisão]**
+- [x] **3. Texto oficial abaixo do nome e da logo no "roadmap" de baixo** — **[decisão]** (feito em 18/10/2026, no rodapé da plataforma: razão social e CNPJ dos Dados da empresa publicados, e o aviso de jogo responsável)
   - Não sei qual rodapé/faixa é o "roadmap". Preciso do texto exato e do lugar (rodapé da plataforma, faixa do console, ou outro).
 
 ## Produto — rifas nacionais e estados
@@ -65,12 +65,15 @@ o estado é o da promotora (`organizations.uf`).
 
 | Acesso | Telas a auditar | Prova que já existe |
 |---|---|---|
-| Público (visitante) | vitrine, rifa, estado, perfil, buscar, reels, sorteio, ajuda | `npm run publico`, `npm run telas` |
+| Público (visitante) — **auditado em 18/10/2026**, ver `docs/AUDITORIA-ACESSO-PUBLICO.md` | vitrine, rifa, estado, perfil, buscar, reels, sorteio, ajuda | `npm run publico`, `npm run telas` |
 | Apostador (conta) | Minhas compras, bilhetes, mensagens, carrinho, pedido, Pix, perfil | `npm run conta`, `npm run bilhetes`, `npm run mensagens` |
+| Organizador (**feito em 18/10/2026**: `docs/AUDITORIA-ACESSO-ORGANIZADOR.md`) | painel: rifas, pedidos, afiliados, cobrança, marketing, aparência, atendimento | `npm run isolation`, `npm run solicitacoes`, `npm run cobranca` |
+| Público (visitante) | vitrine, rifa, estado, perfil, buscar, reels, sorteio, ajuda | `npm run publico`, `npm run telas` |
+| Apostador (conta) | Minhas compras, bilhetes, mensagens, carrinho, pedido, Pix, perfil | **auditado em 18/10/2026 — `docs/AUDITORIA-ACESSO-APOSTADOR.md`**; `npm run conta`, `npm run bilhetes`, `npm run mensagens` |
 | Organizador | painel: rifas, pedidos, afiliados, cobrança, marketing, aparência, atendimento | `npm run isolation`, `npm run solicitacoes`, `npm run cobranca` |
 | Afiliado | painel: divulgar, comissões, saque, cadastro fiscal, kit | `npm run afiliados`, `npm run fiscal`, `npm run artes` |
 | Cambista | venda física, acerto | `npm run cambista` |
-| Plataforma (master) | caixa de entrada, atendimento, cobrança, sorteios oficiais, aparência, marketing | `npm run aparencia`, `npm run sorteios`, `tests/caixa.test.ts` |
+| Plataforma (master) | caixa de entrada, atendimento, cobrança, sorteios oficiais, aparência, marketing | `npm run aparencia`, `npm run sorteios`, `tests/caixa.test.ts` — **auditado em 18/10/2026: `docs/AUDITORIA-ACESSO-PLATAFORMA.md`** |
 | Marketing (tráfego, publicidade, banners) | tráfego pago, Marketing AI, publicidade em abas | `npm run trafego`, `npm run banner`, `npm run patrocinio` |
 
 ## Ordem sugerida

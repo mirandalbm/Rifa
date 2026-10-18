@@ -22,7 +22,7 @@ import { PIX_TARDIO_PRAZO_DIAS_UTEIS } from "./pixTardio";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-14";
+export const VIGENCIA_DOS_TERMOS = "2026-10-18";
 
 /**
  * Em quantos dias a plataforma responde a reclamação de consumidor: o teto do
@@ -33,6 +33,8 @@ export const RESPOSTA_DA_PLATAFORMA_DIAS = 5;
 
 /** Dias que a sessão de login vale sem uso (o cookie renova a cada acesso). */
 export const SESSAO_DIAS = 7;
+/** Quando a pessoa deixa marcado "Lembrar de mim" ao entrar (conta do apostador e painel). */
+export const SESSAO_LEMBRAR_DIAS = 30;
 
 /**
  * O que o site guarda no navegador, com finalidade e duração — a tabela da
@@ -45,7 +47,7 @@ export const GUARDADO_NO_NAVEGADOR: { grupo: string; itens: string[] }[] = [
   {
     grupo: "Cookie do site (essencial, não depende de aceite)",
     itens: [
-      `rifa.sid — mantém você conectado à conta e protege os envios de formulário. Vale ${SESSAO_DIAS} dias desde o último uso e sai ao sair da conta.`,
+      `rifa.sid — mantém você conectado à conta e protege os envios de formulário. Vale ${SESSAO_DIAS} dias desde o último uso — ${SESSAO_LEMBRAR_DIAS} dias se você deixar marcado "Lembrar de mim" ao entrar — e sai ao sair da conta.`,
     ],
   },
   {
@@ -358,7 +360,7 @@ export function montarPrivacidade(d: DadosDosTermos): Secao[] {
       titulo: "2. Quais dados e para quê",
       itens: [
         "Cadastro (nome, telefone, CPF, e-mail, CEP, cidade e estado, apelido e foto): identificar você, emitir o bilhete, avisar do resultado, entregar o prêmio e cumprir a lei das rifas. Base legal: execução do contrato e obrigação legal.",
-        "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra; guarda apenas o identificador do Pix, necessário para conferir o pagamento e fazer devoluções. Base legal: execução do contrato e obrigação legal (prestação de contas da rifa).",
+        "Compras e pagamentos (pedidos, números, valores, o identificador do Pix): vender, conferir o pagamento, devolver em caso de reembolso e prestar contas. Os dados do pagamento ficam com o provedor do Pix; a plataforma não guarda dados bancários de quem compra; guarda apenas o identificador do Pix, necessário para conferir o pagamento e fazer devoluções. A exceção é o pedido de reembolso: ele guarda o motivo, a conversa com a promotora e a plataforma, o print do bilhete se você o enviar e, só se você a informar (compra que não foi por Pix), a chave Pix para a devolução à mão — e esses dados não saem quando você exclui a conta, porque o pedido faz parte da prestação de contas da rifa. Base legal: execução do contrato e obrigação legal (prestação de contas da rifa).",
         "Segurança e antifraude (endereço IP e identificador do aparelho em hash, telefone mascarado nas recusas, e tentativas de acesso): impedir golpe, bloqueio de estoque e uso indevido de contas. O registro de auditoria de algumas ações (entrar no painel, autorizar ou revogar a comparação de foto, por exemplo) guarda o IP de quem agiu. Base legal: legítimo interesse e prevenção à fraude.",
         "Comentários, mensagens e publicações: o que você escreve, para mostrar a quem deve ver e para moderar denúncias (a plataforma lê só o trecho denunciado). Base legal: execução do contrato e legítimo interesse (moderação).",
         "Voto nas enquetes dos stories (só com conta): qual opção você escolheu, guardado só para contar um voto por pessoa e mostrar a você o resultado. A organização vê os totais de cada opção, nunca quem votou em quê; o voto sai com o story. Base legal: execução do contrato (a enquete que você escolheu responder).",

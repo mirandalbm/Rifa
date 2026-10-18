@@ -41,6 +41,26 @@ import { copiarDocumentosDoFiscal, estadoDaVerificacao, fotoDoAfiliado, salvarFo
 
 export const affiliateRouter = Router();
 
+/**
+ * Cadastro fiscal, documentos, foto e verificação: cada gravação cifra ou
+ * reprocessa um arquivo de até 6 MB, e a conta nasce aberta a qualquer pessoa
+ * (`/afiliados/cadastro`). Sem teto, uma conta nova enchia o banco de arquivos
+ * e o servidor de trabalho — e tentava CPFs à vontade no 409 do cadastro fiscal
+ * ("este CPF já está no cadastro de outro afiliado"). 40 por hora por afiliado.
+ */
+export const GRAVACOES_DO_CADASTRO_POR_HORA = 40;
+affiliateRouter.use(["/fiscal", "/foto", "/verificacao"], async (req, res, next) => {
+  try {
+    if (req.method !== "PUT" && req.method !== "POST") return next();
+    if ((await hit(`afiliado-cadastro-dados:${affiliateId(req)}`, 60, GRAVACOES_DO_CADASTRO_POR_HORA)).excedeu) {
+      return res.status(429).json({ message: "Muitas alterações no cadastro em pouco tempo. Tente de novo em uma hora." });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** Painel: cliques, conversão, receita gerada e comissão, em uma chamada. */
 affiliateRouter.get("/overview", async (req, res, next) => {
   try {
@@ -161,6 +181,21 @@ affiliateRouter.get("/links", async (req, res, next) => {
 
     // Só as rifas das organizações com que o afiliado tem vínculo aprovado
     // (ou a "de casa", do cadastro antigo) — as outras não pagariam comissão.
+    // O recorte entra na consulta: a conta nasce aberta a qualquer pessoa, e
+    // varrer todas as rifas da plataforma (3 consultas e um QR por rifa) a cada
+    // abertura da tela era trabalho que cresce com a plataforma, não com o afiliado.
+    const vinculados = new Set(
+      (
+        await db
+          .select({ org: afiliadoVinculos.organizationId })
+          .from(afiliadoVinculos)
+          .where(and(eq(afiliadoVinculos.affiliateId, id), eq(afiliadoVinculos.status, "aprovado")))
+      ).map((v) => v.org),
+    );
+    const [dono] = await db.select({ org: users.organizationId }).from(users).where(eq(users.id, req.user!.id));
+    const orgsPossiveis = new Set(vinculados);
+    if (dono?.org) orgsPossiveis.add(dono.org);
+    if (orgsPossiveis.size === 0) return res.json([]);
     const todas = await db
       .select({
         id: campaigns.id,
@@ -181,16 +216,8 @@ affiliateRouter.get("/links", async (req, res, next) => {
       .from(campaigns)
       .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
       .leftJoin(campaignStats, eq(campaignStats.campaignId, campaigns.id))
-      .where(eq(campaigns.status, "published"));
+      .where(and(eq(campaigns.status, "published"), inArray(campaigns.organizationId, [...orgsPossiveis])));
     const comComissao = await Promise.all(todas.map(async (c) => ({ c, r: await comissaoNaRifa(db, id, c) })));
-    const vinculados = new Set(
-      (
-        await db
-          .select({ org: afiliadoVinculos.organizationId })
-          .from(afiliadoVinculos)
-          .where(and(eq(afiliadoVinculos.affiliateId, id), eq(afiliadoVinculos.status, "aprovado")))
-      ).map((v) => v.org),
-    );
     // Aparece a rifa que paga, e a da organização aprovada que só espera o
     // aceite da versão nova do termo (com o aviso).
     const live = comComissao
@@ -279,7 +306,8 @@ async function rifaDoKit(req: Request, slug: string) {
 affiliateRouter.get("/artes/:slug", async (req, res, next) => {
   try {
     const kit = await rifaDoKit(req, req.params.slug);
-    if (!kit) return res.status(404).json({ message: "Rifa não encontrada." });
+    // Rascunho não existe para quem não é a dona (200 com a lista vazia confirmaria o endereço).
+    if (!kit || kit.r.dados.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
     res.setHeader("Cache-Control", "no-store");
     res.json(listaDeArtes(kit.r, kit.url, kit.url, true));
   } catch (err) {
@@ -391,7 +419,9 @@ function mascararChave(chave: string | null | undefined): string | null {
 affiliateRouter.patch("/pix-key", async (req, res, next) => {
   try {
     const id = affiliateId(req);
-    const pixKey = String(req.body?.pixKey ?? "").trim();
+    // Só texto: objeto ou lista virava "[object Object]" e ia como a chave dos saques.
+    const bruta = req.body?.pixKey;
+    const pixKey = typeof bruta === "string" ? bruta.trim() : "";
     if (pixKey.length < 5 || pixKey.length > 140) return res.status(400).json({ message: "Chave Pix inválida." });
 
     const veredito = await guardLogin(req.user!.email, identify(req));

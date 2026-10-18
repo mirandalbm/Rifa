@@ -206,7 +206,7 @@ export function validarCanaisDasLoterias(v: unknown): CanaisDasLoterias {
   }
   const saida: CanaisDasLoterias = {};
   for (const [chave, valor] of Object.entries(v as Record<string, unknown>)) {
-    if (!(chave in LOTERIAS)) throw Object.assign(new Error("Loteria desconhecida."), { status: 400 });
+    if (!Object.hasOwn(LOTERIAS, chave)) throw Object.assign(new Error("Loteria desconhecida."), { status: 400 });
     const id = idDoCanal(valor);
     if (id) saida[chave as Loteria] = id;
   }
@@ -219,7 +219,7 @@ function canaisGuardados(v: unknown): CanaisDasLoterias {
   const saida: CanaisDasLoterias = {};
   for (const [chave, valor] of Object.entries(v as Record<string, unknown>)) {
     try {
-      const id = chave in LOTERIAS ? idDoCanal(valor) : null;
+      const id = Object.hasOwn(LOTERIAS, chave) ? idDoCanal(valor) : null;
       if (id) saida[chave as Loteria] = id;
     } catch {
       // Canal estragado no banco: a loteria fica sem canal.

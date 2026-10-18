@@ -172,3 +172,52 @@ export function temClasse(metodo: string, caminho: string): boolean {
   if (caminho.startsWith("/api/")) return aplicar(API_FORA_DA_PUBLICA, m, caminho.slice("/api".length), "x") !== null;
   return ehArquivoEstatico(caminho) || aplicar(PAGINAS, m, caminho, "x") !== null;
 }
+
+/* ------------------------------------------------------------------ *
+ * O SPA no endereço da organização (PR 3 do docs/PLANO-SUBDOMINIO.md)
+ *
+ * As telas e as rotas do `App.tsx` falam o caminho **lógico** — o do domínio
+ * principal (`/o/<org>`, `/o/<org>/r/<rifa>`). No endereço da organização o
+ * navegador mostra o caminho **real**, mais curto (`/`, `/r/<rifa>`). Estas
+ * funções fazem a ida e a volta; o roteador do cliente só as chama.
+ * Quem barra de verdade é o servidor (`decidirNoEndereco`): isto é cortesia,
+ * para a navegação não recarregar a página à toa.
+ * ------------------------------------------------------------------ */
+
+/** O que o navegador mostra (`/`, `/r/x`) → o caminho que as rotas conhecem (`/o/<org>`, `/o/<org>/r/x`). */
+export function caminhoLogico(real: string, slug: string): string {
+  if (real === "/" || real === "") return `/o/${slug}`;
+  const rifa = /^\/r\/([^/]+)(\/regulamento)?$/.exec(real);
+  if (rifa) return `/o/${slug}/r/${rifa[1]}${rifa[2] ?? ""}`;
+  return real;
+}
+
+/** O caminho lógico → o que vai ao navegador. `/o/<outra>` e o resto ficam como estão. */
+export function caminhoReal(logico: string, slug: string): string {
+  const prefixo = `/o/${slug}`;
+  if (logico === prefixo) return "/";
+  if (logico.startsWith(`${prefixo}/`)) return logico.slice(prefixo.length);
+  return logico;
+}
+
+export type DestinoNoEndereco =
+  /** Fica no endereço: `real` é o caminho do navegador. */
+  | { onde: "aqui"; real: string }
+  /** É da plataforma: sai para o domínio principal, com este caminho. */
+  | { onde: "principal"; caminho: string };
+
+/**
+ * Para onde um link (`/r/x`, `/reels`, `/o/outra`, `/o/<esta>/r/x?ref=a#b`) vai
+ * quando clicado no endereço de `slug`. Consulta e âncora acompanham o caminho.
+ * O que o servidor mandaria ao principal (`principal`) e as telas de painel
+ * saem para lá já daqui; o resto fica, e o servidor confere o dono da rifa.
+ */
+export function destinoNoEndereco(para: string, slug: string): DestinoNoEndereco {
+  const fim = para.search(/[?#]/);
+  const caminho = fim === -1 ? para : para.slice(0, fim);
+  const resto = fim === -1 ? "" : para.slice(fim);
+  const real = caminhoReal(caminho.startsWith("/") ? caminho : `/${caminho}`, slug);
+  const d = decidirNoEndereco("GET", real, slug);
+  if (d.acao === "principal" || ehCaminhoDePainel(real)) return { onde: "principal", caminho: `${caminho}${resto}` };
+  return { onde: "aqui", real: `${real}${resto}` };
+}

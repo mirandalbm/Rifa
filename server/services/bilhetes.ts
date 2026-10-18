@@ -51,10 +51,16 @@ async function contaDe(buyerId: string | undefined): Promise<string> {
 export async function bilhetesDaConta(
   buyerId: string | undefined,
   t: Titularidade,
-  { limite = BILHETES_PAGINA, antes = null }: { limite?: number; antes?: CursorDaLista | null } = {},
+  {
+    limite = BILHETES_PAGINA,
+    antes = null,
+    organizacaoSlug = null,
+  }: { limite?: number; antes?: CursorDaLista | null; organizacaoSlug?: string | null } = {},
 ) {
   const id = await contaDe(buyerId);
   const filtros: (SQL | undefined)[] = [eq(orders.buyerId, id), eq(orders.status, "paid"), visivelNaConta(t)];
+  // No endereço de uma organização a conta só mostra o que é dela (white label): a compra em outra não aparece.
+  if (organizacaoSlug) filtros.push(eq(organizations.slug, organizacaoSlug));
   if (antes) {
     filtros.push(
       or(

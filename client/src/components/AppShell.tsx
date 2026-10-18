@@ -1,3 +1,4 @@
+import { noEnderecoDaOrganizacao } from "@/lib/endereco";
 import { Link, useLocation } from "wouter";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -132,7 +133,7 @@ export function PublicShell({
           </div>
           <nav aria-label="Criar e avisos" className="flex items-center gap-1">
             {noTopo}
-            <BotaoPublicar />
+            {noEnderecoDaOrganizacao() ? null : <BotaoPublicar />}
             <TrevoDeAvisos />
           </nav>
         </div>

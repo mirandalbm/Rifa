@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Router, Switch, Route, Redirect, useLocation } from "wouter";
 import { PaginaNaoEncontrada } from "@/components/PaginaNaoEncontrada";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -8,6 +8,7 @@ import { IntroDaMarca } from "@/components/IntroDaMarca";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSession } from "@/lib/session";
 import { roleSatisfies, type Role } from "@shared/access";
+import { criarHookDoEndereco, enderecoDoApp } from "@/lib/endereco";
 
 import Vitrine from "@/pages/Vitrine";
 import EstadoPage from "@/pages/Estado";
@@ -124,6 +125,7 @@ function NotFound() {
  */
 function VisaoDoOrganizador() {
   const { data: sessao } = useSession();
+  // No endereço da organização não há sessão de painel (o cookie é do endereço), e `/` é a casa dela.
   const [local, navegar] = useLocation();
   const meu = sessao?.role === "organizer" ? sessao.organizacao?.slug : undefined;
   useEffect(() => {
@@ -136,11 +138,36 @@ function VisaoDoOrganizador() {
   return null;
 }
 
+/**
+ * No endereço da organização (`<rotulo>.<base>`) as rotas e as telas seguem
+ * falando o caminho do domínio principal, e o `Router` traduz de/para o que o
+ * navegador mostra (`/` é o perfil dela, `/r/<rifa>` a rifa). No domínio
+ * principal é o `Router` de sempre — nada muda. Ver `client/src/lib/endereco.ts`.
+ */
+function RoteadorPorEndereco({ children }: { children: ReactNode }) {
+  const e = enderecoDoApp();
+  if (e.tipo === "organizacao") {
+    return <Router hook={criarHookDoEndereco(e.slug, e.principal)}>{children}</Router>;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <RoteadorPorEndereco>
+        <Telas />
+      </RoteadorPorEndereco>
+    </QueryClientProvider>
+  );
+}
+
+function Telas() {
+  const noEndereco = enderecoDoApp().tipo === "organizacao";
+  return (
+    <>
       <AplicarTemplate />
-      <VisaoDoOrganizador />
+      {!noEndereco && <VisaoDoOrganizador />}
       <TooltipProvider>
         <Switch>
           {/* Público */}
@@ -377,6 +404,6 @@ export default function App() {
         <Toaster />
         <IntroDaMarca />
       </TooltipProvider>
-    </QueryClientProvider>
+    </>
   );
 }

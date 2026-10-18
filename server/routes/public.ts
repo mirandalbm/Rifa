@@ -1,5 +1,6 @@
 import { type Figurinha, figurinhasParaATela } from "@shared/figurinhasStory";
-import type { EnderecoDaRequisicao } from "../services/enderecoDaOrganizacao";
+import { casaPrincipal, type EnderecoDaRequisicao } from "../services/enderecoDaOrganizacao";
+import { subdominioBaseDoAmbiente } from "../services/subdominio";
 import { lerResultado, numeracaoZero } from "@shared/apuracao";
 import { arquivoDaAta, ataDaSessao, seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
 import { bannerPublico, imagemPublica } from "../services/bannerDivulgacao";
@@ -1014,6 +1015,12 @@ async function contaParaVerificar(req: Request) {
 }
 montarRotasDaVerificacao(publicRouter, "/conta/verificacao", "apostador", contaParaVerificar);
 
+/** O rótulo da organização dona do endereço que o navegador abriu, ou `null` (domínio principal). */
+function slugDoEnderecoDaRequisicao(res: import("express").Response): string | null {
+  const e = res.locals.endereco as EnderecoDaRequisicao | undefined;
+  return e?.tipo === "organizacao" ? e.slug : null;
+}
+
 /** O que o topo do app precisa saber: como o trevo avisa e se o apostador publica. */
 /**
  * De quem é o endereço que o navegador abriu. Quem decidiu foi o guarda
@@ -1024,7 +1031,9 @@ publicRouter.get("/endereco", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Vary", "Host");
   const e = res.locals.endereco as EnderecoDaRequisicao | undefined;
-  if (e?.tipo === "organizacao") return res.json({ tipo: "organizacao", slug: e.slug, nome: e.nome });
+  // `principal`: para onde o SPA leva o que é da plataforma (Reels, Buscar, o painel…).
+  const base = subdominioBaseDoAmbiente();
+  if (e?.tipo === "organizacao" && base) return res.json({ tipo: "organizacao", slug: e.slug, nome: e.nome, principal: casaPrincipal(base) });
   if (e?.tipo === "inexistente") return res.json({ tipo: "inexistente" });
   res.json({ tipo: "principal" });
 });
@@ -1111,6 +1120,7 @@ publicRouter.get("/conta/bilhetes", async (req, res, next) => {
     const { itens, proximo } = await bilhetesDaConta(req.session.buyer?.id, await titularidadeDaSessao(req), {
       limite: limiteDaPagina(req.query.limite, BILHETES_PAGINA),
       antes: lerCursor(req.query.antes),
+      organizacaoSlug: slugDoEnderecoDaRequisicao(res),
     });
     if (proximo) res.setHeader("X-Proximo", proximo);
     res.json(itens);
@@ -2098,7 +2108,10 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
     if (!phone) return res.status(401).json({ message: "Confirme seu telefone." });
     const buyerId = req.session.buyer?.id;
     const t = await titularidadeDaSessao(req);
-    const visiveis = await ordersByPhone(phone, t);
+    const doEndereco = slugDoEnderecoDaRequisicao(res);
+    // No endereço de uma organização, "Minhas compras" mostra só as compras dela.
+    const daConta = await ordersByPhone(phone, t);
+    const visiveis = daConta.filter((o) => !doEndereco || o.organizador?.slug === doEndereco);
     // Sobrou compra antiga que a conta ainda não provou ser dela (o caso raro
     // de compra sem CPF)? A tela avisa e oferece a confirmação do telefone da
     // própria conta (`/conta/telefone/codigo` e `/confirmar`, sem trocar a
@@ -2108,10 +2121,11 @@ publicRouter.get("/my-quotas", async (req, res, next) => {
           .select({ n: sql<number>`count(*)::int` })
           .from(orders)
           .where(eq(orders.buyerId, buyerId))
-      : [{ n: visiveis.length }];
+      : [{ n: daConta.length }];
     res.json({
       orders: visiveis,
-      comprasAntigasOcultas: (todas?.n ?? 0) > visiveis.length,
+      // O aviso é sobre a titularidade da conta, não sobre o recorte do endereço.
+      comprasAntigasOcultas: (todas?.n ?? 0) > daConta.length,
       phone: ehTelefoneProvisorio(phone) ? "" : phone,
       cliente: buyerId ? await garantirCodigoCliente(buyerId) : null,
       reembolso: (await getPlataforma()).estornoManual,

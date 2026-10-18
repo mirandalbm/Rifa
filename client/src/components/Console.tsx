@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 import { IconeAviao, IconeCasa, IconeLupa, IconePerfil, IconeReels, IconeSacola, IconeVarinha } from "@/components/Icones";
 import {
   AVISO_DO_TREVO_PADRAO,
-  BOTOES_DO_CONSOLE,
+  botoesNoEndereco,
   CORES_DO_AVISO,
   botaoAtivo,
   pendenciasDaConta,
@@ -24,6 +24,7 @@ import { IconeTrevo } from "@/components/Publicacao";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { Marca } from "@/components/Marca";
 import { SeletorDeRegiao } from "@/components/SeletorDeRegiao";
+import { noEnderecoDaOrganizacao } from "@/lib/endereco";
 import { CriarReels } from "@/components/CriarReels";
 import { useNoComputador } from "@/lib/largura";
 
@@ -331,6 +332,8 @@ function BotaoDoConsole({ chave, rotulo, caminho, ativo, lateral }: { chave: Bot
 export function ConsoleDoApp() {
   const [local] = useLocation();
   const ativo = botaoAtivo(local);
+  const noEndereco = noEnderecoDaOrganizacao();
+  const botoes = botoesNoEndereco(noEndereco);
   return (
     <>
       <nav
@@ -339,7 +342,7 @@ export function ConsoleDoApp() {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="mx-auto flex max-w-3xl items-stretch" style={{ height: ALTURA_DO_CONSOLE }}>
-          {BOTOES_DO_CONSOLE.map((b) => (
+          {botoes.map((b) => (
             <BotaoDoConsole key={b.chave} chave={b.chave} rotulo={b.rotulo} caminho={b.caminho} ativo={ativo === b.chave} lateral={false} />
           ))}
         </div>
@@ -356,7 +359,7 @@ export function ConsoleDoApp() {
           <Marca lateral />
         </Link>
         <div className="flex flex-col gap-1">
-          {BOTOES_DO_CONSOLE.filter((b) => b.chave !== "perfil").map((b, i) => (
+          {botoes.filter((b) => b.chave !== "perfil").map((b, i) => (
             <Fragment key={b.chave}>
               <BotaoDoConsole chave={b.chave} rotulo={b.rotulo} caminho={b.caminho} ativo={ativo === b.chave} lateral />
               {/* O seletor de estado é da vitrine: aparece na lateral só lá, logo abaixo do Início. */}
@@ -364,7 +367,8 @@ export function ConsoleDoApp() {
             </Fragment>
           ))}
           <TrevoDeAvisos comRotulo />
-          <BotaoPublicar comRotulo />
+          {/* Publicar é da plataforma (a sessão do painel não existe no endereço da organização). */}
+          {noEndereco ? null : <BotaoPublicar comRotulo />}
         </div>
         <div className="mt-auto">
           <BotaoDoConsole chave="perfil" rotulo="Perfil" caminho="/perfil" ativo={ativo === "perfil"} lateral />

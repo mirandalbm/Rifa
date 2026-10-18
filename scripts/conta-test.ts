@@ -491,6 +491,12 @@ async function main() {
     const porSenha = new Cliente();
     r = await porSenha.req("POST", "/api/public/conta/entrar", { identificador: TEL_AUDITORIA, senha: SENHA_AUD });
     checa("entrar pela senha", r.status === 200, `HTTP ${r.status}`);
+    // Outro aparelho com a mesma conta (a sessão roubada): precisa cair na troca da senha.
+    await db.execute(sql`delete from rate_events where bucket like 'login:comprador:%'`);
+    const ladrao = new Cliente();
+    r = await ladrao.req("POST", "/api/public/conta/entrar", { identificador: TEL_AUDITORIA, senha: SENHA_AUD });
+    checa("o outro aparelho entra pela senha", r.status === 200, `HTTP ${r.status}`);
+    const [linhaDoLadrao] = (await db.execute(sql`select sid, sess, expire from sessions where sid = ${sid(ladrao.cookie)}`)).rows as { sid: string; sess: unknown; expire: Date }[];
     r = await porSenha.req("GET", "/api/public/conta");
     checa("a tela pede a senha atual (sessaoConfirmada falso)", r.status === 200 && r.json?.sessaoConfirmada === false && r.json?.telefoneConfirmado === true, JSON.stringify(r.json?.sessaoConfirmada));
     r = await porSenha.req("PUT", "/api/public/conta/senha", { atual: "", nova: "outra-senha-9" });
@@ -501,6 +507,15 @@ async function main() {
     checa("a conta segue de pé", r.status === 200, `HTTP ${r.status}`);
     r = await porSenha.req("PUT", "/api/public/conta/senha", { atual: SENHA_AUD, nova: "outra-senha-9" });
     checa("trocar a senha com a atual certa: 200", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    checa("a sessão do outro aparelho caiu", (await ladrao.req("GET", "/api/public/conta")).status === 401);
+    // Uma requisição dela que já estava em andamento a regrava depois do DELETE
+    // (o connect-pg-simple faz INSERT … ON CONFLICT DO UPDATE): a marca na conta a derruba mesmo assim.
+    await db.execute(
+      sql`insert into sessions (sid, sess, expire) values (${linhaDoLadrao.sid}, ${JSON.stringify(linhaDoLadrao.sess)}::json, ${linhaDoLadrao.expire}) on conflict (sid) do update set sess = excluded.sess, expire = excluded.expire`,
+    );
+    checa("a sessão regravada depois da troca segue caída (401)", (await ladrao.req("GET", "/api/public/conta")).status === 401);
+    r = await porSenha.req("GET", "/api/public/conta");
+    checa("e a sessão de quem trocou a senha segue valendo", r.status === 200, `HTTP ${r.status}`);
 
     // Pelo código do WhatsApp ("esqueci a senha"): vale sem a atual, e só por um tempo.
     const porCodigo = new Cliente();

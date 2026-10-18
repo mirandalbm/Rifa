@@ -2377,6 +2377,42 @@ de outra pessoa e passa a ver — e pedir reembolso — das compras dela.
   confirmada). **Sem `regenerate`**: o "lembrar" e o resto da sessão ficam, ela
   passa a valer como confirmada e as outras da conta saem. O
   `/my-quotas/verify` segue sendo a entrada sem conta, que troca a sessão.
+- **Entrar pela senha não dispensa a senha para trocá-la nem para excluir a
+  conta.** `trocarSenha()` e `excluirConta()` pedem a senha atual — ou o
+  código do WhatsApp provado **nesta sessão há no máximo 30 minutos**
+  (`buyer.porCodigoEm`, `codigoRecente()` em `shared/contaComprador.ts`; só
+  `/my-quotas/verify` e `/conta/telefone/confirmar` o gravam). `sessao.confirmado`
+  (telefone provado) não basta: a sessão de quem entrou pela senha numa conta
+  de telefone confirmado também é "confirmada", e a sessão roubada trocaria a
+  senha sem saber a atual e tranca o dono do lado de fora. Conta sem senha para
+  conferir (comprador antigo, só Google) segue pelo telefone da sessão. Excluir
+  com senha errada conta no mesmo limite do login (`guardLogin`). `GET /conta`
+  devolve `sessaoConfirmada` = "provou o código há pouco" (a tela pede a senha
+  atual quando falso).
+- **Sessão expulsa não volta** (`buyers.sessoes_validas_desde`,
+  `buyer.entrouEm` na sessão): `encerrarOutrasSessoes(buyerId, req)` grava a
+  marca na conta, renova a sessão que fica e só depois apaga as linhas de
+  `sessions`; o middleware de `setupAuth` derruba (`req.session.buyer`
+  desfeito) a sessão que começou antes da marca ou de conta excluída, a cada
+  requisição de `/api` — porque uma requisição em andamento da sessão expulsa a
+  regravava depois do `DELETE` (`INSERT … ON CONFLICT`, provado). Sessão sem
+  `entrouEm` (anterior a esta regra) só cai quando a conta ganha a marca.
+- **Cadastro com o telefone de outra pessoa não herda o que é da linha do
+  telefone.** O comprador convidado (comprou sem entrar, sem CPF gravado) vira
+  conta de quem digitar o número dele, com o telefone **não provado**. As compras
+  já ficavam escondidas (`pedidoVisivel`); o **saldo de bônus** (e o progresso e
+  o extrato) só aparecem e só se resgatam com o telefone provado (`GET /bonus`
+  devolve saldo 0 e `telefoneConfirmado: false`; `POST /bonus/resgatar` é 403),
+  e os **avisos de compra** (`AVISOS_DE_COMPRA`: sorteio chegando, marcado,
+  adiado, resultado) de uma rifa em que a linha tem pedido pago que a conta não
+  enxerga não aparecem na central, no resumo do trevo nem em "marcar como
+  lidas" (`avisosEscondidos()` em `server/services/notificacoes.ts`). Quem
+  comprou dentro da conta, quem tem o CPF das compras provado e quem só segue a
+  organização veem tudo. Dado novo preso à linha do comprador (e não ao pedido)
+  passa pela mesma régua.
+- **Id e código do navegador nunca vão crus ao Postgres.** Código de pedido
+  passa por `codigoDoPedido()` (inteiro de `int4`), id de story, chamado, anexo e
+  rifa por `ehUuid()`: fora do formato é 404, nunca 500 (`npm run conta` varre).
 - **Excluir é anonimizar** (LGPD): nome, telefone, CPF, e-mail e senha saem;
   o telefone vira `removido:<id>`; as mensagens enviadas perdem o número.
   Compras, bilhetes e recibos ficam, pelo prazo legal. Com reembolso em

@@ -62,7 +62,14 @@ export async function entrarComoComprador(
   );
   req.session.affiliateCode = affiliateCode;
   req.session.affiliateSince = affiliateSince;
-  req.session.buyer = { id: b.id, phone: b.phone, name: b.name, confirmado, ...(porCodigo ? { porCodigoEm: Date.now() } : {}) };
+  req.session.buyer = {
+    id: b.id,
+    phone: b.phone,
+    name: b.name,
+    confirmado,
+    entrouEm: Date.now(),
+    ...(porCodigo ? { porCodigoEm: Date.now() } : {}),
+  };
   (req.session.cookie as { maxAge: number | null }).maxAge = lembrar ? LEMBRAR_MS : null;
 }
 
@@ -71,11 +78,18 @@ export async function entrarComoComprador(
  * exclusão são justamente o momento de expulsar quem entrou antes — por
  * exemplo, quem criou a conta com o telefone de outra pessoa.
  */
-export async function encerrarOutrasSessoes(buyerId: string, manterSid?: string) {
+export async function encerrarOutrasSessoes(buyerId: string, manter?: Request) {
+  // 1) A marca na conta: sessão que começou antes dela não vale mais, mesmo se
+  //    uma requisição em andamento a regravar depois do `DELETE` abaixo. A
+  //    sessão que fica é renovada (mesmo instante), senão cairia junto.
+  const agora = Date.now();
+  await db.update(buyers).set({ sessoesValidasDesde: new Date(agora) }).where(eq(buyers.id, buyerId));
+  if (manter?.session.buyer) manter.session.buyer.entrouEm = agora; // no objeto, não numa cópia: quem chamou segura a referência
+  // 2) E as linhas somem de `sessions`.
   await db.execute(sql`
     DELETE FROM sessions
     WHERE sess -> 'buyer' ->> 'id' = ${buyerId}
-      ${manterSid ? sql`AND sid <> ${manterSid}` : sql``}`);
+      ${manter ? sql`AND sid <> ${manter.sessionID}` : sql``}`);
 }
 
 /** A chave do limite de tentativas nunca guarda CPF ou telefone cru. */
@@ -389,7 +403,7 @@ export async function trocarSenha(req: Request, atual: string, nova: string) {
       contaCriadaEm: c.contaCriadaEm ?? new Date(),
     })
     .where(eq(buyers.id, c.id));
-  await encerrarOutrasSessoes(c.id, req.sessionID);
+  await encerrarOutrasSessoes(c.id, req);
 }
 
 /**

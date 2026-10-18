@@ -27,7 +27,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 |---|---|---|
 | Sessão: cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção; sessão nova a cada entrada | `server/auth.ts`, `server/services/contaComprador.ts` | — |
 | Senha: scrypt com custo próprio (N = 2¹⁶, r = 8, p = 2, guardado no hash `s2$…`; a senha antiga entra e é refeita no login), régua única (`shared/senha.ts`), força bruta contada por conta e por IP (`guardLogin`) | `server/services/hashSenha.ts`, `server/auth.ts`, `server/routes/auth.ts` | `tests/senha.test.ts`, `tests/hashSenha.test.ts`, `npm run senha` |
-| Troca e redefinição de senha derrubam as outras sessões (painel e apostador) | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes` | — |
+| Troca e redefinição de senha derrubam as outras sessões (painel e apostador); a do apostador também cai pela marca `sessoes_validas_desde` se uma requisição em andamento a regravar. Trocar a senha ou excluir a conta pede a senha atual ou o código do WhatsApp dos últimos 30 minutos — entrar pela senha não basta | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes`, `setupAuth`, `codigoRecente` | `npm run conta` |
 | Segundo fator do painel (TOTP); obrigatório para arquivar organização, **lançar o resultado do sorteio oficial e registrar nova extração do globo** (`conferirSegundoFatorAgora()`, senha e código na hora, 30 tentativas em 10 min). O segredo fica **selado no cofre** (`cofre:v1:…`, também o pendente na sessão); o de antes, em claro, entra e é selado ao subir o servidor; o selado adulterado é "código incorreto", nunca 500 | `server/services/totp.ts`, `server/services/segundoFator.ts`, `server/routes/admin.ts` | `tests/totp.test.ts`, `tests/segundoFator.test.ts`, `npm run senha` |
 | Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
 | Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
@@ -118,17 +118,17 @@ o `ffmpeg` (sem shell, protocolos limitados, prazo, saída com teto) e nenhum
 
 - `ffmpeg` simultâneos: limitado a 2 (fila) desde o PR dos extras do pôster.
 - O identificador do aparelho continua vindo do cliente; o que segura é o IP.
-- Sessão derrubada pode voltar (suspeita, não provada; revisão de 12/10/2026,
-  PR #252): `encerrarOutrasSessoes` apaga as linhas de `sessions`, mas o
-  `connect-pg-simple` grava com `INSERT … ON CONFLICT (sid) DO UPDATE` — uma
-  requisição da sessão expulsa que já estava em andamento e mexe na própria
-  sessão pode recriá-la depois do `DELETE`. Vale para troca de senha,
-  primeira prova do telefone e exclusão da conta. Correção possível: uma marca
-  na conta (`sessoes_validas_desde`) conferida a cada requisição. A primeira
-  prova do telefone pela conta já encerra as outras **antes** de gravar a
-  confirmação (`confirmarTelefone`), para uma falha do `DELETE` não deixar a
-  conta confirmada com a sessão do intruso de pé; o `/my-quotas/verify` segue
-  na ordem antiga.
+- ~~Sessão derrubada pode voltar~~ **provada e corrigida na auditoria do acesso
+  apostador (18/10/2026)**: `encerrarOutrasSessoes` apagava as linhas de
+  `sessions`, mas o `connect-pg-simple` grava com `INSERT … ON CONFLICT (sid)
+  DO UPDATE` — uma requisição da sessão expulsa que já estava em andamento e
+  mexia na própria sessão a recriava depois do `DELETE` (reproduzido com 24
+  requisições em laço contra `/conta/google/entrar`). Agora a conta tem
+  `sessoes_validas_desde` e a sessão do apostador, `entrouEm`; o middleware de
+  `setupAuth` derruba a sessão mais velha que a marca. Vale para troca de senha,
+  primeira prova do telefone e exclusão da conta (`npm run conta`). O painel
+  (`users`) tem o mesmo desenho de sessão e **não** foi coberto: ver
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`.
 
 ### 28/09/2026
 

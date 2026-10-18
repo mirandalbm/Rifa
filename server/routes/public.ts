@@ -2055,7 +2055,7 @@ publicRouter.post("/my-quotas/verify", async (req, res, next) => {
     // entrou antes pela senha pode não ser o dono — sai.
     if (buyer && !buyer.telefoneConfirmadoEm) {
       await db.update(buyers).set({ telefoneConfirmadoEm: new Date() }).where(eq(buyers.id, buyer.id));
-      if (buyer.passwordHash) await encerrarOutrasSessoes(buyer.id, req.sessionID);
+      if (buyer.passwordHash) await encerrarOutrasSessoes(buyer.id, req);
     }
 
     res.json({

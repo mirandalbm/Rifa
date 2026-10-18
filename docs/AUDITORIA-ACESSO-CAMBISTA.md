@@ -112,6 +112,29 @@ qualquer na maquininha do cambista. Registrado em `docs/PENDENCIAS.md` (antes de
 publicar o APK): deixar na WebView só a origem de `BuildConfig.APP_URL` e abrir o
 resto no navegador do aparelho; injetar o shim só nessa origem.
 
+## Parecer do revisor (feito)
+
+O `revisor-de-invariantes` leu `quotas.ts`, `comCodigoLivre`, `settleOrderAsPaid`,
+a deduplicação em `prepararPedido` e `auth.ts`: sem achado grave; as invariantes
+1, 2, 3, 5, 10, 11 e 15 seguem de pé (a ordem crescente só muda quem espera
+quem; o retry não refaz o antifraude nem duplica efeito; o `UPDATE` que paga
+grava os mesmos valores de antes para o Pix online e o webhook repetido segue
+idempotente). Registrado, sem mudança de código:
+
+- **Deadlock raro ainda possível** fora de `comCodigoLivre`: `resgatarCotasDeBonus`
+  (laço próprio só para o código do pedido) e `settleOrderAsPaid` (o webhook
+  reenvia). Usar `isDeadlock` no laço do bônus é a correção mínima.
+- O teto de 120 vendas em 10 min conta também recusas de regra (mínimo/máximo,
+  "restam N", rifa fechada): erra para o lado seguro.
+- `AUTORIZACAO_RE` deixa passar texto com cara de link curto (`bit.ly/abc123`,
+  até 40 caracteres) no comprovante impresso no bilhete público, só para
+  cambista autenticado; fechar exigiria tirar `.` e `/` do conjunto, o que
+  depende do formato real do NSU das maquininhas (a tela hoje nem o envia).
+- **Antes de subir:** conferir no banco se há `users` com `role = 'cambista'` e
+  `organization_id IS NULL`; esses perdem o acesso (a mensagem de login é "Seu
+  acesso não está ligado a nenhuma organização") e precisam ser ligados a uma
+  organização antes.
+
 ## Aberto
 
 | Item | Por quê |

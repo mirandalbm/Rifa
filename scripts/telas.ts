@@ -510,7 +510,6 @@ async function main() {
         },
         { tema: TEMA, slugs: carrinho },
       );
-      const pagina = await ctx.newPage();
       let erros: string[] = [];
       let consoleErros: string[] = [];
       /** Uma aba com os ouvintes. O Chromium cai de vez em quando com a máquina carregada: a aba nova refaz a rota. */

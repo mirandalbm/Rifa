@@ -287,11 +287,13 @@ export async function organizacoesDoAfiliado(affiliateId: string) {
         .from(termoAceites)
         .where(inArray(termoAceites.vinculoId, vinculos.map((v) => v.id)))
     : [];
+  // Só a versão em vigor de cada organização (a mais alta): trazer todas as
+  // versões de todas as organizações crescia a cada termo publicado.
   const termos = await db
-    .select()
+    .selectDistinctOn([organizacaoTermos.organizationId])
     .from(organizacaoTermos)
     .where(inArray(organizacaoTermos.organizationId, orgs.length ? orgs.map((o) => o.id) : ["00000000-0000-0000-0000-000000000000"]))
-    .orderBy(desc(organizacaoTermos.versao));
+    .orderBy(organizacaoTermos.organizationId, desc(organizacaoTermos.versao));
   return orgs.map((o) => {
     const v = vinculos.find((x) => x.organizationId === o.id);
     const termo = termos.find((t) => t.organizationId === o.id) ?? null;

@@ -657,11 +657,15 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
       const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
       if (premio) return res.status(422).json({ message: premio });
     }
-    const limites = problemaNosLimitesDoPedido({
-      minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
-      maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
-      reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
-    });
+    // Só confere os limites quando o pedido mexe neles: rifa antiga com valor de
+    // antes da régua não pode travar a troca de título, destaque ou comissão.
+    const limites = mexeNosLimites(changes)
+      ? problemaNosLimitesDoPedido({
+          minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+          maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+          reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+        })
+      : null;
     if (limites) return res.status(422).json({ message: limites });
 
     const [updated] = await db
@@ -711,11 +715,13 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
         const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
         if (premio) return res.status(422).json({ message: premio });
       }
-      const limites = problemaNosLimitesDoPedido({
-        minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
-        maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
-        reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
-      });
+      const limites = mexeNosLimites(changes)
+        ? problemaNosLimitesDoPedido({
+            minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+            maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+            reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+          })
+        : null;
       if (limites) return res.status(422).json({ message: limites });
       const [updated] = await db.update(campaigns).set(changes).where(eq(campaigns.id, campaign.id)).returning();
       await audit(req, "campaign.update", "campaign", campaign.id, changes);
@@ -5682,3 +5688,8 @@ adminRouter.post("/fiscal/:affiliateId/decidir", async (req, res, next) => {
     next(err);
   }
 });
+
+/** O pedido de mudança leva algum dos três limites de pedido (mínimo, máximo, reserva)? */
+function mexeNosLimites(changes: Record<string, unknown>): boolean {
+  return changes.minPerOrder !== undefined || changes.maxPerOrder !== undefined || changes.reservationTtlMin !== undefined;
+}

@@ -73,7 +73,7 @@ o estado é o da promotora (`organizations.uf`).
 | Organizador | painel: rifas, pedidos, afiliados, cobrança, marketing, aparência, atendimento | `npm run isolation`, `npm run solicitacoes`, `npm run cobranca` |
 | Afiliado | painel: divulgar, comissões, saque, cadastro fiscal, kit | `npm run afiliados`, `npm run fiscal`, `npm run artes` |
 | Cambista | venda física, acerto | `npm run cambista` |
-| Plataforma (master) | caixa de entrada, atendimento, cobrança, sorteios oficiais, aparência, marketing | `npm run aparencia`, `npm run sorteios`, `tests/caixa.test.ts` |
+| Plataforma (master) | caixa de entrada, atendimento, cobrança, sorteios oficiais, aparência, marketing | `npm run aparencia`, `npm run sorteios`, `tests/caixa.test.ts` — **auditado em 18/10/2026: `docs/AUDITORIA-ACESSO-PLATAFORMA.md`** |
 | Marketing (tráfego, publicidade, banners) | tráfego pago, Marketing AI, publicidade em abas | `npm run trafego`, `npm run banner`, `npm run patrocinio` |
 
 ## Ordem sugerida

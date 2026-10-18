@@ -318,6 +318,20 @@ export async function updateOrganization(
 ) {
   const patch: Record<string, unknown> = {};
 
+  // Isto vem do corpo da requisição: número, objeto ou lista no lugar do texto
+  // quebrava no `trim()` (ou no banco, no booleano) e respondia 500.
+  const exigirTipo = (campo: string, v: unknown, aceita: "texto" | "texto ou nulo" | "verdadeiro ou falso") => {
+    const ok =
+      aceita === "verdadeiro ou falso" ? typeof v === "boolean" : typeof v === "string" || (aceita === "texto ou nulo" && v === null);
+    if (!ok) throw new OrgScopeError(`${campo}: envie ${aceita === "verdadeiro ou falso" ? "verdadeiro ou falso" : "um texto"}.`, 400);
+  };
+  if (input.name !== undefined) exigirTipo("Nome", input.name, "texto");
+  for (const [campo, v] of [["CNPJ", input.cnpj], ["Contato", input.contato], ["Observação", input.observacao]] as const) {
+    if (v !== undefined) exigirTipo(campo, v, "texto ou nulo");
+  }
+  if (input.asaasWalletId !== undefined) exigirTipo("Carteira do Asaas", input.asaasWalletId, "texto ou nulo");
+  if (input.active !== undefined) exigirTipo("Situação", input.active, "verdadeiro ou falso");
+
   if (input.prazoEstornoDias !== undefined) {
     const d = input.prazoEstornoDias;
     if (!Number.isInteger(d) || d < PRAZO_ESTORNO_MIN || d > PRAZO_ESTORNO_MAX) {

@@ -67,7 +67,7 @@ export function AdminResultados() {
             value={organizacao}
             onChange={(e) => setOrganizacao(e.target.value)}
             aria-label="Organização"
-            className="campo w-auto text-sm"
+            className="campo w-auto max-w-full text-sm"
           >
             <option value="">Todas as organizações</option>
             {orgs.map((o) => (

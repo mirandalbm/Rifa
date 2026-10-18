@@ -1454,12 +1454,12 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/organizacoes/:id/socios/declarar` | `isolation-test.ts` |
 | PUT | `/organizacoes/:id/perfil` | `isolation-test.ts`, `perfil-test.ts` |
 | POST | `/organizacoes/:id/acessos` | `acessos-test.ts`, `isolation-test.ts` |
-| POST | `/organizacoes/:id/arquivar` | `isolation-test.ts` |
+| POST | `/organizacoes/:id/arquivar` | `isolation-test.ts`, `sorteios-oficiais-test.ts` |
 | POST | `/organizacoes/:id/restaurar` | `isolation-test.ts` |
-| GET | `/plataforma` | `bonus-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +4 |
-| PUT | `/app` | `buscar-test.ts`, `divulgacao-test.ts`, `grupos-test.ts` +4 |
+| GET | `/plataforma` | `acessos-test.ts`, `bonus-test.ts`, `fiscal-test.ts` +5 |
+| PUT | `/app` | `acessos-test.ts`, `buscar-test.ts`, `divulgacao-test.ts` +5 |
 | PUT | `/selos` | `isolation-test.ts`, `verificacao-test.ts` |
-| PUT | `/plataforma` | `bonus-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +4 |
+| PUT | `/plataforma` | `acessos-test.ts`, `bonus-test.ts`, `fiscal-test.ts` +5 |
 | GET | `/comissao` | `guarda-test.ts`, `isolation-test.ts` |
 | PUT | `/comissao` | `guarda-test.ts`, `isolation-test.ts` |
 | GET | `/chamados` | `chamados-test.ts`, `disputa-test.ts`, `isolation-test.ts` +1 |
@@ -1479,7 +1479,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PUT | `/reembolso` | `chamados-test.ts`, `isolation-test.ts` |
 | GET | `/whatsapp` | `isolation-test.ts` |
 | POST | `/whatsapp/modelos` | `isolation-test.ts` |
-| POST | `/whatsapp/teste` | `isolation-test.ts` |
+| POST | `/whatsapp/teste` | `acessos-test.ts`, `isolation-test.ts` |
 | GET | `/usuarios` | `isolation-test.ts` |
 | POST | `/usuarios/:id/senha` | `isolation-test.ts` |
 | PATCH | `/usuarios/:id` | `isolation-test.ts` |
@@ -1496,8 +1496,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PUT | `/antifraude/limites` | `acessos-test.ts`, `isolation-test.ts` |
 | POST | `/antifraude/bloqueios` | `acessos-test.ts`, `isolation-test.ts` |
 | DELETE | `/antifraude/bloqueios/:id` | `acessos-test.ts`, `isolation-test.ts` |
-| GET | `/payment-methods` | `isolation-test.ts` |
-| PUT | `/payment-methods` | `isolation-test.ts` |
+| GET | `/payment-methods` | `acessos-test.ts`, `isolation-test.ts` |
+| PUT | `/payment-methods` | `acessos-test.ts`, `isolation-test.ts` |
 | GET | `/finance` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +1 |
 | POST | `/finance/release` | `guarda-test.ts`, `isolation-test.ts`, `pagarme-test.ts` |
 | GET | `/payouts/:id/nota` | `fiscal-test.ts`, `isolation-test.ts` |
@@ -1561,15 +1561,15 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/recibos/:codigo/pdf` | `fiscal-test.ts`, `isolation-test.ts` |
 | GET | `/saques-pagos` | `fiscal-test.ts`, `isolation-test.ts` |
 | GET | `/bonus` | `isolation-test.ts`, `presente-test.ts` |
-| PUT | `/bonus/config` | `bonus-test.ts`, `isolation-test.ts`, `presente-test.ts` |
+| PUT | `/bonus/config` | `acessos-test.ts`, `bonus-test.ts`, `isolation-test.ts` +1 |
 | POST | `/bonus/metas` | `bonus-test.ts`, `isolation-test.ts` |
 | PUT | `/bonus/metas/:id` | `isolation-test.ts` |
-| GET | `/banner-pago` | `banner-pago-test.ts`, `isolation-test.ts` |
+| GET | `/banner-pago` | `acessos-test.ts`, `banner-pago-test.ts`, `isolation-test.ts` |
 | POST | `/banner-pago/pedidos` | `banner-pago-test.ts`, `isolation-test.ts` |
 | GET | `/banner-pago/pedidos/:id/imagem` | `banner-pago-test.ts`, `isolation-test.ts` |
 | POST | `/banner-pago/pedidos/:id/cancelar` | `banner-pago-test.ts`, `isolation-test.ts` |
 | POST | `/banner-pago/pedidos/:id/decisao` | `banner-pago-test.ts`, `isolation-test.ts` |
-| PUT | `/banner-pago/config` | `banner-pago-test.ts`, `isolation-test.ts` |
+| PUT | `/banner-pago/config` | `acessos-test.ts`, `banner-pago-test.ts`, `isolation-test.ts` |
 | GET | `/trafego` | `isolation-test.ts`, `trafego-criacao-test.ts`, `trafego-test.ts` |
 | POST | `/trafego/campanhas` | `isolation-test.ts`, `trafego-criacao-test.ts`, `trafego-test.ts` |
 | GET | `/trafego/campanhas/:id/gastos` | `isolation-test.ts`, `trafego-criacao-test.ts`, `trafego-test.ts` |

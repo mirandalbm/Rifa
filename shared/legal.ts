@@ -22,7 +22,7 @@ import { PIX_TARDIO_PRAZO_DIAS_UTEIS } from "./pixTardio";
 import type { Secao } from "./regulamento";
 
 /** Data em que esta redação passou a valer. Sobe junto com qualquer mudança de texto. */
-export const VIGENCIA_DOS_TERMOS = "2026-10-14";
+export const VIGENCIA_DOS_TERMOS = "2026-10-18";
 
 /**
  * Em quantos dias a plataforma responde a reclamação de consumidor: o teto do
@@ -33,6 +33,8 @@ export const RESPOSTA_DA_PLATAFORMA_DIAS = 5;
 
 /** Dias que a sessão de login vale sem uso (o cookie renova a cada acesso). */
 export const SESSAO_DIAS = 7;
+/** Quando a pessoa deixa marcado "Lembrar de mim" ao entrar (conta do apostador e painel). */
+export const SESSAO_LEMBRAR_DIAS = 30;
 
 /**
  * O que o site guarda no navegador, com finalidade e duração — a tabela da
@@ -45,7 +47,7 @@ export const GUARDADO_NO_NAVEGADOR: { grupo: string; itens: string[] }[] = [
   {
     grupo: "Cookie do site (essencial, não depende de aceite)",
     itens: [
-      `rifa.sid — mantém você conectado à conta e protege os envios de formulário. Vale ${SESSAO_DIAS} dias desde o último uso e sai ao sair da conta.`,
+      `rifa.sid — mantém você conectado à conta e protege os envios de formulário. Vale ${SESSAO_DIAS} dias desde o último uso — ${SESSAO_LEMBRAR_DIAS} dias se você deixar marcado "Lembrar de mim" ao entrar — e sai ao sair da conta.`,
     ],
   },
   {

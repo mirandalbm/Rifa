@@ -22,6 +22,7 @@ import {
   type CadastroComprador,
 } from "@shared/contaComprador";
 import { senhaInvalida } from "@shared/senha";
+import { SESSAO_LEMBRAR_DIAS } from "@shared/legal";
 import { ehContaSoGoogle, ehTelefoneProvisorio, faltaNaContaGoogle } from "@shared/google";
 import { hashPassword, refazerHashSeAntigo, verifyPassword } from "../auth";
 import { isUniqueViolation } from "../pgError";
@@ -39,7 +40,7 @@ export class ContaError extends Error {
   }
 }
 
-const LEMBRAR_MS = 30 * 24 * 60 * 60 * 1000;
+const LEMBRAR_MS = SESSAO_LEMBRAR_DIAS * 24 * 60 * 60 * 1000;
 /** Cadastros por IP por hora: criar conta em série é o primeiro passo de fraude. */
 const CADASTROS_POR_HORA = 10;
 

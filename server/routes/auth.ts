@@ -6,12 +6,13 @@ import { db } from "../db";
 import { users, auditLog, organizations } from "@shared/schema";
 import { currentRole, encerrarSessoesDoUsuario, hashPassword, verifyPassword, type SessionUser } from "../auth";
 import { senhaInvalida } from "@shared/senha";
+import { SESSAO_LEMBRAR_DIAS } from "@shared/legal";
 import { guardLogin, identify } from "../services/antifraude";
 import { sectionsFor, homeFor } from "@shared/access";
 
 export const authRouter = Router();
 
-const LEMBRAR_MS = 30 * 24 * 60 * 60 * 1000;
+const LEMBRAR_MS = SESSAO_LEMBRAR_DIAS * 24 * 60 * 60 * 1000;
 
 /** "leandro@exemplo.com" → "le****@exemplo.com": dá para reconhecer no log sem expor a conta inteira. */
 function mascararEmail(email: string): string {

@@ -255,6 +255,21 @@ async function main() {
     );
     await admin.req("PUT", "/api/admin/plataforma", { estornoManual: plataformaAntes.estornoManual });
 
+    /* ------------------------- teste do WhatsApp ------------------------- */
+    console.log("\n  teste do WhatsApp:");
+    r = await a.req("POST", "/api/admin/whatsapp/teste", { telefone: "11999999999" });
+    checa("o organizador não manda teste (403)", r.status === 403, `HTTP ${r.status}`);
+    r = await admin.req("POST", "/api/admin/whatsapp/teste", { telefone: "11999999999", modelo: "constructor" });
+    checa("modelo que só existe na cadeia de protótipos: 400, nunca 500", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    r = await admin.req("POST", "/api/admin/whatsapp/teste", { telefone: "123" });
+    checa("telefone sem DDD: 400", r.status === 400, `HTTP ${r.status}`);
+    let freou = false;
+    for (let i = 0; i < 14 && !freou; i++) {
+      freou = (await admin.req("POST", "/api/admin/whatsapp/teste", { telefone: "123" })).status === 429;
+    }
+    checa("testes demais em pouco tempo: 429", freou);
+    await db.execute(sql`delete from rate_events where bucket like 'whatsapp-teste:%'`);
+
     /* ----------------------------- segundo fator ------------------------- */
     console.log("\n  segundo fator:");
     r = await a.req("GET", "/api/admin/2fa");

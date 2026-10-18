@@ -158,10 +158,12 @@ export async function criarModelosFaltantes() {
  * sair, porque a Meta pede a empresa verificada.
  */
 export async function enviarTeste(telefone: string, modelo: string = "codigo_acesso") {
-  if (!config()) throw new WhatsAppSetupError("Configure o WhatsApp no Railway antes de testar.");
+  // A entrada primeiro: o corpo vem da requisição. `in` achava "constructor" e "toString" na
+  // cadeia de protótipos e o envio quebrava (500) em vez de dizer "modelo desconhecido".
   const digitos = telefone.replace(/\D/g, "");
   if (digitos.length < 10) throw new WhatsAppSetupError("Informe o telefone com DDD.");
-  if (!(modelo in TEMPLATES)) throw new WhatsAppSetupError("Modelo desconhecido.");
+  if (!Object.hasOwn(TEMPLATES, modelo)) throw new WhatsAppSetupError("Modelo desconhecido.");
+  if (!config()) throw new WhatsAppSetupError("Configure o WhatsApp no Railway antes de testar.");
   const nome = modelo as TemplateName;
   const spec = TEMPLATES[nome];
   const params =

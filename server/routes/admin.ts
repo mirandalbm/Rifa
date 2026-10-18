@@ -3471,6 +3471,10 @@ adminRouter.post("/whatsapp/teste", async (req, res, next) => {
     requirePlatformAdmin(req);
     const telefone = String(req.body?.telefone ?? "");
     const modelo = req.body?.modelo ? String(req.body.modelo) : undefined;
+    // Cada teste manda uma mensagem de verdade (custa, e a Meta mede a qualidade da conta): teto por pessoa.
+    if ((await hit(`whatsapp-teste:${req.user!.id}`, 60, 10)).excedeu) {
+      return res.status(429).json({ message: "Testes demais em pouco tempo. Espere um pouco e tente de novo." });
+    }
     await enviarTeste(telefone, modelo);
     await audit(req, "whatsapp.teste", "whatsapp", undefined, {
       modelo: modelo ?? "codigo_acesso",

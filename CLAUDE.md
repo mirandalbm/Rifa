@@ -116,6 +116,7 @@ arquitetura.
 | fila de trabalho pesado e o trabalhador (processo à parte), o reels gerado com as fotos da rifa (Fase F) | `shared/fila.ts` (regras), `server/services/fila.ts` (enfileirar, tomar, terminar, devolver os presos, receber), `server/worker.ts` e `server/trabalhos/` (o laço e os tipos), `shared/reelsGerado.ts` (roteiro, comando do `ffmpeg`, texto gravado), `faixaDoReelsGerado()` em `server/services/arteDesenho.ts`, `server/services/reelsGerado.ts` (pedir, situação, receber), `/campaigns/:id/reels-gerado` em `server/routes/admin.ts`, relógio em `server/jobs/index.ts` (trava 811022), `client/src/components/GerarReels.tsx` (no cartão Reels da rifa), `scripts/fila-test.ts`, `tests/fila.test.ts`, `tests/reelsGerado.test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
+| pacotes de cotas da rifa (desconto de 0 a 50%, sem pedido de valor zero ou negativo) e a comissão própria do cambista e do afiliado no cadastro (0 a 50) | `validarPacotes()` em `shared/pacotes.ts` (`PUT /campaigns/:id/packages`), o total ≥ 1 centavo em `prepararPedido()` (`server/services/orders.ts`), `lerComissaoDoCadastro()` em `shared/afiliados.ts` (`POST /sellers`, `POST /affiliates`, `PATCH /affiliates/:id`), `tests/pacotes.test.ts`, `tests/afiliados.test.ts`, `docs/AUDITORIA-ACESSO-ORGANIZADOR.md` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
 | Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
@@ -1665,6 +1666,13 @@ tem atrás.
   trazem a campanha no caminho; sem buscar o dono antes, o id do vizinho
   apaga o banner dele. E a conferência vem **antes** do `DELETE`, senão a
   linha já sumiu quando a checagem roda.
+- **Id fora do formato é 404, nunca 500.** `adminRouter.param()` confere os
+  ids do caminho (`id`, `mediaId`, `prizedId`, `socioId`, `sellerId`,
+  `campaignId`, `affiliateId`, `fotoId`) e `assertCampaignInScope()` recusa o id
+  vazio ou torto que vem do corpo: nome de parâmetro de id novo entra na lista.
+  **`featured` e `sortWeight` (a ordem da vitrine) são da plataforma**: o
+  organizador que os manda em `POST /campaigns`, `PATCH` ou `/editar` os tem
+  descartados (`semOrdemDaVitrine()`). `npm run isolation` prova.
 - **Campanha não muda de dono por `PATCH`.** Seria transferir venda, cota e
   comissão de uma administradora para outra com um campo de formulário.
 - **Organizador sem organização é recusado na entrada.** Recorte nulo abre

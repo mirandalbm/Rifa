@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 15/10/2026 (seção 0: ajustes de topo, locais e rifas nacionais).
+Última atualização: 18/10/2026 (seção 0b: rifa nacional, PR 1).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -23,11 +23,47 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   estados. Decidido em 18/10/2026: bandeiras do conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (estilo `circle`, copiadas e otimizadas, sem dependência), com a origem em `docs/LICENCAS-DE-TERCEIROS.md`; a dúvida sobre usar bandeira de estado numa plataforma comercial vai para `docs/PERGUNTAS-AO-ADVOGADO.md`. Falta: eu implementar.
 - [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo. Decidido em 18/10/2026: no rodapé da plataforma, em duas linhas (razão social e CNPJ dos Dados da empresa publicados; e o aviso de jogo responsável). Falta: eu implementar.
 - [ ] **[decisão]** Rifa nacional: valor mínimo, aprovação só pelo admin e
-  ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço; falta o valor em reais). Falta: plano e implementação.
+  ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço), R$ 100.000, configurável. Plano em `docs/PLANO-RIFA-NACIONAL.md` (PR #268). **PR 1 feito (18/10/2026): as regras puras e a configuração** (`shared/rifaNacional.ts`, `rifaNacional` em `shared/plataforma.ts`, `tests/rifaNacional.test.ts`), nada ligado. Falta: PRs 2 a 6 do plano (esquema, serviço e rotas, vitrine, telas, texto jurídico) e as decisões abaixo (seção 0b).
 - [ ] **[decisão]** Banners por estado (carrossel de 5 em cada estado e no
   nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
   afiliado, cambista, plataforma, marketing), um PR por acesso.
+
+## 0b. Rifa nacional — decisões adotadas no código, a confirmar
+
+O PR 1 do plano (`docs/PLANO-RIFA-NACIONAL.md`, seção 8) codificou as
+**propostas do próprio plano** para o que o responsável ainda não decidiu
+(seção "Decisões que ainda faltam" do plano). Cada uma está em
+`shared/rifaNacional.ts` e muda com uma linha; nada está ligado, então
+nenhuma delas vale para ninguém ainda. Marque aqui quando confirmar.
+
+- [ ] **[decisão]** Ordem entre as nacionais: **opção A** (aprovada há mais
+  tempo primeiro, `id` desempata; sem data legível por último) —
+  `compararNacionais()`. Se for B ou C, é só esta função (e C acrescenta a
+  coluna `nacional_ordem`). Plano, decisão 1.
+- [ ] **[decisão]** Teto no topo: **3**, configurável de 1 a 10; a que passa
+  do teto **cai no resto da vitrine** (ordenada por proximidade), nunca some;
+  o teto é aplicado ao montar a lista, não barra a aprovação. Plano, decisão 2.
+- [ ] **[decisão]** O mínimo é **inclusivo** (`>=`: exatamente R$ 100.000,00
+  atinge) — `atingeOMinimo()`. Plano, decisão 5.
+- [ ] **[decisão]** Interruptor **nasce desligado**; desligado, a vitrine
+  **ignora** as nacionais (volta ao `ordenarPorProximidade()` de antes, sem
+  apagar nada). Plano, decisão 4.
+- [ ] **[decisão]** Limites da configuração que o plano não deu: mínimo de
+  R$ 0,01 até **R$ 100 milhões** (teto de sanidade, o plano diz "ex.").
+- [ ] **[decisão]** `ordenarVitrine()` recebe o interruptor junto com o teto
+  (`{ ligado, teto }`), em vez de só `{ teto }` como no rascunho do plano:
+  quem esquecer de passar o interruptor não liga a regra sem querer.
+- [ ] **[decisão]** Só `nacionalStatus === "aprovada"` vai ao topo; pedido
+  `em_analise` é rifa comum. Escopo do topo: só o feed da vitrine (decisão 6
+  do plano; `/estado/UF`, Reels, Buscar e perfil seguem como estão).
+- [ ] **[decisão]** O mínimo mudado na configuração não derruba a aprovada
+  (retrato em `nacional_minimo_cents`, PR 2); `mesclarConfigRifaNacional()`
+  já parte da configuração atual para a rota de gravar (PR 3 ou 5).
+- Ficam abertas as decisões 3 (travar ou invalidar total e preço), 7
+  (rifa da própria plataforma), 8 (tirar do ar e o selo depois do sorteio),
+  9 (selo nas artes), 10 (cobrança do topo), 12, 13 e as respostas R24 a R29
+  do advogado — nenhuma afeta o PR 1.
 
 ## 1. WhatsApp
 

@@ -110,7 +110,7 @@ modelo B e na exigência do Google).
   (`af-<código>`) multiplica o risco de golpe com o nome da marca e de
   reputação do domínio nos anúncios, e a divulgação do afiliado já sai pelo
   endereço da organização com o `?ref=` dele; o do afiliado entra depois, se
-  houver demanda (aguarda confirmação do responsável).
+  houver demanda (**confirmado pelo responsável em 18/10/2026: "façamos do seu jeito"**).
 - **Para ligar**: cadastrar `*.loteriasdobem.com.br` no Railway (Configurações
   → Rede → domínio personalizado, no serviço Rifa; o curinga convive com o
   `www` porque é o mesmo serviço) e criar no DNS os dois CNAME e o TXT que o

@@ -68,6 +68,10 @@ describe("para onde um link leva no endereço", () => {
     }
   });
 
+  it("caminho de outro site nunca fica no endereço", () => {
+    for (const p of ["//evil.com", "//evil.com/x", "/\\evil.com"]) expect(d(p)).toEqual({ onde: "principal", caminho: "/" });
+  });
+
   it("a consulta de um link da plataforma vai junto", () => {
     expect(d("/buscar?q=moto")).toEqual({ onde: "principal", caminho: "/buscar?q=moto" });
   });

@@ -216,6 +216,8 @@ export function destinoNoEndereco(para: string, slug: string): DestinoNoEndereco
   const fim = para.search(/[?#]/);
   const caminho = fim === -1 ? para : para.slice(0, fim);
   const resto = fim === -1 ? "" : para.slice(fim);
+  // `//outro.com` e `\\` não são caminho do site: nunca viram link dentro do endereço.
+  if (caminho.startsWith("//") || caminho.includes("\\")) return { onde: "principal", caminho: "/" };
   const real = caminhoReal(caminho.startsWith("/") ? caminho : `/${caminho}`, slug);
   const d = decidirNoEndereco("GET", real, slug);
   if (d.acao === "principal" || ehCaminhoDePainel(real)) return { onde: "principal", caminho: `${caminho}${resto}` };

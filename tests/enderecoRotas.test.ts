@@ -73,9 +73,10 @@ describe("API no endereço da organização", () => {
   });
 
   it("a compra confere a rifa do corpo", () => {
-    expect(d("POST", "/api/public/orders")).toEqual({ acao: "conferir-corpo" });
-    expect(d("POST", "/api/public/carrinho")).toEqual({ acao: "conferir-corpo" });
-    expect(d("POST", "/api/public/carrinho/checkout")).toEqual({ acao: "conferir-corpo" });
+    // cada rota confere o campo que ELA usa (o outro, de enfeite, não vale)
+    expect(d("POST", "/api/public/orders")).toEqual({ acao: "conferir-corpo", campo: "campaignId" });
+    expect(d("POST", "/api/public/carrinho")).toEqual({ acao: "conferir-corpo", campo: "itens" });
+    expect(d("POST", "/api/public/carrinho/checkout")).toEqual({ acao: "conferir-corpo", campo: "itens" });
     // a consulta do pedido é por código
     expect(d("GET", "/api/public/orders/12345678")).toEqual({ acao: "seguir" });
   });
@@ -108,6 +109,46 @@ describe("API no endereço da organização", () => {
   it("rota pública nova sem classe é 404", () => {
     expect(d("GET", "/api/public/rota-que-ninguem-classificou")).toEqual({ acao: "404" });
     expect(temClasse("GET", "/api/public/rota-que-ninguem-classificou")).toBe(false);
+  });
+});
+
+describe("o que o Express casa e a lista fechada não pode ler diferente", () => {
+  it("a API em outra caixa (o Express casa sem diferenciar maiúscula) é 404", () => {
+    for (const c of ["/API/public/campaigns/x", "/Api/admin/campaigns", "/API/Public/o/x/qr.svg", "/api/Public/campaigns/x", "/api/public/Campaigns/x", "/API/auth/login", "/API/webhooks/asaas", "/API"]) {
+      expect(d("GET", c), c).toEqual({ acao: "404" });
+      expect(d("POST", c), c).toEqual({ acao: "404" });
+      expect(temClasse("GET", c), c).toBe(false);
+      expect(ehArquivoEstatico(c), c).toBe(false);
+    }
+  });
+
+  it("forma absoluta do pedido (`GET http://x/…`) é 404", () => {
+    expect(d("GET", "http://x/api/public/campaigns/b")).toEqual({ acao: "404" });
+    expect(d("GET", "//x/api/public/campaigns/b")).toEqual({ acao: "404" });
+  });
+
+  it("o painel responde 404 mesmo com extensão de arquivo", () => {
+    for (const c of ["/admin/x.png", "/Admin", "/AFILIADO/saques", "/cambista/a.css"]) {
+      expect(d("GET", c), c).toEqual({ acao: "404" });
+    }
+  });
+});
+
+describe("o 301 do /o/<este rótulo> nunca sai do endereço", () => {
+  it("barras a mais no começo viram uma só", () => {
+    expect(d("GET", `/o/${ORG}//evil.com/x`)).toEqual({ acao: "canonico", para: "/evil.com/x" });
+    expect(d("GET", `/o/${ORG}///evil.com`)).toEqual({ acao: "canonico", para: "/evil.com" });
+  });
+
+  it("contrabarra é 404", () => {
+    expect(d("GET", `/o/${ORG}/\\evil.com`)).toEqual({ acao: "404" });
+  });
+
+  it("todo destino começa com uma barra só", () => {
+    for (const c of [`/o/${ORG}`, `/o/${ORG}/`, `/o/${ORG}/r/x`, `/o/${ORG}//a`, `/o/${ORG}////a/b`]) {
+      const r = d("GET", c);
+      if (r.acao === "canonico") expect(r.para, c).toMatch(/^\/(?!\/)/);
+    }
   });
 });
 

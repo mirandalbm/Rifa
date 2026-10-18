@@ -22,6 +22,7 @@ import { baseUrl } from "./base-url";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../server/db";
 import { hashPassword } from "../server/auth";
+import { archiveOrganization, restoreOrganization } from "../server/services/orgs";
 import { auditLog, campaigns, organizations, users } from "../shared/schema";
 
 const BASE = process.env.SUBDOMINIO_BASE ?? "loteriasdobem.test";
@@ -240,6 +241,38 @@ async function main() {
     r = await pedir(A, "POST", "/api/public/carrinho", { corpo: { itens: [{ slug: rifaA.slug, quantidade: 1 }, { slug: rifaB.slug, quantidade: 1 }] } });
     checa("…também a consulta do carrinho se uma delas é da vizinha", r.status === 404, `HTTP ${r.status}`);
 
+    // ------------------------------------------------ o que o Express casa e a lista não pode ler diferente
+    for (const [m, c] of [
+      ["GET", `/API/public/campaigns/${rifaB.slug}`],
+      ["GET", `/Api/Public/campaigns/${rifaB.slug}/regulamento`],
+      ["POST", "/API/public/orders"],
+      ["POST", "/API/auth/login"],
+      ["GET", "/Api/admin/organizacoes"],
+      ["GET", `/API/public/o/${b.slug}/qr.svg`],
+      ["POST", "/API/webhooks/asaas"],
+    ] as const) {
+      r = await pedir(A, m, c, { cookie: admin, corpo: m === "POST" ? pedido(rifaB.id) : undefined });
+      checa(`${m} ${c} (outra caixa): 404 em JSON, sem executar a rota`, r.status === 404 && r.json?.message === "Rota não encontrada.", `HTTP ${r.status}`);
+    }
+    r = await pedir(A, "GET", `http://${A}/api/public/campaigns/${rifaB.slug}`);
+    checa("forma absoluta do pedido: recusada (400)", r.status === 400 || r.status === 404, `HTTP ${r.status}`);
+    r = await pedir(A, "GET", "/admin/campanhas.png");
+    checa("o painel com extensão de arquivo: 404", r.status === 404, `HTTP ${r.status}`);
+
+    // a compra confere o campo que a rota usa
+    r = await pedir(A, "POST", "/api/public/carrinho/checkout", {
+      corpo: { campaignId: rifaA.id, itens: [{ slug: rifaB.slug, quantidade: 1 }], buyer: { name: "Fulano Teste", phone: "11999990000" } },
+    });
+    checa("carrinho: campaignId da A de enfeite não libera item da B (404)", r.status === 404, `HTTP ${r.status}`);
+    r = await pedir(A, "POST", "/api/public/orders", { corpo: { itens: [{ slug: rifaA.slug, quantidade: 1 }], buyer: { name: "Fulano Teste", phone: "11999990000" } } });
+    checa("pedido sem campaignId: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await pedir(A, "POST", "/api/public/carrinho", { corpo: {} });
+    checa("carrinho sem itens: 404", r.status === 404, `HTTP ${r.status}`);
+
+    // o 301 não sai do endereço
+    r = await pedir(A, "GET", `/o/${a.slug}//evil.example/x`);
+    checa("/o/<este>//evil… não vira redirecionamento aberto", r.status === 301 && /^\/(?!\/)/.test(r.local ?? ""), `${r.status} ${r.local ?? ""}`);
+
     // ------------------------------------------------ da plataforma
     for (const c of ["/reels", "/buscar", "/mensagens", "/u/ana", "/estado/SP", "/publicar", "/seja-afiliado", `/o/${b.slug}`]) {
       r = await pedir(A, "GET", c);
@@ -289,6 +322,15 @@ async function main() {
     checa("a organização e o perfil no principal seguem", r.status === 200, `HTTP ${r.status}`);
     r = await pedir("localhost", "GET", `/api/public/campaigns/${rifaA.slug}`);
     checa("a rifa no principal segue à venda", r.status === 200, `HTTP ${r.status}`);
+
+    // ------------------------------------------------ arquivar desliga o endereço; restaurar não o religa
+    await db.update(organizations).set({ enderecoAtivo: true }).where(eq(organizations.id, off.id));
+    await archiveOrganization(off.id);
+    let [linhaOff] = await db.select().from(organizations).where(eq(organizations.id, off.id));
+    checa("arquivar desliga o endereço", linhaOff!.enderecoAtivo === false && linhaOff!.archivedAt !== null);
+    await restoreOrganization(off.id);
+    [linhaOff] = await db.select().from(organizations).where(eq(organizations.id, off.id));
+    checa("restaurar não o religa (é decisão da plataforma)", linhaOff!.enderecoAtivo === false && linhaOff!.archivedAt === null);
 
     // ------------------------------------------------ varredura de rótulos
     let limitado = false;

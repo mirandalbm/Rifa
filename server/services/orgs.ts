@@ -429,7 +429,7 @@ async function organizacaoArquivada(id: string): Promise<boolean> {
 export async function archiveOrganization(id: string) {
   const resultado = await db.execute(sql`
     UPDATE organizations
-       SET archived_at = now(), active = false
+       SET archived_at = now(), active = false, endereco_ativo = false
      WHERE id = ${id}::uuid
        AND archived_at IS NULL
        AND NOT EXISTS (

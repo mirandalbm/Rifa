@@ -14,6 +14,7 @@
  *   uma decisão. Travar para as vendas na hora (`createOrder` recusa);
  *   banir fecha a porta de todos da organização e trava todas as rifas.
  */
+import { invalidarEndereco } from "./enderecoDaOrganizacao";
 import { ehUuid } from "@shared/uuid";
 import { randomInt } from "node:crypto";
 import type { Request } from "express";
@@ -397,6 +398,7 @@ export async function decidirDenuncia(req: Request, id: string, entrada: { acao?
         );
     }
   });
+  if (acao === "banir") invalidarEndereco(); // o endereço da banida sai do ar sem esperar a validade do cache
   return { status };
 }
 

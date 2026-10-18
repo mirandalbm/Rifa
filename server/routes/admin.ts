@@ -1,5 +1,5 @@
 import { numeracaoZero, validarMetodosLiberados } from "@shared/apuracao";
-import { EnderecoError, mudarEndereco } from "../services/enderecoDaOrganizacao";
+import { EnderecoError, invalidarEndereco, mudarEndereco } from "../services/enderecoDaOrganizacao";
 import { hostDoRotulo, problemaNoRotulo, rotuloPareceMarca } from "@shared/subdominio";
 import { subdominioBaseDoAmbiente } from "../services/subdominio";
 import { problemaNoPremio } from "@shared/premio";
@@ -3166,6 +3166,7 @@ adminRouter.post("/organizacoes/:id/arquivar", async (req, res, next) => {
     if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
 
     const arquivada = await archiveOrganization(req.params.id);
+    invalidarEndereco(); // arquivar também desliga o endereço (e restaurar não o religa)
     await audit(req, "organizacao.arquivar", "organization", arquivada.id, {
       name: arquivada.name,
     });

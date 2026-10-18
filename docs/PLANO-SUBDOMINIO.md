@@ -162,6 +162,16 @@ host normalizado ─┬─ não é do domínio base ........ segue como hoje (pr
 - **Limite por IP** na resolução de rótulo inexistente (`hit`, mesmo desenho do
   `csp:`): varrer rótulos é descobrir quais organizações existem.
 
+**Revisão do PR 2 (18/10/2026) — o que a lista fechada tem de ler como o Express lê:** o
+Express casa rota **sem diferenciar maiúscula** (`/API/public/…` chega ao mesmo
+handler) e aceita a forma absoluta do pedido (`GET http://x/api/…`). Por isso o guarda
+trata `/api` em qualquer caixa (`ehCaminhoDeApi`), nega o que não é a forma minúscula
+classificada, recusa a forma absoluta (400) e **nunca** segue para a rota quando nega.
+Cada rota de compra confere **o campo que ela usa** (`/orders` → `campaignId`;
+`/carrinho` e `/carrinho/checkout` → todos os `itens`); o destino do 301 de
+`/o/<este rótulo>` é sempre um caminho do próprio endereço. A invalidação do cache é
+local ao processo: com várias réplicas, desligar leva até 15 s nas outras.
+
 ### 1.4 Os casos que o responsável pediu
 
 | Caso | Resposta |

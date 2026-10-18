@@ -12,7 +12,7 @@ import { db } from "../db";
 import { hit, identify } from "./antifraude";
 import { subdominioBaseDoAmbiente } from "./subdominio";
 import { hostDoRotulo, hostNormalizado, identificarHost, problemaParaLigarEndereco } from "../../shared/subdominio";
-import { decidirNoEndereco, type Decisao } from "../../shared/enderecoRotas";
+import { decidirNoEndereco, ehArquivoEstatico, ehCaminhoDeApi, type Decisao } from "../../shared/enderecoRotas";
 
 export type EnderecoDaRequisicao =
   | { tipo: "principal" }
@@ -29,12 +29,18 @@ function guardar<T>(mapa: Map<string, Entrada<T>>, chave: string, v: T, agora = 
   mapa.set(chave, { v, ate: agora + VALIDADE_MS });
 }
 
+let geracao = 0;
 const rotulos = new Map<string, Entrada<EnderecoDaRequisicao>>();
 const rifasPorSlug = new Map<string, Entrada<string | null>>();
 const rifasPorId = new Map<string, Entrada<string | null>>();
 
-/** Esquece o que o guarda sabe (arquivar, banir, ligar ou desligar o endereço). */
+/**
+ * Esquece o que o guarda sabe (arquivar, banir, ligar ou desligar o endereço).
+ * **É local ao processo**: com várias réplicas, as outras só soltam o rótulo
+ * quando a validade de 15 s vence — esse é o teto do interruptor de emergência.
+ */
 export function invalidarEndereco() {
+  geracao++; // a leitura que começou antes não volta ao cache depois do commit
   rotulos.clear();
   rifasPorSlug.clear();
   rifasPorId.clear();
@@ -44,6 +50,7 @@ export function invalidarEndereco() {
 export async function enderecoDoRotulo(slug: string, agora = Date.now()): Promise<EnderecoDaRequisicao> {
   const guardado = rotulos.get(slug);
   if (guardado && guardado.ate > agora) return guardado.v;
+  const lidaNaGeracao = geracao;
   const [o] = await db
     .select({ id: organizations.id, slug: organizations.slug, nome: organizations.name })
     .from(organizations)
@@ -57,7 +64,7 @@ export async function enderecoDoRotulo(slug: string, agora = Date.now()): Promis
     )
     .limit(1);
   const v: EnderecoDaRequisicao = o ? { tipo: "organizacao", id: o.id, slug: o.slug, nome: o.nome } : { tipo: "inexistente" };
-  guardar(rotulos, slug, v, agora);
+  if (lidaNaGeracao === geracao) guardar(rotulos, slug, v, agora);
   return v;
 }
 
@@ -104,7 +111,8 @@ function consulta(req: Request): string {
  * com tela de erro — o buscador e o Meta leriam um "soft 404" como página boa.
  */
 function negar(req: Request, res: Response, next: NextFunction) {
-  if (req.originalUrl.startsWith("/api/")) {
+  // Qualquer caixa: `/API/…` chega ao mesmo handler no Express, e seguir daqui executaria a rota.
+  if (ehCaminhoDeApi(req.originalUrl)) {
     return res.status(404).json({ message: "Rota não encontrada." });
   }
   const escrever = res.writeHead.bind(res) as (...a: unknown[]) => Response;
@@ -120,13 +128,15 @@ async function conferir(d: Decisao, req: Request, dono: string): Promise<boolean
   if (d.acao === "conferir-rifa") return (await donoDaRifaPorSlug(d.slug)) === dono;
   if (d.acao === "conferir-corpo") {
     const corpo = (req.body ?? {}) as { campaignId?: unknown; itens?: unknown };
-    if (typeof corpo.campaignId === "string") return (await donoDaRifaPorId(corpo.campaignId)) === dono;
-    if (Array.isArray(corpo.itens)) {
-      for (const i of corpo.itens as { slug?: unknown }[]) {
-        if (typeof i?.slug !== "string" || (await donoDaRifaPorSlug(i.slug)) !== dono) return false;
-      }
+    // Só o campo que a rota usa: o corpo pode trazer o outro de enfeite (e a rifa do vizinho no que vale).
+    if (d.campo === "campaignId") {
+      return typeof corpo.campaignId === "string" && (await donoDaRifaPorId(corpo.campaignId)) === dono;
     }
-    return true; // corpo torto: quem responde é o handler (400)
+    if (!Array.isArray(corpo.itens) || corpo.itens.length === 0) return false;
+    for (const i of corpo.itens as { slug?: unknown }[]) {
+      if (typeof i?.slug !== "string" || (await donoDaRifaPorSlug(i.slug)) !== dono) return false;
+    }
+    return true;
   }
   return true;
 }
@@ -137,8 +147,10 @@ async function conferir(d: Decisao, req: Request, dono: string): Promise<boolean
  */
 export function webhookSoNoPrincipal(req: Request, res: Response, next: NextFunction) {
   const base = subdominioBaseDoAmbiente();
+  if (!base) return next();
   const limpo = hostNormalizado(req.headers.host, ehProducao());
-  if (base && limpo && limpo !== base && limpo.endsWith(`.${base}`)) {
+  // Host torto (porta estranha em produção) também não é o principal.
+  if (!limpo || (limpo !== base && limpo.endsWith(`.${base}`))) {
     return res.status(404).json({ message: "Rota não encontrada." });
   }
   next();
@@ -157,6 +169,9 @@ export async function guardaDoEndereco(req: Request, res: Response, next: NextFu
     if (!limpo) return res.status(400).json({ message: "Endereço inválido." });
     if (limpo === base || !limpo.endsWith(`.${base}`)) return next(); // principal, Railway, IP: como hoje
 
+    // Forma absoluta (`GET http://x/api/…`): o Express a roteia pelo caminho, mas aqui ele não seria lido.
+    if (!req.originalUrl.startsWith("/")) return res.status(400).json({ message: "Pedido inválido." });
+
     const destino = identificarHost(limpo, base, producao);
     res.locals.subdominio = destino;
     const caminho = caminhoPuro(req);
@@ -165,7 +180,10 @@ export async function guardaDoEndereco(req: Request, res: Response, next: NextFu
     res.locals.endereco = endereco;
     if (endereco.tipo !== "organizacao") {
       // Varrer rótulos é descobrir quais organizações existem: o miss conta no limite por IP.
-      const lim = await hit(`endereco-rotulo:${identify(req).ipHash ?? "?"}`, 10, 120);
+      // Só a navegação e a API contam: o carregamento da casca (script, imagem) de um visitante legítimo não.
+      const lim = ehArquivoEstatico(caminho)
+        ? { excedeu: false }
+        : await hit(`endereco-rotulo:${identify(req).ipHash ?? "?"}`, 10, 120);
       if (lim.excedeu) return res.status(429).json({ message: "Muitas tentativas. Tente de novo em instantes." });
       if (ehEndereco) return next();
       return negar(req, res, next);
@@ -178,7 +196,7 @@ export async function guardaDoEndereco(req: Request, res: Response, next: NextFu
       case "404":
         return negar(req, res, next);
       case "principal":
-        if (caminho.startsWith("/api/")) return negar(req, res, next);
+        if (ehCaminhoDeApi(caminho)) return negar(req, res, next);
         return res.redirect(302, `${casaPrincipal(base)}${req.originalUrl}`);
       case "canonico":
         return res.redirect(301, `${d.para}${consulta(req)}`);
@@ -245,7 +263,7 @@ export async function mudarEndereco(
       action: "organizacao.endereco",
       entity: "organization",
       entityId: id,
-      diff: { ativo: corpo.ativo, antes: o.enderecoAtivo, rotulo: o.slug, motivo: motivo || null },
+      diff: { ativo: corpo.ativo, antes: o.enderecoAtivo, rotulo: o.slug, motivo: motivo || null, confirmouMarca: corpo.confirmarMarca === true },
       ip: req.ip,
     });
     return novo!;

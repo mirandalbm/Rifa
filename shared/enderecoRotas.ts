@@ -23,7 +23,7 @@ export type Decisao =
   /** Só segue se `:slug` for o da organização do endereço. */
   | { acao: "conferir-organizacao"; slug: string }
   /** Só segue se a rifa do corpo (`campaignId` ou `itens[].slug`) for da organização. */
-  | { acao: "conferir-corpo" };
+  | { acao: "conferir-corpo"; campo: "campaignId" | "itens" };
 
 type Regra = { metodo?: string; padrao: RegExp; faz: (m: RegExpExecArray, slugDoEndereco: string) => Decisao };
 
@@ -42,8 +42,9 @@ const API_PUBLICA: Regra[] = [
   { padrao: /^\/o\/([^/]+)(?:\/.*)?$/, faz: (m) => ({ acao: "conferir-organizacao", slug: m[1]! }) },
   { padrao: /^\/campaigns\/([^/]+)(?:\/.*)?$/, faz: (m) => ({ acao: "conferir-rifa", slug: m[1]! }) },
   { padrao: /^\/mensagens\/grupos\/rifa\/([^/]+)$/, faz: (m) => ({ acao: "conferir-rifa", slug: m[1]! }) },
-  { metodo: "POST", padrao: /^\/orders$/, faz: () => ({ acao: "conferir-corpo" }) },
-  { metodo: "POST", padrao: /^\/carrinho(?:\/checkout)?$/, faz: () => ({ acao: "conferir-corpo" }) },
+  // O campo é da rota: o corpo traz outros que o handler ignora, e conferir o errado libera a rifa do vizinho.
+  { metodo: "POST", padrao: /^\/orders$/, faz: () => ({ acao: "conferir-corpo", campo: "campaignId" }) },
+  { metodo: "POST", padrao: /^\/carrinho(?:\/checkout)?$/, faz: () => ({ acao: "conferir-corpo", campo: "itens" }) },
 
   // — da plataforma inteira: nada de organização no caminho —
   { padrao: /^\/conta\/google(?:\/.*)?$/, faz: principal }, // o login do Google é só do principal (cap. 7)
@@ -72,6 +73,16 @@ const API_FORA_DA_PUBLICA: Regra[] = [
   { padrao: /^\/csp-relatorio$/, faz: seguir },
 ];
 
+/**
+ * O destino do 301 é sempre um caminho do próprio endereço: `/o/a//evil.com/x`
+ * não vira `Location: //evil.com/x` (o navegador seguiria para outro site).
+ */
+function caminhoCanonico(resto: string): Decisao {
+  if (resto.includes("\\")) return NEGADO;
+  const para = `/${resto.replace(/^\/+/, "")}`;
+  return { acao: "canonico", para };
+}
+
 const ARQUIVO_ESTATICO = /\.[a-z0-9]{2,5}$/i;
 const PREFIXOS_ESTATICOS = ["/assets/", "/icons/", "/intro/", "/bandeiras/", "/uploads/", "/@", "/src/", "/node_modules/"];
 
@@ -79,7 +90,7 @@ const PREFIXOS_ESTATICOS = ["/assets/", "/icons/", "/intro/", "/bandeiras/", "/u
 const PAGINAS: Regra[] = [
   { padrao: /^\/$/, faz: seguir },
   { padrao: /^\/(?:c|l)\/.+$/, faz: seguir }, // endereço curto e link do perfil (cap. 1.6)
-  { padrao: /^\/o\/([^/]+)((?:\/.*)?)$/, faz: (m, slug) => (m[1] === slug ? { acao: "canonico", para: m[2] || "/" } : PRINCIPAL) },
+  { padrao: /^\/o\/([^/]+)((?:\/.*)?)$/, faz: (m, slug) => (m[1] === slug ? caminhoCanonico(m[2] ?? "") : PRINCIPAL) },
   { padrao: /^\/r\/([^/]+)(?:\/regulamento)?$/, faz: (m) => ({ acao: "conferir-rifa", slug: m[1]! }) },
   {
     padrao: /^\/(?:pedido\/[^/]+|carrinho(?:\/pix\/[^/]+)?|entrar|criar-conta|minhas-compras|minhas-cotas|notificacoes|perfil(?:\/bilhetes|\/configuracoes)?|ajuda|termos|privacidade|bilhete\/[^/]+|recibo\/[^/]+)$/,
@@ -101,12 +112,27 @@ function aplicar(regras: Regra[], metodo: string, caminho: string, slug: string)
 
 /** É arquivo da casca (script, imagem, ícone, manifesto, mídia)? */
 export function ehArquivoEstatico(caminho: string): boolean {
+  if (ehCaminhoDeApi(caminho) || ehCaminhoDePainel(caminho)) return false;
   return (
     caminho === "/sw.js" ||
     caminho === "/manifest.webmanifest" ||
     PREFIXOS_ESTATICOS.some((p) => caminho.startsWith(p)) ||
-    (!caminho.startsWith("/api/") && ARQUIVO_ESTATICO.test(caminho))
+    ARQUIVO_ESTATICO.test(caminho)
   );
+}
+
+/**
+ * `/api` em qualquer caixa: o Express casa rota sem diferenciar maiúscula
+ * (`/API/Public/…` chega ao mesmo handler), então a lista fechada não pode
+ * ler só a forma minúscula.
+ */
+export function ehCaminhoDeApi(caminho: string): boolean {
+  return /^\/api(?:\/|$)/i.test(caminho);
+}
+
+const PAINEL = /^\/(?:admin|afiliado|cambista)(?:\/|$)/i;
+export function ehCaminhoDePainel(caminho: string): boolean {
+  return PAINEL.test(caminho);
 }
 
 /**
@@ -115,13 +141,16 @@ export function ehArquivoEstatico(caminho: string): boolean {
  */
 export function decidirNoEndereco(metodo: string, caminho: string, slugDoEndereco: string): Decisao {
   const m = metodo.toUpperCase();
+  if (!caminho.startsWith("/")) return NEGADO; // forma absoluta (`GET http://x/…`) ou lixo
   if (caminho.startsWith("/api/public/")) {
     return aplicar(API_PUBLICA, m, caminho.slice("/api/public".length), slugDoEndereco) ?? NEGADO;
   }
   if (caminho.startsWith("/api/")) {
     return aplicar(API_FORA_DA_PUBLICA, m, caminho.slice("/api".length), slugDoEndereco) ?? NEGADO;
   }
-  if (ehArquivoEstatico(caminho)) return SEGUIR;
+  if (ehCaminhoDeApi(caminho)) return NEGADO; // `/API/…`, `/Api`: não é a forma que classificamos
+  // `/o/<rótulo>/…` é página (canonicalização), mesmo que termine como nome de arquivo (`…/evil.com`).
+  if (!caminho.startsWith("/o/") && ehArquivoEstatico(caminho)) return SEGUIR;
   return aplicar(PAGINAS, m, caminho, slugDoEndereco) ?? NEGADO;
 }
 
@@ -138,6 +167,7 @@ export function exemploDeCaminho(rota: string): string {
 /** O caminho tem classe escrita (e não só o 404 de quem ninguém classificou)? */
 export function temClasse(metodo: string, caminho: string): boolean {
   const m = metodo.toUpperCase();
+  if (!caminho.startsWith("/") || (ehCaminhoDeApi(caminho) && !caminho.startsWith("/api/"))) return false;
   if (caminho.startsWith("/api/public/")) return aplicar(API_PUBLICA, m, caminho.slice("/api/public".length), "x") !== null;
   if (caminho.startsWith("/api/")) return aplicar(API_FORA_DA_PUBLICA, m, caminho.slice("/api".length), "x") !== null;
   return ehArquivoEstatico(caminho) || aplicar(PAGINAS, m, caminho, "x") !== null;

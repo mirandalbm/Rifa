@@ -7,6 +7,8 @@ import { RESGATE_MAX } from "@shared/bonus";
 
 export interface EstadoBonus {
   ligado: true;
+  /** Falso: telefone da conta ainda não provado — o saldo e o extrato não saem, e resgatar é 403. */
+  telefoneConfirmado?: boolean;
   saldo: number;
   codigo: string;
   link: string;
@@ -65,7 +67,12 @@ export function BonusDoComprador({ dados }: { dados: EstadoBonus }) {
           {msg ? (
             <p className={`rounded-md px-3 py-2 ${msg.ok ? "bg-green-soft text-green-deep" : "bg-red-soft text-red"}`}>{msg.texto}</p>
           ) : null}
-          {dados.rifas.length ? (
+          {dados.telefoneConfirmado === false ? (
+            <p className="rounded-md bg-yellow-soft px-3 py-2 text-yellow-deep" role="status">
+              Confirme o telefone desta conta pelo código do WhatsApp (em “Complete sua conta”, na Minha conta) para ver e usar
+              o seu bônus. O saldo e o extrato são do telefone, e só quem prova o número os enxerga.
+            </p>
+          ) : dados.rifas.length ? (
             <form
               className="flex flex-wrap items-end gap-2"
               onSubmit={(e) => {

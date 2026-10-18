@@ -27,7 +27,7 @@ export const MOTIVOS_DE_DENUNCIA = {
 export type MotivoDeDenuncia = keyof typeof MOTIVOS_DE_DENUNCIA;
 
 export function motivoValido(m: unknown): m is MotivoDeDenuncia {
-  return typeof m === "string" && m in MOTIVOS_DE_DENUNCIA;
+  return typeof m === "string" && Object.hasOwn(MOTIVOS_DE_DENUNCIA, m);
 }
 
 export const DENUNCIA_TEXTO_MAX = 1000;

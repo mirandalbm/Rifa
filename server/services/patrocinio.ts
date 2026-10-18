@@ -21,12 +21,14 @@
  * consulta seguinte — ninguém precisa apertar botão.
  */
 import { ehUuid } from "@shared/uuid";
+import { numeroDoCorpo } from "@shared/inteiro";
 import { comprovanteConfere } from "./ticketDoClique";
 import { randomInt, randomUUID } from "node:crypto";
 import type { Request } from "express";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
+  auditLog,
   campaigns,
   organizations,
   patrocinioAnuncios,
@@ -54,10 +56,11 @@ import {
 } from "@shared/patrocinio";
 import { EXIGE_CPF, EXIGE_EMAIL, type ProvedorPix } from "@shared/plataforma";
 import { emailValido } from "@shared/format";
-import { UFS } from "@shared/endereco";
+import { ufValida } from "@shared/endereco";
 import { diaNoFuso, serieDiaria } from "@shared/resultados";
 import { activePaymentProvider } from "../payments";
 import { isUniqueViolation } from "../pgError";
+import { hit } from "./antifraude";
 import { assertCampaignInScope, orgOf } from "./orgs";
 import { getPlataforma } from "./settings";
 import { exigirSemRetencao, RetencaoError, temRetencaoAtiva } from "./retencao";
@@ -73,7 +76,6 @@ export class PatrocinioError extends Error {
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = Tx | typeof db;
 
-const ufValida = (uf: unknown): uf is string => typeof uf === "string" && uf in UFS;
 const uuidValido = (id: unknown): id is string => typeof id === "string" && ehUuid(id);
 
 
@@ -156,7 +158,7 @@ async function fila(cfg: ConfigPatrocinio, filtro?: { segmentos?: string[]; orga
              row_number() over (partition by a.segmento order by a.fila_desde, a.id)::int as posicao,
              (case a.alcance when 'cidade' then ${cfg.vagas.cidade} when 'estado' then ${cfg.vagas.estado} else ${cfg.vagas.nacional} end)::int as vagas
         from patrocinio_anuncios a
-        join campaigns c on c.id = a.campaign_id and c.status = 'published' and c.travada_em is null
+        join campaigns c on c.id = a.campaign_id and c.status = 'published' and c.travada_em is null and not c.demonstracao
         join organizations o on o.id = a.organization_id and o.archived_at is null
        where a.status = 'ativo' and a.cliques_usados < a.cliques_comprados
     ) f
@@ -214,10 +216,15 @@ export async function comprarAnuncio(
   entrada: { campaignId: unknown; alcance: unknown; uf?: unknown; cidade?: unknown; cliques: unknown },
 ) {
   const cfg = await getPlataforma();
+  // Quem compra é a organização, com o saldo dela: a plataforma não gasta o saldo da organização por ela
+  // (o banner pago e o tráfego pago já eram assim). O ajuste de saldo é o caminho da plataforma.
+  if (!orgOf(req)) throw new PatrocinioError("Quem compra o anúncio é a organização.", 403);
   const campanha = await assertCampaignInScope(req, String(entrada.campaignId ?? ""));
-  if (campanha.status !== "published") throw new PatrocinioError("Só rifa no ar pode ser patrocinada.", 409);
+  if (campanha.status !== "published" || campanha.travadaEm || campanha.demonstracao) {
+    throw new PatrocinioError("Só rifa no ar, à venda, pode ser patrocinada.", 409);
+  }
   const alcance = String(entrada.alcance) as Alcance;
-  if (!(alcance in ALCANCES)) throw new PatrocinioError("Escolha cidade, estado ou Brasil inteiro.");
+  if (!Object.hasOwn(ALCANCES, alcance)) throw new PatrocinioError("Escolha cidade, estado ou Brasil inteiro.");
   const uf = alcance === "nacional" ? null : String(entrada.uf ?? "").toUpperCase();
   if (uf !== null && !ufValida(uf)) throw new PatrocinioError("Escolha o estado do anúncio.");
   const cidade = alcance === "cidade" ? String(entrada.cidade ?? "").replace(/\s+/g, " ").trim().slice(0, 80) : null;
@@ -225,12 +232,12 @@ export async function comprarAnuncio(
   let preco: ReturnType<typeof precoDoPacote>;
   try {
     segmento = segmentoDe(alcance, uf, cidade);
-    preco = precoDoPacote(cfg.patrocinio, alcance, Number(entrada.cliques));
+    preco = precoDoPacote(cfg.patrocinio, alcance, numeroDoCorpo(entrada.cliques));
   } catch (e) {
     throw new PatrocinioError((e as Error).message);
   }
   const id = randomUUID();
-  const cliques = Number(entrada.cliques);
+  const cliques = numeroDoCorpo(entrada.cliques);
   return db.transaction(async (tx) => {
     // Paga primeiro: sem saldo, a transação cai inteira e nada entra na fila.
     await lancar(tx, {
@@ -274,7 +281,7 @@ export async function encerrarAnunciosForaDoAr() {
     select a.id from patrocinio_anuncios a
       join campaigns c on c.id = a.campaign_id
       join organizations o on o.id = a.organization_id
-     where a.status = 'ativo' and (c.status <> 'published' or o.archived_at is not null)`);
+     where a.status = 'ativo' and (c.status <> 'published' or c.demonstracao or o.archived_at is not null)`);
   let n = 0;
   for (const { id } of r.rows as { id: string }[]) {
     await db.transaction(async (tx) => {
@@ -323,7 +330,7 @@ export async function pedirReembolso(req: Request, entrada: { valorCents: unknow
   const org = orgOf(req);
   const cfg = await getPlataforma();
   if (!org || !cfg.patrocinioReembolso) throw new PatrocinioError("Não encontrado.", 404);
-  const valor = Number(entrada.valorCents);
+  const valor = numeroDoCorpo(entrada.valorCents);
   if (!Number.isInteger(valor) || valor < 100) throw new PatrocinioError("Informe o valor em reais (mínimo de 1,00).");
   const chavePix = String(entrada.chavePix ?? "").trim().slice(0, 140);
   if (chavePix.length < 5) throw new PatrocinioError("Informe a chave Pix para a devolução.");
@@ -366,6 +373,10 @@ export async function responderReembolso(req: Request, id: string, textoBruto: u
   const texto = String(textoBruto ?? "").trim().slice(0, 2000);
   if (texto.length < 2) throw new PatrocinioError("Escreva a mensagem.");
   if (p.status !== "aberto") throw new PatrocinioError("Este pedido já foi decidido.", 409);
+  // A conversa do pedido aberto não tinha teto: um script a enchia de mensagem de 2 mil letras.
+  if ((await hit(`reembolso-mensagem:${req.user!.id}`, 10, 30)).excedeu) {
+    throw new PatrocinioError("Muitas mensagens em pouco tempo. Espere alguns minutos.", 429);
+  }
   const [m] = await db
     .insert(patrocinioReembolsoMensagens)
     .values({ reembolsoId: p.id, autor: orgOf(req) ? "organizacao" : "plataforma", userId: req.user!.id, texto })
@@ -385,7 +396,7 @@ export async function decidirReembolso(req: Request, id: string, entrada: { apro
   const explicacao = String(entrada.explicacao ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
   if (explicacao.length < 10) throw new PatrocinioError("Explique a decisão à organização (pelo menos 10 letras).");
   const aprovar = entrada.aprovar === true;
-  const retido = aprovar ? Number(entrada.retidoCents ?? 0) : 0;
+  const retido = aprovar ? (entrada.retidoCents == null ? 0 : numeroDoCorpo(entrada.retidoCents)) : 0;
   if (!Number.isInteger(retido) || retido < 0) throw new PatrocinioError("Informe o valor retido em centavos (zero se não houver).");
   if (retido > p.valorCents) throw new PatrocinioError(`O valor retido passa do pedido (${reais(p.valorCents)} reais).`);
   return db.transaction(async (tx) => {
@@ -490,6 +501,11 @@ export async function pedirRecarga(req: Request, valorCents: number) {
   if (!orgId) throw new PatrocinioError("A plataforma lança crédito pelo ajuste, não por recarga.", 400);
   const problema = problemaNaRecarga(valorCents, cfg.patrocinio.recargaMinimaCents);
   if (problema) throw new PatrocinioError(problema);
+  // Cada recarga chama o provedor do Pix com a conta da plataforma: um script não pode abrir centenas
+  // (o provedor limita a conta inteira, e as recargas pendentes ficam para sempre). O erro de preenchimento sai antes.
+  if ((await hit(`recarga:${orgId}`, 60, 10)).excedeu) {
+    throw new PatrocinioError("Muitas recargas em pouco tempo. Pague a que já está esperando ou tente de novo daqui a pouco.", 429);
+  }
 
   const [org] = await db
     .select({
@@ -566,6 +582,9 @@ export async function confirmarRecarga(chargeId: string): Promise<boolean> {
   const [r] = await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.chargeId, chargeId));
   if (!r) return false;
   await db.transaction(async (tx) => {
+    // A linha da organização primeiro, como em `estornarRecarga` e em quem retém: o "pago" e o
+    // "estornado" da mesma recarga chegando juntos não se esperam em ciclo.
+    await tx.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, r.organizationId)).for("update");
     const [paga] = await tx
       .update(patrocinioRecargas)
       .set({ status: "paga", pagaEm: new Date() })
@@ -580,6 +599,78 @@ export async function confirmarRecarga(chargeId: string): Promise<boolean> {
       descricao: `Recarga por Pix (${r.codigo})`,
     });
   });
+  return true;
+}
+
+/**
+ * Webhook "estornada": o Pix da recarga voltou ao pagador no provedor (devolução, contestação do Pix). O crédito
+ * que ele deu sai do saldo — uma vez só (`paga` → `estornada` é condicional, e a chave do livro decide). O saldo
+ * nunca fica negativo (`lancar`), então sai o que ainda houver: o que a organização já gastou em anúncio, banner
+ * ou tráfego não volta sozinho. Esse resto (`faltouCents`) vai à auditoria e ao log, como a comissão já sacada
+ * num estorno: engolir calado seria esconder dinheiro que saiu da conta da plataforma. Devolve `true` quando a
+ * cobrança é de uma recarga (o webhook não procura pedido).
+ */
+export async function estornarRecarga(chargeId: string): Promise<boolean> {
+  const [r] = await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.chargeId, chargeId));
+  if (!r) return false;
+  let faltou = 0;
+  let agiu = false;
+  await db.transaction(async (tx) => {
+    // A linha da organização primeiro: é a ordem de quem retém, de quem paga e de quem lança no livro.
+    const [org] = await tx
+      .select({ saldo: organizations.patrocinioSaldoCents })
+      .from(organizations)
+      .where(eq(organizations.id, r.organizationId))
+      .for("update");
+    // Recarga ainda `pendente`: o estorno chegou antes do "pago" (são duas entregas, e podem se cruzar).
+    // Marca como estornada sem debitar nada — não houve crédito — e o "pago" que vier depois não credita
+    // (`confirmarRecarga` só pega `pendente`).
+    const [antes] = await tx
+      .update(patrocinioRecargas)
+      .set({ status: "estornada" })
+      .where(and(eq(patrocinioRecargas.id, r.id), eq(patrocinioRecargas.status, "pendente")))
+      .returning({ id: patrocinioRecargas.id });
+    if (antes) {
+      await tx.insert(auditLog).values({
+        actorId: null,
+        actorRole: null as never,
+        action: "patrocinio.recarga.estornada",
+        entity: "patrocinio_recarga",
+        entityId: r.id,
+        diff: { codigo: r.codigo, valorCents: r.valorCents, debitadoCents: 0, faltouCents: 0, antesDoPago: true } as never,
+      });
+      return;
+    }
+    const [estornada] = await tx
+      .update(patrocinioRecargas)
+      .set({ status: "estornada" })
+      .where(and(eq(patrocinioRecargas.id, r.id), eq(patrocinioRecargas.status, "paga")))
+      .returning({ id: patrocinioRecargas.id });
+    if (!estornada) return;
+    const debitar = Math.min(r.valorCents, Math.max(0, org?.saldo ?? 0));
+    faltou = r.valorCents - debitar;
+    if (debitar > 0) {
+      await lancar(tx, {
+        organizationId: r.organizationId,
+        valorCents: -debitar,
+        motivo: "recarga-estorno",
+        chave: `recarga-estorno:${r.id}`,
+        descricao: `Recarga por Pix (${r.codigo}) estornada no provedor`,
+      });
+    }
+    await tx.insert(auditLog).values({
+      actorId: null,
+      actorRole: null as never,
+      action: "patrocinio.recarga.estornada",
+      entity: "patrocinio_recarga",
+      entityId: r.id,
+      diff: { codigo: r.codigo, valorCents: r.valorCents, debitadoCents: debitar, faltouCents: faltou } as never,
+    });
+    agiu = true;
+  });
+  if (agiu && faltou > 0) {
+    console.warn(`[patrocinio] recarga ${r.codigo} estornada no provedor: ${faltou} centavos já tinham sido gastos e não voltam sozinhos`);
+  }
   return true;
 }
 

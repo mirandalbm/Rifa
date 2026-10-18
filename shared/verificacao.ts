@@ -90,7 +90,7 @@ export interface ChavePix {
 export function validarPix(bruto: unknown): ChavePix {
   const b = (bruto ?? {}) as Record<string, unknown>;
   const tipo = String(b.tipo ?? "") as TipoDePix;
-  if (!(tipo in TIPOS_DE_PIX)) throw new Error("Escolha o tipo da chave Pix.");
+  if (!Object.hasOwn(TIPOS_DE_PIX, tipo)) throw new Error("Escolha o tipo da chave Pix.");
   const v = String(b.chave ?? "").trim();
   if (tipo === "cpf") {
     const d = v.replace(/\D/g, "");
@@ -344,7 +344,7 @@ export function validarCoresDoSelo(bruto: unknown): CoresDoSelo {
   const cores = {} as CoresDoSelo;
   for (const s of SUJEITOS) {
     const c = String(b[s] ?? CORES_DO_SELO_PADRAO[s]);
-    if (!(c in PALETA_DO_SELO)) throw new Error("Cor do selo fora da paleta.");
+    if (!Object.hasOwn(PALETA_DO_SELO, c)) throw new Error("Cor do selo fora da paleta.");
     cores[s] = c as CorDoSelo;
   }
   if (new Set(Object.values(cores)).size !== SUJEITOS.length) {

@@ -281,7 +281,7 @@ export function validarEntrada(nome: NomeDaAcao, entrada: unknown): Resultado<En
     case "listar_rifas": {
       const s = texto(e.situacao);
       if (!s) return { ok: true, valor: { nome, situacao: null } };
-      if (!(s in SITUACOES_DA_RIFA)) return falha("Situação desconhecida: use rascunho, no_ar, encerrada ou sorteada.");
+      if (!Object.hasOwn(SITUACOES_DA_RIFA, s)) return falha("Situação desconhecida: use rascunho, no_ar, encerrada ou sorteada.");
       return { ok: true, valor: { nome, situacao: s as SituacaoDaRifa } };
     }
     case "resumo_de_vendas": {

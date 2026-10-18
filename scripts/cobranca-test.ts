@@ -142,6 +142,16 @@ async function main() {
       r.status === 200 && JSON.stringify(r.json?.vigente) === JSON.stringify(tabela) && r.json?.proxima === null,
       `HTTP ${r.status} ${JSON.stringify(r.json)}`,
     );
+    // O campo que não vem fica como está na tabela vigente (antes, o valor por cota
+    // zerava e as faixas do Pix voltavam às de fábrica — e redução vale na hora).
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { percentualPct: null });
+    checa("percentual nulo não vale como zero (400, nada gravado)", r.status === 400, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { percentualPct: tabela.percentualPct });
+    checa(
+      "mandar só o percentual não zera o valor por cota nem volta as faixas do Pix ao padrão",
+      r.status === 200 && JSON.stringify(r.json?.vigente) === JSON.stringify(tabela),
+      `HTTP ${r.status} ${JSON.stringify(r.json)}`,
+    );
     r = await organizador.req("GET", "/api/admin/cobranca/tabela");
     checa(
       "a organização lê a tabela em vigor e o prazo do aviso",
@@ -167,7 +177,13 @@ async function main() {
     r = await organizador.req("POST", `/api/admin/campaigns/${barata.id}/publish`);
     checa("por cota igual ao preço da cota não publica (422)", r.status === 422 && /preço da cota/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
 
+    // O desconto do pacote tem teto de 50% (`shared/pacotes.ts`): 98% nem chega à régua da taxa.
     r = await organizador.req("PUT", `/api/admin/campaigns/${a.id}/packages`, { packages: [{ quantity: 10, discountPct: 98 }] });
+    checa("pacote com mais de 50% de desconto é recusado (422)", r.status === 422 && /de 0% a 50%/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    // Na rifa de cota barata (R$ 0,40, taxa de R$ 0,30), 50% já leva a cota abaixo da taxa.
+    const pacoteBarato = await rascunho(org.id, "pacote", 40);
+    await organizador.req("PATCH", `/api/admin/campaigns/${pacoteBarato.id}`, { cobrancaModo: "por_cota" });
+    r = await organizador.req("PUT", `/api/admin/campaigns/${pacoteBarato.id}/packages`, { packages: [{ quantity: 10, discountPct: 50 }] });
     checa("pacote que deixa a cota abaixo da taxa por cota é recusado (422)", r.status === 422 && /pacote de 10/.test(r.json?.message ?? ""), `HTTP ${r.status} ${r.json?.message ?? ""}`);
 
     console.log("\n  a publicação fotografa e trava:");

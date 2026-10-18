@@ -15,6 +15,7 @@ import {
 } from "../services/bannerDivulgacao";
 import { SociosError, adicionarSocio, declararSocios, listarSocios, removerSocio } from "../services/socios";
 import { agendarPublicacao } from "../services/publicacaoAgendada";
+import { validarPacotes } from "@shared/pacotes";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { abaterRetencao, liberarRetencao, listarRetencoes, reterManual } from "../services/retencao";
@@ -1528,11 +1529,11 @@ adminRouter.put("/campaigns/:id/agendar-publicacao", async (req, res, next) => {
 adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
   try {
     const campanha = await assertCampaignInScope(req, req.params.id);
-    const list = (req.body?.packages ?? []) as {
-      quantity: number;
-      discountPct: number;
-      highlight?: boolean;
-    }[];
+    // O corpo é do navegador: sem teto, o desconto de 100% (ou 150%) virava
+    // pedido de valor zero (ou negativo) com as cotas reservadas.
+    const lida = validarPacotes(req.body?.packages, campanha.totalQuotas);
+    if ("problema" in lida) return res.status(422).json({ message: lida.problema });
+    const list = lida.pacotes;
     // Por cota: o desconto do pacote não pode levar a cota abaixo da taxa da
     // plataforma (a fotografada na publicação, ou a de hoje no rascunho).
     const tabela = campanha.cobranca ?? (await tabelaDeCobrancaAgora());

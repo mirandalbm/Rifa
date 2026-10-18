@@ -1834,6 +1834,12 @@ permite cobrar dela depois, e o aceite é a prova.
   de quem trocou e encerra as demais; redefinir a de outra pessoa encerra
   todas (`encerrarSessoesDoUsuario`). Senão a sessão roubada sobrevive à
   troca que existia para encerrá-la.
+  **E o `DELETE` em `sessions` não basta**: uma requisição em andamento da
+  sessão expulsa a regravava (`connect-pg-simple` faz `INSERT … ON CONFLICT DO
+  UPDATE`). A conta tem a marca `users.sessoes_validas_desde` e a sessão do
+  painel, `painelEntrouEm` (gravado no login); o middleware de `setupAuth`
+  derruba a sessão mais velha que a marca. Desligar o acesso também a grava.
+  `npm run afiliados` prova (com 24 requisições em laço).
 - **A conta do afiliado é da plataforma** — inclusive a do afiliado antigo,
   que ainda tem a organização no usuário: a organização não redefine a
   senha nem desliga (403, no `npm run isolation`). Ele trabalha para várias.

@@ -7,7 +7,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 866 |
-| Rotas da API | 487, das quais 483 citadas por alguma prova |
+| Rotas da API | 487, das quais 484 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 66 |
 | Testes de regra (`tests/`) | 139 arquivos |
 | Destinos decididos | 973 de 973 |
@@ -1342,7 +1342,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | `guarda-test.ts`, `isolation-test.ts` |
+| GET | `/overview` | `afiliados-test.ts`, `guarda-test.ts`, `isolation-test.ts` |
 | GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
 | POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
 | PATCH | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +9 |
@@ -1422,7 +1422,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/campaigns/:id/prized` | `apuracao-test.ts`, `comentarios-test.ts`, `contrato-anexos-test.ts` +1 |
 | DELETE | `/prized/:prizedId` | `isolation-test.ts` |
 | GET | `/busca` | `isolation-test.ts` |
-| GET | `/orders` | `isolation-test.ts` |
+| GET | `/orders` | `afiliados-test.ts`, `isolation-test.ts` |
 | GET | `/affiliates` | `afiliados-test.ts`, `isolation-test.ts` |
 | POST | `/affiliates` | `afiliados-test.ts`, `isolation-test.ts` |
 | PATCH | `/affiliates/:id` | `afiliados-test.ts`, `divulgacao-test.ts`, `isolation-test.ts` |
@@ -1610,46 +1610,46 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/fiscal/:affiliateId/documentos/:tipo` | `fiscal-test.ts`, `isolation-test.ts` |
 | POST | `/fiscal/:affiliateId/decidir` | `fiscal-test.ts`, `isolation-test.ts` |
 
-### `server/routes/affiliate.ts` — /api/affiliate (36 rotas, 35 com prova)
+### `server/routes/affiliate.ts` — /api/affiliate (36 rotas, 36 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | `verificacao-test.ts` |
+| GET | `/overview` | `afiliados-test.ts`, `verificacao-test.ts` |
 | GET | `/commissions` | `afiliados-test.ts` |
 | GET | `/links` | `afiliados-test.ts`, `artes-test.ts` |
 | GET | `/coupons` | `afiliados-test.ts` |
-| GET | `/artes/:slug` | `artes-test.ts` |
-| GET | `/artes/:slug/:tipo/pacote` | `artes-test.ts` |
-| GET | `/artes/:slug/:tipo` | `artes-test.ts` |
-| GET | `/editor/:slug` | `artes-test.ts` |
+| GET | `/artes/:slug` | `afiliados-test.ts`, `artes-test.ts` |
+| GET | `/artes/:slug/:tipo/pacote` | `afiliados-test.ts`, `artes-test.ts` |
+| GET | `/artes/:slug/:tipo` | `afiliados-test.ts`, `artes-test.ts` |
+| GET | `/editor/:slug` | `afiliados-test.ts`, `artes-test.ts` |
 | POST | `/editor/:slug/sugerir` | `artes-test.ts` |
 | GET | `/editor/:slug/foco/:mediaId` | `artes-test.ts` |
 | POST | `/editor/:slug/conferir` | `artes-test.ts` |
 | PATCH | `/pix-key` | `afiliados-test.ts` |
 | GET | `/saldo` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
 | POST | `/payouts` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
-| GET | `/payouts/:id/nota` | `fiscal-test.ts` |
+| GET | `/payouts/:id/nota` | `afiliados-test.ts`, `fiscal-test.ts` |
 | GET | `/payouts` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
 | GET | `/organizacoes` | `afiliados-test.ts` |
 | POST | `/organizacoes/:slug/aderir` | `afiliados-test.ts`, `divulgacao-test.ts` |
 | DELETE | `/organizacoes/:slug` | `afiliados-test.ts`, `divulgacao-test.ts` |
-| GET | `/fiscal` | `fiscal-test.ts` |
-| PUT | `/fiscal` | `fiscal-test.ts` |
-| PUT | `/fiscal/documentos/:tipo` | `fiscal-test.ts`, `verificacao-test.ts` |
-| GET | `/fiscal/documentos/:tipo` | `fiscal-test.ts`, `verificacao-test.ts` |
+| GET | `/fiscal` | `afiliados-test.ts`, `fiscal-test.ts` |
+| PUT | `/fiscal` | `afiliados-test.ts`, `fiscal-test.ts` |
+| PUT | `/fiscal/documentos/:tipo` | `afiliados-test.ts`, `fiscal-test.ts`, `verificacao-test.ts` |
+| GET | `/fiscal/documentos/:tipo` | `afiliados-test.ts`, `fiscal-test.ts`, `verificacao-test.ts` |
 | POST | `/verificacao/copiar-do-fiscal` | `verificacao-test.ts` |
-| PUT | `/foto` | `verificacao-test.ts` |
-| GET | `/foto` | `verificacao-test.ts` |
+| PUT | `/foto` | `afiliados-test.ts`, `verificacao-test.ts` |
+| GET | `/foto` | `afiliados-test.ts`, `verificacao-test.ts` |
 | GET | `/recibos/:codigo/pdf` | `fiscal-test.ts` |
 | GET | `/divulgacoes/rifas` | `divulgacao-test.ts` |
-| GET | `/divulgacoes` | `divulgacao-test.ts` |
-| POST | `/divulgacoes` | `divulgacao-test.ts` |
+| GET | `/divulgacoes` | `afiliados-test.ts`, `divulgacao-test.ts` |
+| POST | `/divulgacoes` | `afiliados-test.ts`, `divulgacao-test.ts` |
 | GET | `/divulgacoes/novidades` | `divulgacao-test.ts`, `isolation-test.ts` |
 | POST | `/avisos/vistos` | `divulgacao-test.ts`, `isolation-test.ts` |
-| PATCH | `/divulgacoes/:id` | `divulgacao-test.ts`, `isolation-test.ts` |
+| PATCH | `/divulgacoes/:id` | `afiliados-test.ts`, `divulgacao-test.ts`, `isolation-test.ts` |
 | GET | `/divulgacoes/:id/fotos/:fotoId` | `isolation-test.ts` |
-| GET | `/divulgacoes/:id/video` | — |
-| DELETE | `/divulgacoes/:id` | `divulgacao-test.ts`, `isolation-test.ts` |
+| GET | `/divulgacoes/:id/video` | `afiliados-test.ts` |
+| DELETE | `/divulgacoes/:id` | `afiliados-test.ts`, `divulgacao-test.ts`, `isolation-test.ts` |
 
 ### `server/routes/auth.ts` — /api/auth (4 rotas, 4 com prova)
 
@@ -1657,7 +1657,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 |---|---|---|
 | GET | `/me` | `acessos-test.ts`, `google-test.ts`, `marketing-test.ts` |
 | POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +47 |
-| POST | `/senha` | `acessos-test.ts` |
+| POST | `/senha` | `acessos-test.ts`, `afiliados-test.ts` |
 | POST | `/logout` | `acessos-test.ts` |
 
 ### `server/routes/dev.ts` — /api/dev (4 rotas, 4 com prova)
@@ -1786,8 +1786,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/my-quotas/request-code` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | POST | `/my-quotas/verify` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | GET | `/my-quotas` | `chamados-test.ts`, `conta-test.ts` |
-| GET | `/conta/google/disponivel` | `google-test.ts` |
-| GET | `/conta/google/entrar` | `google-test.ts` |
+| GET | `/conta/google/disponivel` | `afiliados-test.ts`, `google-test.ts` |
+| GET | `/conta/google/entrar` | `afiliados-test.ts`, `google-test.ts` |
 | GET | `/conta/google/ligar` | `google-test.ts` |
 | GET | `/conta/google/retorno` | `google-test.ts` |
 | POST | `/conta/cpf` | `google-test.ts` |
@@ -1848,10 +1848,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/overview` | `cambista-test.ts` |
-| POST | `/sales` | `cambista-test.ts`, `publico-test.ts` |
+| POST | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `publico-test.ts` |
 | POST | `/sales/:code/confirm` | `cambista-test.ts`, `publico-test.ts` |
 | POST | `/sales/:code/cancel` | `cambista-test.ts` |
-| GET | `/sales` | `cambista-test.ts`, `publico-test.ts` |
+| GET | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `publico-test.ts` |
 | GET | `/settlement` | `cambista-test.ts` |
 
 ### `server/routes/verificacaoRotas.ts` — (montada em public.ts, affiliate.ts e admin.ts) (5 rotas, 5 com prova)
@@ -1875,7 +1875,6 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
 - `server/routes/admin.ts` (1 de 267): PUT `/media/raw`
-- `server/routes/affiliate.ts` (1 de 36): GET `/divulgacoes/:id/video`
 - `server/routes/public.ts` (2 de 156): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 
 ## 6. Provas contra a API

@@ -1665,7 +1665,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | Método | Caminho | Provas |
 |---|---|---|
 | POST | `/google` | `google-test.ts` |
-| POST | `/pay/:code` | `afiliados-test.ts`, `bonus-test.ts`, `carrinho-test.ts` +13 |
+| POST | `/pay/:code` | `afiliados-test.ts`, `bonus-test.ts`, `carrinho-test.ts` +12 |
 | POST | `/ia-pagamento/:codigo` | `ia-acoes-test.ts`, `ia-test.ts` |
 | POST | `/recarga/:codigo` | `patrocinio-test.ts` |
 
@@ -1779,8 +1779,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/campaigns/:slug/numbers/:number` | `publico-test.ts` |
 | POST | `/track-click` | `publico-test.ts` |
 | GET | `/checkout` | `base-ia.ts`, `pagarme-test.ts` |
-| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +21 |
-| POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts`, `zz-probe.ts` |
+| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +20 |
+| POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts` |
 | GET | `/orders/:code` | `carrinho-test.ts`, `conta-test.ts`, `marketing-test.ts` +1 |
 | GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts`, `conta-test.ts` |
 | POST | `/my-quotas/request-code` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
@@ -1795,7 +1795,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/conta/telefone/confirmar` | `bonus-test.ts`, `conta-test.ts`, `google-test.ts` |
 | DELETE | `/conta/google` | `google-test.ts` |
 | POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +19 |
-| POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `telas.ts` +1 |
+| POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `telas.ts` |
 | POST | `/conta/sair` | `bilhetes-test.ts`, `conta-test.ts` |
 | GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +19 |
 | PUT | `/conta/senha` | `conta-test.ts` |

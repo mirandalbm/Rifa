@@ -54,11 +54,17 @@ export async function refazerHashSeAntigo(tabela: "users" | "buyers", id: string
  */
 export async function encerrarSessoesDoUsuario(
   userId: string,
-  manter?: { sessionID: string; session: { painelEntrouEm?: number } },
+  manter?: { sessionID: string; session: { painelEntrouEm?: number; save: (cb: (err?: unknown) => void) => void } },
 ) {
   const agora = Date.now();
+  if (manter) {
+    // A sessão que fica já leva a hora nova na linha do banco ANTES de a marca
+    // valer: uma requisição paralela que a carregue no meio não a veria mais
+    // velha que a marca e não a derrubaria (no objeto, não numa cópia).
+    manter.session.painelEntrouEm = agora;
+    await new Promise<void>((resolve, reject) => manter.session.save((err) => (err ? reject(err) : resolve())));
+  }
   await db.update(users).set({ sessoesValidasDesde: new Date(agora) }).where(eq(users.id, userId));
-  if (manter) manter.session.painelEntrouEm = agora; // no objeto, não numa cópia
   await db.execute(sql`
     DELETE FROM sessions
     WHERE sess -> 'passport' ->> 'user' = ${userId}

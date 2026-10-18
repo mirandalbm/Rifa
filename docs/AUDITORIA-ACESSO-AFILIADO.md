@@ -81,6 +81,22 @@ Subir o código exige `db:push` antes: coluna nova `users.sessoes_validas_desde`
   sem nome, campo abaixo de 16 px no celular, alvo menor que 24 px, erro de
   JavaScript ou 5xx. Números em `tnum`, estados em `<Pill>`.
 
+## Parecer do revisor (feito) e o que mudou depois
+
+O `revisor-de-invariantes` não achou vazamento entre afiliados ou organizações,
+risco ao dinheiro do saque nem privilégio novo. Achou duas janelas estreitas na
+marca da sessão, **corrigidas depois do parecer**: (1) a hora de entrada do
+painel era carimbada depois de conferir a senha (centenas de ms de scrypt) —
+um login que começou antes da troca de senha e terminou depois passava; agora
+vale o instante em que o login **começou**; (2) a sessão que fica na troca de
+senha só era renovada em memória, e uma requisição paralela podia carregá-la
+velha e derrubá-la; agora ela é salva com a hora nova **antes** de a marca valer.
+A corrida em laço da prova só roda com o login do Google no servidor (pulada
+aqui); o `DELETE` regravado à mão roda sempre. **O mesmo carimbo tardio existe na
+sessão do apostador** (`entrarComo` em `contaComprador.ts`, #280): o fio chega
+depois da conferência do código e precisa do instante de início passado pelos
+chamadores — fica para uma rodada própria.
+
 ## Aberto
 
 | Item | Por quê |

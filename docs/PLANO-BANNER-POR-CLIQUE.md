@@ -601,6 +601,29 @@ API ou cartão novo — `tests/matrizReformulacao.test.ts` falha com a matriz
 velha ou com seção/cartão sem linha de destino
 (`npm run matriz -- --destinos`).
 
+## Decisões do responsável (18/10/2026)
+
+Respostas às perguntas da seção 9 (as que não aparecem aqui seguem abertas):
+
+- **Preço do clique, pacote mínimo e prazo máximo são configuração da
+  plataforma**: o administrador define no painel (Marketing → Publicidade →
+  Banner na vitrine) e **o que ele definir vale, na hora, para a tela de
+  compra da organização** (a tela lê a configuração; nenhum valor fica
+  escrito no código além do padrão de fábrica). Para o padrão de fábrica:
+  R$ 1,00 por clique e 30 dias de prazo máximo; o pacote mínimo ficou como
+  decisão do admin (o responsável citou 1.000 cliques; o documento de preços
+  propunha 100).
+- **Vagas compartilhadas** entre o modo por dia e o por clique: uma fila só,
+  por ordem de aprovação.
+- **O clique da própria organização não conta** (nem cobra nem entra no gasto
+  do pacote).
+- **A ordem dos slides pagos gira a cada visita**: cada visita começa por um
+  slide diferente, em rodízio, para os pagantes receberem a primeira posição
+  na mesma proporção.
+- **Venda atribuída por produto**: o banner tem a atribuição dele (coluna
+  própria `orders.banner_pedido_id`) e a patrocinada a dela; um produto não
+  rouba a venda do outro.
+
 ## 9. Decisões que ainda faltam
 
 Do responsável (negócio):

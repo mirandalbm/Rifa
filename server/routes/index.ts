@@ -17,6 +17,16 @@ import { clicarLinkDoPerfil, resolverLinkCurto } from "../services/links";
  */
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/auth", authRouter);
+  // Quase toda leitura pública varia com a sessão (quem segue, quem curtiu, a
+  // conta): sem uma diretiva, um cache compartilhado no meio do caminho (CDN,
+  // proxy da operadora) podia servir a resposta de uma pessoa a outra. O padrão
+  // é `private, no-cache` (só o aparelho guarda, e revalida pelo ETag); a rota
+  // que é igual para todos e quer cache diz o dela (`public, max-age`), e a de
+  // dado pessoal diz `no-store`.
+  app.use("/api/public", (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD") res.setHeader("Cache-Control", "private, no-cache");
+    next();
+  });
   app.use("/api/public", publicRouter);
   app.use("/api/affiliate", requireRole("affiliate"), requireAffiliateAccount, affiliateRouter);
   app.use("/api/seller", requireRole("cambista"), requireAffiliateAccount, sellerRouter);

@@ -333,6 +333,14 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   180 capturas, log do servidor e `npm audit`; uma falha alta e quatro médias
   corrigidas, com prova. Registro e o que ficou para depois em
   `docs/SEGURANCA.md`.
+- [x] Auditoria do acesso público (18/10/2026): uma falha alta (login anônimo
+  derrubava o servidor), várias médias e baixas corrigidas, com prova. Relatório
+  em `docs/AUDITORIA-ACESSO-PUBLICO.md`.
+- [ ] **[decisão]** O que a auditoria do acesso público deixou aberto
+  (`docs/AUDITORIA-ACESSO-PUBLICO.md`, "Ficou aberto"): a vitrine devolve todas
+  as rifas de uma vez (sem paginação); `/cartelas` sem limite por IP; a página
+  da rifa de promotora banida ainda mostra o nome e o "Seguir"; e-mail e telefone
+  crus por 2 h em `rate_events`; `robots.txt` e `noindex`.
 
 ## 3b. Decisões de produto (1º/10/2026)
 

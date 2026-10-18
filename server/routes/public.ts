@@ -654,7 +654,7 @@ publicRouter.get("/banners/:id/imagem", async (req, res, next) => {
 /** A arte de banner pago, só enquanto ele está no ar (some junto com a rifa). */
 publicRouter.get("/banners-pagos/:id/imagem", async (req, res, next) => {
   try {
-    const b = await imagemDoBannerPago(req.params.id);
+    const b = ehUuid(req.params.id) ? await imagemDoBannerPago(req.params.id) : null;
     if (!b) return res.status(404).json({ message: "Banner não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=300");
     res.type(b.mime).send(b.bytes);
@@ -705,7 +705,7 @@ publicRouter.post("/stories/:id/enquete", async (req, res, next) => {
 
 publicRouter.get("/stories/:id/poster", async (req, res, next) => {
   try {
-    const poster = await posterDoStory(req.params.id);
+    const poster = ehUuid(req.params.id) ? await posterDoStory(req.params.id) : null;
     if (!poster) return res.status(404).json({ message: "Pôster não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.type("image/webp").send(poster);
@@ -717,7 +717,7 @@ publicRouter.get("/stories/:id/poster", async (req, res, next) => {
 publicRouter.get("/stories/:id/imagem", async (req, res, next) => {
   try {
     // Só enquanto o story está no ar: vencido some, como no Instagram.
-    const s = await imagemDoStory(req.params.id);
+    const s = ehUuid(req.params.id) ? await imagemDoStory(req.params.id) : null;
     if (!s) return res.status(404).json({ message: "Story não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     // Vídeo pede `Range` (o Safari não toca sem 206); imagem vai inteira.
@@ -1338,6 +1338,11 @@ publicRouter.delete("/push/inscricoes", async (req, res, next) => {
  */
 publicRouter.get("/cep/:cep", async (req, res, next) => {
   try {
+    // Cada CEP novo é uma chamada ao serviço de fora (que nos bloquearia por abuso, e aí
+    // ninguém preencheria endereço): limite por IP, folgado para quem digita de verdade.
+    if ((await hit(`cep:${identify(req).ipHash ?? "sem-origem"}`, 1, 120)).excedeu) {
+      return res.status(429).json({ message: "Muitas consultas de CEP seguidas. Espere um pouco ou preencha o endereço à mão." });
+    }
     const r = await consultarCep(req.params.cep);
     if (r === "invalido") return res.status(400).json({ message: "CEP inválido: são 8 números." });
     if (r === "nao_encontrado") return res.status(404).json({ message: "CEP não encontrado." });
@@ -1910,7 +1915,9 @@ async function lookupGuard(req: Request, res: Response): Promise<boolean> {
 publicRouter.get("/orders/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await orderByCode(Number(req.params.code));
+    // Pedido, Pix e nome de quem comprou: nunca em cache de ninguém.
+    res.setHeader("Cache-Control", "private, no-store");
+    const found = await orderByCode(codigoDoPedido(req.params.code));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Pedido não encontrado." });
@@ -1962,7 +1969,8 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
 publicRouter.get("/carrinho/pedidos/:codigo", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await cartByCode(Number(req.params.codigo));
+    res.setHeader("Cache-Control", "private, no-store");
+    const found = await cartByCode(codigoDoPedido(req.params.codigo));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Carrinho não encontrado." });
@@ -2472,6 +2480,7 @@ publicRouter.post("/patrocinadas/:id/clique", async (req, res, next) => {
 publicRouter.get("/tickets/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
+    res.setHeader("Cache-Control", "private, no-store");
     const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));
@@ -2487,6 +2496,7 @@ publicRouter.get("/tickets/:code", async (req, res, next) => {
 publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
+    res.setHeader("Cache-Control", "private, no-store");
     const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));
@@ -2805,11 +2815,20 @@ function* codigosDeAfiliado(name: string): Generator<string> {
 
 /* ---------------- ranking público ---------------- */
 
+const RANKING_GUARDADO_MS = 10_000;
+const cacheDoRanking = new Map<string, { ate: number; valor: { nome: string; telefone: string; quotas: number }[] }>();
+
 publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
     // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
     if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
+
+    // Soma todos os pedidos pagos da rifa: numa rifa grande, é uma varredura por
+    // pedido de quem abrir a rota. O ranking é prova social, não precisa ser
+    // do segundo: o mesmo resultado fica guardado alguns segundos por rifa.
+    const guardado = cacheDoRanking.get(found.campaign.id);
+    if (guardado && guardado.ate > Date.now()) return res.json(guardado.valor);
 
     const rows = await db.execute(sql`
       SELECT b.name, b.phone, sum(o.quantity)::int AS quotas
@@ -2822,13 +2841,14 @@ publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
     `);
 
     // Ranking é tela pública: nome reduzido e telefone escondido.
-    res.json(
-      (rows.rows as { name: string; phone: string; quotas: number }[]).map((r) => ({
-        nome: firstNameAndInitial(r.name),
-        telefone: hidePhone(r.phone),
-        quotas: r.quotas,
-      })),
-    );
+    const valor = (rows.rows as { name: string; phone: string; quotas: number }[]).map((r) => ({
+      nome: firstNameAndInitial(r.name),
+      telefone: hidePhone(r.phone),
+      quotas: r.quotas,
+    }));
+    if (cacheDoRanking.size >= 500) cacheDoRanking.clear();
+    cacheDoRanking.set(found.campaign.id, { ate: Date.now() + RANKING_GUARDADO_MS, valor });
+    res.json(valor);
   } catch (err) {
     next(err);
   }

@@ -110,6 +110,7 @@ export async function pixelsPublicos(organizacao?: unknown) {
         and(
           sql`(${organizations.slug} = ${organizacao} or ${organizations.id}::text = ${organizacao})`,
           sql`${organizations.archivedAt} is null`,
+          sql`${organizations.banidaEm} is null`,
         ),
       );
     daOrg = o && temPixel(o.pixels) ? o.pixels : null;

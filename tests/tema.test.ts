@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { contraste } from "../shared/template";
 import { CHAVE_TEMA, COR_DA_BARRA, lerTema, proximoTema, temaEfetivo } from "../client/src/lib/tema";
 
 const raiz = path.resolve(import.meta.dirname, "..");
@@ -33,6 +34,14 @@ describe("tokens do tema", () => {
   it("o texto sobre o azul cheio e sobre o verde não muda: o fundo deles também não escurece", () => {
     expect(escuroSistema["--on-yellow"]).toBe(claro["--on-yellow"]);
     expect(escuroSistema["--on-green"]).toBe(claro["--on-green"]);
+  });
+
+  it("o texto branco sobre o verde (botão primário, casa do mapa) tem contraste de texto, ≥ 4,5:1, nos dois temas", () => {
+    // Era 4,0:1 no escuro (#16924e): o texto de 13 px dos botões "Pagar", "Copiar código Pix" e dos números não passava no AA.
+    expect(contraste(claro["--green"], claro["--on-green"])).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(escuroSistema["--green"], escuroSistema["--on-green"])).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(escuroSistema["--quadro-verde"], escuroSistema["--quadro-texto"])).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(escuroSistema["--quadro-azul"], escuroSistema["--quadro-texto"])).toBeGreaterThanOrEqual(4.5);
   });
 
   it("a barra do celular usa o fundo de cada tema", () => {

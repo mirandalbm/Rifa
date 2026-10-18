@@ -77,6 +77,38 @@ Seções 3 e 4 (mesma data):
   `claude/*` menos a da sessão, `fix/*` e `feature-media-library-page`: não há
   PR aberto; ligar "excluir branch ao mesclar" no GitHub).
 
+### Subdomínio do organizador (incluído no cronograma em 18/10/2026)
+
+Cada organização (e cada afiliado) ter o endereço próprio, `<slug>.<base>` e
+`af-<código>.<base>`, para a divulgação sair como white label e a página de
+destino do anúncio ser da promotora (decisão A3 de
+`docs/FECHAMENTO-JURIDICO-CONTABIL.md`, que também ajuda no tráfego pago
+modelo B e na exigência do Google).
+
+- **Já existe** (PR #257): as regras puras (`shared/subdominio.ts`: rótulo,
+  reservados, prefixo `af-`, `identificarHost`), a leitura da variável
+  `SUBDOMINIO_BASE` e o middleware que põe o destino em
+  `res.locals.subdominio` (`server/services/subdominio.ts`, `server/index.ts`).
+  Sem a variável, tudo segue como hoje. **Nenhuma rota usa o destino ainda.**
+- **Falta o domínio**: comprar o domínio base (loteriasnacional.com ou .com.br
+  foi o nome cogitado), apontar o DNS e cadastrar o **domínio curinga**
+  (`*.base`) no Railway, que aceita curinga e dá dois CNAME e um TXT para
+  verificar. Curinga e subdomínio específico do mesmo nome não convivem.
+- **Falta o código** (cronograma, depois do plano): a página da organização e
+  da rifa atendidas pelo endereço; links, QR das artes, anúncios, e-mail e
+  Open Graph usando o endereço da organização (`PUBLIC_BASE_URL` hoje é um
+  só); `canonical` para não duplicar conteúdo com o domínio principal;
+  pixels da organização; cookie da sessão (hoje sem `Domain`, logo por host)
+  e o que acontece com quem entra no subdomínio; a lista de reservados; e o
+  que acontece quando a organização troca o slug (redirecionar o antigo).
+- **Perguntas ao responsável**: qual o domínio base; se o apostador entra uma
+  vez e vale em todos os subdomínios (cookie no domínio base) ou entra em cada
+  um; se o endereço do afiliado nasce no lançamento ou só o da organização; se
+  a organização escolhe o rótulo ou é sempre o slug.
+- **Perguntas ao advogado**: o endereço com a marca da promotora muda quem
+  responde perante o consumidor (CDC, art. 7º, parágrafo único)? Precisa de
+  texto no rodapé do subdomínio dizendo que a venda é pela plataforma?
+
 ## 1. WhatsApp
 
 - [ ] **[você]** Verificar a empresa **Sorte Nacional** na Meta (Central de

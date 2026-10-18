@@ -130,6 +130,9 @@ export async function clicarLinkDoPerfil(slug: string, indice: number, userAgent
   // Arquivada ou banida: o perfil é 404 e o link dela não leva ninguém a lugar nenhum
   // (o do banido é, justamente, por onde o Pix por fora costuma ir).
   if (!org || org.arquivada || org.banida || !link) return null;
+  // O link foi conferido ao salvar (só https), mas o redirecionamento é o último lugar onde um valor torto no
+  // banco viraria `javascript:` ou `http:` com a assinatura da plataforma: confere de novo, sem exceção.
+  if (typeof link.url !== "string" || !/^https:\/\/[^\s]+$/i.test(link.url)) return null;
   if (!ehRobo(userAgent)) {
     await db
       .insert(perfilLinkCliques)

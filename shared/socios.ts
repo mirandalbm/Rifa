@@ -32,7 +32,7 @@ export function validarSocio(bruto: unknown): SocioNovo {
   if (nome.length > NOME_DO_SOCIO_MAX) throw new SocioInvalido(`O nome passa de ${NOME_DO_SOCIO_MAX} caracteres.`);
   if (/\d/.test(nome)) throw new SocioInvalido("O nome não leva números.");
   const cargo = typeof b.cargo === "string" ? b.cargo : "";
-  if (!(cargo in CARGOS_DO_SOCIO)) throw new SocioInvalido("Escolha o cargo: sócio, ou diretor ou administrador.");
+  if (!Object.hasOwn(CARGOS_DO_SOCIO, cargo)) throw new SocioInvalido("Escolha o cargo: sócio, ou diretor ou administrador.");
   const cpf = (typeof b.cpf === "string" ? b.cpf : "").replace(/\D/g, "");
   if (!cpfValido(cpf)) throw new SocioInvalido("CPF inválido.");
   return { nome, cargo: cargo as CargoDoSocio, cpf };

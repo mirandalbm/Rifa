@@ -1,5 +1,15 @@
 import { useSyncExternalStore } from "react";
-import { cookiesDeMedicao, dominiosDoCookie, gravarEscolha, lerEscolha, utmDaUrl, type Escolha, type Pixels, type Utm } from "@shared/marketing";
+import {
+  cookiesDeMedicao,
+  dominiosDoCookie,
+  gravarEscolha,
+  lerEscolha,
+  pixelsForaDaPagina,
+  utmDaUrl,
+  type Escolha,
+  type Pixels,
+  type Utm,
+} from "@shared/marketing";
 
 /**
  * Marketing no navegador (etapa 16): aviso de cookies, UTM e pixels.
@@ -238,14 +248,26 @@ function iniciarTiktok(id: string) {
   }
 }
 
-/** Carrega os pixels (só depois do "aceito" — quem chama confere). */
-export function carregarPixels(alvos: Pixels[]) {
+/**
+ * Carrega os pixels (só depois do "aceito" — quem chama confere).
+ *
+ * Pixel não se descarrega: o da promotora A, depois do `init`, segue na página e escuta os botões e os
+ * formulários da página da B (a medição automática e a correspondência avançada da Meta leem o que se digita).
+ * Se sobra algum pixel que não é desta página, recarrega — a página nova nasce só com os dela. Devolve
+ * `"recarregando"` para quem chama parar ali.
+ */
+export function carregarPixels(alvos: Pixels[]): "ok" | "recarregando" {
+  if (pixelsForaDaPagina([...iniciados.meta, ...iniciados.google, ...iniciados.tiktok], alvos).length > 0) {
+    window.location.reload();
+    return "recarregando";
+  }
   for (const p of alvos) {
     if (p.meta) iniciarMeta(p.meta);
     if (p.ga4) iniciarGoogle(p.ga4);
     if (p.googleAds) iniciarGoogle(p.googleAds);
     if (p.tiktok) iniciarTiktok(p.tiktok);
   }
+  return "ok";
 }
 
 export type Evento =

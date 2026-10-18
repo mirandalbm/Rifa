@@ -9,7 +9,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Cartões (componentes usados pelas telas) | 866 |
 | Rotas da API | 487, das quais 484 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 66 |
-| Testes de regra (`tests/`) | 140 arquivos |
+| Testes de regra (`tests/`) | 141 arquivos |
 | Destinos decididos | 973 de 973 |
 
 ## 1. Telas

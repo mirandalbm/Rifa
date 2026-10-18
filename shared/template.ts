@@ -268,8 +268,8 @@ export function validarTemplate(entrada: unknown): Template {
     }
   }
 
-  if (!(id.fonte in FONTES)) throw new TemplateInvalido("Escolha uma fonte da lista.");
-  if (!(id.raio in RAIOS)) throw new TemplateInvalido("Escolha o formato dos cantos.");
+  if (typeof id.fonte !== "string" || !Object.hasOwn(FONTES, id.fonte)) throw new TemplateInvalido("Escolha uma fonte da lista.");
+  if (typeof id.raio !== "string" || !Object.hasOwn(RAIOS, id.raio)) throw new TemplateInvalido("Escolha o formato dos cantos.");
 
   const logo = typeof id.logo === "string" && id.logo.startsWith("/api/public/marca/logo") ? id.logo : null;
 
@@ -278,7 +278,7 @@ export function validarTemplate(entrada: unknown): Template {
   const ids = new Set<string>();
   const tipos = new Set<string>();
   const blocos: Bloco[] = e.blocos.map((b: any, i: number) => {
-    if (!b || !(b.tipo in TIPOS_DE_BLOCO)) throw new TemplateInvalido(`Bloco ${i + 1}: tipo desconhecido.`);
+    if (!b || typeof b.tipo !== "string" || !Object.hasOwn(TIPOS_DE_BLOCO, b.tipo)) throw new TemplateInvalido(`Bloco ${i + 1}: tipo desconhecido.`);
     const bid = typeof b.id === "string" && /^[a-z0-9-]{1,40}$/.test(b.id) ? b.id : "";
     if (!bid || ids.has(bid)) throw new TemplateInvalido(`Bloco ${i + 1}: identificador inválido ou repetido.`);
     ids.add(bid);

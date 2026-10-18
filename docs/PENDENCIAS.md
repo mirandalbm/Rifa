@@ -320,6 +320,19 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 
 ## 3. Segurança e acessos (no painel)
 
+- [ ] **[produto e contador]** Recarga de patrocínio estornada no provedor depois
+  de gasta: `estornarRecarga()` tira o que ainda há no saldo e deixa o resto
+  (`faltouCents`) na auditoria `patrocinio.recarga.estornada` e no log
+  (`[patrocinio] recarga … estornada`). Decidir o que fazer com esse resto (saldo
+  negativo que trava, retenção cautelar automática ou cobrança à parte) —
+  `docs/AUDITORIA-ACESSO-MARKETING.md`.
+- [ ] **[advogado]** Revogar os cookies não alcança o pedido já criado com o
+  consentimento (o servidor ainda manda a compra, com o telefone em hash, quando
+  o Pix cai), e o telefone em hash vai também ao pixel da organização.
+- [ ] **[você]** No primeiro evento de compra de verdade na Meta e no TikTok,
+  conferir o formato (`client_user_agent` e IP da Meta, o cabeçalho
+  `Access-Token` do TikTok): hoje só foi provado contra um provedor de mentira.
+
 - [ ] **[você]** Ativar o segundo fator (Configurações). Também é exigido
   para arquivar organização.
 - [ ] **[você]** Trocar a senha do administrador (passou pela conversa) e

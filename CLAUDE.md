@@ -4717,6 +4717,25 @@ aí o próximo entra sozinho.
   (o do vizinho é 404); o organizador vê só os números dele e nunca a fila
   dos outros. Configuração e ajuste de
   saldo são da plataforma (403 no `npm run isolation`).
+- **Quem compra é a organização, com o saldo dela** (auditoria do marketing,
+  18/10/2026): a plataforma que pede anúncio recebe 403 — como no banner pago
+  e no tráfego pago, ela não gasta o saldo da organização por ela (o ajuste de
+  saldo é o caminho). Só rifa no ar **e à venda**: demonstração e rifa travada
+  são 409 (`fila()` e o relógio de encerramento também as largam, e o que não
+  foi gasto volta como crédito). O alcance e o estado são chave da lista
+  (`Object.hasOwn`, nunca `in`: `constructor` passava) e os cliques são número
+  de verdade (`numeroDoCorpo()`: `[100]` e `true` valiam).
+- **Teto no que chama o provedor ou enche a conversa**: a recarga é 10 por hora
+  por organização (`recarga:<org>`, 429 — cada uma chama o Pix da plataforma e
+  as pendentes nunca somem) e a mensagem do reembolso, 30 a cada 10 minutos por
+  pessoa; o erro de preenchimento sai antes de contar.
+- **Pix da recarga devolvido no provedor tira o crédito** (`estornarRecarga()`,
+  o evento `refunded` do webhook, depois do assistente e antes do pedido):
+  `paga` → `estornada` num `UPDATE` condicional com a linha da organização
+  travada, e o débito sai pelo livro (`recarga-estorno:<id>`, uma vez só) **até
+  onde o saldo alcança** — o saldo nunca fica negativo. O que a organização já
+  gastou não volta sozinho: `faltouCents` na auditoria
+  (`patrocinio.recarga.estornada`) e no log, como a comissão já sacada.
 - **Propaganda se identifica**: cada cartão diz "Patrocinada" em texto.
   Quem olha vê cidade, estado e Brasil nessa ordem, uma vez por rifa.
 - Template publicado antes do bloco existir ganha o bloco antes do feed
@@ -4817,6 +4836,11 @@ do dia, mínimo e máximo de dias, vagas e segundos na tela são da plataforma
 - **Propaganda se identifica**: o cartão leva "Patrocinado" em texto, no
   canto. A arte é reprocessada (WebP 1200×600) e fica no banco; o título é o
   texto alternativo.
+- **Pedido tem teto de ritmo**: abrir a imagem custa CPU e o pedido sem saldo
+  só cai depois dela — 20 pedidos a cada 10 minutos por organização
+  (`banner-pedido:<org>`, 429, depois do erro de título e dias). Os dias e a
+  tabela da plataforma são número de verdade (`numeroDoCorpo()`: vazio e lista
+  não viram 0).
 - **Rifa com banner pago não se apaga** (422, FK `restrict` e checagem em
   `excluirRifa`): dinheiro envolvido.
 - **Recorte**: o pedido, a arte e o cancelamento do vizinho são 404; decidir
@@ -5500,7 +5524,9 @@ abaixo).
   (`validarPixels`: Meta, GA4, Google Ads e rótulo, TikTok); quem monta o
   código que roda no navegador é `client/src/lib/marketing.ts`, chamando as
   funções oficiais com o número. Campo livre viraria script de terceiro na
-  tela de todo apostador.
+  tela de todo apostador. **O guardado é conferido de novo na saída**
+  (`pixelsSeguros()`, `pixelsPublicos()`): valor torto no banco vira "sem
+  pixel", nunca vai à tela.
 - **Consentimento antes do pixel** (LGPD). Sem o "Aceitar" do aviso
   (`rifa.cookies`, no aparelho, com versão), nenhum script carrega. Recusar
   é tão fácil quanto aceitar (dois botões iguais) e a tela do perfil
@@ -5515,7 +5541,12 @@ abaixo).
 - **Cada evento vai só para os pixels da página** (`trackSingle`,
   `send_to`, `ttq.instance`): na SPA o pixel da promotora A continuaria
   iniciado na rifa da B. A página diz de quem é
-  (`definirOrganizacaoDaPagina`) e sai limpando.
+  (`definirOrganizacaoDaPagina`) e sai limpando. **Só o evento não basta**:
+  pixel não se descarrega, e o da A, depois do `init`, segue na página e escuta
+  os botões e os formulários da B (a medição automática e a correspondência
+  avançada da Meta leem o que se digita). Sobrou pixel que não é desta página
+  (`pixelsForaDaPagina()`), `carregarPixels()` recarrega — a página nova nasce
+  só com os dela.
 - **A compra conta pelo servidor, uma vez.** Na transação que confirma o
   pagamento, `enfileirarCompra` grava uma linha por destino com pixel **e**
   chave (`marketing_eventos`, único por pedido+dono+provedor); os destinos
@@ -5534,7 +5565,12 @@ abaixo).
   sabe só se existe. Campo ausente mantém, vazio apaga.
 - **UTM é estatística**, como a origem: `validarUtm` só guarda as chaves
   conhecidas, limpas e curtas (`orders.utm`); o relatório "Vendas por
-  campanha" agrupa por fonte/meio/campanha com o recorte de `orgOf`.
+  campanha" agrupa por fonte/meio/campanha com o recorte de `orgOf` — **no
+  banco** (`group by`, até 500 linhas): trazer cada pedido com UTM de 90 dias
+  para a memória cresceria com a venda, e a plataforma não tem recorte.
+  O endereço curto e o link do perfil conferem `https:` de novo no
+  redirecionamento (`clicarLinkDoPerfil()`): um valor torto no banco
+  (`javascript:`, `http:`) é 404, nunca um `Location`.
 - `npm run marketing` prova tudo isso contra a API de verdade (o envio é
   injetado: a prova não sai para a internet).
 

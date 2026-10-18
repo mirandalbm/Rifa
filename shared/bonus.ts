@@ -70,7 +70,7 @@ export function validarMeta(bruto: unknown): Omit<Meta, "id"> {
   const b = (bruto ?? {}) as Record<string, unknown>;
   const titulo = typeof b.titulo === "string" ? b.titulo.replace(/\s+/g, " ").trim() : "";
   if (titulo.length < 3 || titulo.length > 80) throw new Error("Dê um título de 3 a 80 caracteres à meta.");
-  if (typeof b.tipo !== "string" || !(b.tipo in TIPOS_DE_META)) throw new Error("Tipo de meta desconhecido.");
+  if (typeof b.tipo !== "string" || !Object.hasOwn(TIPOS_DE_META, b.tipo)) throw new Error("Tipo de meta desconhecido.");
   const alvo = Number(b.alvo);
   if (!Number.isInteger(alvo) || alvo < 1 || alvo > 1000) throw new Error("O alvo vai de 1 a 1000.");
   const recompensa = Number(b.recompensa);

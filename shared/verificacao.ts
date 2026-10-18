@@ -344,7 +344,7 @@ export function validarCoresDoSelo(bruto: unknown): CoresDoSelo {
   const cores = {} as CoresDoSelo;
   for (const s of SUJEITOS) {
     const c = String(b[s] ?? CORES_DO_SELO_PADRAO[s]);
-    if (!(c in PALETA_DO_SELO)) throw new Error("Cor do selo fora da paleta.");
+    if (!Object.hasOwn(PALETA_DO_SELO, c)) throw new Error("Cor do selo fora da paleta.");
     cores[s] = c as CorDoSelo;
   }
   if (new Set(Object.values(cores)).size !== SUJEITOS.length) {

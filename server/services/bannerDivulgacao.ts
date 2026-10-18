@@ -177,7 +177,7 @@ function mimeDoDocumento(b: Buffer): string | null {
  * mudou volta para ela.
  */
 export async function salvarDocumentoDaEntidade(campaignId: string, tipo: string, dataUrl: unknown) {
-  if (!(tipo in DOCUMENTOS_DA_ENTIDADE)) throw new BannerDivulgacaoError("Tipo de documento desconhecido.", 400);
+  if (!Object.hasOwn(DOCUMENTOS_DA_ENTIDADE, tipo)) throw new BannerDivulgacaoError("Tipo de documento desconhecido.", 400);
   const m = /^data:[a-z/+.-]+;base64,([A-Za-z0-9+/=]+)$/i.exec(String(dataUrl ?? ""));
   if (!m) throw new BannerDivulgacaoError("Envie uma foto (JPG, PNG, WebP) ou um PDF.", 400);
   const bruto = Buffer.from(m[1], "base64");
@@ -238,7 +238,7 @@ export async function entidadesParaConferir() {
 
 /** Um documento decifrado (a auditoria é gravada pela rota, antes). */
 export async function documentoDaEntidade(campaignId: string, tipo: string) {
-  if (!(tipo in DOCUMENTOS_DA_ENTIDADE)) return null;
+  if (!Object.hasOwn(DOCUMENTOS_DA_ENTIDADE, tipo)) return null;
   const [d] = await db
     .select()
     .from(entidadeDocumentos)

@@ -89,6 +89,28 @@ O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
 
+### 18/10/2026 — acesso marketing
+
+Escopo: o menu Marketing (pixels e compra pelo servidor, tráfego pago, Marketing
+AI, rifas patrocinadas, banner pago) e os atalhos `/c/` e `/l/`. Relatório
+completo, com o que ficou aberto, em `docs/AUDITORIA-ACESSO-MARKETING.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| **Alta** | **Pix de recarga devolvido no provedor deixava o crédito** (o webhook `refunded` só tratava o assistente e o pedido). Agora tira o crédito pelo livro, uma vez, até onde o saldo alcança; o resto fica na auditoria | `patrocinio.ts` (`estornarRecarga`), `routes/webhooks.ts` (`npm run patrocinio`, `npm run webhook`) |
+| Média | A plataforma comprava anúncio patrocinado com o saldo da organização (o banner e o tráfego já eram 403) | `patrocinio.ts` (`npm run patrocinio`) |
+| Média | Pixel de uma promotora seguia escutando a página da outra na navegação sem recarregar (medição automática e correspondência avançada leem o que se digita); agora recarrega quando sobra pixel que não é da página | `client/src/lib/marketing.ts`, `shared/marketing.ts` (`tests/auditoriaMarketing.test.ts`) |
+| Média | `x in OBJETO` com texto do corpo aceitava `constructor` em 20 listas fechadas (um 500 na fila de divulgações; documento de entidade gravado com tipo `constructor`); `Object.hasOwn` em todas | `shared/*`, `server/services/*` (`tests/auditoriaMarketing.test.ts`, `npm run isolation`) |
+| Média | Taxa de gestão e tabelas mandadas vazias viravam 0%; `[100]` e `true` valiam como número; `numeroDoCorpo()` | `shared/inteiro.ts` (`npm run trafego`, `patrocinio`, `banner`) |
+| Média | Sem teto na recarga (chama o Pix da plataforma), na conversa do reembolso do saldo e no pedido de banner (abre a imagem): 10/h, 30/10 min e 20/10 min | `patrocinio.ts`, `bannerPago.ts` (`npm run patrocinio`, `banner`) |
+| Baixa | Rifa de demonstração ou travada patrocinada; painel "Vendas por campanha" na memória (agora `group by`); pixel guardado sem conferir na saída; `/l/` sem conferir `https:` no redirecionamento | `patrocinio.ts`, `marketing.ts`, `links.ts` (`npm run marketing`) |
+
+Aberto, para decisão: a dívida de uma recarga estornada depois de gasta; a
+revogação do consentimento não alcança o pedido já criado; o telefone em hash vai
+ao pixel da organização (controladora distinta); o formato dos eventos da Meta e
+do TikTok não foi confirmado em fonte oficial. **Não passou pelo
+`revisor-de-invariantes`.**
+
 ### 18/10/2026 — acesso do cambista
 
 Escopo: tudo o que a sessão de cambista alcança (`/api/seller/*`, o bilhete e a

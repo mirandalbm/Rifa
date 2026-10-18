@@ -160,10 +160,12 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   `drizzle-kit`, o `tsx` e a `DATABASE_URL`: `railway ssh --service Rifa` e,
   no terminal do container, `npm run db:push` (sem `--force`; se pedir
   confirmação de perda, responda não e leia o aviso). Assim o banco não foi
-  aberto na internet e a URL não saiu da Railway. **Ainda não conferido**: os
-  `UPDATE` de uma vez citados acima (`stories.publica_em` e a impressão
-  SHA-256 dos contratos e aceites de antes) — rode-os, se couber, e marque
-  aqui.
+  aberto na internet e a URL não saiu da Railway. **Os dois `UPDATE` de uma
+  vez** citados acima (`stories.publica_em` e a impressão SHA-256 dos
+  contratos e aceites de antes) **foram conferidos e não são necessários**
+  (18/10/2026): o banco tem 0 stories, 0 contratos e 0 aceites, então não
+  há linha a corrigir. Se o banco ganhar esses dados antes de um novo
+  `db:push` de coluna, volte a conferir.
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Criar o serviço do trabalhador (o gerador de vídeo) no Railway, com
   `npm run start:worker` e só o `DATABASE_URL` (passo a passo em

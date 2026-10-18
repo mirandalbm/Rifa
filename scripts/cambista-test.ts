@@ -13,7 +13,13 @@
  * - dar baixa duas vezes é um 409, sem mudar a data da primeira;
  * - o acerto da organização vizinha é 404 (ler, fechar, dar baixa);
  * - cadastrar cambista: repetido é 409, senha fraca 400, e o organizador
- *   não escolhe a organização do cadastro.
+ *   não escolhe a organização do cadastro;
+ * - auditoria do acesso (docs/AUDITORIA-ACESSO-CAMBISTA.md): código de venda
+ *   fora do formato é 404 (nunca 500), comprovante da maquininha com formato
+ *   (o bilhete é público e impresso), meio desligado barrado no servidor,
+ *   bloqueio manual vale para o cambista, cambista sem organização não entra,
+ *   sessão copiada cai na troca de senha, número repetido não cobra a mais,
+ *   reservas grandes ao mesmo tempo não dão 500 e o teto de vendas por cambista.
  *
  *   npm run cambista      (com `npm run dev` no ar e o seed aplicado)
  */
@@ -22,7 +28,7 @@ import { baseUrl } from "./base-url";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
-import { campaignStats, campaigns, orders, organizations, quotaAlloc, settlements, users } from "../shared/schema";
+import { affiliates, buyers, campaignStats, campaigns, orders, organizations, quotaAlloc, settlements, users } from "../shared/schema";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -59,6 +65,8 @@ const EMAILS = [
   "cambista-1@teste.rifa",
   "cambista-2@teste.rifa",
   "cambista-b1@teste.rifa",
+  "cambista-nulo@teste.rifa",
+  "cambista-lim@teste.rifa",
 ];
 
 async function limpar() {
@@ -77,7 +85,7 @@ async function limpar() {
   await db.delete(users).where(inArray(users.email, EMAILS));
   if (ids.length) await db.delete(organizations).where(inArray(organizations.id, ids));
   await db.execute(sql`delete from buyers where phone like '1197777%'`);
-  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'order:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'login:%' or bucket like 'order:%' or bucket like 'cambista-venda:%'`);
 }
 
 async function rifa(orgId: string, slug: string) {
@@ -291,6 +299,274 @@ async function main() {
     checa("nada foi reservado na rifa da vizinha", resto.length === 0);
     const ped = await db.select({ id: orders.id }).from(orders).where(eq(orders.campaignId, campB.id));
     checa("…nem pedido gravado nela", ped.length === 0);
+
+    // ====================================================================
+    // Auditoria do acesso cambista (docs/AUDITORIA-ACESSO-CAMBISTA.md)
+    // ====================================================================
+    console.log("\n  auditoria do acesso cambista");
+
+    const statusDo = async (code: number) =>
+      (await db.select({ s: orders.status }).from(orders).where(eq(orders.code, code)))[0]?.s;
+
+    // ---- o código da venda na URL: o que não é número não existe (nunca 500)
+    {
+      const ruins = ["abc", "12.5", "1e3", "2147483648", "99999999999999", "Infinity", "NaN", "1,2", "undefined", "0", "-1", "0x10"];
+      const respostas: number[] = [];
+      for (const c of ruins) {
+        respostas.push((await c1.req("POST", `/api/seller/sales/${encodeURIComponent(c)}/confirm`, { method: "dinheiro" })).status);
+        respostas.push((await c1.req("POST", `/api/seller/sales/${encodeURIComponent(c)}/cancel`)).status);
+      }
+      checa("código de venda fora do formato: 404 em confirmar e cancelar, nunca 500", respostas.every((s) => s === 404), respostas.join(","));
+      r = await c1.req("POST", "/api/public/tickets/abc/printed");
+      checa("…e marcar bilhete impresso com código ruim também é 404", r.status === 404, `HTTP ${r.status}`);
+    }
+
+    // ---- o meio e o comprovante da maquininha (o bilhete é público e impresso)
+    {
+      const s = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: comprador() });
+      const code = s.json.code as number;
+      const ruins: [string, unknown][] = [
+        ["meio em lista", { method: ["dinheiro"] }],
+        ["meio em objeto", { method: { a: 1 } }],
+        ["meio nulo", { method: null }],
+        ["comprovante em objeto", { method: "pix_maquininha", posAuthCode: { a: 1 } }],
+        ["comprovante com texto livre (Pix por fora no bilhete)", { method: "pix_maquininha", posAuthCode: "Pague no Pix 11999998888" }],
+        ["comprovante de 200 mil letras", { method: "pix_maquininha", posAuthCode: "x".repeat(200_000) }],
+        ["terminal com quebra de linha", { method: "pix_maquininha", posTerminal: "T\n1" }],
+        ["terminal em lista", { method: "pix_maquininha", posTerminal: ["x"] }],
+      ];
+      const recusas: string[] = [];
+      for (const [nome, corpo] of ruins) {
+        const x = await c1.req("POST", `/api/seller/sales/${code}/confirm`, corpo);
+        if (x.status !== 400) recusas.push(`${nome}: ${x.status}`);
+      }
+      checa("meio e comprovante fora do formato: 400", recusas.length === 0, recusas.join("; "));
+      checa("…e a venda segue pendente (nada foi cobrado nem gravado)", (await statusDo(code)) === "pending");
+      r = await c1.req("POST", `/api/seller/sales/${code}/confirm`, { method: "pix_maquininha", posAuthCode: "NSU-123/A", posTerminal: "Ton POS Android" });
+      checa("o comprovante certo passa e a venda fica paga", r.status === 200 && r.json?.status === "paid", `HTTP ${r.status}`);
+      const [gravada] = await db.select().from(orders).where(eq(orders.code, code));
+      checa("…com o meio e o comprovante gravados", gravada.method === "pix_maquininha" && gravada.posAuthCode === "NSU-123/A" && gravada.posTerminal === "Ton POS Android");
+    }
+
+    // ---- número repetido no pedido é um número só (o preço conta o que se reserva)
+    {
+      r = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, numbers: [7777, 7777, 7777], buyer: comprador() });
+      const [ped] = await db.select().from(orders).where(eq(orders.code, r.json?.code ?? 0));
+      checa("[7777, 7777, 7777] reserva 1 cota e cobra 1 (antes cobrava 3)", r.status === 201 && r.json?.numbers?.length === 1 && r.json?.amountCents === 1000 && ped?.quantity === 1, JSON.stringify(r.json));
+      await c1.req("POST", `/api/seller/sales/${r.json.code}/cancel`);
+    }
+
+    // ---- o que a tela oferece é só o que vende ----------------------------
+    {
+      const demo = await rifa(orgA.id, "cambista-demo");
+      await db.update(campaigns).set({ demonstracao: true }).where(eq(campaigns.id, demo.id));
+      const travada = await rifa(orgA.id, "cambista-travada");
+      await db.update(campaigns).set({ travadaEm: new Date() }).where(eq(campaigns.id, travada.id));
+      const rascunho = await rifa(orgA.id, "cambista-rascunho");
+      await db.update(campaigns).set({ status: "draft", publishedAt: null }).where(eq(campaigns.id, rascunho.id));
+      r = await c1.req("GET", "/api/seller/overview");
+      const slugs: string[] = (r.json?.campanhas ?? []).map((c: any) => c.slug);
+      checa("demonstração, rifa travada e rascunho não são oferecidas", slugs.includes("cambista-rifa-a") && !slugs.some((s) => ["cambista-demo", "cambista-travada", "cambista-rascunho"].includes(s)), slugs.join(","));
+      r = await c1.req("POST", "/api/seller/sales", { campaignId: demo.id, quantity: 1, buyer: comprador() });
+      checa("vender a demonstração é 409", r.status === 409, `HTTP ${r.status}`);
+      r = await c1.req("POST", "/api/seller/sales", { campaignId: travada.id, quantity: 1, buyer: comprador() });
+      checa("vender a rifa travada pela plataforma é 409", r.status === 409, `HTTP ${r.status}`);
+      r = await c1.req("POST", "/api/seller/sales", { campaignId: rascunho.id, quantity: 1, buyer: comprador() });
+      checa("vender o rascunho é 409", r.status === 409, `HTTP ${r.status}`);
+    }
+
+    // ---- preço e meio vêm do servidor, nunca do corpo ----------------------
+    {
+      r = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 2, buyer: comprador(), amountCents: 1, totalCents: 1, priceCents: 1, method: "pix_online", couponCode: "QUALQUER", affiliateCode: "SERGIO" });
+      const [ped] = await db.select().from(orders).where(eq(orders.code, r.json?.code ?? 0));
+      checa("preço, meio, cupom e afiliado do corpo são ignorados", r.status === 201 && ped?.amountCents === 2000 && ped.method === "dinheiro" && ped.couponId === null && ped.affiliateId === ped.sellerId, JSON.stringify(r.json));
+      await c1.req("POST", `/api/seller/sales/${r.json.code}/cancel`);
+    }
+
+    // ---- cambista sem organização não entra e não vende -------------------
+    {
+      r = await dA.req("POST", "/api/admin/sellers", { name: "Cambista Limite", email: EMAILS[6], password: SENHA, code: "CAMBLIM" });
+      checa("(cadastra o cambista do teto)", r.status === 201, `HTTP ${r.status}`);
+      const [uNulo] = await db.insert(users).values({ role: "cambista", organizationId: null, name: "Sem organização", email: EMAILS[5], passwordHash: await hashPassword(SENHA) }).returning();
+      await db.insert(affiliates).values({ userId: uNulo.id, code: "CAMBNULO", kind: "cambista", status: "active", approvedAt: new Date() });
+      r = await new Cliente().req("POST", "/api/auth/login", { email: EMAILS[5], password: SENHA });
+      checa("cambista sem organização não entra (o recorte nulo é o da plataforma)", r.status === 401, `HTTP ${r.status}`);
+      // a sessão que já estava aberta cai quando a organização some
+      const lim = await new Cliente().entrar(EMAILS[6], SENHA);
+      await db.execute(sql`update users set organization_id = null where email = ${EMAILS[6]}`);
+      r = await lim.req("GET", "/api/seller/overview");
+      checa("…e a sessão já aberta cai quando a organização some", r.status === 401, `HTTP ${r.status}`);
+      await db.execute(sql`update users set organization_id = ${orgA.id}::uuid where email = ${EMAILS[6]}`);
+    }
+
+    // ---- privilégio: o cambista não alcança o painel nem o afiliado ---------
+    {
+      const alvos: [string, string][] = [
+        ["GET", "/api/admin/overview"], ["GET", "/api/admin/orders"], ["GET", "/api/admin/settlements"], ["GET", "/api/admin/usuarios"],
+        ["GET", "/api/admin/campaigns"], ["GET", "/api/admin/payment-methods"], ["PUT", "/api/admin/payment-methods"], ["POST", "/api/admin/sellers"],
+        ["GET", "/api/admin/exportacoes/pedidos"], ["GET", "/api/admin/2fa"], ["POST", "/api/admin/2fa/setup"],
+        ["GET", "/api/affiliate/overview"], ["GET", "/api/affiliate/saldo"], ["POST", "/api/affiliate/payouts"], ["GET", "/api/ia/sessao"],
+      ];
+      const fora: string[] = [];
+      for (const [m, p] of alvos) {
+        const x = await c1.req(m, p, m === "GET" ? undefined : {});
+        if (x.status !== 403) fora.push(`${m} ${p}: ${x.status}`);
+      }
+      checa("o cambista é 403 no painel, no afiliado e no assistente", fora.length === 0, fora.join("; "));
+    }
+
+    // ---- o bilhete: marcar impresso é de quem vendeu -----------------------
+    {
+      const s = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: comprador() });
+      const code = s.json.code as number;
+      await c1.req("POST", `/api/seller/sales/${code}/confirm`, { method: "dinheiro" });
+      const impresso = async () => (await db.select({ t: orders.ticketPrintedAt }).from(orders).where(eq(orders.code, code)))[0]?.t;
+      r = await c2.req("POST", `/api/public/tickets/${code}/printed`);
+      const colega = r.status;
+      r = await cb.req("POST", `/api/public/tickets/${code}/printed`);
+      const vizinha = r.status;
+      checa("o colega e o cambista da vizinha não mexem na trilha do bilhete (404)", colega === 404 && vizinha === 404 && (await impresso()) === null, `${colega}/${vizinha}`);
+      r = await c1.req("POST", `/api/public/tickets/${code}/printed`);
+      checa("quem vendeu marca o bilhete impresso", r.status === 200 && (await impresso()) !== null, `HTTP ${r.status}`);
+    }
+
+    // ---- confirmar com meios diferentes ao mesmo tempo: um meio só no pedido
+    {
+      const s = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: comprador() });
+      const code = s.json.code as number;
+      const rs2 = await Promise.all(
+        ["dinheiro", "pix_maquininha", "dinheiro", "pix_maquininha", "dinheiro", "pix_maquininha"].map((method) =>
+          c1.req("POST", `/api/seller/sales/${code}/confirm`, { method }),
+        ),
+      );
+      const [fim] = await db.select().from(orders).where(eq(orders.code, code));
+      const metodos = new Set(rs2.map((x) => x.json?.ticket?.pagamento?.metodo));
+      checa("seis confirmações com dois meios: todas 200, uma só paga, um meio só nos bilhetes", rs2.every((x) => x.status === 200) && fim.status === "paid" && metodos.size === 1, `${rs2.map((x) => x.status).join(",")} ${[...metodos].join("|")}`);
+      checa("…e o meio gravado é um dos dois", fim.method === "dinheiro" || fim.method === "pix_maquininha");
+    }
+
+    // ---- meio desligado pela administração: barrado no servidor ------------
+    const meiosAntes = (await admin.req("GET", "/api/admin/payment-methods")).json;
+    try {
+      const s = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: comprador() });
+      const code = s.json.code as number;
+      await admin.req("PUT", "/api/admin/payment-methods", { ...meiosAntes, dinheiro: false });
+      r = await c1.req("POST", `/api/seller/sales/${code}/confirm`, { method: "dinheiro" });
+      checa("dinheiro desligado: confirmar é 409 e a venda segue pendente", r.status === 409 && (await statusDo(code)) === "pending", `HTTP ${r.status}`);
+      r = await c1.req("GET", "/api/seller/overview");
+      checa("…e a tela deixa de oferecê-lo", Array.isArray(r.json?.meios) && !r.json.meios.includes("dinheiro") && r.json.meios.includes("pix_maquininha"));
+      await admin.req("PUT", "/api/admin/payment-methods", { ...meiosAntes, dinheiro: false, pix_maquininha: false });
+      r = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: comprador() });
+      checa("nenhum meio da mão ligado: nem reservar (409)", r.status === 409, `HTTP ${r.status}`);
+      await admin.req("PUT", "/api/admin/payment-methods", meiosAntes);
+      r = await c1.req("POST", `/api/seller/sales/${code}/cancel`);
+      checa("…cancelar segue funcionando", r.status === 200, `HTTP ${r.status}`);
+    } finally {
+      await admin.req("PUT", "/api/admin/payment-methods", meiosAntes);
+    }
+
+    // ---- bloqueio manual vale para o cambista (a isenção é só dos limites) --
+    {
+      const bloqueado = "11977779555";
+      const b = await admin.req("POST", "/api/admin/antifraude/bloqueios", { kind: "phone", value: bloqueado, reason: "auditoria cambista" });
+      try {
+        r = await c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: { name: "Bloqueado", phone: bloqueado } });
+        const gravou = Number((await db.execute(sql`select count(*) as n from orders o join buyers b on b.id = o.buyer_id where b.phone = ${bloqueado}`)).rows[0].n);
+        checa("telefone bloqueado pela administração não compra nem na mão (429), e nada é gravado", r.status === 429 && gravou === 0, `HTTP ${r.status}, ${gravou} pedido(s)`);
+      } finally {
+        if (b.json?.id) await admin.req("DELETE", `/api/admin/antifraude/bloqueios/${b.json.id}`);
+      }
+    }
+
+    // ---- sessão: a troca de senha derruba a sessão copiada ------------------
+    {
+      const copia = await new Cliente().entrar(EMAILS[2], SENHA);
+      r = await c1.req("POST", "/api/auth/senha", { atual: "errada-1234", nova: "senha-cambista-2" });
+      checa("trocar a senha com a atual errada é 401", r.status === 401, `HTTP ${r.status}`);
+      r = await c1.req("POST", "/api/auth/senha", { atual: SENHA, nova: "senha-cambista-2" });
+      checa("trocar a senha (200)", r.status === 200, `HTTP ${r.status}`);
+      r = await copia.req("GET", "/api/seller/overview");
+      checa("a sessão copiada cai (401)", r.status === 401, `HTTP ${r.status}`);
+      r = await c1.req("GET", "/api/seller/overview");
+      checa("…e a de quem trocou segue", r.status === 200, `HTTP ${r.status}`);
+      r = await new Cliente().req("POST", "/api/auth/login", { email: EMAILS[2], password: SENHA });
+      checa("a senha antiga não entra mais", r.status === 401, `HTTP ${r.status}`);
+      r = await c1.req("POST", "/api/auth/senha", { atual: "senha-cambista-2", nova: SENHA });
+      checa("(volta a senha de antes)", r.status === 200, `HTTP ${r.status}`);
+    }
+
+    // ---- acerto: observação é texto curto; organização do cadastro existe ---
+    {
+      r = await dA.req("POST", `/api/admin/settlements/${cambUm.id}/close`, { notes: { a: 1 } });
+      checa("observação do acerto em objeto: 400", r.status === 400, `HTTP ${r.status}`);
+      r = await dA.req("POST", `/api/admin/settlements/${cambUm.id}/close`, { notes: "x".repeat(501) });
+      checa("observação do acerto com mais de 500 letras: 400", r.status === 400, `HTTP ${r.status}`);
+      const antes = Number((await db.execute(sql`select count(*) as n from settlements where seller_id = ${cambUm.id}::uuid`)).rows[0].n);
+      checa("…e nenhum acerto foi fechado por isso", antes === 1, `${antes}`);
+      for (const org of ["abc", "00000000-0000-4000-8000-000000000000", { a: 1 }]) {
+        r = await admin.req("POST", "/api/admin/sellers", { name: "Sem dona", email: "cambista-sem-dona@teste.rifa", password: SENHA, code: "SEMDONA", organizationId: org });
+        checa(`a plataforma cadastra cambista em organização ${JSON.stringify(org)}: 400 ou 404, nunca 500`, r.status === 400 || r.status === 404, `HTTP ${r.status}`);
+      }
+    }
+
+    // ---- reservas grandes ao mesmo tempo: deadlock não vira 500 -------------
+    {
+      const faixas: number[] = [];
+      let telP = 11977778000;
+      for (let rodada = 0; rodada < 2; rodada++) {
+        const rs3 = await Promise.all(
+          Array.from({ length: 5 }, () =>
+            c1.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 600, buyer: { name: "Grande", phone: String(telP++) } }),
+          ),
+        );
+        faixas.push(...rs3.map((x) => x.status));
+      }
+      checa("dez reservas de 600 cotas em duas rodadas de cinco: nenhuma 5xx, e as que entram trazem 600", faixas.every((s) => s === 201 || s === 409) && faixas.includes(201), faixas.join(","));
+      const duplicadas = Number((await db.execute(sql`select count(*) - count(distinct number) as n from quota_alloc where campaign_id = ${campA.id}::uuid`)).rows[0].n);
+      checa("…e nenhuma cota foi vendida duas vezes", duplicadas === 0, `${duplicadas}`);
+      const incompletos = Number((await db.execute(sql`
+        select count(*) as n from orders o
+         where o.campaign_id = ${campA.id}::uuid and o.status = 'pending' and o.quantity = 600
+           and (select count(*) from quota_alloc q where q.order_id = o.id) <> 600`)).rows[0].n);
+      checa("…nem pedido com menos cota do que cobra", incompletos === 0, `${incompletos}`);
+    }
+
+    // ---- "vendas de hoje" é o dia de São Paulo, não o do banco (UTC) --------
+    {
+      const [aff2] = await db.select({ id: affiliates.id }).from(affiliates).innerJoin(users, eq(users.id, affiliates.userId)).where(eq(users.email, EMAILS[3]));
+      const [fregues] = await db.insert(buyers).values({ name: "Freguês do dia", phone: "11977779801" }).returning();
+      // São Paulo é UTC−3 o ano todo (sem horário de verão): a meia-noite de lá é 03:00 UTC.
+      const agoraSp = new Date(Date.now() - 3 * 3_600_000);
+      const inicio = new Date(Date.UTC(agoraSp.getUTCFullYear(), agoraSp.getUTCMonth(), agoraSp.getUTCDate(), 3));
+      const vendas = [
+        { code: 77_100_001, quantity: 3, paidAt: new Date(inicio.getTime() - 60_000) },
+        { code: 77_100_002, quantity: 4, paidAt: inicio },
+      ];
+      for (const v of vendas) {
+        await db.insert(orders).values({ code: v.code, campaignId: campA.id, buyerId: fregues.id, sellerId: aff2.id, method: "dinheiro", quantity: v.quantity, amountCents: v.quantity * 1000, status: "paid", paidAt: v.paidAt, expiresAt: new Date(Date.now() + 86_400_000) });
+      }
+      r = await c2.req("GET", "/api/seller/overview");
+      checa("vendas de hoje: a de um minuto antes da meia-noite de São Paulo não conta, a da meia-noite conta", r.json?.hoje?.vendas === 1 && r.json?.hoje?.cotas === 4, JSON.stringify(r.json?.hoje));
+    }
+
+    // ---- teto de vendas novas por cambista ----------------------------------
+    {
+      const lim = await new Cliente().entrar(EMAILS[6], SENHA);
+      const [aff] = await db.select({ id: affiliates.id }).from(affiliates).innerJoin(users, eq(users.id, affiliates.userId)).where(eq(users.email, EMAILS[6]));
+      const status: number[] = [];
+      for (let i = 0; i < 125; i++) {
+        const x = await lim.req("POST", "/api/seller/sales", { campaignId: campA.id, quantity: 1, buyer: comprador() });
+        status.push(x.status);
+      }
+      const ok = status.filter((s) => s === 201).length;
+      const barradas = status.filter((s) => s === 429).length;
+      checa("125 vendas seguidas: as 120 primeiras entram e o resto é 429", ok === 120 && barradas === 5 && status.slice(0, 120).every((s) => s === 201), `${ok} ok, ${barradas} barradas, outros ${status.filter((s) => s !== 201 && s !== 429).join(",")}`);
+      const gravadas = Number((await db.execute(sql`select count(*) as n from orders where seller_id = ${aff.id}::uuid`)).rows[0].n);
+      checa("…e a barrada não grava pedido nem prende cota", gravadas === 120, `${gravadas}`);
+      const ultima = (await db.execute(sql`select code from orders where seller_id = ${aff.id}::uuid order by created_at desc limit 1`)).rows[0] as { code: number };
+      r = await lim.req("POST", `/api/seller/sales/${ultima.code}/cancel`);
+      checa("o teto não impede de cancelar nem de fechar o dia", r.status === 200, `HTTP ${r.status}`);
+    }
   } finally {
     await limpar();
   }

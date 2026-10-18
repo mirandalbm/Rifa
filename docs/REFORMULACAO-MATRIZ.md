@@ -9,7 +9,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Cartões (componentes usados pelas telas) | 866 |
 | Rotas da API | 487, das quais 484 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 66 |
-| Testes de regra (`tests/`) | 139 arquivos |
+| Testes de regra (`tests/`) | 140 arquivos |
 | Destinos decididos | 973 de 973 |
 
 ## 1. Telas
@@ -1342,9 +1342,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | `afiliados-test.ts`, `guarda-test.ts`, `isolation-test.ts` |
-| GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
-| POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +3 |
+| GET | `/overview` | `afiliados-test.ts`, `cambista-test.ts`, `guarda-test.ts` +1 |
+| GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +4 |
+| POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +4 |
 | PATCH | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +9 |
 | POST | `/campaigns/:id/editar` | `acessos-test.ts`, `apuracao-test.ts`, `isolation-test.ts` +1 |
 | POST | `/campaigns/:id/adiar` | `isolation-test.ts`, `solicitacoes-test.ts`, `sorteios-oficiais-test.ts` |
@@ -1422,7 +1422,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/campaigns/:id/prized` | `apuracao-test.ts`, `comentarios-test.ts`, `contrato-anexos-test.ts` +1 |
 | DELETE | `/prized/:prizedId` | `isolation-test.ts` |
 | GET | `/busca` | `isolation-test.ts` |
-| GET | `/orders` | `afiliados-test.ts`, `isolation-test.ts` |
+| GET | `/orders` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` |
 | GET | `/affiliates` | `afiliados-test.ts`, `isolation-test.ts` |
 | POST | `/affiliates` | `afiliados-test.ts`, `isolation-test.ts` |
 | PATCH | `/affiliates/:id` | `afiliados-test.ts`, `divulgacao-test.ts`, `isolation-test.ts` |
@@ -1436,7 +1436,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/organizer` | `banner-pago-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +3 |
 | PUT | `/organizer` | `banner-pago-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +3 |
 | GET | `/exportacoes` | `acessos-test.ts` |
-| GET | `/exportacoes/:key` | `apuracao-test.ts`, `guarda-test.ts`, `isolation-test.ts` +1 |
+| GET | `/exportacoes/:key` | `apuracao-test.ts`, `cambista-test.ts`, `guarda-test.ts` +2 |
 | GET | `/organizacoes` | `isolation-test.ts` |
 | GET | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
@@ -1480,7 +1480,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/whatsapp` | `isolation-test.ts` |
 | POST | `/whatsapp/modelos` | `isolation-test.ts` |
 | POST | `/whatsapp/teste` | `acessos-test.ts`, `isolation-test.ts` |
-| GET | `/usuarios` | `isolation-test.ts` |
+| GET | `/usuarios` | `cambista-test.ts`, `isolation-test.ts` |
 | POST | `/usuarios/:id/senha` | `isolation-test.ts` |
 | PATCH | `/usuarios/:id` | `isolation-test.ts` |
 | GET | `/cobranca` | `cobranca-test.ts`, `isolation-test.ts` |
@@ -1494,10 +1494,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/cobranca/extrato` | `cobranca-test.ts`, `isolation-test.ts`, `presente-test.ts` |
 | GET | `/antifraude` | `acessos-test.ts`, `isolation-test.ts` |
 | PUT | `/antifraude/limites` | `acessos-test.ts`, `isolation-test.ts` |
-| POST | `/antifraude/bloqueios` | `acessos-test.ts`, `isolation-test.ts` |
-| DELETE | `/antifraude/bloqueios/:id` | `acessos-test.ts`, `isolation-test.ts` |
-| GET | `/payment-methods` | `acessos-test.ts`, `isolation-test.ts` |
-| PUT | `/payment-methods` | `acessos-test.ts`, `isolation-test.ts` |
+| POST | `/antifraude/bloqueios` | `acessos-test.ts`, `cambista-test.ts`, `isolation-test.ts` |
+| DELETE | `/antifraude/bloqueios/:id` | `acessos-test.ts`, `cambista-test.ts`, `isolation-test.ts` |
+| GET | `/payment-methods` | `acessos-test.ts`, `cambista-test.ts`, `isolation-test.ts` |
+| PUT | `/payment-methods` | `acessos-test.ts`, `cambista-test.ts`, `isolation-test.ts` |
 | GET | `/finance` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` +1 |
 | POST | `/finance/release` | `guarda-test.ts`, `isolation-test.ts`, `pagarme-test.ts` |
 | GET | `/payouts/:id/nota` | `fiscal-test.ts`, `isolation-test.ts` |
@@ -1513,8 +1513,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/template/versoes/:id/restaurar` | `aparencia-test.ts`, `isolation-test.ts` |
 | GET | `/campaigns/:id/draw` | `apuracao-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +1 |
 | POST | `/campaigns/:id/draw` | `apuracao-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +1 |
-| GET | `/2fa` | `acessos-test.ts` |
-| POST | `/2fa/setup` | `acessos-test.ts`, `senha-test.ts` |
+| GET | `/2fa` | `acessos-test.ts`, `cambista-test.ts` |
+| POST | `/2fa/setup` | `acessos-test.ts`, `cambista-test.ts`, `senha-test.ts` |
 | POST | `/2fa/enable` | `acessos-test.ts`, `senha-test.ts` |
 | POST | `/2fa/disable` | `acessos-test.ts` |
 | GET | `/audit` | `isolation-test.ts` |
@@ -1614,7 +1614,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | `afiliados-test.ts`, `verificacao-test.ts` |
+| GET | `/overview` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` +1 |
 | GET | `/commissions` | `afiliados-test.ts` |
 | GET | `/links` | `afiliados-test.ts`, `artes-test.ts` |
 | GET | `/coupons` | `afiliados-test.ts` |
@@ -1626,10 +1626,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/editor/:slug/foco/:mediaId` | `artes-test.ts` |
 | POST | `/editor/:slug/conferir` | `artes-test.ts` |
 | PATCH | `/pix-key` | `afiliados-test.ts` |
-| GET | `/saldo` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
-| POST | `/payouts` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
+| GET | `/saldo` | `afiliados-test.ts`, `cambista-test.ts`, `fiscal-test.ts` +1 |
+| POST | `/payouts` | `afiliados-test.ts`, `cambista-test.ts`, `fiscal-test.ts` +2 |
 | GET | `/payouts/:id/nota` | `afiliados-test.ts`, `fiscal-test.ts` |
-| GET | `/payouts` | `afiliados-test.ts`, `fiscal-test.ts`, `guarda-test.ts` |
+| GET | `/payouts` | `afiliados-test.ts`, `cambista-test.ts`, `fiscal-test.ts` +2 |
 | GET | `/organizacoes` | `afiliados-test.ts` |
 | POST | `/organizacoes/:slug/aderir` | `afiliados-test.ts`, `divulgacao-test.ts` |
 | DELETE | `/organizacoes/:slug` | `afiliados-test.ts`, `divulgacao-test.ts` |
@@ -1657,7 +1657,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 |---|---|---|
 | GET | `/me` | `acessos-test.ts`, `google-test.ts`, `marketing-test.ts` |
 | POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +47 |
-| POST | `/senha` | `acessos-test.ts`, `afiliados-test.ts` |
+| POST | `/senha` | `acessos-test.ts`, `afiliados-test.ts`, `cambista-test.ts` |
 | POST | `/logout` | `acessos-test.ts` |
 
 ### `server/routes/dev.ts` — /api/dev (4 rotas, 4 com prova)
@@ -1673,7 +1673,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/sessao` | `ia-test.ts`, `isolation-test.ts` |
+| GET | `/sessao` | `cambista-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 | GET | `/conversa` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 | DELETE | `/conversa` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 | POST | `/mensagens` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
@@ -1819,7 +1819,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/patrocinadas/:id/clique` | `patrocinio-test.ts`, `aparelhoNaLeitura.test.ts` |
 | GET | `/tickets/:code` | `conta-test.ts`, `publico-test.ts` |
 | GET | `/tickets/:code/escpos` | `publico-test.ts` |
-| POST | `/tickets/:code/printed` | `publico-test.ts` |
+| POST | `/tickets/:code/printed` | `cambista-test.ts`, `isolation-test.ts`, `publico-test.ts` |
 | GET | `/campaigns/:slug/premios` | `publico-test.ts` |
 | GET | `/sorteio-oficial/:id/ata` | `apuracao-test.ts` |
 | GET | `/sorteio-oficial` | `sorteios-oficiais-test.ts` |
@@ -1847,12 +1847,12 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/overview` | `cambista-test.ts` |
-| POST | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `publico-test.ts` |
-| POST | `/sales/:code/confirm` | `cambista-test.ts`, `publico-test.ts` |
-| POST | `/sales/:code/cancel` | `cambista-test.ts` |
-| GET | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `publico-test.ts` |
-| GET | `/settlement` | `cambista-test.ts` |
+| GET | `/overview` | `cambista-test.ts`, `isolation-test.ts` |
+| POST | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` +1 |
+| POST | `/sales/:code/confirm` | `cambista-test.ts`, `isolation-test.ts`, `publico-test.ts` |
+| POST | `/sales/:code/cancel` | `cambista-test.ts`, `isolation-test.ts` |
+| GET | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` +1 |
+| GET | `/settlement` | `cambista-test.ts`, `isolation-test.ts` |
 
 ### `server/routes/verificacaoRotas.ts` — (montada em public.ts, affiliate.ts e admin.ts) (5 rotas, 5 com prova)
 

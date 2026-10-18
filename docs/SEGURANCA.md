@@ -38,6 +38,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Ações do assistente: entrada da IA tratada como corpo de requisição (catálogo fechado, formato conferido), recorte da sessão em cada ação, gravação só com confirmação da pessoa (`UPDATE` condicional, prazo, só quem conversava; 404 para outra pessoa) e pelos mesmos serviços das rotas, resumo montado pelo servidor, `audit_log` com `viaIA`, resultado sem dado pessoal (barreira em cada texto), teto de rodadas por mensagem | `shared/iaAcoes.ts`, `server/services/iaAcoes.ts`, `server/services/ia.ts`, `server/routes/ia.ts` | `tests/iaAcoes.test.ts`, `npm run ia-acoes`, `npm run isolation` |
 | Pagamento: webhook assinado (tempo constante), status pela API, idempotente | `server/routes/webhooks.ts`, `server/payments/` | `tests/mercadopago.test.ts`, `tests/asaas.test.ts` |
 | Antifraude: limites antes do primeiro `INSERT` e a reserva em aberto de novo na transação | `server/services/antifraude.ts`, `orders.ts` | `npm run load` |
+| Venda do cambista: presa à organização da sessão (organização nula é recusada na entrada, na sessão e na rota), código da venda, meio e comprovante da maquininha com formato e teto, teto de vendas novas por cambista, meio e comprovante gravados no `UPDATE` que paga, reserva em ordem crescente com o deadlock repetido | `server/routes/seller.ts`, `shared/vendaFisica.ts`, `server/services/orders.ts`, `quotas.ts` | `tests/vendaFisica.test.ts`, `npm run cambista`, `npm run isolation`, `npm run load` |
 | Endereço vindo de usuário: só `https:`, nunca vira redirecionamento aberto | `shared/perfil.ts`, `shared/vitrine.ts`, `server/services/links.ts` | `npm run perfil` |
 | Push só para serviço conhecido (contra SSRF) | `shared/push.ts` | `tests/push.test.ts` |
 | Cabeçalhos: `nosniff`, `X-Frame-Options`, `frame-ancestors`, `Referrer-Policy`; HSTS em produção | `server/index.ts` | — |
@@ -87,6 +88,28 @@ npm run telas                      # telas: nome dos controles, estouro, erros
 O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
+
+### 18/10/2026 — acesso do cambista
+
+Escopo: tudo o que a sessão de cambista alcança (`/api/seller/*`, o bilhete e a
+trilha de impressão, o acerto e o fechamento, a venda física pelo mesmo caminho
+de reserva, o antifraude, a ponte com a maquininha — só leitura —, o login, a
+senha e a marca de sessão). Relatório completo, com o que ficou aberto, em
+`docs/AUDITORIA-ACESSO-CAMBISTA.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| **Alta** | **Reservas grandes ao mesmo tempo davam deadlock e 500** (seis pedidos de 800 cotas em paralelo: metade falhava, para o site e para o balcão): os candidatos sorteados entravam em ordem própria e duas transações se esperavam em ciclo. Agora entram em ordem crescente (devolvidos na ordem do sorteio) e o deadlock que sobrar recomeça a transação (até 6 vezes, depois 503) | `quotas.ts`, `orders.ts`, `pgError.ts` (`npm run cambista`, `npm run load`) |
+| Média | Código de venda que não é inteiro em confirmar e cancelar respondia 500 (`NaN` no SQL) | `routes/seller.ts`, `shared/vendaFisica.ts` (`npm run cambista`, `npm run isolation`) |
+| Média | O comprovante da maquininha ia sem formato nem teto para o bilhete — público pelo código e impresso: texto livre ("pague no Pix para…") e 200 mil letras passavam | `shared/vendaFisica.ts`, `routes/seller.ts` (`npm run cambista`) |
+| Média | Número repetido no pedido cobrava a mais (`[7, 7, 7]` = 3 no preço, 1 reservada) | `orders.ts` (`npm run cambista`) |
+| Média | Cambista sem organização (recorte nulo = plataforma) listava e vendia a rifa de todas; agora login, sessão e rota o recusam | `auth.ts`, `routes/seller.ts` (`npm run cambista`) |
+| Média | O meio e o comprovante da venda na mão gravavam antes do `UPDATE` que paga: dois meios ao mesmo tempo deixavam o do perdedor no pedido pago | `orders.ts` (`npm run cambista`) |
+| Baixa | Sem teto de vendas novas por cambista (a venda dele é isenta dos limites de comprador); "vendas de hoje" no dia UTC; demonstração e rifa travada oferecidas na tela; cadastro de cambista com organização inexistente (500); observação do acerto sem formato nem teto | `routes/seller.ts`, `routes/admin.ts` (`npm run cambista`) |
+
+Aberto, para decisão: o segundo fator não existe para o cambista; a venda
+estornada depois do acerto fechado segue no bruto dele; a ponte da maquininha
+vale para qualquer página da WebView (Android, `docs/PENDENCIAS.md`).
 
 ### 18/10/2026 — acesso do afiliado
 

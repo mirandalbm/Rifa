@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isUniqueViolation, UNIQUE_VIOLATION } from "../server/pgError";
+import { isDeadlock, isUniqueViolation, UNIQUE_VIOLATION } from "../server/pgError";
 
 /**
  * O erro abaixo é o que o `pg` entrega de verdade quando o índice
@@ -71,5 +71,24 @@ describe("erro embrulhado pelo Drizzle", () => {
     });
     expect(isUniqueViolation(embrulhado, "uq_users_email")).toBe(true);
     expect(isUniqueViolation(embrulhado, "uq_orders_code")).toBe(false);
+  });
+});
+
+describe("isDeadlock", () => {
+  const deadlock = Object.assign(new Error("deadlock detected"), { code: "40P01" });
+
+  it("reconhece o erro do driver", () => {
+    expect(isDeadlock(deadlock)).toBe(true);
+  });
+
+  it("reconhece o erro embrulhado pelo Drizzle (o código está em `cause`)", () => {
+    expect(isDeadlock(Object.assign(new Error("Failed query"), { cause: deadlock }))).toBe(true);
+  });
+
+  it("não confunde com outro erro do Postgres, nem com o que não é erro", () => {
+    expect(isDeadlock(erroReal)).toBe(false);
+    expect(isDeadlock(new Error("deadlock detected"))).toBe(false);
+    expect(isDeadlock(null)).toBe(false);
+    expect(isDeadlock(undefined)).toBe(false);
   });
 });

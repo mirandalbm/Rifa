@@ -9,6 +9,19 @@
 /** Violação de índice único. */
 export const UNIQUE_VIOLATION = "23505";
 
+/** Deadlock: o Postgres escolheu uma das transações e a desfez inteira. */
+export const DEADLOCK = "40P01";
+
+/**
+ * O erro é um deadlock? O Postgres já desfez a transação, e repetir é seguro
+ * (o Drizzle embrulha o erro do driver; o código está em `cause`).
+ */
+export function isDeadlock(err: unknown): boolean {
+  const causa = (err as { cause?: unknown })?.cause;
+  if (causa && causa !== err && isDeadlock(causa)) return true;
+  return (err as { code?: string })?.code === DEADLOCK;
+}
+
 /**
  * O erro é a violação deste índice único?
  *

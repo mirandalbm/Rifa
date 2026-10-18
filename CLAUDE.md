@@ -107,7 +107,7 @@ arquitetura.
 | cotas premiadas | `shared/premiadas.ts` (números escolhidos), `shared/premio.ts` (prêmio sem dinheiro nem item proibido na rifa autorizada), `server/routes/admin.ts` (sorteio e escolha), `services/orders.ts` (revelação), `premiados` em `listarComentarios()` (o comentário fixo de quem levou), `client/src/components/CotaSurpresa.tsx` (o presente na publicação, que revela) |
 | cadastro/cupom/kit do afiliado | `server/routes/public.ts`, `server/routes/affiliate.ts` |
 | afiliado de todas as organizações (vínculo, termo, aceite, colaborador) | `shared/afiliados.ts` (regras), `server/services/afiliados.ts` (`comissaoNaRifa`), `client/src/pages/afiliado.tsx` (`AfiliadoOrganizacoes`), `scripts/afiliados-test.ts` |
-| venda física e acerto | `server/routes/seller.ts`, `server/services/settlements.ts`, `scripts/cambista-test.ts` (`npm run cambista`) |
+| venda física e acerto | `server/routes/seller.ts`, `shared/vendaFisica.ts` (o código da venda na URL, o meio, o comprovante da maquininha, o teto de vendas), `server/services/settlements.ts`, `scripts/cambista-test.ts` (`npm run cambista`), `tests/vendaFisica.test.ts`, `docs/AUDITORIA-ACESSO-CAMBISTA.md` |
 | meios de pagamento aceitos | `shared/payments.ts` (regras) e `services/settings.ts` |
 | bilhete | `server/services/ticketFormat.ts` (puro) e `ticket.ts` (dados) |
 | ponte com a maquininha | `client/src/lib/pos.ts`, `android/`, `docs/MAQUININHAS.md`; Stone por deeplink em `android/app/src/ton/` e `RetornoDeApp.kt`, provada sem SDK por `npm run stone` |
@@ -1198,6 +1198,38 @@ plataforma analisa** (Atendimento → Rifas, com conversa dos dois lados).
   cambista` corre os dois juntos.
 - O cambista deve à casa; o afiliado recebe dela. Direções opostas, mesma
   máquina de comissão.
+- **O cambista é preso à organização do usuário, e organização nula não é
+  cambista**: o login e a sessão recusam cambista sem organização (como o
+  organizador) e o `sellerRouter` recusa (403) de novo — o recorte nulo é o da
+  plataforma e abriria as rifas de todas. A tela só oferece rifa que vende
+  (nem demonstração, nem travada pela plataforma, nem rascunho); quem barra é
+  a reserva.
+- **O que vem da URL e do corpo tem formato** (`shared/vendaFisica.ts`): o
+  código da venda é inteiro em dígitos (`codigoDaVenda()`; o resto é 404, nunca
+  `NaN` no SQL), o meio é o texto exato `dinheiro` ou `pix_maquininha`, e o
+  comprovante da maquininha (NSU, até 40 letras, números e `. _ / -`; terminal
+  até 60, uma linha) tem forma e teto: ele sai **impresso no bilhete, que é
+  público pelo código** — texto livre ali seria "pague no Pix para…". Preço,
+  meio e afiliado nunca vêm do corpo.
+- **O meio e o comprovante gravam no mesmo `UPDATE` que paga**
+  (`settleOrderAsPaid`), não antes: duas confirmações ao mesmo tempo com meios
+  diferentes deixavam no pedido pago o meio de quem perdeu a corrida.
+- **Teto de vendas novas por cambista** (`VENDAS_DO_CAMBISTA_POR_JANELA`, 120 em
+  10 min, `cambista-venda:<id>`, 429): a venda dele é isenta dos limites de
+  comprador, e sem teto uma conta reservaria o estoque da rifa sem parar. Conta
+  depois do erro de preenchimento e do recorte; cancelar e confirmar não contam.
+- **Número repetido no pedido é um número só** (`prepararPedido()`): `[7, 7, 7]`
+  cobrava três cotas por uma. Vale para todo canal.
+- **Reservas grandes ao mesmo tempo não dão deadlock**: `insertNumbers()` insere
+  em ordem crescente (cada linha espera a da outra transação que já tomou o
+  mesmo número; candidatos sorteados em ordens diferentes se esperavam em
+  ciclo — seis pedidos de 800 cotas em paralelo: metade era 500) e devolve na
+  ordem do sorteio (o viés de guardar sempre os menores seria pior). O resto
+  que ainda assim cruzar (rodadas de sorteio são comandos separados) recomeça a
+  transação inteira (`comCodigoLivre`, `isDeadlock()`, até 6 vezes, com espera
+  aleatória; depois, 503 em português). `npm run cambista` prova.
+- **"Vendas de hoje" é o dia de São Paulo**, não o do banco (UTC): às 21h o
+  contador zerava e a venda do evento caía no dia seguinte.
 
 ## Bilhete — o que não pode afrouxar
 

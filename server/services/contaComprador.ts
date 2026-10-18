@@ -14,6 +14,7 @@ import { db } from "../db";
 import { buyers, chamados, compradorFotos, notifications, verificacoes } from "@shared/schema";
 import { cpfValido, normalizePhone } from "@shared/format";
 import {
+  codigoRecente,
   NOME_EXCLUIDO,
   type Titularidade,
   problemaNoCadastro,
@@ -53,6 +54,7 @@ export async function entrarComoComprador(
   b: { id: string; phone: string; name: string },
   confirmado: boolean,
   lembrar = false,
+  porCodigo = false,
 ) {
   const { affiliateCode, affiliateSince } = req.session;
   await new Promise<void>((resolve, reject) =>
@@ -60,7 +62,7 @@ export async function entrarComoComprador(
   );
   req.session.affiliateCode = affiliateCode;
   req.session.affiliateSince = affiliateSince;
-  req.session.buyer = { id: b.id, phone: b.phone, name: b.name, confirmado };
+  req.session.buyer = { id: b.id, phone: b.phone, name: b.name, confirmado, ...(porCodigo ? { porCodigoEm: Date.now() } : {}) };
   (req.session.cookie as { maxAge: number | null }).maxAge = lembrar ? LEMBRAR_MS : null;
 }
 
@@ -250,6 +252,15 @@ export async function titularidadeDaSessao(req: Request): Promise<Titularidade> 
   };
 }
 
+/**
+ * A sessão provou o telefone pelo código do WhatsApp há pouco? É o que a tela
+ * lê para dispensar a senha atual (`sessaoConfirmada` em `GET /conta`); o
+ * servidor decide de novo em `trocarSenha` e `excluirConta`.
+ */
+export function sessaoProvouPorCodigo(req: Request): boolean {
+  return codigoRecente(req.session.buyer?.porCodigoEm);
+}
+
 export function compradorDaSessao(req: Request) {
   const b = req.session.buyer;
   if (!b?.id) throw new ContaError("Entre na sua conta para continuar.", 401);
@@ -352,7 +363,12 @@ export async function trocarSenha(req: Request, atual: string, nova: string) {
   const [c] = await db.select().from(buyers).where(eq(buyers.id, sessao.id));
   if (!c || c.excluidoEm) throw new ContaError("Conta não encontrada.", 404);
 
-  const provouTelefone = sessao.confirmado === true;
+  // Conta com senha de verdade: "sou eu" é a senha atual ou o código do
+  // WhatsApp pedido há pouco — entrar com a senha não basta para trocá-la sem
+  // saber a atual. Sem senha para conferir (comprador antigo, conta do
+  // Google), vale o telefone confirmado da sessão, como antes.
+  const comSenha = Boolean(c.passwordHash) && !ehContaSoGoogle(c.passwordHash);
+  const provouTelefone = comSenha ? codigoRecente(sessao.porCodigoEm) : sessao.confirmado === true;
   if (c.passwordHash && !provouTelefone) {
     const veredito = await guardLogin(chaveDeLogin(c.phone), identify(req));
     if (!veredito.allowed) throw new ContaError(veredito.reason ?? "Muitas tentativas.", 429);
@@ -391,7 +407,13 @@ export async function excluirConta(req: Request, senha: string) {
   if (ehContaSoGoogle(c.passwordHash)) {
     // Sem senha para conferir: a pessoa digita a palavra, para não ser um toque sem querer.
     if (senha.trim().toUpperCase() !== "EXCLUIR") throw new ContaError('Digite EXCLUIR para confirmar.', 401);
-  } else if (sessao.confirmado !== true) {
+  } else if (!codigoRecente(sessao.porCodigoEm)) {
+    // Conta com senha: a senha confirma, a menos que o código do WhatsApp
+    // tenha sido provado há pouco. Entrar com a senha não dispensa a senha
+    // aqui, e a tentativa conta no mesmo limite do login (a sessão roubada não
+    // adivinha a senha sem limite).
+    const veredito = await guardLogin(chaveDeLogin(c.phone), identify(req));
+    if (!veredito.allowed) throw new ContaError(veredito.reason ?? "Muitas tentativas.", 429);
     if (!c.passwordHash || !(await verifyPassword(senha, c.passwordHash))) {
       throw new ContaError("A senha não confere.", 401);
     }

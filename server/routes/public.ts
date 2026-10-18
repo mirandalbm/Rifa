@@ -188,6 +188,7 @@ import {
   compradorDaSessao,
   dadosDaConta,
   entrarComoComprador,
+  sessaoProvouPorCodigo,
   entrarNaConta,
   encerrarOutrasSessoes,
   titularidadeDaSessao,
@@ -2045,6 +2046,8 @@ publicRouter.post("/my-quotas/verify", async (req, res, next) => {
       req,
       buyer ? { id: buyer.id, phone: buyer.phone, name: buyer.name } : { id: "", phone, name: "" },
       true,
+      false,
+      true, // provado pelo código agora: só isto dispensa a senha atual (ver `codigoRecente`)
     );
     // Primeira prova do telefone numa conta que ninguém tinha provado: quem
     // entrou antes pela senha pode não ser o dono — sai.
@@ -2212,7 +2215,10 @@ publicRouter.post("/conta/sair", (req, res) => {
 publicRouter.get("/conta", async (req, res, next) => {
   try {
     const sessao = compradorDaSessao(req);
-    res.json({ ...(await dadosDaConta(sessao.id)), sessaoConfirmada: sessao.confirmado === true });
+    const dados = await dadosDaConta(sessao.id);
+    // Conta com senha: "confirmada" é ter provado o código há pouco (a tela só
+    // pede a senha atual quando não). Sem senha para conferir, o telefone da sessão.
+    res.json({ ...dados, sessaoConfirmada: dados.temSenha ? sessaoProvouPorCodigo(req) : sessao.confirmado === true });
   } catch (err) {
     erroDeConta(err, res, next);
   }

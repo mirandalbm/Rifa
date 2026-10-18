@@ -427,6 +427,8 @@ async function main() {
 
     // ---- auditoria do acesso apostador ----
     // 1) Id ou código fora do formato é "não existe" (404), nunca 500 do Postgres.
+    // 2) Entrar com a senha não dispensa a senha para trocá-la nem para excluir a
+    //    conta: só o código do WhatsApp pedido há pouco (sessão roubada não tranca o dono).
     console.log("\n  · auditoria do acesso apostador");
     // As contas anteriores já gastaram o limite de cadastro por endereço (10 por hora).
     await db.execute(sql`delete from rate_events where bucket like 'cadastro:%'`);
@@ -484,6 +486,45 @@ async function main() {
     r = await aud.req("PUT", "/api/public/conta/perfil", { campoQueNaoExiste: 1 });
     checa("perfil público com campo desconhecido: 200 e nada muda", r.status === 200, `HTTP ${r.status}`);
 
+    // Entrou pela senha (telefone da conta já confirmado): é "sessão confirmada" para
+    // ver as compras, mas NÃO prova que é o dono para trocar a senha ou excluir.
+    const porSenha = new Cliente();
+    r = await porSenha.req("POST", "/api/public/conta/entrar", { identificador: TEL_AUDITORIA, senha: SENHA_AUD });
+    checa("entrar pela senha", r.status === 200, `HTTP ${r.status}`);
+    r = await porSenha.req("GET", "/api/public/conta");
+    checa("a tela pede a senha atual (sessaoConfirmada falso)", r.status === 200 && r.json?.sessaoConfirmada === false && r.json?.telefoneConfirmado === true, JSON.stringify(r.json?.sessaoConfirmada));
+    r = await porSenha.req("PUT", "/api/public/conta/senha", { atual: "", nova: "outra-senha-9" });
+    checa("trocar a senha SEM a atual, entrando pela senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porSenha.req("POST", "/api/public/conta/excluir", { senha: "" });
+    checa("excluir a conta SEM a senha, entrando pela senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porSenha.req("GET", "/api/public/conta");
+    checa("a conta segue de pé", r.status === 200, `HTTP ${r.status}`);
+    r = await porSenha.req("PUT", "/api/public/conta/senha", { atual: SENHA_AUD, nova: "outra-senha-9" });
+    checa("trocar a senha com a atual certa: 200", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+
+    // Pelo código do WhatsApp ("esqueci a senha"): vale sem a atual, e só por um tempo.
+    const porCodigo = new Cliente();
+    const pedido = await porCodigo.req("POST", "/api/public/my-quotas/request-code", { phone: TEL_AUDITORIA });
+    r = await porCodigo.req("POST", "/api/public/my-quotas/verify", { code: pedido.json?.devCode });
+    checa("entrar pelo código do WhatsApp", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    r = await porCodigo.req("GET", "/api/public/conta");
+    checa("a tela dispensa a senha atual (sessaoConfirmada verdadeiro)", r.status === 200 && r.json?.sessaoConfirmada === true, JSON.stringify(r.json?.sessaoConfirmada));
+    r = await porCodigo.req("PUT", "/api/public/conta/senha", { atual: "", nova: "senha-via-codigo-1" });
+    checa("trocar a senha sem a atual, com o código recém-provado: 200", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    // O código vence: com a prova de 31 minutos atrás, volta a pedir a senha.
+    await db.execute(
+      sql`update sessions set sess = jsonb_set(sess, '{buyer,porCodigoEm}', to_jsonb((extract(epoch from now()) * 1000)::bigint - 31 * 60 * 1000)) where sid = ${sid(porCodigo.cookie)}`,
+    );
+    r = await porCodigo.req("POST", "/api/public/conta/excluir", { senha: "" });
+    checa("o código provado há 31 minutos já não dispensa a senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porCodigo.req("PUT", "/api/public/conta/senha", { atual: "", nova: "senha-via-codigo-2" });
+    checa("nem para trocar a senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porCodigo.req("GET", "/api/public/conta");
+    checa("e a tela volta a pedir a senha atual", r.status === 200 && r.json?.sessaoConfirmada === false);
+    r = await porCodigo.req("POST", "/api/public/conta/excluir", { senha: "senha-via-codigo-1" });
+    checa("excluir com a senha certa: 200", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    r = await porCodigo.req("GET", "/api/public/conta");
+    checa("conta excluída: a sessão cai (401)", r.status === 401, `HTTP ${r.status}`);
   } finally {
     await limpar();
   }

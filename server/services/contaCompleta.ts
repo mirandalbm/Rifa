@@ -157,5 +157,5 @@ export async function confirmarTelefone(req: Request, codigo: string) {
   // Provou o número: a sessão que já existe passa a ser dele e as outras saem
   // (no telefone real, já saíram antes do UPDATE).
   if (!real) await encerrarOutrasSessoes(sessao.id, req.sessionID);
-  req.session.buyer = { ...sessao, phone, confirmado: true };
+  req.session.buyer = { ...sessao, phone, confirmado: true, porCodigoEm: Date.now() };
 }

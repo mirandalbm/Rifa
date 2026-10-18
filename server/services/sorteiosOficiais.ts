@@ -13,7 +13,7 @@ import { numeracaoZero } from "@shared/apuracao";
 import { formatQuota } from "@shared/format";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db";
-import { campaigns, draws, organizacaoFotos, organizations, sorteioAtas, sorteioReextracoes, sorteiosOficiais, type Campaign } from "@shared/schema";
+import { auditLog, campaigns, draws, organizacaoFotos, organizations, sorteioAtas, sorteioReextracoes, sorteiosOficiais, type Campaign } from "@shared/schema";
 import { SORTEIO_INVALIDO } from "@shared/sorteio";
 import sharp from "sharp";
 import { tipoDoCertificado } from "@shared/campanhaLegal";
@@ -292,7 +292,13 @@ export async function cancelarSorteioOficial(id: string) {
  * depois da hora do sorteio, uma vez só (`UPDATE` condicional): dois cliques
  * dão um resultado e um 409.
  */
-export async function lancarResultado(id: string, numeros: unknown, ataBruta?: unknown) {
+export async function lancarResultado(
+  id: string,
+  numeros: unknown,
+  ataBruta: unknown,
+  /** Quem lançou: a auditoria vai na mesma transação do resultado (decide o ganhador de várias rifas). */
+  ator: { id?: string; role?: string; ip?: string },
+) {
   return db.transaction(async (tx) => {
     const [s] = await tx.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, id)).for("update");
     if (!s) throw new SorteioOficialError("Sorteio oficial não encontrado.", 404);
@@ -314,6 +320,15 @@ export async function lancarResultado(id: string, numeros: unknown, ataBruta?: u
       .where(and(eq(sorteiosOficiais.id, id), isNull(sorteiosOficiais.resultadoEm), isNull(sorteiosOficiais.canceladoEm)))
       .returning();
     if (!feito) throw new SorteioOficialError("O resultado deste sorteio já foi lançado.", 409);
+    await tx.insert(auditLog).values({
+      actorId: ator.id ?? null,
+      actorRole: (ator.role ?? null) as never,
+      action: "sorteio_oficial.resultado",
+      entity: "sorteio_oficial",
+      entityId: feito.id,
+      diff: { resultado: feito.resultado } as never,
+      ip: ator.ip ?? null,
+    });
     return paraTela(feito);
   });
 }

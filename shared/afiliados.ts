@@ -25,6 +25,31 @@ export type StatusDoVinculo = keyof typeof STATUS_DO_VINCULO;
 export const COMISSAO_MAX_PCT = 50;
 export const TEXTO_EXTRA_MAX = 3000;
 
+/**
+ * A comissão própria que a organização dá a um cambista ou afiliado no
+ * cadastro: vazia é "vale a da rifa" (`null`); número é inteiro de 0 ao
+ * máximo. Fora disso o `splitOrder()` recusaria a venda dele na hora de
+ * confirmar o Pix (comissão acima de 100%) ou o banco daria erro (fração,
+ * texto): o pagamento ficaria sem ser registrado.
+ */
+export function lerComissaoDoCadastro(bruto: unknown): { pct: number | null } | { problema: string } {
+  const problema = { problema: `Comissão de 0 a ${COMISSAO_MAX_PCT}%, em número inteiro.` };
+  if (bruto === undefined || bruto === null) return { pct: null };
+  let n: number;
+  if (typeof bruto === "string") {
+    const texto = bruto.trim();
+    if (texto === "") return { pct: null };
+    if (!/^\d{1,3}$/.test(texto)) return problema;
+    n = Number(texto);
+  } else if (typeof bruto === "number") {
+    n = bruto;
+  } else {
+    return problema;
+  }
+  if (!Number.isInteger(n) || n < 0 || n > COMISSAO_MAX_PCT) return problema;
+  return { pct: n };
+}
+
 export interface EntradaDoTermo {
   comissaoPct: number;
   textoExtra: string;

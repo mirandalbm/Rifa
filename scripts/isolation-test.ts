@@ -448,6 +448,254 @@ async function alcancaOVizinho(eu: Lado, vizinho: Lado) {
 }
 
 /**
+ * Auditoria de acesso do organizador (cronograma 5): as rotas que os
+ * cruzamentos de cima não alcançavam — cambista e acerto, cupom, saque, pedido
+ * de colaborador, banner pago, reembolso do patrocínio, recibo, afiliado, o
+ * "o corpo não troca a organização" de comissão, reembolso, pixels e termo — e
+ * o que ficou de erro 500 onde devia ser 4xx. Tudo pelo CONTEÚDO: a lista não
+ * traz o do vizinho e o dado do vizinho não mudou.
+ */
+async function rotasDoPainelDoOrganizador(eu: Lado, vizinho: Lado) {
+  const limpezas: (() => Promise<unknown>)[] = [];
+  const um = async <T>(q: ReturnType<typeof sql>) => (await db.execute(q)).rows[0] as T;
+  const sel = async <T>(q: ReturnType<typeof sql>) => (await db.execute(q)).rows as T[];
+  const agora = Date.now();
+  const sufixo = `${agora}`.slice(-6);
+  const c = vizinho.campaignId;
+  const configAntes = await db.execute(sql`select value from app_settings where key = 'plataforma'`);
+  try {
+    // ----- cambista e acerto do vizinho (e um meu, para a lista ter o que mostrar)
+    const acerto = await um<{ id: string }>(sql`insert into settlements (seller_id, gross_cents, commission_cents, net_cents, order_count) values (${vizinho.cambistaId}::uuid, 1000, 100, 900, 1) returning id`);
+    limpezas.push(() => db.execute(sql`delete from settlements where id = ${acerto.id}::uuid`));
+    const meuAcerto = await um<{ id: string }>(sql`insert into settlements (seller_id, gross_cents, commission_cents, net_cents, order_count) values (${eu.cambistaId}::uuid, 2000, 200, 1800, 2) returning id`);
+    limpezas.push(() => db.execute(sql`delete from settlements where id = ${meuAcerto.id}::uuid`));
+    // ----- saque do vizinho (pedido e pago) e o recibo do pago
+    const saque = await um<{ id: string }>(sql`insert into payouts (affiliate_id, amount_cents, pix_key, organization_id) values (${vizinho.cambistaId}::uuid, 1, 'iso@pix', ${vizinho.orgId}::uuid) returning id`);
+    limpezas.push(() => db.execute(sql`delete from payouts where id = ${saque.id}::uuid`));
+    const saquePago = await um<{ id: string }>(sql`insert into payouts (affiliate_id, amount_cents, pix_key, organization_id, status, processed_at) values (${vizinho.cambistaId}::uuid, 2, 'iso@pix', ${vizinho.orgId}::uuid, 'paid', now()) returning id`);
+    limpezas.push(() => db.execute(sql`delete from payouts where id = ${saquePago.id}::uuid`));
+    const codigoRecibo = `ISOREC${sufixo}`;
+    await db.execute(sql`insert into recibos (codigo, payout_id, organization_id, affiliate_id, snapshot, hash, assinatura) values (${codigoRecibo}, ${saquePago.id}::uuid, ${vizinho.orgId}::uuid, ${vizinho.cambistaId}::uuid, '{}'::jsonb, 'x', 'x')`);
+    limpezas.push(() => db.execute(sql`delete from recibos where codigo = ${codigoRecibo}`));
+    // ----- cupom do vizinho
+    const cupom = await um<{ id: string }>(sql`insert into coupons (code, discount_pct, organization_id, campaign_id) values (${`ISOV${sufixo}`}, 5, ${vizinho.orgId}::uuid, ${c}::uuid) returning id`);
+    limpezas.push(() => db.execute(sql`delete from coupons where id = ${cupom.id}::uuid`));
+    // ----- pedido de colaborador do vizinho
+    const pedinte = await um<{ id: string }>(sql`insert into buyers (name, phone) values ('Pedinte do Vizinho', '11960000099') on conflict (phone) do update set name = 'Pedinte do Vizinho' returning id`);
+    const pedidoColab = await um<{ id: string }>(sql`insert into pedidos_colaborador (organization_id, buyer_id, cidade) values (${vizinho.orgId}::uuid, ${pedinte.id}::uuid, 'Cidade do Vizinho') returning id`);
+    limpezas.push(() => db.execute(sql`delete from pedidos_colaborador where id = ${pedidoColab.id}::uuid`));
+    limpezas.push(() => db.execute(sql`delete from buyers where phone = '11960000099'`));
+    // ----- banner pago (com o produto ligado: senão o 404 viria do interruptor, não do recorte)
+    const cfgBanner = { ligado: true, precoDiaCents: 100, diasMin: 1, diasMax: 30, vagas: 3, segundos: 5 };
+    await db.execute(sql`
+      insert into app_settings (key, value) values ('plataforma', jsonb_build_object('bannerPago', ${JSON.stringify(cfgBanner)}::jsonb))
+      on conflict (key) do update set value = jsonb_set(app_settings.value, '{bannerPago}', ${JSON.stringify(cfgBanner)}::jsonb)`);
+    const banner = await um<{ id: string }>(sql`insert into banner_pedidos (organization_id, campaign_id, titulo, mime, bytes, dias, preco_dia_cents, valor_pago_cents) values (${vizinho.orgId}::uuid, ${c}::uuid, 'Banner do vizinho', 'image/webp', decode('00', 'hex'), 1, 100, 100) returning id`);
+    limpezas.push(() => db.execute(sql`delete from banner_pedidos where id = ${banner.id}::uuid`));
+    // ----- reembolso do patrocínio do vizinho
+    const reembolso = await um<{ id: string }>(sql`insert into patrocinio_reembolsos (organization_id, protocolo, valor_cents, chave_pix, motivo) values (${vizinho.orgId}::uuid, ${`PR-ISO${sufixo}`}, 100, 'iso@pix', 'motivo do vizinho') returning id`);
+    limpezas.push(() => db.execute(sql`delete from patrocinio_reembolso_mensagens where reembolso_id = ${reembolso.id}::uuid`));
+    limpezas.push(() => db.execute(sql`delete from patrocinio_reembolsos where id = ${reembolso.id}::uuid`));
+    // ----- afiliado online com vínculo só com o vizinho, e outro só comigo (controle positivo)
+    const afiliado = async (marca: string, orgId: string) => {
+      const email = `iso-afil-${marca}-${sufixo}@rifa.teste`;
+      const u = await um<{ id: string }>(sql`insert into users (role, name, email, password_hash) values ('affiliate', ${`Afiliado ${marca}`}, ${email}, 'x') returning id`);
+      const a = await um<{ id: string }>(sql`insert into affiliates (user_id, code, kind, status) values (${u.id}::uuid, ${`ISOAF${marca.toUpperCase()}${sufixo}`}, 'online', 'active') returning id`);
+      await db.execute(sql`insert into afiliado_vinculos (affiliate_id, organization_id, status) values (${a.id}::uuid, ${orgId}::uuid, 'aprovado')`);
+      limpezas.push(() => db.execute(sql`delete from afiliado_vinculos where affiliate_id = ${a.id}::uuid`));
+      limpezas.push(() => db.execute(sql`delete from affiliates where id = ${a.id}::uuid`));
+      limpezas.push(() => db.execute(sql`delete from users where id = ${u.id}::uuid`));
+      return { id: a.id, email };
+    };
+    const afilDoVizinho = await afiliado("viz", vizinho.orgId);
+    const afilMeu = await afiliado("meu", eu.orgId);
+
+    // ---------- 404: o id do vizinho não existe para mim
+    const tentativas: [string, string, RequestInit][] = [
+      ["PATCH cambista do vizinho", `/api/admin/affiliates/${vizinho.cambistaId}`, { method: "PATCH", body: '{"status":"blocked"}' }],
+      ["PATCH comissão do cambista do vizinho", `/api/admin/affiliates/${vizinho.cambistaId}`, { method: "PATCH", body: '{"commissionPct":50}' }],
+      ["PATCH afiliado com vínculo só com o vizinho", `/api/admin/affiliates/${afilDoVizinho.id}`, { method: "PATCH", body: '{"status":"blocked"}' }],
+      ["POST fechar acerto do cambista do vizinho", `/api/admin/settlements/${vizinho.cambistaId}/close`, { method: "POST", body: "{}" }],
+      ["POST dar baixa no acerto do vizinho", `/api/admin/settlements/${acerto.id}/paid`, { method: "POST" }],
+      ["POST dar baixa no saque do vizinho", `/api/admin/payouts/${saque.id}/paid`, { method: "POST", body: "{}" }],
+      ["GET recibo em PDF do vizinho", `/api/admin/recibos/${codigoRecibo}/pdf`, {}],
+      ["DELETE cupom do vizinho", `/api/admin/coupons/${cupom.id}`, { method: "DELETE" }],
+      ["POST cupom na rifa do vizinho", "/api/admin/coupons", { method: "POST", body: JSON.stringify({ code: `ISOE${sufixo}`, discountPct: 5, campaignId: c }) }],
+      ["POST cupom para o cambista do vizinho", "/api/admin/coupons", { method: "POST", body: JSON.stringify({ code: `ISOF${sufixo}`, discountPct: 5, affiliateId: vizinho.cambistaId }) }],
+      ["POST decidir pedido de colaborador do vizinho", `/api/admin/colaboradores/pedidos/${pedidoColab.id}`, { method: "POST", body: '{"status":"atendido"}' }],
+      ["GET arte do pedido de banner do vizinho", `/api/admin/banner-pago/pedidos/${banner.id}/imagem`, {}],
+      ["POST cancelar pedido de banner do vizinho", `/api/admin/banner-pago/pedidos/${banner.id}/cancelar`, { method: "POST" }],
+      ["POST mensagem no reembolso do patrocínio do vizinho", `/api/admin/patrocinio/reembolsos/${reembolso.id}/mensagens`, { method: "POST", body: '{"texto":"invadido"}' }],
+      ["POST pedir envio de mídia na rifa do vizinho", `/api/admin/campaigns/${c}/media/upload-url`, { method: "POST", body: '{"role":"photo","filename":"a.png","mime":"image/png","bytes":10}' }],
+      ["POST pedir anúncio patrocinado da rifa do vizinho", "/api/admin/patrocinio/anuncios", { method: "POST", body: JSON.stringify({ campaignId: c, alcance: "nacional", cliques: 100 }) }],
+      ["POST pedir banner pago da rifa do vizinho", "/api/admin/banner-pago/pedidos", { method: "POST", body: JSON.stringify({ campaignId: c, titulo: "invadido", dias: 1 }) }],
+    ];
+    for (const [nome, caminho, init] of tentativas) {
+      const res = await pedir(eu.cookie, caminho, init);
+      checa(nome, res.status === 404, `HTTP ${res.status}`);
+    }
+    checa("o acerto do vizinho segue aberto", (await sel<{ s: string }>(sql`select status::text as s from settlements where id = ${acerto.id}::uuid`))[0]?.s === "aberto");
+    checa("o saque do vizinho segue pedido", (await sel<{ s: string }>(sql`select status::text as s from payouts where id = ${saque.id}::uuid`))[0]?.s === "requested");
+    checa("o cadastro do cambista do vizinho não mudou", (await sel<{ s: string; p: number | null }>(sql`select status::text as s, commission_pct as p from affiliates where id = ${vizinho.cambistaId}::uuid`))[0]?.s === "active");
+    checa("o vínculo do afiliado do vizinho não mudou", (await sel<{ s: string }>(sql`select status as s from afiliado_vinculos where affiliate_id = ${afilDoVizinho.id}::uuid`))[0]?.s === "aprovado");
+    checa("o cupom do vizinho segue lá", (await sel(sql`select 1 from coupons where id = ${cupom.id}::uuid`)).length === 1);
+    checa("nenhum cupom nasceu no nome do vizinho pela minha mão", (await sel(sql`select 1 from coupons where code in (${`ISOE${sufixo}`}, ${`ISOF${sufixo}`})`)).length === 0);
+    checa("o pedido de colaborador do vizinho segue pendente", (await sel<{ s: string }>(sql`select status as s from pedidos_colaborador where id = ${pedidoColab.id}::uuid`))[0]?.s === "pendente");
+    checa("o pedido de banner do vizinho segue em análise", (await sel<{ s: string }>(sql`select status::text as s from banner_pedidos where id = ${banner.id}::uuid`))[0]?.s === "em_analise");
+    checa("o reembolso do vizinho não ganhou mensagem", (await sel(sql`select 1 from patrocinio_reembolso_mensagens where reembolso_id = ${reembolso.id}::uuid`)).length === 0);
+
+    // ---------- listas: o conteúdo, não o código
+    const lista = async (caminho: string) => (await pedir(eu.cookie, caminho)).text();
+    const afiliados = await lista("/api/admin/affiliates");
+    checa("a lista de afiliados traz o meu vínculo e não o do vizinho", afiliados.includes(afilMeu.email) && !afiliados.includes(afilDoVizinho.email), `${afiliados.length} bytes`);
+    const cupons = await lista("/api/admin/coupons");
+    checa("a lista de cupons não traz o do vizinho", !cupons.includes(`ISOV${sufixo}`));
+    const acertos = (await (await pedir(eu.cookie, "/api/admin/settlements")).json()) as { emAberto: { sellerId: string }[]; historico: { settlement: { id: string } }[] };
+    checa("os acertos em aberto são só dos meus cambistas", acertos.emAberto.some((x) => x.sellerId === eu.cambistaId) && !acertos.emAberto.some((x) => x.sellerId === vizinho.cambistaId));
+    checa("o histórico de acertos traz o meu e não o do vizinho", acertos.historico.some((x) => x.settlement.id === meuAcerto.id) && !acertos.historico.some((x) => x.settlement.id === acerto.id));
+    const financeiro = await lista("/api/admin/finance");
+    checa("o financeiro não traz o saque do vizinho", !financeiro.includes(saque.id));
+    const pagos = await lista("/api/admin/saques-pagos");
+    checa("os saques pagos não trazem o do vizinho (nem o recibo)", !pagos.includes(saquePago.id) && !pagos.includes(codigoRecibo));
+    const colab = await lista("/api/admin/colaboradores/pedidos");
+    checa("os pedidos de colaborador não trazem o do vizinho (nem o telefone dele)", !colab.includes(pedidoColab.id) && !colab.includes("Pedinte do Vizinho") && !colab.includes("11960000099"));
+    const meuBanner = await pedir(eu.cookie, "/api/admin/banner-pago");
+    const corpoBanner = await meuBanner.text();
+    checa("com o banner pago ligado, a minha tela abre e não traz o pedido do vizinho", meuBanner.status === 200 && !corpoBanner.includes(banner.id), `HTTP ${meuBanner.status}`);
+    const patro = await lista("/api/admin/patrocinio");
+    checa("o patrocínio não traz o reembolso do vizinho", !patro.includes(reembolso.id) && !patro.includes(`PR-ISO${sufixo}`));
+
+    // ---------- liberar comissão é liberar dinheiro: o organizador libera a dele, não a do vizinho
+    const pedidoDoVizinho = await um<{ id: string }>(sql`select id from orders where code = ${vizinho.orderCode}`);
+    const comissaoDoVizinho = await um<{ id: string }>(sql`insert into commissions (affiliate_id, order_id, campaign_id, amount_cents, pct, available_at) values (${vizinho.cambistaId}::uuid, ${pedidoDoVizinho.id}::uuid, ${c}::uuid, 100, 10, now() - interval '1 day') returning id`);
+    limpezas.push(() => db.execute(sql`delete from commissions where id = ${comissaoDoVizinho.id}::uuid`));
+    const liberar = await pedir(eu.cookie, "/api/admin/finance/release", { method: "POST" });
+    checa("liberar comissões não toca a do vizinho", liberar.status === 200 && (await sel<{ s: string }>(sql`select status::text as s from commissions where id = ${comissaoDoVizinho.id}::uuid`))[0]?.s === "pending", `HTTP ${liberar.status}`);
+
+    // ---------- o corpo e a query não trocam a organização
+    const orgDe = async (id: string) => (await sel<{ l: string; p: number }>(sql`select liberacao_comissao::text as l, prazo_estorno_dias as p from organizations where id = ${id}::uuid`))[0];
+    const antesViz = await orgDe(vizinho.orgId);
+    const comissao = await pedir(eu.cookie, `/api/admin/comissao?organizacao=${vizinho.orgId}`, { method: "PUT", body: JSON.stringify({ liberacaoComissao: "imediata", organizacaoId: vizinho.orgId }) });
+    const reemb = await pedir(eu.cookie, `/api/admin/reembolso?organizacao=${vizinho.orgId}`, { method: "PUT", body: JSON.stringify({ prazoEstornoDias: 9, organizacaoId: vizinho.orgId }) });
+    const depoisViz = await orgDe(vizinho.orgId);
+    const meus = await orgDe(eu.orgId);
+    checa("a comissão e o reembolso mudaram só a minha organização", comissao.status === 200 && reemb.status === 200 && meus?.l === "imediata" && meus?.p === 9 && depoisViz?.l === antesViz?.l && depoisViz?.p === antesViz?.p, `${antesViz?.l}/${antesViz?.p} → ${depoisViz?.l}/${depoisViz?.p}`);
+    await db.execute(sql`update organizations set liberacao_comissao = 'apos_sorteio', prazo_estorno_dias = 7 where id = ${eu.orgId}::uuid`);
+
+    const pixelsDe = async (id: string) => (await sel<{ p: { meta?: string } | null }>(sql`select pixels as p from organizations where id = ${id}::uuid`))[0]?.p;
+    const pixelsViz = await pixelsDe(vizinho.orgId);
+    const pix = await pedir(eu.cookie, `/api/admin/marketing?organizacao=${vizinho.orgId}`, { method: "PUT", body: JSON.stringify({ pixels: { meta: "1234567890123456" }, organizationId: vizinho.orgId }) });
+    checa("os pixels gravados são só os da minha organização", pix.status === 200 && (await pixelsDe(eu.orgId))?.meta === "1234567890123456" && JSON.stringify(await pixelsDe(vizinho.orgId)) === JSON.stringify(pixelsViz), `HTTP ${pix.status}`);
+    await db.execute(sql`update organizations set pixels = '{}'::jsonb where id = ${eu.orgId}::uuid`);
+
+    const termosDe = async (id: string) => (await sel<{ n: number }>(sql`select count(*)::int as n from organizacao_termos where organization_id = ${id}::uuid`))[0]?.n;
+    const termosViz = await termosDe(vizinho.orgId);
+    const termo = await pedir(eu.cookie, `/api/admin/termo-afiliado?organizacao=${vizinho.orgId}`, { method: "POST", body: JSON.stringify({ comissaoPct: 7, textoExtra: "", organizacaoId: vizinho.orgId }) });
+    limpezas.push(() => db.execute(sql`delete from organizacao_termos where organization_id = ${eu.orgId}::uuid`));
+    checa("o termo de afiliado publicado vai só para a minha organização", termo.status === 201 && (await termosDe(eu.orgId)) === 1 && (await termosDe(vizinho.orgId)) === termosViz, `HTTP ${termo.status}`);
+
+    const resumo = async (caminho: string) => ((await (await pedir(eu.cookie, caminho)).json()) as { totais?: unknown }).totais;
+    checa("os resultados com ?organizacao= do vizinho são os meus", JSON.stringify(await resumo(`/api/admin/resultados?organizacao=${vizinho.orgId}`)) === JSON.stringify(await resumo("/api/admin/resultados")));
+
+    // ---------- o que o painel recusa antes de gravar (erro de quem digita, nunca 500)
+    const ruim = `iso-ruim-${sufixo}@rifa.teste`;
+    const rifaRuim = { slug: `iso-ruim-${sufixo}`, title: "Rifa ruim", prizeTitle: "Prêmio ruim", totalQuotas: 1000, priceCents: 500, commissionPctDefault: 10 };
+    const pacotes = (packages: unknown) => ({ method: "PUT", body: JSON.stringify({ packages }) });
+    const recusas: [string, string, RequestInit, number][] = [
+      ["pacote com 100% de desconto (pedido de R$ 0,00)", `/api/admin/campaigns/${eu.campaignId}/packages`, pacotes([{ quantity: 5, discountPct: 100 }]), 422],
+      ["pacote com 150% de desconto (pedido negativo)", `/api/admin/campaigns/${eu.campaignId}/packages`, pacotes([{ quantity: 5, discountPct: 150 }]), 422],
+      ["pacote com texto no lugar de número", `/api/admin/campaigns/${eu.campaignId}/packages`, pacotes([{ quantity: "x", discountPct: "y" }]), 422],
+      ["lista de pacotes que não é lista", `/api/admin/campaigns/${eu.campaignId}/packages`, pacotes("nope"), 422],
+      ["cambista com comissão de 150%", "/api/admin/sellers", { method: "POST", body: JSON.stringify({ name: "Cambista Ruim", email: ruim, password: "senha-forte-123", code: `ISORUIM${sufixo}`, commissionPct: 150 }) }, 400],
+      ["cambista com comissão em texto", "/api/admin/sellers", { method: "POST", body: JSON.stringify({ name: "Cambista Ruim", email: ruim, password: "senha-forte-123", code: `ISORUIM${sufixo}`, commissionPct: "abc" }) }, 400],
+      ["afiliado com senha de um caractere", "/api/admin/affiliates", { method: "POST", body: JSON.stringify({ name: "Afiliado Ruim", email: ruim, password: "1", code: `ISORUIM${sufixo}` }) }, 400],
+      ["afiliado com comissão de 999%", "/api/admin/affiliates", { method: "POST", body: JSON.stringify({ name: "Afiliado Ruim", email: ruim, password: "senha-forte-123", code: `ISORUIM${sufixo}`, commissionPct: 999 }) }, 400],
+      ["comissão de 150% no meu cambista", `/api/admin/affiliates/${eu.cambistaId}`, { method: "PATCH", body: '{"commissionPct":150}' }, 400],
+      ["situação inventada no meu cambista", `/api/admin/affiliates/${eu.cambistaId}`, { method: "PATCH", body: '{"status":"foo"}' }, 400],
+      ["cupom com validade que não é data", "/api/admin/coupons", { method: "POST", body: JSON.stringify({ code: `ISOG${sufixo}`, discountPct: 5, campaignId: eu.campaignId, expiresAt: "lixo" }) }, 400],
+      ["cupom com limite de usos em texto", "/api/admin/coupons", { method: "POST", body: JSON.stringify({ code: `ISOG${sufixo}`, discountPct: 5, campaignId: eu.campaignId, maxUses: "x" }) }, 400],
+      ["cupom com id de rifa torto", "/api/admin/coupons", { method: "POST", body: JSON.stringify({ code: `ISOG${sufixo}`, discountPct: 5, campaignId: "xx" }) }, 404],
+      ["anúncio patrocinado sem rifa", "/api/admin/patrocinio/anuncios", { method: "POST", body: "{}" }, 404],
+      ["rifa com reserva de 0 minuto", "/api/admin/campaigns", { method: "POST", body: JSON.stringify({ ...rifaRuim, reservationTtlMin: 0 }) }, 422],
+      ["rifa com mínimo maior que o máximo", "/api/admin/campaigns", { method: "POST", body: JSON.stringify({ ...rifaRuim, minPerOrder: 50, maxPerOrder: 10 }) }, 422],
+    ];
+    for (const [nome, caminho, init, esperado] of recusas) {
+      const res = await pedir(eu.cookie, caminho, init);
+      checa(`${nome}: ${esperado}`, res.status === esperado, `HTTP ${res.status}`);
+    }
+    checa("nenhum acesso ruim foi criado", (await sel(sql`select 1 from users where email = ${ruim}`)).length === 0);
+    checa("nenhuma rifa ruim foi criada", (await sel(sql`select 1 from campaigns where slug = ${rifaRuim.slug}`)).length === 0);
+    checa("nenhum pacote ruim foi gravado", (await sel(sql`select 1 from quota_packages where campaign_id = ${eu.campaignId}::uuid`)).length === 0);
+
+    // Controle positivo: o que é válido passa, e o pacote no teto é aceito.
+    let r = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}/packages`, pacotes([{ quantity: 5, discountPct: 50, highlight: true }]));
+    checa("pacote de 50% (o teto) é aceito", r.status === 200, `HTTP ${r.status}`);
+    await db.execute(sql`delete from quota_packages where campaign_id = ${eu.campaignId}::uuid`);
+    r = await pedir(eu.cookie, "/api/admin/coupons", { method: "POST", body: JSON.stringify({ code: `ISOH${sufixo}`, discountPct: 5, campaignId: eu.campaignId, maxUses: "3", expiresAt: new Date(agora + 86_400_000).toISOString() }) });
+    limpezas.push(() => db.execute(sql`delete from coupons where code = ${`ISOH${sufixo}`}`));
+    checa("cupom válido na minha rifa é criado", r.status === 201, `HTTP ${r.status}`);
+
+    // Destaque e peso do feed são da plataforma: o organizador não empurra a própria rifa para o topo.
+    const destaqueDe = async (where: ReturnType<typeof sql>) => (await sel<{ f: boolean; w: number; id: string }>(sql`select featured as f, sort_weight as w, id from campaigns where ${where}`))[0];
+    r = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}`, { method: "PATCH", body: JSON.stringify({ description: "texto da auditoria", featured: true, sortWeight: 999_999 }) });
+    let d = await destaqueDe(sql`id = ${eu.campaignId}::uuid`);
+    checa("o PATCH de rifa do organizador não grava destaque nem peso", r.status === 200 && d?.f === false && d?.w === 0, `HTTP ${r.status}, destaque ${d?.f}, peso ${d?.w}`);
+    r = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}/editar`, { method: "POST", body: JSON.stringify({ description: "texto da auditoria 2", featured: true, sortWeight: 999_999 }) });
+    d = await destaqueDe(sql`id = ${eu.campaignId}::uuid`);
+    checa("o editar do rascunho não grava destaque nem peso", r.status === 200 && d?.f === false && d?.w === 0, `HTTP ${r.status}`);
+    r = await pedir(eu.cookie, "/api/admin/campaigns", { method: "POST", body: JSON.stringify({ ...rifaRuim, slug: `iso-destaque-${sufixo}`, featured: true, sortWeight: 999_999 }) });
+    d = await destaqueDe(sql`slug = ${`iso-destaque-${sufixo}`}`);
+    if (d) limpezas.push(() => db.execute(sql`delete from campaigns where id = ${d!.id}::uuid`));
+    checa("a rifa criada pelo organizador nasce sem destaque nem peso", r.status === 201 && d?.f === false && d?.w === 0, `HTTP ${r.status}`);
+    await db.execute(sql`update campaigns set description = null where id = ${eu.campaignId}::uuid`);
+
+    // ---------- id fora do formato e filtro torto: 404 e 200, nunca 500
+    const tortas: [string, string, string][] = [
+      ["GET", "/campaigns/abc/media", ""],
+      ["PATCH", "/campaigns/abc", "{}"],
+      ["POST", "/campaigns/abc/publish", ""],
+      ["PUT", "/campaigns/abc/legal", "{}"],
+      ["GET", "/campaigns/abc/artes", ""],
+      ["GET", "/campaigns/abc/prized", ""],
+      ["POST", "/campaigns/abc/draw", "{}"],
+      ["DELETE", "/campaigns/abc", ""],
+      ["DELETE", "/media/abc", ""],
+      ["PUT", "/media/abc/legenda", "{}"],
+      ["DELETE", "/coupons/abc", ""],
+      ["GET", "/chamados/abc", ""],
+      ["POST", "/chamados/abc/concluir", "{}"],
+      ["GET", "/chamados/anexos/abc", ""],
+      ["PATCH", "/usuarios/abc", '{"active":true}'],
+      ["POST", "/usuarios/abc/senha", "{}"],
+      ["POST", "/payouts/abc/paid", ""],
+      ["DELETE", "/stories/abc", ""],
+      ["GET", "/stories/abc/imagem", ""],
+      ["GET", "/solicitacoes/abc", ""],
+      ["POST", "/settlements/abc/paid", ""],
+      ["POST", "/settlements/abc/close", ""],
+      ["PATCH", "/affiliates/abc", "{}"],
+      ["GET", "/divulgacoes/abc/video", ""],
+      ["GET", "/banner-pago/pedidos/abc/imagem", ""],
+      ["POST", "/patrocinio/reembolsos/abc/mensagens", '{"texto":"oi"}'],
+      ["GET", "/trafego/campanhas/abc/gastos", ""],
+    ];
+    for (const [metodo, caminho, corpo] of tortas) {
+      const res = await pedir(eu.cookie, `/api/admin${caminho}`, { method: metodo, ...(corpo ? { body: corpo } : {}) });
+      checa(`${metodo} ${caminho}: id torto é 404`, res.status === 404, `HTTP ${res.status}`);
+    }
+    for (const q of ["/orders?status=foo", "/solicitacoes?status=foo", "/chamados?status=foo", "/usuarios?papel=foo"]) {
+      const res = await pedir(eu.cookie, `/api/admin${q}`);
+      checa(`GET ${q}: situação desconhecida não derruba`, res.status === 200, `HTTP ${res.status}`);
+    }
+  } finally {
+    const valorAntes = (configAntes.rows[0] as { value?: unknown } | undefined)?.value;
+    if (valorAntes) await db.execute(sql`update app_settings set value = ${JSON.stringify(valorAntes)}::jsonb where key = 'plataforma'`);
+    else await db.execute(sql`delete from app_settings where key = 'plataforma'`);
+    for (const f of limpezas.reverse()) await f().catch(() => {});
+  }
+}
+
+/**
  * A confirmação do envio de mídia recebe a chave do arquivo pelo corpo. A
  * chave do vizinho aparece no endereço público da imagem dele: com ela, e
  * uma mídia que reprova (foto sem texto alternativo), a limpeza da recusa
@@ -575,6 +823,70 @@ async function bilhetesSoDaConta(eu: Lado) {
 }
 
 /**
+ * A sessão do cambista (`/api/seller/*`): ele é preso à organização do
+ * usuário e às vendas dele. O que é do colega da vizinha é 404 — nunca 403,
+ * que entregaria que o código existe —, o que não é número de venda também, e
+ * nada do painel nem do afiliado abre para ele. Os dois lados têm uma venda
+ * paga de cambista (`92_100_00N`), por isso o conteúdo da lista é conferido.
+ */
+async function rotasDoCambista(eu: Lado, outro: Lado) {
+  const cookie = await entrar(`iso-cambista-${eu.nome}@rifa.teste`, eu.senha);
+  const meuCodigo = 92_100_000 + (eu.nome === "norte" ? 1 : 2);
+  const codigoDoOutro = 92_100_000 + (outro.nome === "norte" ? 1 : 2);
+  const estadoDoOutro = async () =>
+    (await db.select({ s: orders.status, t: orders.ticketPrintedAt }).from(orders).where(eq(orders.code, codigoDoOutro)))[0];
+
+  let res = await pedir(cookie, "/api/seller/sales");
+  const minhas = (await res.json()) as { code: number }[];
+  checa("a lista de vendas do cambista traz só a dele", res.status === 200 && minhas.some((v) => v.code === meuCodigo) && !minhas.some((v) => v.code === codigoDoOutro), JSON.stringify(minhas.map((v) => v.code)));
+
+  res = await pedir(cookie, "/api/seller/overview");
+  const visao = (await res.json()) as { campanhas: { id: string }[] };
+  // As rifas deste teste são rascunho: o cambista não é oferecido a nenhuma, e muito menos à do vizinho.
+  checa("as rifas oferecidas não incluem a da organização vizinha (nem rascunho)", !visao.campanhas.some((c) => c.id === outro.campaignId || c.id === eu.campaignId), JSON.stringify(visao.campanhas.map((c) => c.id)));
+
+  res = await pedir(cookie, "/api/seller/sales", { method: "POST", body: JSON.stringify({ campaignId: outro.campaignId, quantity: 1, buyer: { name: "Intruso", phone: "11961999999" } }) });
+  checa("vender a rifa da organização vizinha: 404", res.status === 404, `HTTP ${res.status}`);
+  const gravou = await db.select({ id: orders.id }).from(orders).innerJoin(buyers, eq(buyers.id, orders.buyerId)).where(eq(buyers.phone, "11961999999"));
+  checa("…e nada é gravado", gravou.length === 0);
+
+  res = await pedir(cookie, `/api/seller/sales/${codigoDoOutro}/confirm`, { method: "POST", body: '{"method":"dinheiro"}' });
+  checa("confirmar a venda do cambista vizinho: 404", res.status === 404, `HTTP ${res.status}`);
+  res = await pedir(cookie, `/api/seller/sales/${codigoDoOutro}/cancel`, { method: "POST" });
+  checa("cancelar a venda do cambista vizinho: 404", res.status === 404, `HTTP ${res.status}`);
+  res = await pedir(cookie, `/api/public/tickets/${codigoDoOutro}/printed`, { method: "POST" });
+  const vizinho = await estadoDoOutro();
+  checa("marcar impresso o bilhete do vizinho: 404, e a trilha dele não muda", res.status === 404 && vizinho?.s === "paid" && vizinho.t === null, `HTTP ${res.status}`);
+
+  const ruins = ["abc", "12.5", "99999999999999", "NaN", "2147483648"];
+  const codigos: number[] = [];
+  for (const c of ruins) {
+    codigos.push((await pedir(cookie, `/api/seller/sales/${c}/confirm`, { method: "POST", body: '{"method":"dinheiro"}' })).status);
+    codigos.push((await pedir(cookie, `/api/seller/sales/${c}/cancel`, { method: "POST" })).status);
+  }
+  checa("código de venda fora do formato: 404, nunca 500", codigos.every((s) => s === 404), codigos.join(","));
+
+  res = await pedir(cookie, "/api/seller/settlement");
+  const acerto = (await res.json()) as { aberto: { orderCount: number }; historico: { settlement: { sellerId: string } }[] };
+  checa("o acerto do cambista é o dele", res.status === 200 && acerto.aberto.orderCount === 1 && acerto.historico.every((h) => h.settlement.sellerId === eu.cambistaId), JSON.stringify(acerto.aberto));
+
+  const fechadas: [string, string, RequestInit][] = [
+    ["GET painel", "/api/admin/overview", {}],
+    ["GET pedidos", "/api/admin/orders", {}],
+    ["GET acertos", "/api/admin/settlements", {}],
+    ["POST fechar o próprio acerto", `/api/admin/settlements/${eu.cambistaId}/close`, { method: "POST", body: "{}" }],
+    ["POST cadastrar cambista", "/api/admin/sellers", { method: "POST", body: "{}" }],
+    ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
+    ["GET afiliado", "/api/affiliate/overview", {}],
+    ["POST saque de afiliado", "/api/affiliate/payouts", { method: "POST", body: "{}" }],
+  ];
+  for (const [nome, caminho, init] of fechadas) {
+    const x = await pedir(cookie, caminho, init);
+    checa(`${nome}: cambista 403`, x.status === 403, `HTTP ${x.status}`);
+  }
+}
+
+/**
  * O assistente de IA (`/api/ia/*`): a conversa é da sessão — nenhuma rota
  * recebe id de ninguém. Visitante 401, cambista 403; o organizador, com o
  * assistente desligado (o padrão), não alcança nada (404) e nada sai para o
@@ -615,7 +927,12 @@ async function assistenteDeIA(eu: Lado) {
 async function rotasDaPlataforma(eu: Lado, outro: Lado) {
   const tentativas: [string, string, RequestInit][] = [
     ["GET organizações", "/api/admin/organizacoes", {}],
+    ["POST criar organização", "/api/admin/organizacoes", { method: "POST", body: '{"name":"Outra organização"}' }],
+    ["POST criar acesso de organizador", `/api/admin/organizacoes/${eu.orgId}/acessos`, { method: "POST", body: '{"name":"Outro","email":"outro@rifa.teste","password":"senha-forte-1234"}' }],
     ["GET antifraude", "/api/admin/antifraude", {}],
+    ["PUT limites do antifraude", "/api/admin/antifraude/limites", { method: "PUT", body: '{"openOrdersPerPhone":1000}' }],
+    ["POST bloqueio manual do antifraude", "/api/admin/antifraude/bloqueios", { method: "POST", body: '{"kind":"phone","value":"11999990000"}' }],
+    ["DELETE bloqueio do antifraude", "/api/admin/antifraude/bloqueios/00000000-0000-0000-0000-000000000000", { method: "DELETE" }],
     ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
     ["GET auditoria", "/api/admin/audit", {}],
     ["GET carteira de cobrança", "/api/admin/cobranca", {}],
@@ -745,6 +1062,64 @@ async function rotasDaPlataforma(eu: Lado, outro: Lado) {
     const res = await pedir(eu.cookie, caminho, init);
     checa(nome, res.status === 403, `HTTP ${res.status}`);
   }
+}
+
+/**
+ * Id fora do formato de UUID é "não existe" (404), nunca erro do banco (500):
+ * na URL de qualquer rota do painel e também no corpo (comprar anúncio).
+ */
+async function idForaDoFormato(eu: Lado) {
+  const torto = "nao-e-um-uuid";
+  const tentativas: [string, string, RequestInit][] = [
+    ["GET mídias de rifa", `/api/admin/campaigns/${torto}/media`, {}],
+    ["PATCH rifa", `/api/admin/campaigns/${torto}`, { method: "PATCH", body: "{}" }],
+    ["DELETE rifa", `/api/admin/campaigns/${torto}`, { method: "DELETE" }],
+    ["GET chamado", `/api/admin/chamados/${torto}`, {}],
+    ["PATCH usuário", `/api/admin/usuarios/${torto}`, { method: "PATCH", body: "{}" }],
+    ["GET sócios de organização", `/api/admin/organizacoes/${torto}/socios`, {}],
+    ["DELETE cupom", `/api/admin/coupons/${torto}`, { method: "DELETE" }],
+    ["DELETE mídia", `/api/admin/media/${torto}`, { method: "DELETE" }],
+  ];
+  for (const [nome, caminho, init] of tentativas) {
+    const res = await pedir(eu.cookie, caminho, init);
+    checa(`${nome} com id fora do formato: 404`, res.status === 404, `HTTP ${res.status}`);
+  }
+  const comprar = await pedir(eu.cookie, "/api/admin/patrocinio/anuncios", { method: "POST", body: "{}" });
+  checa("comprar anúncio sem rifa: 404, não erro do banco", comprar.status === 404, `HTTP ${comprar.status}`);
+}
+
+/** Corpo com o tipo errado (número, lista, objeto no lugar do texto) é 400, nunca 500. */
+async function tipoErradoNoCorpo(eu: Lado) {
+  const tipos = await pedir(eu.cookie, `/api/admin/organizacoes/${eu.orgId}`, { method: "PATCH", body: '{"name":123,"cnpj":["x"]}' });
+  checa("editar a própria organização com tipo errado: 400", tipos.status === 400, `HTTP ${tipos.status}`);
+  const contato = await pedir(eu.cookie, `/api/admin/organizacoes/${eu.orgId}`, { method: "PATCH", body: '{"contato":{"a":1}}' });
+  checa("contato que não é texto: 400", contato.status === 400, `HTTP ${contato.status}`);
+  const administradora = await pedir(eu.cookie, "/api/admin/organizer", { method: "PUT", body: '{"nome":123}' });
+  checa("a administradora com nome que não é texto: 400", administradora.status === 400, `HTTP ${administradora.status}`);
+  // Auditoria do acesso marketing: pixel e chave de API são dado, nunca script; o tipo errado é 400.
+  for (const [nome, corpo] of [
+    ["pixel que é objeto", { pixels: { meta: { a: 1 } } }],
+    ["pixel com cara de script", { pixels: { meta: "123456789012345 <script>alert(1)</script>" } }],
+    ["pixels que não são objeto", { pixels: "x" }],
+    ["chave de API que é lista de objeto", { credenciais: { metaToken: [{ a: 1 }] } }],
+    ["chaves que não são objeto", { credenciais: "x" }],
+  ] as [string, unknown][]) {
+    const res = await pedir(eu.cookie, "/api/admin/marketing", { method: "PUT", body: JSON.stringify(corpo) });
+    checa(`marketing com ${nome}: 400`, res.status === 400, `HTTP ${res.status}`);
+  }
+  // Chave herdada do Object (`constructor`) onde a lista é fechada: recusa ou ignora, nunca 500 nem grava.
+  const tipoHerdado = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}/banner-divulgacao/documentos/constructor`, {
+    method: "PUT",
+    body: JSON.stringify({ arquivo: "data:image/png;base64,iVBORw0KGgo=" }),
+  });
+  checa("documento da entidade com tipo 'constructor': 400", tipoHerdado.status === 400, `HTTP ${tipoHerdado.status}`);
+  const statusHerdado = await pedir(eu.cookie, "/api/admin/divulgacoes?status=constructor");
+  checa("fila de divulgações com status 'constructor': 200 sem filtro, não 500", statusHerdado.status === 200, `HTTP ${statusHerdado.status}`);
+  const trafegoTorto = await pedir(eu.cookie, "/api/admin/trafego/campanhas", {
+    method: "POST",
+    body: JSON.stringify({ campaignId: [eu.campaignId, eu.campaignId], redes: "google" }),
+  });
+  checa("campanha de tráfego com a rifa em lista e a rede em texto: nunca 500", trafegoTorto.status < 500, `HTTP ${trafegoTorto.status}`);
 }
 
 /**
@@ -1156,6 +1531,10 @@ async function main() {
     console.log("  o organizador do norte alcançando o sul (espera 404):");
     await alcancaOVizinho(norte, sul);
 
+    console.log("\n  o painel do organizador, rota a rota (cambista, acerto, cupom, saque, recibo, banner,"
+      + " reembolso, afiliado, o que o corpo não troca e o que nunca é 500):");
+    await rotasDoPainelDoOrganizador(norte, sul);
+
     console.log("\n  endereço da organização:");
     await enderecoProprio(norte, sul);
 
@@ -1168,11 +1547,21 @@ async function main() {
     console.log("\n  bilhetes privados do apostador (espera 401):");
     await bilhetesSoDaConta(norte);
 
+    console.log("\n  o cambista (preso à organização e às vendas dele):");
+    await rotasDoCambista(norte, sul);
+    await rotasDoCambista(sul, norte);
+
     console.log("\n  assistente de IA (a conversa é da sessão):");
     await assistenteDeIA(norte);
 
     console.log("\n  rotas da plataforma (espera 403):");
     await rotasDaPlataforma(norte, sul);
+
+    console.log("\n  id fora do formato (espera 404, nunca 500):");
+    await idForaDoFormato(norte);
+
+    console.log("\n  corpo com o tipo errado (espera 400, nunca 500):");
+    await tipoErradoNoCorpo(norte);
 
     console.log("\n  o que as listas dele realmente trazem:");
     await conteudoDasListas(norte, sul);

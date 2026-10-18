@@ -312,7 +312,7 @@ export function CampaignExtras({
           )}
 
           <p className="text-[11px] text-muted">
-            Faixa desta rifa: {formatQuota(1, totalQuotas, numeracaoZero)} a {formatQuota(totalQuotas, totalQuotas, numeracaoZero)}.
+            Faixa desta rifa: <span className="tnum">{formatQuota(1, totalQuotas, numeracaoZero)}</span> a <span className="tnum">{formatQuota(totalQuotas, totalQuotas, numeracaoZero)}</span>.
           </p>
         </div>
       </CartaoDoPainel>

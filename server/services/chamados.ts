@@ -48,6 +48,7 @@ import {
   type PedidoDeReembolso,
 } from "@shared/chamados";
 import { cpfValido, formatBRL, hideCpf, hidePhone } from "@shared/format";
+import { ehUuid } from "@shared/uuid";
 import { podePedirReembolso } from "@shared/contaComprador";
 import { calcularReembolso } from "@shared/reembolso";
 import { clienteNoPainel } from "@shared/titularidade";
@@ -159,6 +160,11 @@ export async function abrirChamado(
 ) {
   const problema = problemaNoPedido(entrada);
   if (problema) throw new ChamadoError(problema);
+  // O código vem do corpo: o que não é inteiro do tamanho do código do pedido
+  // não existe (404), nunca vai ao Postgres (`orders.code` é int4 — era 500).
+  if (!Number.isSafeInteger(entrada.orderCode) || entrada.orderCode < 1 || entrada.orderCode > 2_147_483_647) {
+    throw new ChamadoError("Pedido não encontrado na sua conta.", 404);
+  }
 
   // O pedido tem de ser deste comprador: a sessão vale mais que o número
   // digitado. Pedido de outro comprador "não existe" (404).
@@ -394,6 +400,7 @@ async function mensagensDo(chamadoId: string) {
 
 /** Visão do comprador: só o que é dele, e nunca o nome de quem atendeu. */
 export async function chamadoDoComprador(buyerId: string, id: string) {
+  if (!ehUuid(id)) throw new ChamadoError("Chamado não encontrado.", 404);
   const [c] = await db
     .select({ chamado: chamados, pedido: orders.code, rifa: campaigns.title })
     .from(chamados)
@@ -496,6 +503,7 @@ export async function mensagemDoComprador(
   id: string,
   entrada: { texto: string; anexo?: string },
 ) {
+  if (!ehUuid(id)) throw new ChamadoError("Chamado não encontrado.", 404);
   const [c] = await db
     .select({ status: chamados.status, disputa: chamados.disputa })
     .from(chamados)
@@ -514,6 +522,7 @@ export async function anexoPara(
   anexoId: string,
   quem: { buyerId?: string; req?: Request },
 ): Promise<{ mime: string; bytes: Buffer }> {
+  if (!ehUuid(anexoId)) throw new ChamadoError("Anexo não encontrado.", 404);
   const [a] = await db
     .select({ anexo: chamadoAnexos, buyerId: chamados.buyerId, organizationId: chamados.organizationId })
     .from(chamadoAnexos)
@@ -984,6 +993,7 @@ async function tentativasNaoDevolvidas(chamadoId: string): Promise<number> {
  * impede que corra junto com outro chamado do mesmo pedido.
  */
 export async function abrirDisputa(comprador: CompradorLogado, id: string, motivo: string) {
+  if (!ehUuid(id)) throw new ChamadoError("Chamado não encontrado.", 404);
   const [c] = await db
     .select()
     .from(chamados)

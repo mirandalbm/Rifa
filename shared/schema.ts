@@ -290,6 +290,15 @@ export const users = pgTable(
     active: boolean("active").notNull().default(true),
     /** Quando abriu o sino do painel pela última vez: o que veio depois conta como novo. */
     avisosVistosEm: timestamp("avisos_vistos_em"),
+    /**
+     * Sessão do painel que começou antes deste instante não vale mais (trocou
+     * ou redefiniu a senha, desligou o acesso). Apagar as linhas de `sessions`
+     * não basta: uma requisição da sessão expulsa que já estava em andamento a
+     * regrava depois do `DELETE` (o `connect-pg-simple` faz `INSERT … ON
+     * CONFLICT DO UPDATE`). Quem confere é o middleware de `setupAuth`,
+     * contra `session.painelEntrouEm`. A mesma ideia de `buyers.sessoes_validas_desde`.
+     */
+    sessoesValidasDesde: timestamp("sessoes_validas_desde"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("uq_users_email").on(t.email)],
@@ -322,6 +331,15 @@ export const buyers = pgTable(
      * com o número de outro veria as compras dele.
      */
     telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
+    /**
+     * Sessões desta conta que começaram ANTES deste instante não valem mais
+     * (trocou a senha, provou o telefone, excluiu). Apagar as linhas de
+     * `sessions` não basta: uma requisição da sessão expulsa que já estava em
+     * andamento a regrava depois do `DELETE` (o `connect-pg-simple` faz
+     * `INSERT … ON CONFLICT DO UPDATE`). Quem confere é o middleware de
+     * `setupAuth`, a cada requisição, contra `session.buyer.entrouEm`.
+     */
+    sessoesValidasDesde: timestamp("sessoes_validas_desde"),
     /**
      * Compras feitas antes da conta, pelo telefone, que passaram a ser da
      * conta porque o CPF delas bateu com o do cadastro. Vale para o que

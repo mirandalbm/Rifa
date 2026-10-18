@@ -104,7 +104,7 @@ export function preencherContrato(modelo: string, empresa: DadosDaEmpresa): Cont
   };
   let texto = modelo.replace(/\{\{\s*([A-Za-z_]+)\s*\}\}/g, (m, nome: string) => {
     const n = nome.toUpperCase();
-    if (n in CAMPOS_DO_CONTRATO) return valorDe(n as CampoDoContrato, m);
+    if (Object.hasOwn(CAMPOS_DO_CONTRATO, n)) return valorDe(n as CampoDoContrato, m);
     desconhecidos.add(m);
     return m;
   });

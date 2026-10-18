@@ -27,7 +27,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 |---|---|---|
 | Sessão: cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção; sessão nova a cada entrada | `server/auth.ts`, `server/services/contaComprador.ts` | — |
 | Senha: scrypt com custo próprio (N = 2¹⁶, r = 8, p = 2, guardado no hash `s2$…`; a senha antiga entra e é refeita no login), régua única (`shared/senha.ts`), força bruta contada por conta e por IP (`guardLogin`) | `server/services/hashSenha.ts`, `server/auth.ts`, `server/routes/auth.ts` | `tests/senha.test.ts`, `tests/hashSenha.test.ts`, `npm run senha` |
-| Troca e redefinição de senha derrubam as outras sessões (painel e apostador) | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes` | — |
+| Troca e redefinição de senha derrubam as outras sessões (painel e apostador); a sessão também cai pela marca `sessoes_validas_desde` (`buyers` e `users`) se uma requisição em andamento a regravar. Trocar a senha ou excluir a conta pede a senha atual ou o código do WhatsApp dos últimos 30 minutos — entrar pela senha não basta | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes`, `setupAuth`, `codigoRecente` | `npm run conta`, `npm run afiliados` |
 | Segundo fator do painel (TOTP); obrigatório para arquivar organização, **lançar o resultado do sorteio oficial e registrar nova extração do globo** (`conferirSegundoFatorAgora()`, senha e código na hora, 30 tentativas em 10 min). O segredo fica **selado no cofre** (`cofre:v1:…`, também o pendente na sessão); o de antes, em claro, entra e é selado ao subir o servidor; o selado adulterado é "código incorreto", nunca 500 | `server/services/totp.ts`, `server/services/segundoFator.ts`, `server/routes/admin.ts` | `tests/totp.test.ts`, `tests/segundoFator.test.ts`, `npm run senha` |
 | Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
 | Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
@@ -38,11 +38,13 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Ações do assistente: entrada da IA tratada como corpo de requisição (catálogo fechado, formato conferido), recorte da sessão em cada ação, gravação só com confirmação da pessoa (`UPDATE` condicional, prazo, só quem conversava; 404 para outra pessoa) e pelos mesmos serviços das rotas, resumo montado pelo servidor, `audit_log` com `viaIA`, resultado sem dado pessoal (barreira em cada texto), teto de rodadas por mensagem | `shared/iaAcoes.ts`, `server/services/iaAcoes.ts`, `server/services/ia.ts`, `server/routes/ia.ts` | `tests/iaAcoes.test.ts`, `npm run ia-acoes`, `npm run isolation` |
 | Pagamento: webhook assinado (tempo constante), status pela API, idempotente | `server/routes/webhooks.ts`, `server/payments/` | `tests/mercadopago.test.ts`, `tests/asaas.test.ts` |
 | Antifraude: limites antes do primeiro `INSERT` e a reserva em aberto de novo na transação | `server/services/antifraude.ts`, `orders.ts` | `npm run load` |
+| Venda do cambista: presa à organização da sessão (organização nula é recusada na entrada, na sessão e na rota), código da venda, meio e comprovante da maquininha com formato e teto, teto de vendas novas por cambista, meio e comprovante gravados no `UPDATE` que paga, reserva em ordem crescente com o deadlock repetido | `server/routes/seller.ts`, `shared/vendaFisica.ts`, `server/services/orders.ts`, `quotas.ts` | `tests/vendaFisica.test.ts`, `npm run cambista`, `npm run isolation`, `npm run load` |
 | Endereço vindo de usuário: só `https:`, nunca vira redirecionamento aberto | `shared/perfil.ts`, `shared/vitrine.ts`, `server/services/links.ts` | `npm run perfil` |
 | Push só para serviço conhecido (contra SSRF) | `shared/push.ts` | `tests/push.test.ts` |
 | Cabeçalhos: `nosniff`, `X-Frame-Options`, `frame-ancestors`, `Referrer-Policy`; HSTS em produção | `server/index.ts` | — |
 | Política de conteúdo (CSP) **em modo relatório**, só em produção: a lista do que o sistema carrega (pixels, fontes, Stream, players), o script do tema pelo hash, `object-src 'none'`; os relatórios vão ao log agrupados (diretiva e origem, nunca a URL) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts` | `tests/csp.test.ts` |
 | Clique patrocinado: cobra só com o comprovante da exibição (HMAC por anúncio e aparelho, de 1 s a 30 min) e no máximo 3 por IP por anúncio em 24 h | `server/services/ticketDoClique.ts`, `registrarClique` em `server/services/patrocinio.ts` | `tests/ticketDoClique.test.ts`, `npm run patrocinio` |
+| A porta recusa o que ninguém digita: byte nulo no endereço, na consulta ou no JSON é 400 para todas as rotas; o erro 22021 que escapar também; `unhandledRejection` vai ao log. Balde do antifraude de texto longo vira começo + impressão (`chaveDoBalde`); rota `async` leva `try/catch`. Leitura pública em `private, no-cache` por padrão, pedido/carrinho/bilhete em `no-store` | `server/index.ts`, `shared/semNulo.ts`, `server/services/balde.ts`, `server/routes/index.ts` | `tests/semNulo.test.ts`, `npm run publico` |
 | Rascunho não responde em rota pública (mapa, número, prêmios, ranking, últimas compras): 404, igual a inexistente | `server/routes/public.ts` | `npm run senha` |
 | Segredos obrigatórios em produção (`SESSION_SECRET`, `COFRE_CHAVE`, R2); o seed se recusa em produção | `server/auth.ts`, `cofre.ts`, `storage.ts`, `scripts/seed.ts` | — |
 | Log: método, caminho sem a query, status e tempo; recusa de login com o e-mail mascarado | `server/index.ts`, `server/routes/auth.ts` | — |
@@ -87,6 +89,90 @@ O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
 
+### 18/10/2026 — acesso marketing
+
+Escopo: o menu Marketing (pixels e compra pelo servidor, tráfego pago, Marketing
+AI, rifas patrocinadas, banner pago) e os atalhos `/c/` e `/l/`. Relatório
+completo, com o que ficou aberto, em `docs/AUDITORIA-ACESSO-MARKETING.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| **Alta** | **Pix de recarga devolvido no provedor deixava o crédito** (o webhook `refunded` só tratava o assistente e o pedido). Agora tira o crédito pelo livro, uma vez, até onde o saldo alcança; o resto fica na auditoria | `patrocinio.ts` (`estornarRecarga`), `routes/webhooks.ts` (`npm run patrocinio`, `npm run webhook`) |
+| Média | A plataforma comprava anúncio patrocinado com o saldo da organização (o banner e o tráfego já eram 403) | `patrocinio.ts` (`npm run patrocinio`) |
+| Média | Pixel de uma promotora seguia escutando a página da outra na navegação sem recarregar (medição automática e correspondência avançada leem o que se digita); agora recarrega quando sobra pixel que não é da página | `client/src/lib/marketing.ts`, `shared/marketing.ts` (`tests/auditoriaMarketing.test.ts`) |
+| Média | `x in OBJETO` com texto do corpo aceitava `constructor` em 20 listas fechadas (um 500 na fila de divulgações; documento de entidade gravado com tipo `constructor`); `Object.hasOwn` em todas | `shared/*`, `server/services/*` (`tests/auditoriaMarketing.test.ts`, `npm run isolation`) |
+| Média | Taxa de gestão e tabelas mandadas vazias viravam 0%; `[100]` e `true` valiam como número; `numeroDoCorpo()` | `shared/inteiro.ts` (`npm run trafego`, `patrocinio`, `banner`) |
+| Média | Sem teto na recarga (chama o Pix da plataforma), na conversa do reembolso do saldo e no pedido de banner (abre a imagem): 10/h, 30/10 min e 20/10 min | `patrocinio.ts`, `bannerPago.ts` (`npm run patrocinio`, `banner`) |
+| Baixa | Rifa de demonstração ou travada patrocinada; painel "Vendas por campanha" na memória (agora `group by`); pixel guardado sem conferir na saída; `/l/` sem conferir `https:` no redirecionamento | `patrocinio.ts`, `marketing.ts`, `links.ts` (`npm run marketing`) |
+
+Aberto, para decisão: a dívida de uma recarga estornada depois de gasta; a
+revogação do consentimento não alcança o pedido já criado; o telefone em hash vai
+ao pixel da organização (controladora distinta); o formato dos eventos da Meta e
+do TikTok não foi confirmado em fonte oficial. **Não passou pelo
+`revisor-de-invariantes`.**
+
+### 18/10/2026 — acesso do cambista
+
+Escopo: tudo o que a sessão de cambista alcança (`/api/seller/*`, o bilhete e a
+trilha de impressão, o acerto e o fechamento, a venda física pelo mesmo caminho
+de reserva, o antifraude, a ponte com a maquininha — só leitura —, o login, a
+senha e a marca de sessão). Relatório completo, com o que ficou aberto, em
+`docs/AUDITORIA-ACESSO-CAMBISTA.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| **Alta** | **Reservas grandes ao mesmo tempo davam deadlock e 500** (seis pedidos de 800 cotas em paralelo: metade falhava, para o site e para o balcão): os candidatos sorteados entravam em ordem própria e duas transações se esperavam em ciclo. Agora entram em ordem crescente (devolvidos na ordem do sorteio) e o deadlock que sobrar recomeça a transação (até 6 vezes, depois 503) | `quotas.ts`, `orders.ts`, `pgError.ts` (`npm run cambista`, `npm run load`) |
+| Média | Código de venda que não é inteiro em confirmar e cancelar respondia 500 (`NaN` no SQL) | `routes/seller.ts`, `shared/vendaFisica.ts` (`npm run cambista`, `npm run isolation`) |
+| Média | O comprovante da maquininha ia sem formato nem teto para o bilhete — público pelo código e impresso: texto livre ("pague no Pix para…") e 200 mil letras passavam | `shared/vendaFisica.ts`, `routes/seller.ts` (`npm run cambista`) |
+| Média | Número repetido no pedido cobrava a mais (`[7, 7, 7]` = 3 no preço, 1 reservada) | `orders.ts` (`npm run cambista`) |
+| Média | Cambista sem organização (recorte nulo = plataforma) listava e vendia a rifa de todas; agora login, sessão e rota o recusam | `auth.ts`, `routes/seller.ts` (`npm run cambista`) |
+| Média | O meio e o comprovante da venda na mão gravavam antes do `UPDATE` que paga: dois meios ao mesmo tempo deixavam o do perdedor no pedido pago | `orders.ts` (`npm run cambista`) |
+| Baixa | Sem teto de vendas novas por cambista (a venda dele é isenta dos limites de comprador); "vendas de hoje" no dia UTC; demonstração e rifa travada oferecidas na tela; cadastro de cambista com organização inexistente (500); observação do acerto sem formato nem teto | `routes/seller.ts`, `routes/admin.ts` (`npm run cambista`) |
+
+Aberto, para decisão: o segundo fator não existe para o cambista; a venda
+estornada depois do acerto fechado segue no bruto dele; a ponte da maquininha
+vale para qualquer página da WebView (Android, `docs/PENDENCIAS.md`).
+
+### 18/10/2026 — acesso do afiliado
+
+Escopo: tudo o que a sessão de afiliado alcança (`/api/affiliate/*`, cadastro e
+login, vínculo e termo, kit/artes/editor, divulgações, saldo, saque, cadastro
+fiscal, recibo, chave Pix, mensagens e assistente). Relatório completo, com o
+que ficou aberto, em `docs/AUDITORIA-ACESSO-AFILIADO.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| **Alta** | **A sessão roubada de um usuário do painel sobrevivia à troca de senha** (e à redefinição por outra pessoa): uma requisição em andamento da sessão expulsa a regravava depois do `DELETE` em `sessions`. Provado 6 em 6 com 24 requisições em laço. A marca `users.sessoes_validas_desde` + `session.painelEntrouEm` fecha o que o acesso do apostador fechou só para `buyers`; desligar o acesso também derruba as sessões (ligar de novo não as traz de volta) | `auth.ts`, `routes/auth.ts`, `routes/admin.ts`, `schema.ts` (`npm run afiliados`) |
+| Média | Documento fiscal aceitava tipo inventado (`in` pega `constructor`, `toString`…): gravava arquivo de 6 MB sob o nome do protótipo; o mesmo no tipo da chave Pix da verificação | `fiscal.ts`, `shared/verificacao.ts` (`npm run afiliados`, `tests/verificacao.test.ts`) |
+| Média | A chave Pix dos saques aceitava objeto ou lista (virava `[object Object]`) | `routes/affiliate.ts` (`npm run afiliados`) |
+| Baixa | Cadastro fiscal, documentos, foto e verificação sem limite: conta de afiliado nasce aberta e o 409 do CPF repetido deixava varrer CPFs; agora 40 gravações por hora por afiliado | `routes/affiliate.ts` (`npm run afiliados`) |
+| Baixa | Artes do kit de um **rascunho** da organização respondiam 200 (confirmava o endereço); agora 404 | `routes/affiliate.ts` (`npm run afiliados`) |
+| Baixa | `/links` varria todas as rifas da plataforma (3 consultas e um QR por rifa) e `/organizacoes` trazia todas as versões de todos os termos a cada abertura; agora só as organizações do afiliado e só o termo em vigor | `routes/affiliate.ts`, `afiliados.ts` |
+
+### 18/10/2026 — acesso público (visitante sem login)
+
+Escopo: tudo o que o visitante alcança (telas e `/api/public/*`, `/c/`, `/l/`,
+login, webhooks). Relatório completo, com o que ficou aberto, em
+`docs/AUDITORIA-ACESSO-PUBLICO.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| Alta | `POST /api/auth/login` sem `try`: o e-mail com byte nulo ou enorme (estoura a linha do índice do antifraude) derrubava o processo — um pedido anônimo tirava o site do ar | `routes/auth.ts`, `index.ts`, `balde.ts`, `semNulo.ts` (`npm run publico`, `tests/semNulo.test.ts`) |
+| Média | Id fora do formato e byte nulo em rota pública respondiam 500 (pedido, carrinho, story, banner pago, perfil, recibo, pixel…) | `routes/public.ts`, `index.ts` (`npm run publico`) |
+| Média | Promotora banida ainda aparecia na vitrine, nos estados, no termo, no pixel e no link do perfil (por onde o Pix por fora costuma ir) | `campaigns.ts`, `vitrine.ts`, `links.ts`, `afiliados.ts`, `marketing.ts` (`npm run publico`) |
+| Média | Leitura pública sem `Cache-Control` (varia com a sessão); pedido e bilhete sem `no-store` | `routes/index.ts`, `public.ts` (`npm run publico`) |
+| Baixa | Ranking sem guarda (varredura por pedido); consulta de CEP sem limite (ViaCEP) | `public.ts` (`npm run publico`) |
+
+### 18/10/2026 — acesso da plataforma
+
+Escopo: as 267 rotas de `/api/admin` e as telas do master. O relatório (o que
+foi conferido, o que foi corrigido e o que ficou aberto) está em
+`docs/AUDITORIA-ACESSO-PLATAFORMA.md`. Em resumo: id fora do formato respondia
+500 em mais de setenta rotas; arquivar organização tinha cópia própria do
+segundo fator, sem limite de tentativas; configuração com campo ausente voltava
+ao padrão e dois cartões salvos juntos se perdiam; auditoria gravada antes da
+decisão (ou fora da transação do resultado do sorteio).
+
 ### 02/10/2026
 
 Escopo: o que nasceu depois da revisão de 28/09 — mensagens (foto, presença e
@@ -118,17 +204,19 @@ o `ffmpeg` (sem shell, protocolos limitados, prazo, saída com teto) e nenhum
 
 - `ffmpeg` simultâneos: limitado a 2 (fila) desde o PR dos extras do pôster.
 - O identificador do aparelho continua vindo do cliente; o que segura é o IP.
-- Sessão derrubada pode voltar (suspeita, não provada; revisão de 12/10/2026,
-  PR #252): `encerrarOutrasSessoes` apaga as linhas de `sessions`, mas o
-  `connect-pg-simple` grava com `INSERT … ON CONFLICT (sid) DO UPDATE` — uma
-  requisição da sessão expulsa que já estava em andamento e mexe na própria
-  sessão pode recriá-la depois do `DELETE`. Vale para troca de senha,
-  primeira prova do telefone e exclusão da conta. Correção possível: uma marca
-  na conta (`sessoes_validas_desde`) conferida a cada requisição. A primeira
-  prova do telefone pela conta já encerra as outras **antes** de gravar a
-  confirmação (`confirmarTelefone`), para uma falha do `DELETE` não deixar a
-  conta confirmada com a sessão do intruso de pé; o `/my-quotas/verify` segue
-  na ordem antiga.
+- ~~Sessão derrubada pode voltar~~ **provada e corrigida na auditoria do acesso
+  apostador (18/10/2026)**: `encerrarOutrasSessoes` apagava as linhas de
+  `sessions`, mas o `connect-pg-simple` grava com `INSERT … ON CONFLICT (sid)
+  DO UPDATE` — uma requisição da sessão expulsa que já estava em andamento e
+  mexia na própria sessão a recriava depois do `DELETE` (reproduzido com 24
+  requisições em laço contra `/conta/google/entrar`). Agora a conta tem
+  `sessoes_validas_desde` e a sessão do apostador, `entrouEm`; o middleware de
+  `setupAuth` derruba a sessão mais velha que a marca. Vale para troca de senha,
+  primeira prova do telefone e exclusão da conta (`npm run conta`). O painel
+  (`users`) tem o mesmo desenho de sessão e **não** foi coberto: ver
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`. **O painel foi coberto na auditoria do
+  acesso do afiliado (18/10/2026)**: `users.sessoes_validas_desde` e
+  `session.painelEntrouEm`, provados com a mesma corrida em laço.
 
 ### 28/09/2026
 

@@ -92,6 +92,7 @@ export async function resolverLinkCurto(codigo: string, userAgent: string | unde
       tipo: linksCurtos.tipo,
       orgSlug: organizations.slug,
       arquivada: organizations.archivedAt,
+      banida: organizations.banidaEm,
       rifaSlug: campaigns.slug,
       status: campaigns.status,
     })
@@ -99,7 +100,7 @@ export async function resolverLinkCurto(codigo: string, userAgent: string | unde
     .innerJoin(organizations, eq(organizations.id, linksCurtos.organizationId))
     .leftJoin(campaigns, eq(campaigns.id, linksCurtos.campaignId))
     .where(eq(linksCurtos.codigo, cod));
-  if (!l || l.arquivada) return null;
+  if (!l || l.arquivada || l.banida) return null;
   let destino: string | null = null;
   if (l.tipo === "perfil") destino = `/o/${l.orgSlug}`;
   else if (l.rifaSlug && l.status !== "draft") destino = `/o/${l.orgSlug}/r/${l.rifaSlug}`;
@@ -122,11 +123,16 @@ function diaDeSaoPaulo(d = new Date()) {
 export async function clicarLinkDoPerfil(slug: string, indice: number, userAgent: string | undefined) {
   if (!Number.isInteger(indice) || indice < 0) return null;
   const [org] = await db
-    .select({ id: organizations.id, links: organizations.links, arquivada: organizations.archivedAt })
+    .select({ id: organizations.id, links: organizations.links, arquivada: organizations.archivedAt, banida: organizations.banidaEm })
     .from(organizations)
     .where(eq(organizations.slug, slug));
   const link = (org?.links as LinkDoPerfil[] | null)?.[indice];
-  if (!org || org.arquivada || !link) return null;
+  // Arquivada ou banida: o perfil é 404 e o link dela não leva ninguém a lugar nenhum
+  // (o do banido é, justamente, por onde o Pix por fora costuma ir).
+  if (!org || org.arquivada || org.banida || !link) return null;
+  // O link foi conferido ao salvar (só https), mas o redirecionamento é o último lugar onde um valor torto no
+  // banco viraria `javascript:` ou `http:` com a assinatura da plataforma: confere de novo, sem exceção.
+  if (typeof link.url !== "string" || !/^https:\/\/[^\s]+$/i.test(link.url)) return null;
   if (!ehRobo(userAgent)) {
     await db
       .insert(perfilLinkCliques)

@@ -180,6 +180,12 @@ o preço já calibrado. O afiliado por último.
 
 ## Rascunho das instruções do agente
 
+> **O texto para colar no Chatbase não é este rascunho**: é o de
+> `docs/PACOTE-LUCKY.md` (passo 2), gerado do código e conferido contra o
+> estado atual (contexto do papel, ações de cada papel, confirmação das
+> gravações, pedidos de texto do sistema). Este rascunho fica como história
+> das decisões.
+
 > Você é o Lucky, o assistente do painel da plataforma de rifas autorizadas.
 > Você ajuda três tipos de pessoa: a administração da plataforma (o master),
 > as organizações promotoras de rifas e os afiliados que divulgam as rifas.

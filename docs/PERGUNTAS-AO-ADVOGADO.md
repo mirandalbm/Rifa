@@ -391,7 +391,7 @@ pede a permissão à Meta? Antes da homologação do globo, o que a plataforma p
 afirmar sobre ele nas peças e nos anúncios (por exemplo, "sem manipulação")?
 
 
-## Quarta rodada — o globo e o tabelionato (18/10/2026)
+## Sexta rodada — o globo e o tabelionato (18/10/2026)
 
 O responsável decidiu homologar o globo já (18/10/2026). O roteiro prático
 está em `docs/ROTEIRO-GLOBO-TABELIONATO.md`; estas são as perguntas que

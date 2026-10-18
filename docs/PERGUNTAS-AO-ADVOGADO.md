@@ -390,3 +390,47 @@ operação ou para o globo) que mude a análise de "agregador" do Google e de qu
 pede a permissão à Meta? Antes da homologação do globo, o que a plataforma pode
 afirmar sobre ele nas peças e nos anúncios (por exemplo, "sem manipulação")?
 
+
+## Quarta rodada — rifa nacional (18/10/2026)
+
+O dono decidiu criar o conceito de **rifa nacional**: a organização pede, só o
+administrador geral aprova, o valor mínimo é de **R$ 100.000 de arrecadação
+total** (cotas × preço, configurável pela plataforma) e a rifa aprovada fica
+**fixa no topo da vitrine** de todos, com o selo "Nacional" escrito. O plano
+está em `docs/PLANO-RIFA-NACIONAL.md`. Nada disso muda cobrança, sorteio,
+apuração, reembolso ou prêmio. Estas são as dúvidas dele (R24 a R29); **o
+código só liga o interruptor depois das respostas**.
+
+**R24. [1] "Nacional" e o âmbito da autorização SPA/MF.** A autorização
+informa a abrangência territorial da promoção? Chamar a rifa de "nacional" na
+vitrine exige que a autorização cubra o território nacional? A plataforma deve
+conferir isso (por exemplo, um campo ou o arquivo do certificado) antes de
+aprovar? Hoje toda rifa é visível a todos os estados, e a plataforma não
+restringe a venda pela UF do comprador: isso muda para a nacional?
+
+**R25. [1] Promoção de maior valor.** O valor total do plano de prêmios ou da
+arrecadação prevista (R$ 100.000 ou mais) muda alguma exigência da SPA/MF
+(garantia, prestação de contas, taxa de fiscalização, certidões) para a
+promotora? A plataforma pode usar esse valor como critério para dar destaque?
+
+**R26. [2] A ordem fixa no topo é publicidade ou curadoria?** A plataforma põe
+a rifa nacional aprovada acima das outras, para todos. Isso precisa ser
+identificado como destaque e o critério ter de ser dito nos Termos (Decreto
+7.962/2013, CDC)? Aumenta a responsabilidade solidária da plataforma (CDC, art.
+7º, parágrafo único) por aquela rifa em comparação com as demais?
+
+**R27. [2] O selo "Nacional" não pode soar como aval.** Texto proposto na
+ajuda: *"Rifa nacional é a que chegou ao valor mínimo de arrecadação definido
+pela plataforma. O selo não significa aval da plataforma ao prêmio nem à
+promotora."* Pode ser assim? Falta algo (por exemplo, repetir o número da
+autorização ao lado do selo)?
+
+**R28. [2] Cobrança do topo.** O plano **não** cobra pelo destaque. Se a
+plataforma decidir cobrar um dia, é serviço distinto da taxa de venda (X.3) do
+contrato da promotora? Precisa de aceite e cláusula próprios, como a taxa de
+gestão do tráfego pago?
+
+**R29. [3] "Arrecadação prevista" ao consumidor.** O critério é cotas × preço
+(potencial, não o vendido). Se a tela disser "arrecadação prevista de R$ …",
+precisa de ressalva de que a rifa pode não vender todas as cotas e do mínimo de
+cotas vendidas para sortear? Ou é melhor não mostrar o valor ao público?

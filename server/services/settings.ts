@@ -1,6 +1,6 @@
 /** Ajustes gerais, com valor padrão quando o administrador ainda não preencheu. */
 import { tabelaVigente, type ConfigCobranca } from "@shared/cobranca";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { appSettings, type OrganizerInfo } from "@shared/schema";
 import {
@@ -101,23 +101,39 @@ export async function setPaymentMethods(
 
 const PLATAFORMA_KEY = "plataforma";
 
-export async function getPlataforma(): Promise<ConfigPlataforma> {
-  const [row] = await db
+type Leitor = Pick<typeof db, "select">;
+
+async function lerPlataforma(exec: Leitor): Promise<ConfigPlataforma> {
+  const [row] = await exec
     .select()
     .from(appSettings)
     .where(eq(appSettings.key, PLATAFORMA_KEY));
   if (!row) return CONFIG_PADRAO;
   try {
     return validarConfigPlataforma(row.value as Partial<ConfigPlataforma>);
-  } catch {
+  } catch (e) {
+    // Voltar ao padrão em silêncio desliga tudo (interruptores, cobrança,
+    // provedor) sem ninguém saber: ao menos o motivo vai ao log.
+    console.error("[plataforma] a configuração guardada não passa mais na régua; valendo o padrão:", (e as Error).message);
     return CONFIG_PADRAO;
   }
 }
+
+export async function getPlataforma(): Promise<ConfigPlataforma> {
+  return lerPlataforma(db);
+}
+
+/** Trava (de transação) que serializa quem grava a configuração da plataforma. */
+const TRAVA_DA_CONFIGURACAO = 811_902;
 
 /**
  * Grava a escolha. Provedor sem credencial no servidor é recusado aqui: a
  * troca seria aceita e a próxima venda quebraria na hora do Pix, com o
  * comprador na frente da tela.
+ *
+ * Ler a configuração, juntar o que veio e gravar acontece numa transação com
+ * trava: dois cartões salvos ao mesmo tempo (o último a gravar vencia e
+ * perdia o outro) esperam um pelo outro.
  */
 export async function setPlataforma(
   candidato: Partial<ConfigPlataforma>,
@@ -125,27 +141,30 @@ export async function setPlataforma(
   // Parte da configuração atual: quem salva um pedaço (Pagamentos, Bônus)
   // não apaga o resto por omissão. Campo `undefined` não conta como enviado.
   const enviados = Object.fromEntries(Object.entries(candidato).filter(([, v]) => v !== undefined));
-  const value = validarConfigPlataforma({ ...(await getPlataforma()), ...enviados });
-  if (value.provedorPix) {
-    const faltando = CREDENCIAIS_PROVEDOR[value.provedorPix].filter((v) => !process.env[v]);
-    if (faltando.length) {
-      throw Object.assign(
-        new Error(
-          `Para usar ${NOME_PROVEDOR[value.provedorPix]}, configure no Railway: ${faltando.join(", ")}.`,
-        ),
-        { status: 400 },
-      );
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${TRAVA_DA_CONFIGURACAO})`);
+    const value = validarConfigPlataforma({ ...(await lerPlataforma(tx)), ...enviados });
+    if (value.provedorPix) {
+      const faltando = CREDENCIAIS_PROVEDOR[value.provedorPix].filter((v) => !process.env[v]);
+      if (faltando.length) {
+        throw Object.assign(
+          new Error(
+            `Para usar ${NOME_PROVEDOR[value.provedorPix]}, configure no Railway: ${faltando.join(", ")}.`,
+          ),
+          { status: 400 },
+        );
+      }
     }
-  }
 
-  await db
-    .insert(appSettings)
-    .values({ key: PLATAFORMA_KEY, value })
-    .onConflictDoUpdate({
-      target: appSettings.key,
-      set: { value, updatedAt: new Date() },
-    });
-  return value;
+    await tx
+      .insert(appSettings)
+      .values({ key: PLATAFORMA_KEY, value })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { value, updatedAt: new Date() },
+      });
+    return value;
+  });
 }
 
 /**

@@ -169,11 +169,52 @@ async function main() {
     r = await a.req("DELETE", "/api/admin/antifraude/bloqueios/00000000-0000-4000-8000-000000000000");
     checa("…nem tira (403)", r.status === 403, `HTTP ${r.status}`);
 
-    const antes = (await admin.req("GET", "/api/admin/antifraude")).json?.limites ?? {};
+    const antes = (await admin.req("GET", "/api/admin/antifraude")).json?.limits ?? {};
     r = await admin.req("PUT", "/api/admin/antifraude/limites", { openOrdersPerPhone: -1 });
     checa("limite fora da faixa: 400", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
     r = await admin.req("PUT", "/api/admin/antifraude/limites", antes);
     checa("a plataforma regrava os limites que já tinha (200)", r.status === 200, `HTTP ${r.status}`);
+
+    // Salvar um pedaço da configuração não muda o resto: o campo que não vem fica como estava
+    // (antes, voltava ao padrão). Cada prova parte de um valor que não é o padrão, senão não distingue.
+    const aparelhos = (antes.ordersPerDevice ?? 8) === 9 ? 10 : 9;
+    await admin.req("PUT", "/api/admin/antifraude/limites", { ...antes, ordersPerDevice: aparelhos });
+    r = await admin.req("PUT", "/api/admin/antifraude/limites", { ordersPerPhone: antes.ordersPerPhone });
+    const depoisDeUm = (await admin.req("GET", "/api/admin/antifraude")).json?.limits ?? {};
+    checa("limites: mandar um só não volta os outros ao padrão", r.status === 200 && depoisDeUm.ordersPerDevice === aparelhos, `HTTP ${r.status} ${depoisDeUm.ordersPerDevice}`);
+    await admin.req("PUT", "/api/admin/antifraude/limites", antes);
+    const meiosAntes = (await admin.req("GET", "/api/admin/payment-methods")).json;
+    await admin.req("PUT", "/api/admin/payment-methods", { ...meiosAntes, pix_online: true, dinheiro: false });
+    r = await admin.req("PUT", "/api/admin/payment-methods", { pix_online: true });
+    checa("meios de pagamento: mandar um só não volta os outros ao padrão", r.status === 200 && r.json?.dinheiro === false, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
+    await admin.req("PUT", "/api/admin/payment-methods", meiosAntes);
+
+    // Três cartões salvos ao mesmo tempo: a configuração é lida, juntada e gravada com trava, então nenhum se perde.
+    const cfgAntes = (await admin.req("GET", "/api/admin/plataforma")).json;
+    const bannerAntes = (await admin.req("GET", "/api/admin/banner-pago")).json?.config ?? {};
+    const mudar = [
+      { fundo: (cfgAntes.fundoDaConversaPct + 10) % 100, segundos: bannerAntes.segundos === 7 ? 8 : 7, bonus: cfgAntes.bonusPorIndicacao === 1 ? 2 : 1 },
+      { fundo: cfgAntes.fundoDaConversaPct, segundos: bannerAntes.segundos, bonus: cfgAntes.bonusPorIndicacao },
+    ];
+    let perdeu = "";
+    for (let volta = 0; volta < 8 && !perdeu; volta++) {
+      const v = mudar[volta % 2];
+      const respostas = await Promise.all([
+        admin.req("PUT", "/api/admin/app", { fundoDaConversaPct: v.fundo }),
+        admin.req("PUT", "/api/admin/banner-pago/config", { segundos: v.segundos }),
+        admin.req("PUT", "/api/admin/bonus/config", { bonusPorIndicacao: v.bonus }),
+      ]);
+      const agora = (await admin.req("GET", "/api/admin/plataforma")).json;
+      const bannerAgora = (await admin.req("GET", "/api/admin/banner-pago")).json?.config ?? {};
+      if (respostas.some((x) => x.status !== 200)) perdeu = `HTTP ${respostas.map((x) => x.status).join("/")} ${JSON.stringify(respostas.map((x) => x.json?.message))}`;
+      else if (agora.fundoDaConversaPct !== v.fundo || bannerAgora.segundos !== v.segundos || agora.bonusPorIndicacao !== v.bonus) {
+        perdeu = `volta ${volta}: ${agora.fundoDaConversaPct}/${bannerAgora.segundos}/${agora.bonusPorIndicacao} em vez de ${v.fundo}/${v.segundos}/${v.bonus}`;
+      }
+    }
+    checa("três cartões salvos ao mesmo tempo: nenhum se perde", perdeu === "", perdeu);
+    await admin.req("PUT", "/api/admin/app", { fundoDaConversaPct: cfgAntes.fundoDaConversaPct });
+    await admin.req("PUT", "/api/admin/banner-pago/config", { segundos: bannerAntes.segundos });
+    await admin.req("PUT", "/api/admin/bonus/config", { bonusPorIndicacao: cfgAntes.bonusPorIndicacao });
 
     r = await admin.req("POST", "/api/admin/antifraude/bloqueios", { kind: "email", value: "x@y.z" });
     checa("tipo de bloqueio inválido: 400", r.status === 400, `HTTP ${r.status}`);

@@ -3809,7 +3809,8 @@ adminRouter.get("/antifraude", async (req, res, next) => {
 adminRouter.put("/antifraude/limites", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const saved = await setLimits(req.body ?? {});
+    // Sem o limite no corpo, vale o que já estava (não volta ao padrão por omissão).
+    const saved = await setLimits({ ...(await getLimits()), ...(req.body ?? {}) });
     await audit(req, "antifraude.limites", "settings", "antifraude", saved);
     res.json(saved);
   } catch (err) {
@@ -3896,7 +3897,8 @@ adminRouter.get("/payment-methods", async (_req, res, next) => {
 adminRouter.put("/payment-methods", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const saved = await setPaymentMethods(req.body ?? {});
+    // Sem o meio no corpo, vale o que já estava (não volta ao padrão por omissão).
+    const saved = await setPaymentMethods({ ...(await getPaymentMethods()), ...(req.body ?? {}) });
     await audit(req, "payment_methods.update", "settings", "meios_pagamento", saved);
     res.json(saved);
   } catch (err) {
@@ -4958,13 +4960,14 @@ adminRouter.get("/bonus", async (req, res, next) => {
 adminRouter.put("/bonus/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const atual = await getPlataforma();
+    // Só o que veio: o `setPlataforma` junta com a configuração de agora, com a
+    // trava. (Antes, espalhava a configuração lida aqui antes da trava, e o
+    // cartão salvo ao mesmo tempo em outra aba era desfeito por ela.)
     const salva = await setPlataforma({
-      ...atual,
-      bonusLigado: req.body?.bonusLigado === undefined ? atual.bonusLigado : req.body.bonusLigado === true,
-      bonusPorIndicacao: req.body?.bonusPorIndicacao === undefined ? atual.bonusPorIndicacao : req.body.bonusPorIndicacao,
+      bonusLigado: req.body?.bonusLigado === undefined ? undefined : req.body.bonusLigado === true,
+      bonusPorIndicacao: req.body?.bonusPorIndicacao,
       // O presente (desconto de primeira compra pago pela plataforma).
-      presente: req.body?.presente === undefined ? atual.presente : req.body.presente,
+      presente: req.body?.presente,
     });
     await audit(req, "bonus.config", "settings", "plataforma", {
       bonusLigado: salva.bonusLigado,
@@ -5071,7 +5074,10 @@ adminRouter.post("/banner-pago/pedidos/:id/decisao", async (req, res, next) => {
 adminRouter.put("/banner-pago/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const salva = await setPlataforma({ bannerPago: req.body });
+    // Parte da configuração atual: o corpo sem `ligado` desligava o produto, e sem preço ou dias voltava ao padrão.
+    const atual = (await getPlataforma()).bannerPago;
+    const corpo = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
+    const salva = await setPlataforma({ bannerPago: { ...atual, ...corpo } });
     await audit(req, "banner.config", "settings", "plataforma", { ...salva.bannerPago });
     res.json(salva.bannerPago);
   } catch (err) {
@@ -5254,7 +5260,10 @@ adminRouter.get("/ia/config", async (req, res, next) => {
 adminRouter.put("/ia/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const candidata = validarConfigIA(req.body);
+    // Parte da configuração atual: sem `ligado` o assistente desligava, e sem `cobranca` os preços voltavam a zero.
+    const atual = (await getPlataforma()).assistenteIA;
+    const corpo = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : null;
+    const candidata = validarConfigIA(corpo === null ? req.body : { ...atual, ...corpo });
     if (candidata.ligado && !chaveDoChatbase()) {
       return res.status(409).json({ message: "Falta CHATBASE_API_KEY no servidor: sem ela o assistente não conversa." });
     }
@@ -5406,11 +5415,25 @@ adminRouter.post("/patrocinio/recargas", async (req, res, next) => {
 adminRouter.put("/patrocinio/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    // Tabela de preço, faixas, mínimo, vagas e recarga mínima: o que vier
-    // substitui a configuração do patrocínio inteira (validada em conjunto).
+    // Tabela de preço, faixas, mínimo, vagas e recarga mínima, validadas em
+    // conjunto. O que não vier fica como estava, até dentro dos preços e das
+    // vagas; as faixas, se vierem, são a lista inteira.
+    const atual = (await getPlataforma()).patrocinio;
+    const novo = req.body?.patrocinio;
+    const objeto = novo && typeof novo === "object" && !Array.isArray(novo);
     const salva = await setPlataforma({
       patrocinioReembolso: req.body?.reembolso === undefined ? undefined : req.body.reembolso === true,
-      patrocinio: req.body?.patrocinio === undefined ? undefined : req.body.patrocinio,
+      patrocinio:
+        novo === undefined
+          ? undefined
+          : objeto
+            ? {
+                ...atual,
+                ...novo,
+                precos: { ...atual.precos, ...(novo.precos && typeof novo.precos === "object" ? novo.precos : {}) },
+                vagas: { ...atual.vagas, ...(novo.vagas && typeof novo.vagas === "object" ? novo.vagas : {}) },
+              }
+            : novo,
     });
     await audit(req, "patrocinio.config", "settings", "plataforma", {
       reembolso: salva.patrocinioReembolso,

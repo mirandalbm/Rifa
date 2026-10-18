@@ -154,3 +154,19 @@ describe("recusar apaga os cookies de medição (revisão do advogado, 08/10/202
     expect(VERSAO_DO_AVISO).toBe(2);
   });
 });
+
+describe("cookie do Google preso ao host da página (subdomínio, cap. 8)", async () => {
+  const { opcoesDoGoogle } = await import("../shared/marketing");
+  it("usa o host da página, sem página vista automática", () => {
+    expect(opcoesDoGoogle("Rifa-Solidaria.LoteriasDoBem.com.br")).toEqual({
+      send_page_view: false,
+      cookie_domain: "rifa-solidaria.loteriasdobem.com.br",
+    });
+    expect(opcoesDoGoogle("localhost")).toEqual({ send_page_view: false, cookie_domain: "localhost" });
+  });
+  it("host torto, vazio ou IP não entra: o Google escolhe", () => {
+    for (const h of [null, undefined, "", "127.0.0.1", "a b", "x/y", "-a.com", "a..b"]) {
+      expect(opcoesDoGoogle(h as string | null)).toEqual({ send_page_view: false });
+    }
+  });
+});

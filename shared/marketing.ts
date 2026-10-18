@@ -379,3 +379,17 @@ export function pixelsForaDaPagina(iniciados: Iterable<string>, alvos: Pixels[])
   const daPagina = new Set(idsDosPixels(alvos));
   return [...iniciados].filter((id) => !daPagina.has(id));
 }
+
+/**
+ * Opções do `gtag('config')`: sem página vista automática (a SPA manda a dela) e
+ * com o cookie do Google preso ao **host da página**. Sem isso o `_ga` vai para o
+ * domínio comum (`.loteriasdobem.com.br`) e o mesmo identificador apareceria nos
+ * endereços de organizações irmãs. Host fora do formato de nome de máquina (IP,
+ * lixo) não entra: o Google escolhe sozinho. docs/PLANO-SUBDOMINIO.md, cap. 8.
+ */
+export function opcoesDoGoogle(host: string | null | undefined): { send_page_view: false; cookie_domain?: string } {
+  const h = (host ?? "").trim().toLowerCase();
+  const ehNome = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(h);
+  const ehIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(h);
+  return ehNome && !ehIp ? { send_page_view: false, cookie_domain: h } : { send_page_view: false };
+}

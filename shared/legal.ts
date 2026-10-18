@@ -61,6 +61,7 @@ export const GUARDADO_NO_NAVEGADOR: { grupo: string; itens: string[] }[] = [
       "rifa.indicacao e rifa.indicacao.visitas — o código de quem te indicou, por 30 dias, e os links de indicação já contados.",
       "rifa.login.email — o e-mail do painel, só se você marcar \"lembrar\" ao entrar.",
       "rifa.compra-contada — marca a compra já contada para os pixels, para não contar duas vezes.",
+      "Cada endereço do site guarda isto à parte: o principal e o de cada organização, quando ela tem endereço próprio, não compartilham o carrinho, o aviso de cookies nem as preferências — e você entra de novo em cada um.",
     ],
   },
   {

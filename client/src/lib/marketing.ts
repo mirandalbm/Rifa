@@ -4,6 +4,7 @@ import {
   dominiosDoCookie,
   gravarEscolha,
   lerEscolha,
+  opcoesDoGoogle,
   pixelsForaDaPagina,
   utmDaUrl,
   type Escolha,
@@ -216,7 +217,7 @@ function iniciarGoogle(id: string) {
   }
   if (!iniciados.google.has(id)) {
     // Página vista é mandada por nós, a cada troca de rota.
-    j.gtag("config", id, { send_page_view: false });
+    j.gtag("config", id, opcoesDoGoogle(typeof location === "undefined" ? null : location.hostname));
     iniciados.google.add(id);
   }
 }

@@ -644,7 +644,17 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   link do principal (o plano pedia 409, pergunta 7 em aberto — decida);
   (4) `npm run trafego-criacao` não foi rodado com a base ligada (precisa do Meta de
   mentira); o `linkDoAnuncio` com endereço está no `tests/trafego.test.ts`.
-- [ ] **[código]** PR 5: pixels, cookies e Privacidade por endereço. PR 6: canonical, Open
+- [x] **[código]** PR 5 (parte feita em 18/10/2026): o cookie do GA4 e do Google Ads
+  fica preso ao **host da página** (`opcoesDoGoogle()` em `shared/marketing.ts`,
+  `cookie_domain`), a organização do endereço já era dos pixels pela `Perfil`/`Rifa`/`Pedido`
+  (que são as telas do endereço) e a Privacidade diz que cada endereço guarda as
+  escolhas à parte. **Falta, e não bloqueia:** (1) Meta e TikTok seguem gravando
+  `_fbp`/`_ttp` no domínio comum — não achei parâmetro documentado de domínio;
+  a saída de fundo é a Lista de Sufixos Públicos (PR 8) e a pergunta R32 ao advogado;
+  (2) o relatório de CSP não diz o host; (3) `VIGENCIA_DOS_TERMOS` ficou em 18/10/2026
+  (a frase nova entrou no mesmo dia) — se a Privacidade já foi publicada com a data
+  de hoje, suba a vigência.
+- [ ] **[código]** PR 5 (restante) e PR 6 PR 6: canonical, Open
   Graph, `robots.txt` e `sitemap.xml` por host. PR 7: ligar (`SUBDOMINIO_BASE`).
 - [ ] **[código, depois]** Cloudflare (`ipViaCloudflare`), Lista de Sufixos Públicos,
   login do Google por *hand-off*, manifesto e PWA por endereço, endereço de afiliado.

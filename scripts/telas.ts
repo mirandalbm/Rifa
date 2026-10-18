@@ -21,6 +21,7 @@
  *   npm run telas                          (com `npm run dev` no ar e o seed aplicado)
  *   npm run telas -- --larguras 390        (só o celular)
  *   npm run telas -- --papel organizador,cambista
+ *   npm run telas -- --rotas configuracoes  (só as rotas que têm o trecho)
  *   npm run telas -- --tema escuro
  *   npm run telas -- --saida /tmp/telas
  *
@@ -42,6 +43,8 @@ const arg = (nome: string) => {
 };
 const LARGURAS = (arg("larguras") ?? "390,820,1440").split(",").map(Number);
 const SO_PAPEIS = arg("papel")?.split(",");
+/** Só as rotas que contêm um destes trechos (`--rotas configuracoes,aparencia`): repete a ponta de uma rodada que caiu. */
+const SO_ROTAS = arg("rotas")?.split(",");
 const TEMA = arg("tema") === "escuro" ? "escuro" : "claro";
 const SAIDA = path.resolve(arg("saida") ?? "capturas");
 const CHROMIUM =
@@ -454,35 +457,48 @@ async function main() {
         await ctx.close();
         break;
       }
-      const pagina = await ctx.newPage();
       let erros: string[] = [];
       let consoleErros: string[] = [];
-      pagina.on("pageerror", (e) => erros.push(`erro na página: ${e.message.slice(0, 160)}`));
-      pagina.on("console", (m) => {
-        const t = m.text();
-        // Recurso de fora (fonte do Google sem rede) não é defeito da tela.
-        if (m.type() === "error" && !/Failed to load resource|ERR_CERT|net::ERR/.test(t)) consoleErros.push(t.slice(0, 160));
-      });
-      pagina.on("response", (resp) => {
-        if (resp.url().startsWith(URL + "/api/") && resp.status() >= 500) {
-          erros.push(`HTTP ${resp.status()} ${resp.url().slice(URL.length)}`);
-        }
-      });
-      for (const rota of cfg.rotas) {
-        erros = [];
-        consoleErros = [];
-        try {
-          await pagina.goto(URL + rota, { waitUntil: "networkidle", timeout: 20000 });
-        } catch {
-          /* segue com o que carregou: a medida diz o resto */
-        }
-        await pagina.waitForTimeout(600);
+      /** Uma aba com os ouvintes. O Chromium cai de vez em quando com a máquina carregada: a aba nova refaz a rota. */
+      const abrirPagina = async () => {
+        const p = await ctx.newPage();
+        p.on("pageerror", (e) => erros.push(`erro na página: ${e.message.slice(0, 160)}`));
+        p.on("console", (m) => {
+          const t = m.text();
+          // Recurso de fora (fonte do Google sem rede) não é defeito da tela.
+          if (m.type() === "error" && !/Failed to load resource|ERR_CERT|net::ERR/.test(t)) consoleErros.push(t.slice(0, 160));
+        });
+        p.on("response", (resp) => {
+          if (resp.url().startsWith(URL + "/api/") && resp.status() >= 500) {
+            erros.push(`HTTP ${resp.status()} ${resp.url().slice(URL.length)}`);
+          }
+        });
+        return p;
+      };
+      let pagina = await abrirPagina();
+      const caiu = () => erros.some((e) => /Target crashed|has been closed|Access is denied for this document/.test(e));
+      for (const rota of cfg.rotas.filter((r) => !SO_ROTAS || SO_ROTAS.some((t) => r.includes(t)))) {
         const arquivo = `${papel}${rota.replace(/[/?=&]/g, "_")}-${largura}.png`;
         let medida: Medida | undefined;
-        try {
-          medida = await pagina.evaluate(medir);
-        } catch (e) {
-          erros.push(`não mediu: ${String(e).slice(0, 160)}`);
+        for (let tentativa = 0; tentativa < 2; tentativa++) {
+          erros = [];
+          consoleErros = [];
+          medida = undefined;
+          try {
+            await pagina.goto(URL + rota, { waitUntil: "networkidle", timeout: 20000 });
+          } catch {
+            /* segue com o que carregou: a medida diz o resto */
+          }
+          await pagina.waitForTimeout(600).catch(() => {});
+          try {
+            medida = await pagina.evaluate(medir);
+          } catch (e) {
+            erros.push(`não mediu: ${String(e).slice(0, 160)}`);
+          }
+          if (!caiu() || tentativa === 1) break;
+          // A aba caiu (não é a tela): abre outra e tenta a mesma rota de novo.
+          await pagina.close().catch(() => {});
+          pagina = await abrirPagina();
         }
         await pagina
           .screenshot({ path: path.join(SAIDA, arquivo), fullPage: true, timeout: 15000 })

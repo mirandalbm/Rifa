@@ -4,7 +4,9 @@ Pedido do responsável (18/10/2026): "o organizador cria o banner, paga, e o
 banner entra na fila respeitando o tempo de exibição **por cliques ou por
 dia**; temos que criar essa ferramenta no painel admin de marketing".
 
-Este documento é o plano. **Nada daqui está no código ainda.** O que depende
+Este documento é o plano. **Só o passo 1 da seção 8.2 está no código** (regras
+e esquema, sem mudar comportamento; `clique.ligado` nasce desligado); o resto
+não. O que depende
 de decisão do responsável está marcado **[decidir]** e reunido na seção 9;
 os valores de preço são **proposta** (vêm de `docs/SUGESTAO-PRECOS-PUBLICIDADE.md`,
 da branch `claude/youthful-gates-c7xzgz`, itens #46 e #47 da lista de
@@ -76,7 +78,11 @@ or
 ```
 
 Todos os pedidos de antes cumprem a primeira metade, então o `db:push` aplica
-sem tocar em linha.
+sem tocar em linha. _Como ficou no código (passo 1):_ o modo dia também exige
+`cliques_usados = 0` (nunca cobra clique), e o modo clique exige
+`cliques_comprados` e `preco_clique_cents` **não nulos** — um `check` do SQL
+passa quando a conta dá `NULL`, e sem o `is not null` o pedido por clique sem
+pacote entraria.
 
 **O índice único `uq_banner_pedido_aberto_por_rifa` continua como está**
 (um pedido em aberto por rifa, em `em_analise`/`aprovado`/`no_ar`) e vale
@@ -580,7 +586,7 @@ próprio e fica por último.
 
 | # | O que entra | Risco | Notas |
 |---|---|---|---|
-| 1 | **Regras e esquema, sem mudar comportamento.** `shared/bannerPago.ts` (config nova, preços, sobra, resumo, previsão), `validarFaixas()` extraída de `shared/patrocinio.ts`, colunas e tabelas em `shared/schema.ts`, a rota `PUT /banner-pago/config` partindo da atual, vitest. `clique.ligado = false` | **baixo** em código; **médio no `db:push`** | `db:push` antes do código (`docs/ORDEM-DE-LANCAMENTO.md`); o `DROP NOT NULL` e o `check` não perdem dado. O `PUT` que parte da atual só deixa de zerar o que faltou no corpo; a prova de hoje já manda o objeto inteiro ao ligar, e ganha um caso de uma chave só. |
+| 1 | _Feito._ **Regras e esquema, sem mudar comportamento.** `shared/bannerPago.ts` (config nova, preços, sobra, resumo, previsão), `validarFaixas()` extraída de `shared/patrocinio.ts`, colunas e tabelas em `shared/schema.ts`, a rota `PUT /banner-pago/config` partindo da atual, vitest. `clique.ligado = false` | **baixo** em código; **médio no `db:push`** | `db:push` antes do código (`docs/ORDEM-DE-LANCAMENTO.md`); o `DROP NOT NULL` e o `check` não perdem dado. O `PUT` que parte da atual só deixa de zerar o que faltou no corpo; a prova de hoje já manda o objeto inteiro ao ligar, e ganha um caso de uma chave só. |
 | 2 | **Clique honesto, nos dois modos, sem cobrar nada.** `…/exibicoes`, `…/clique`, `banner_cliques`, `banner_diario`, observador e `POST`s em `BannersVitrine.tsx`, números no painel (só leitura). No modo dia grava com `valor_cents = 0` | **médio**: toca a página mais vista e abre dois endpoints públicos | Sozinho já dá exibições, cliques e barrados a quem comprou dias — o dado para decidir os preços do clique. Limite por IP, robô e 204 sempre. Prova: o clique honesto, sem corrida de saldo. |
 | 3 | **Comprar por clique, fila e encerramento (servidor).** `comprarBanner()` com `modo`, `registrarCliqueDoBanner()` cobrando (o `UPDATE` condicional), `encerrarBannersPagos()` com a sobra do clique, `promoverBannersPagos()` chamada depois do último clique, `encerrado_por` | **alto**: dinheiro, relógio e corrida | `npm run banner` ampliado inteiro (corrida do último clique, clique × relógio, livro fecha). `clique.ligado` segue desligado em produção: sem a tela do PR 4 ninguém liga por engano. |
 | 4 | **Telas.** Escolha do modo, resumo com a conta em texto, painel da organização (barra, exibições, barrados, motivo do fim, previsão), configuração em dois cartões e a fila da plataforma; extrações (`Barra`, editor de faixas) | **baixo a médio**: acessibilidade e `npm run telas` | Entrada em `docs/VERSOES.md`; checar o limite de linhas `aguardando leva` antes. |
@@ -647,7 +653,9 @@ Do responsável (negócio):
 7. **Atribuição de venda**: cada produto atribui o seu, ou só o último clique
    entre patrocinada e banner?
 
-Técnicas a confirmar no PR 1 ou 2:
+Técnicas — **adotadas a proposta do plano, a confirmar** (registradas em
+`docs/PENDENCIAS.md`; o passo 1 só deixou a guarda e o teto como decisão
+escrita, o código que as usa entra no passo 2):
 
 8. **Comprovante por exibição de slide** (proposta B) ou na entrega da lista
    (A, mais simples)?

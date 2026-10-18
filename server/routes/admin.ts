@@ -756,8 +756,11 @@ adminRouter.post("/organizacoes/:id/telefone/confirmar", async (req, res, next) 
 adminRouter.post("/organizacoes/:id/telefone/aprovar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // O `UPDATE` é condicional (telefone provado e ainda não aprovado): a
+    // auditoria vem depois dele, senão gravava "aprovado" para o que foi recusado.
+    const estado = await aprovarTelefone(req, req.params.id);
     await audit(req, "organizacao.telefone.aprovado", "organization", req.params.id, {});
-    res.json(await aprovarTelefone(req, req.params.id));
+    res.json(estado);
   } catch (err) {
     next(err);
   }
@@ -853,10 +856,7 @@ adminRouter.get("/denuncias/:id", async (req, res, next) => {
 adminRouter.post("/denuncias/:id/decidir", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    // Auditoria antes: travar e banir mudam rifa e organização na mesma transação.
-    await audit(req, `denuncia.${String(req.body?.acao ?? "")}`, "denuncia", req.params.id, {
-      resposta: req.body?.resposta ?? null,
-    });
+    // A auditoria vai na transação da decisão (travar e banir mudam rifa e organização ali mesmo).
     res.json(await decidirDenuncia(req, req.params.id, { acao: req.body?.acao, resposta: req.body?.resposta }));
   } catch (err) {
     next(err);
@@ -983,8 +983,10 @@ adminRouter.post("/sorteios-oficiais/denuncias/:id/decidir", async (req, res, ne
 adminRouter.post("/campaigns/:id/destravar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Depois do `UPDATE` condicional: só registra a rifa que de fato foi destravada.
+    const feito = await destravarRifa(req.params.id);
     await audit(req, "campaign.destravar", "campaign", req.params.id, {});
-    res.json(await destravarRifa(req.params.id));
+    res.json(feito);
   } catch (err) {
     next(err);
   }

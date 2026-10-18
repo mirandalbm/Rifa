@@ -2055,7 +2055,11 @@ adminRouter.get("/busca", async (req, res, next) => {
 
 adminRouter.get("/orders", async (req, res, next) => {
   try {
-    const status = req.query.status ? String(req.query.status) : null;
+    // O filtro vem da barra de endereço: situação que o banco não conhece é
+    // ignorada (a lista segue no recorte), em vez de virar erro de conversão do enum.
+    const status = ["pending", "paid", "expired", "refunded"].includes(String(req.query.status))
+      ? String(req.query.status)
+      : null;
     // A busca do painel chega aqui com `?codigo=` (o pedido) ou `?cliente=`
     // (o ID): a lista fica só com eles, dentro do mesmo recorte.
     const codigo = /^\d{8}$/.test(String(req.query.codigo ?? "")) ? Number(req.query.codigo) : null;

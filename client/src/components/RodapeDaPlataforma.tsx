@@ -5,6 +5,8 @@ import { Marca } from "@/components/Marca";
 import { PreferenciaDeCookies } from "@/components/AppShell";
 import {
   APOIOS_DE_EXEMPLO,
+  avisoDeJogoResponsavel,
+  linhaDaEmpresa,
   COLUNAS_DO_RODAPE,
   REDES_DE_EXEMPLO,
   TEXTO_DE_EXEMPLO,
@@ -63,6 +65,10 @@ export function RodapeDaPlataforma() {
   const redes = exemplo ? REDES_DE_EXEMPLO : (t.redes ?? []);
   const textoDeApresentacao = t.textos.rodape || (exemplo ? TEXTO_DE_EXEMPLO : "");
   const ano = new Date().getFullYear();
+  // As duas linhas de texto oficial embaixo da logo: a empresa dos "Dados da
+  // empresa" publicados (some se faltar dado) e o aviso de jogo responsável.
+  const empresa = linhaDaEmpresa(t.legal);
+  const jogoResponsavel = avisoDeJogoResponsavel(t.textos);
   return (
     <footer className="hidden border-t border-line bg-mist md:block">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-x-8 gap-y-8 px-4 py-10 text-sm md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:grid-cols-[16rem_minmax(0,1fr)_minmax(0,30rem)]">
@@ -70,6 +76,14 @@ export function RodapeDaPlataforma() {
           <Link href="/" className="text-lg" aria-label="Início">
             <Marca />
           </Link>
+          <div className="mt-3 space-y-1 text-xs leading-relaxed text-ink-2">
+            {empresa ? (
+              <p>
+                {empresa.razaoSocial} · CNPJ <span className="tnum">{empresa.cnpj}</span>
+              </p>
+            ) : null}
+            <p>{jogoResponsavel}</p>
+          </div>
           {textoDeApresentacao ? (
             <p className="mt-3 whitespace-pre-line text-xs leading-relaxed text-ink-2">{textoDeApresentacao}</p>
           ) : null}
@@ -198,14 +212,12 @@ export function RodapeDaPlataforma() {
             © <span className="tnum">{ano}</span> {t.identidade.nome}
           </span>
           <span className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="flex items-center gap-2">
-              <span
-                aria-hidden
-                className="tnum flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-ink text-[9px] font-bold text-ink"
-              >
-                18+
-              </span>
-              <span className="max-w-md">{t.textos.jogoResponsavel || "Proibido para menores de 18 anos."}</span>
+            {/* O texto do aviso de jogo responsável mora embaixo da logo (uma versão só); aqui fica o selo. */}
+            <span
+              aria-hidden
+              className="tnum flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-ink text-[9px] font-bold text-ink"
+            >
+              18+
             </span>
             <span className="flex items-center gap-1.5">
               <span className="inline-flex items-center rounded-md border border-line-2 bg-white px-1.5 py-0.5 font-semibold text-ink">

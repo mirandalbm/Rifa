@@ -9,7 +9,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Cartões (componentes usados pelas telas) | 866 |
 | Rotas da API | 487, das quais 483 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 66 |
-| Testes de regra (`tests/`) | 136 arquivos |
+| Testes de regra (`tests/`) | 137 arquivos |
 | Destinos decididos | 973 de 973 |
 
 ## 1. Telas
@@ -1656,7 +1656,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/me` | `acessos-test.ts`, `google-test.ts`, `marketing-test.ts` |
-| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +46 |
+| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +47 |
 | POST | `/senha` | `acessos-test.ts` |
 | POST | `/logout` | `acessos-test.ts` |
 
@@ -1722,8 +1722,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/recibos/:codigo` | `fiscal-test.ts` |
 | GET | `/o/:slug/termo-afiliado` | `publico-test.ts` |
 | POST | `/o/:slug/colaborador` | `afiliados-test.ts` |
-| GET | `/o/:slug` | `perfil-test.ts`, `poster-test.ts`, `resultados-test.ts` +3 |
-| GET | `/o/:slug/foto` | `publico-test.ts` |
+| GET | `/o/:slug` | `perfil-test.ts`, `poster-test.ts`, `resultados-test.ts` +4 |
+| GET | `/o/:slug/foto` | `publico-test.ts`, `semNulo.test.ts` |
 | GET | `/o/:slug/capa` | `publico-test.ts` |
 | GET | `/o/:slug/qr.svg` | `perfil-test.ts` |
 | GET | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` |
@@ -1808,7 +1808,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/chamados/:id` | `chamados-test.ts`, `disputa-test.ts` |
 | POST | `/chamados/:id/mensagens` | `chamados-test.ts`, `disputa-test.ts` |
 | POST | `/chamados/:id/disputa` | `disputa-test.ts` |
-| GET | `/presente` | `presente-test.ts` |
+| GET | `/presente` | `presente-test.ts`, `semNulo.test.ts` |
 | GET | `/presente/meu` | `presente-test.ts` |
 | GET | `/bonus` | `bonus-test.ts` |
 | POST | `/bonus/resgatar` | `bonus-test.ts` |

@@ -129,7 +129,7 @@ import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
 import { cancelarNotificacao, notificacaoDa, notificarFaltaDePagamento } from "../services/inadimplencia";
-import { AVISO_DA_TABELA_DIAS, primeiroDiaComAviso, problemaNaCobranca, problemaNaVigencia, tabelasDeCobranca, tabelaVigente, validarConfigCobranca, validarModo, type TabelasDaCobranca } from "@shared/cobranca";
+import { AVISO_DA_TABELA_DIAS, primeiroDiaComAviso, problemaNaCobranca, problemaNaVigencia, tabelasDeCobranca, tabelaVigente, validarConfigCobranca, validarModo, type ConfigCobranca, type TabelasDaCobranca } from "@shared/cobranca";
 import {
   orgOf,
   isPlatform,
@@ -3478,7 +3478,7 @@ adminRouter.post("/whatsapp/teste", async (req, res, next) => {
     await enviarTeste(telefone, modelo);
     await audit(req, "whatsapp.teste", "whatsapp", undefined, {
       modelo: modelo ?? "codigo_acesso",
-      telefone: telefone.replace(/\d(?=\d{4})/g, "•"),
+      telefone: telefone.replace(/\D/g, "").replace(/\d(?=\d{4})/g, "•"),
     });
     res.json({ ok: true });
   } catch (err) {
@@ -3669,17 +3669,22 @@ adminRouter.put("/cobranca/tabela", async (req, res, next) => {
     requirePlatformAdmin(req);
     const vigenteEm = req.body?.vigenteEm ? String(req.body.vigenteEm) : null;
     const agora = new Date();
-    const p = await getPlataforma();
-    const antes = tabelaVigente(p.cobranca, p.cobrancaProxima, agora);
-    // O campo que não vier fica como está na tabela vigente: o percentual, o
-    // valor por cota e as faixas do Pix. Antes, omitir o valor por cota o
-    // zerava e, omitindo as faixas, voltavam as de fábrica — e redução vale na hora.
-    const nova = validarConfigCobranca(req.body && typeof req.body === "object" && !Array.isArray(req.body) ? { ...antes, ...req.body } : req.body);
-    const problema = problemaNaVigencia({ antes, depois: nova, vigenteEm, agora, comPromotoras: await haPromotorasComContrato() });
-    if (problema) return res.status(422).json({ message: problema });
-    const salva = await setPlataforma(
-      vigenteEm ? { cobranca: antes, cobrancaProxima: { vigenteEm, tabela: nova } } : { cobranca: nova, cobrancaProxima: null },
-    );
+    // Só cresce (quem aceitou nunca "desaceita"), então lida antes da trava não erra para o lado perigoso.
+    const comPromotoras = await haPromotorasComContrato();
+    let nova!: ConfigCobranca;
+    // Ler a vigente, juntar, conferir o aviso e gravar acontecem sob a trava
+    // da configuração: duas mudanças ao mesmo tempo não se desfazem nem
+    // passam um aumento comparado com uma tabela que já mudou.
+    const salva = await setPlataforma((atual) => {
+      const antes = tabelaVigente(atual.cobranca, atual.cobrancaProxima, agora);
+      // O campo que não vier fica como está na tabela vigente: o percentual, o
+      // valor por cota e as faixas do Pix. Antes, omitir o valor por cota o
+      // zerava e, omitindo as faixas, voltavam as de fábrica — e redução vale na hora.
+      nova = validarConfigCobranca(req.body && typeof req.body === "object" && !Array.isArray(req.body) ? { ...antes, ...req.body } : req.body);
+      const problema = problemaNaVigencia({ antes, depois: nova, vigenteEm, agora, comPromotoras });
+      if (problema) throw Object.assign(new Error(problema), { status: 422 });
+      return vigenteEm ? { cobranca: antes, cobrancaProxima: { vigenteEm, tabela: nova } } : { cobranca: nova, cobrancaProxima: null };
+    });
     await audit(req, vigenteEm ? "cobranca.tabela.agendada" : "cobranca.tabela", "settings", "cobranca", {
       tabela: nova,
       vigenteEm,
@@ -3695,13 +3700,16 @@ adminRouter.delete("/cobranca/tabela/proxima", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     const agora = new Date();
-    const p = await getPlataforma();
-    if (!p.cobrancaProxima) return res.status(404).json({ message: "Não há tabela agendada." });
-    if (!tabelasDeCobranca(p.cobranca, p.cobrancaProxima, agora).proxima) {
-      return res.status(409).json({ message: "A tabela agendada já está valendo." });
-    }
-    await setPlataforma({ cobrancaProxima: null });
-    await audit(req, "cobranca.tabela.agendada.cancelar", "settings", "cobranca", p.cobrancaProxima);
+    let cancelada: unknown = null;
+    await setPlataforma((atual) => {
+      if (!atual.cobrancaProxima) throw Object.assign(new Error("Não há tabela agendada."), { status: 404 });
+      if (!tabelasDeCobranca(atual.cobranca, atual.cobrancaProxima, agora).proxima) {
+        throw Object.assign(new Error("A tabela agendada já está valendo."), { status: 409 });
+      }
+      cancelada = atual.cobrancaProxima;
+      return { cobrancaProxima: null };
+    });
+    await audit(req, "cobranca.tabela.agendada.cancelar", "settings", "cobranca", cancelada);
     res.status(204).end();
   } catch (err) {
     next(err);

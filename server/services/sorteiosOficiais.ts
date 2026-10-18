@@ -295,9 +295,9 @@ export async function cancelarSorteioOficial(id: string) {
 export async function lancarResultado(
   id: string,
   numeros: unknown,
-  ataBruta?: unknown,
+  ataBruta: unknown,
   /** Quem lançou: a auditoria vai na mesma transação do resultado (decide o ganhador de várias rifas). */
-  ator?: { id?: string; role?: string; ip?: string },
+  ator: { id?: string; role?: string; ip?: string },
 ) {
   return db.transaction(async (tx) => {
     const [s] = await tx.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, id)).for("update");
@@ -320,17 +320,15 @@ export async function lancarResultado(
       .where(and(eq(sorteiosOficiais.id, id), isNull(sorteiosOficiais.resultadoEm), isNull(sorteiosOficiais.canceladoEm)))
       .returning();
     if (!feito) throw new SorteioOficialError("O resultado deste sorteio já foi lançado.", 409);
-    if (ator) {
-      await tx.insert(auditLog).values({
-        actorId: ator.id ?? null,
-        actorRole: (ator.role ?? null) as never,
-        action: "sorteio_oficial.resultado",
-        entity: "sorteio_oficial",
-        entityId: feito.id,
-        diff: { resultado: feito.resultado } as never,
-        ip: ator.ip ?? null,
-      });
-    }
+    await tx.insert(auditLog).values({
+      actorId: ator.id ?? null,
+      actorRole: (ator.role ?? null) as never,
+      action: "sorteio_oficial.resultado",
+      entity: "sorteio_oficial",
+      entityId: feito.id,
+      diff: { resultado: feito.resultado } as never,
+      ip: ator.ip ?? null,
+    });
     return paraTela(feito);
   });
 }

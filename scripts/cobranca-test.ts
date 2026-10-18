@@ -144,6 +144,8 @@ async function main() {
     );
     // O campo que não vem fica como está na tabela vigente (antes, o valor por cota
     // zerava e as faixas do Pix voltavam às de fábrica — e redução vale na hora).
+    r = await admin.req("PUT", "/api/admin/cobranca/tabela", { percentualPct: null });
+    checa("percentual nulo não vale como zero (400, nada gravado)", r.status === 400, `HTTP ${r.status} ${JSON.stringify(r.json)}`);
     r = await admin.req("PUT", "/api/admin/cobranca/tabela", { percentualPct: tabela.percentualPct });
     checa(
       "mandar só o percentual não zera o valor por cota nem volta as faixas do Pix ao padrão",

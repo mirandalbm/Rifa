@@ -60,7 +60,7 @@ resposta 5xx.
 | 3 | O resultado do sorteio oficial gravava a auditoria depois, fora da transação | Média | **Corrigido** `283a74e` |
 | 4 | Aprovar telefone, destravar rifa e decidir denúncia gravavam a auditoria **antes**, e a recusa deixava "aprovado", "destravada" ou "banir" que nunca aconteceram; na denúncia a ação vinha solta do corpo | Baixa | **Corrigido** `98bec4e` |
 | 5 | Configuração: campo que não vem voltava ao padrão em `PUT /antifraude/limites`, `/payment-methods`, `/banner-pago/config`, `/ia/config` (preços zerados, assistente desligado) e `/patrocinio/config`; `setPlataforma()` lia, juntava e gravava sem trava e `PUT /bonus/config` espalhava a configuração lida antes da trava (dois cartões salvos juntos perdiam um); a prova de acessos lia a chave errada (`limites` em vez de `limits`) e regravava os padrões a cada rodada | Média | **Corrigido** `d17f6b8` |
-| 6 | O mesmo em `PUT /plataforma` (mandar só a taxa desligava "Aceitar pedidos de reembolso" e voltava o provedor ao automático) e em `PUT /cobranca/tabela` (sem o valor por cota ele zerava; sem as faixas do Pix voltavam as de fábrica; redução vale na hora) | Média, **dinheiro** | **Corrigido** `4c108b9` — **aguarda o parecer do `revisor-de-invariantes`** |
+| 6 | O mesmo em `PUT /plataforma` (mandar só a taxa desligava "Aceitar pedidos de reembolso" e voltava o provedor ao automático) e em `PUT /cobranca/tabela` (sem o valor por cota ele zerava; sem as faixas do Pix voltavam as de fábrica; redução vale na hora) | Média, **dinheiro** | **Corrigido** `4c108b9`; o parecer do `revisor-de-invariantes` achou a corrida do item 4 da seção 4, corrigida depois (ver abaixo) |
 | 7 | Rascunho, dados da empresa e logo da plataforma não deixavam rastro | Baixa | **Corrigido** `ece06eb` |
 | 8 | Teste do WhatsApp: modelo `constructor` dava 500 e não havia teto de envios | Baixa | **Corrigido** `102fc45` |
 | 9 | Resultados: o filtro de organização (largura automática) estourava a página com nome comprido | Baixa | **Corrigido** `4fb1ad6` |
@@ -95,11 +95,18 @@ rascunho, da empresa e da logo).
 
 ## 4. O que fica aberto
 
-1. **Parecer do revisor.** Os commits de dinheiro (`4c108b9`; também os de
-   configuração de preço do patrocínio e do banner dentro de `d17f6b8`) não
-   passaram pelo `revisor-de-invariantes`: esta sessão não tem como chamar
-   outro agente. O ponto a conferir é que o aumento de taxa segue passando por
-   `problemaNaVigencia()` (a tabela nova é comparada com a vigente, como antes).
+1. **Parecer do revisor (feito).** O `revisor-de-invariantes` leu os commits
+   de dinheiro e de configuração: sem burla do aviso de 30 dias, sem dado
+   pessoal ou segredo novo em resposta ou em `audit_log`, sem rota da
+   plataforma nova alcançável por organizador. O que achou e **foi corrigido
+   depois do parecer**: `PUT`/`DELETE /cobranca/tabela` liam, validavam e
+   gravavam fora da trava (agora `setPlataforma((atual) => …)` calcula tudo sob
+   a trava, e o `422` do aviso sai de dentro dela); `null` e texto vazio em
+   `percentualPct` e `porCotaCents` valiam como zero (agora 400); o aviso de
+   configuração inválida saía a cada leitura (agora uma vez por motivo); o
+   número da trava repetia o da contestação (agora 811920); `lancarResultado`
+   passou a exigir o `ator`; o telefone do teste do WhatsApp é mascarado depois
+   de tirar os não-dígitos.
 2. **Auditoria antes da decisão** continua em `solicitacoes/:id/decidir`,
    `verificacoes/:id/decidir` e `campaigns/:id/tirar-do-ar`/`demonstracao`
    (esta última depois, fora da transação). É a escolha "se a auditoria falhar,
@@ -111,9 +118,22 @@ rascunho, da empresa e da logo).
    em saque e em cobrança. Hoje basta a sessão aberta: nem a senha de quem
    redefine é pedida (`POST /usuarios/:id/senha`, que alcança também outro
    administrador geral). Decisão de produto.
-4. **`PUT /cobranca/tabela` ainda confere o aviso de 30 dias lendo a
-   configuração fora da trava** (a gravação em si é serializada). Duas
-   mudanças da tabela no mesmo instante podem se cruzar.
+4. **A trava só serializa o primeiro nível da configuração** (parecer do
+   revisor). `PUT /banner-pago/config`, `/ia/config`, `/patrocinio/config` e
+   `/trafego/config` ainda leem o atual fora da trava e gravam o objeto
+   aninhado inteiro; `PUT /antifraude/limites` e `/payment-methods` gravam sem
+   trava. Duas abas no mesmo cartão ainda se sobrescrevem, e um parcial
+   aninhado (`ia/config` com só `cobranca.pacotes`, `bonus/config` com
+   `presente: {pct}`, `patrocinio/config` com `precos.cidade: null`) volta ao
+   padrão naquele pedaço. Próxima rodada: mesma forma de função em
+   `setPlataforma`, `setLimits` e `setPaymentMethods`, e mescla funda.
+   **Configuração guardada que não passa mais na régua**: `setPlataforma`
+   mescla em cima do padrão e grava, então salvar um cartão persiste o padrão
+   no resto. Recusar (409) impediria o administrador de consertar pela tela;
+   fica como decisão.
+   Também aberto: a auditoria de `telefone/aprovar`, `destravar` e `arquivar`
+   é gravada logo depois do `UPDATE`, mas em comando separado (se falhar, o
+   ato fica sem rastro).
 5. **A logo da plataforma troca no mesmo lugar** (`salvarLogo`): a logo
    pública muda sem publicar o template. Já está dito no código; agora deixa
    rastro (`template.logo`), mas continua sem passar pelo publicar.

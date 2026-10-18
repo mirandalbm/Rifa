@@ -390,6 +390,39 @@ async function main() {
       checa("no endereço da A, só o bilhete da A", r.status === 200 && Array.isArray(r.json) && r.json.length === 1 && r.json[0].rifa?.slug === rifaA.slug, `HTTP ${r.status} ${JSON.stringify(r.json?.map?.((b: any) => b.rifa?.slug))}`);
     }
 
+    // ------------------------------------------------ PR 6: SEO e identificação por endereço
+    const urlA = `${ALVO.protocol}//${A}${ALVO.port ? `:${ALVO.port}` : ""}`;
+    r = await pedir(A, "GET", "/");
+    checa(
+      "o HTML do endereço leva o canonical dele, a marca do endereço e o nome da organização",
+      r.status === 200 && r.texto.includes(`rel="canonical" href="${urlA}/"`) && r.texto.includes('<meta name="rifa:endereco"') && r.texto.includes(`<title>${a.name}</title>`),
+      `HTTP ${r.status} ${(/<link rel="canonical"[^>]*>/.exec(r.texto) ?? [""])[0]}`,
+    );
+    checa("…e não vem noindex (a página é pública)", !r.texto.includes('content="noindex'));
+    r = await pedir(A, "GET", `/r/${rifaA.slug}`);
+    checa(
+      "a rifa no endereço: canonical no próprio endereço e o título da rifa",
+      r.status === 200 && r.texto.includes(`rel="canonical" href="${urlA}/r/${rifaA.slug}"`) && r.texto.includes(`<title>${rifaA.title}</title>`),
+      `HTTP ${r.status}`,
+    );
+    r = await pedir("localhost", "GET", `/o/${a.slug}`);
+    checa("no principal, o perfil que tem endereço aponta o canonical para ele", r.status === 200 && r.texto.includes(`rel="canonical" href="${urlA}/"`), `HTTP ${r.status}`);
+    checa("…e no principal não há a marca do endereço (a abertura da plataforma aparece só lá)", !r.texto.includes('<meta name="rifa:endereco"'));
+    r = await pedir("localhost", "GET", "/entrar");
+    checa("página de conta: noindex no cabeçalho e no HTML", (r.robots ?? "").includes("noindex") && r.texto.includes('content="noindex, nofollow"'), `${r.robots}`);
+    r = await pedir("localhost", "GET", "/o/nao-existe-sub-prova");
+    checa("perfil que não existe: noindex e sem canonical inventado", (r.robots ?? "").includes("noindex") && !r.texto.includes('rel="canonical"'), `${r.robots}`);
+    r = await pedir(A, "GET", "/robots.txt");
+    checa("robots.txt do endereço: libera o público e fecha a conta", r.status === 200 && r.texto.includes("Disallow: /carrinho") && r.texto.includes("Disallow: /admin") && !r.texto.includes("Disallow: /\n"), `HTTP ${r.status}`);
+    checa("…e sem SEO_INDEXAR não anuncia sitemap", !r.texto.includes("Sitemap:"));
+    r = await pedir(A, "GET", "/sitemap.xml");
+    checa("sitemap.xml desligado de fábrica: 404", r.status === 404, `HTTP ${r.status}`);
+    r = await pedir("host-desconhecido.exemplo.com", "GET", "/robots.txt");
+    checa("host que não é da casa: robots fecha tudo", r.status === 200 && r.texto.startsWith("User-agent: *\nDisallow: /\n"), `HTTP ${r.status}`);
+    r = await pedir(A, "GET", "/api/public/o/" + a.slug);
+    const perfilA = r.json;
+    checa("a promotora tem o que a faixa do alto mostra (nome, CNPJ, cidade e autorizações vêm do perfil público)", r.status === 200 && typeof perfilA?.nome === "string" && "cnpj" in perfilA && Array.isArray(perfilA?.autorizacoes), `HTTP ${r.status}`);
+
     // ------------------------------------------------ desligar e arquivar valem em até 15 s… e na hora aqui
     r = await pedir("localhost", "PUT", `/api/admin/organizacoes/${a.id}/subdominio`, { cookie: admin, corpo: { ativo: false, motivo: "prova: desligar" } });
     checa("a plataforma desliga o endereço", r.status === 200 && r.json?.enderecoAtivo === false, `HTTP ${r.status}`);

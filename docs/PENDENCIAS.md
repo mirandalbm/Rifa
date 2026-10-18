@@ -617,6 +617,11 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   "oficial" (hoje só a lista `RESERVADOS`); (5) texto de contrato: cláusulas de
   desligamento (R33) e licença do endereço (R34, com indenização); (6) termo do
   afiliado: proibir `af-<código>` como destino de anúncio pago (R35).
+- [x] **[código]** PR 6 (18/10/2026): `<head>` por requisição (canonical, Open Graph, título),
+  `robots.txt` e `sitemap.xml` por host, `noindex` nas áreas de conta, abertura da
+  plataforma fora do endereço e a dupla identificação (R31). Falta **[você]**: decidir
+  se liga `SEO_INDEXAR=1` (o sitemap) — de fábrica não anuncia nada. Detalhes em
+  `docs/PLANO-SUBDOMINIO.md`, cap. 15.1.
 - [ ] **[advogado → texto]** Levar ao contrato da promotora as cláusulas R33 e R34 e ao
   termo do afiliado a proibição da R35; conferir o texto final com o advogado.
 - [ ] **[código]** Anúncio pago (`linkDoAnuncio`, tráfego): com o parecer, o destino

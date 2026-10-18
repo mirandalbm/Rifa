@@ -5,6 +5,8 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+import { MARCADOR_DE_META } from "../shared/seo";
+import { comMeta, metaDaRequisicao } from "./services/seo";
 
 const viteLogger = createLogger();
 
@@ -58,8 +60,11 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      const transformada = await vite.transformIndexHtml(url, template);
+      const meta = await metaDaRequisicao(req, res);
+      if (meta.naoIndexar) res.setHeader("X-Robots-Tag", "noindex, nofollow");
+      res.setHeader("Vary", "Host");
+      res.status(200).set({ "Content-Type": "text/html" }).end(comMeta(transformada, MARCADOR_DE_META, meta));
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -76,10 +81,24 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // `index: false`: a raiz também passa pelo marcador do <head>, não sai direto do arquivo.
+  app.use(express.static(distPath, { index: false }));
+
+  // O `index.html` é lido uma vez; por requisição o servidor troca o marcador
+  // pelo `canonical`, o Open Graph e o `robots` da página e do host.
+  const html = fs.readFileSync(path.resolve(distPath, "index.html"), "utf-8");
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  app.use("*", async (req, res, next) => {
+    try {
+      const meta = await metaDaRequisicao(req, res);
+      if (meta.naoIndexar) res.setHeader("X-Robots-Tag", "noindex, nofollow");
+      // O HTML muda com o host e o caminho: nenhum cache compartilhado guarda o de outro.
+      res.setHeader("Vary", "Host");
+      res.setHeader("Cache-Control", "no-cache");
+      res.status(200).type("html").send(comMeta(html, MARCADOR_DE_META, meta));
+    } catch (e) {
+      next(e);
+    }
   });
 }

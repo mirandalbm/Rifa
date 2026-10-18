@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Loterias do Bem</title>
     <meta name="description" content="Rifas online com pagamento por Pix e sorteio auditável." />
+    <!--rifa-meta-->
     <meta name="theme-color" content="#ffffff" />
     <script>
       // Aplica o tema guardado antes do primeiro desenho (ver lib/tema.ts),
@@ -34,7 +35,9 @@
           try { moldura = window.self !== window.top; } catch (e) {}
           var p = location.pathname;
           var painel = ["/admin", "/afiliado", "/cambista"].some(function (r) { return p === r || p.indexOf(r + "/") === 0; });
-          if (window.innerWidth > 1023 || viu || navigator.webdriver || moldura || painel) return;
+          // No endereço de uma organização o servidor escreve a marca no <head>: a abertura da plataforma não aparece lá.
+          var endereco = !!document.querySelector('meta[name="rifa:endereco"]');
+          if (window.innerWidth > 1023 || viu || navigator.webdriver || moldura || painel || endereco) return;
           var html = document.documentElement;
           html.classList.add("abertura");
           ["/intro/texto-loterias.webp", "/intro/texto-do-bem.webp", "/intro/sublinhado.webp", "/intro/coracao-esq.webp", "/intro/coracao-dir.webp"].forEach(function (src) {

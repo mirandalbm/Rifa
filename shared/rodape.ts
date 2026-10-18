@@ -123,3 +123,34 @@ export function linhaDaEmpresa(legal: unknown): { razaoSocial: string; cnpj: str
   if (!dados.razaoSocial || !dados.cnpj) return null;
   return { razaoSocial: dados.razaoSocial, cnpj: formatarCnpj(dados.cnpj) };
 }
+
+/**
+ * A identificação da plataforma no endereço de uma organização (R31, parecer de
+ * 18/10/2026): razão social, CNPJ e endereço eletrônico, em corpo menor no
+ * rodapé, enquanto a promotora fica no alto. Dos "Dados da empresa" publicados;
+ * sem razão social e CNPJ conferidos, `null` — nunca inventa.
+ */
+export function identificacaoDaPlataforma(legal: unknown): { razaoSocial: string; cnpj: string; email: string | null } | null {
+  const { dados } = conferirDadosDaEmpresa(legal);
+  if (!dados.razaoSocial || !dados.cnpj) return null;
+  return { razaoSocial: dados.razaoSocial, cnpj: formatarCnpj(dados.cnpj), email: dados.contato || null };
+}
+
+/**
+ * A identificação da promotora no alto da página do endereço (R31): nome
+ * empresarial, CNPJ, cidade e as autorizações SPA/MF das rifas no ar. Só o que
+ * a organização cadastrou — campo vazio não vira texto.
+ */
+export function identificacaoDaPromotora(p: {
+  nome: string;
+  cnpj?: string | null;
+  local?: string | null;
+  autorizacoes?: string[] | null;
+}): { nome: string; cnpj: string | null; local: string | null; autorizacoes: string[] } {
+  return {
+    nome: p.nome,
+    cnpj: p.cnpj ? formatarCnpj(p.cnpj) : null,
+    local: p.local?.trim() || null,
+    autorizacoes: (p.autorizacoes ?? []).filter(Boolean).slice(0, 3),
+  };
+}

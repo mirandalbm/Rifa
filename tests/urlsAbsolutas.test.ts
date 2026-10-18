@@ -20,6 +20,7 @@ const APROVADAS: Record<string, [number, string]> = {
   "server/services/trafego.ts": [1, "links do anúncio para a plataforma (endereço da organização da campanha)"],
   "server/services/trafegoCriacao.ts": [3, "link do anúncio no Meta (endereço da organização); a base do anúncio é a de hoje"],
   "server/services/marketing.ts": [1, "event_source_url da compra (endereço da organização, senão a base de hoje)"],
+  "server/services/seo.ts": [5, "canonical, Open Graph e sitemap: o endereço da organização dona, senão o principal; nunca o Host"],
   "server/services/sortear.ts": [2, "aviso do ganhador: endereço da organização, senão o principal"],
   "server/services/orders.ts": [1, "pedido (conta/pedido ficam no principal)"],
   "server/jobs/index.ts": [1, "lembrete de reserva (pedido/carrinho ficam no principal)"],

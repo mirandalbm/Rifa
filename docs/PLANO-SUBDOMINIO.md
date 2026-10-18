@@ -754,7 +754,7 @@ sem a variável está marcado.
 | 3 | **SPA: roteador por endereço** — *feito em 18/10/2026 (junto da leva 21; ver 14.1)* | `RoteadorPorEndereco`, `useEndereco`, `useLocationDoEndereco`, console filtrado, botão do Google, intro e faixa de instalar escondidos no endereço, carrinho e "Minhas compras" do endereço; `npm run telas` com a rodada `*.localhost`; registro em `VERSOES.md` | **inerte** (`/api/public/endereco` responde `principal`) | **médio**: mexe na navegação, mas só troca o `Router` quando é endereço |
 | 4 | **URLs absolutas** — *feito em 18/10/2026 (menos o compartilhar do navegador, os avisos de pedido e o 409 do Meta sem endereço; ver `PENDENCIAS.md`)* | `urls.ts` (os três auxiliares), artes, kit do afiliado, curtos, QR do perfil, WhatsApp, push, compartilhar, marketing por servidor, **tráfego (`linkDoAnuncio`)** + varredura de URL no teste | **inerte** (cai no caminho de hoje) | **médio-alto** pela atribuição: o tráfego e o `?ref=` mudam de host. Provar com `npm run trafego-criacao`, `npm run afiliados`, `npm run artes`, `npm run marketing`, `npm run perfil` |
 | 5 | **Pixels, cookies e Privacidade** — *feito em parte em 18/10/2026 (cookie do Google no host, texto da Privacidade; Meta/TikTok e CSP ficam — ver `PENDENCIAS.md`)* | organização do endereço na raiz, `cookie_domain` (GA4/Ads), texto da Privacidade e `GUARDADO_NO_NAVEGADOR`, relatório de CSP com o host | **inerte** | baixo |
-| 6 | **SEO** | marcador no `index.html` (canonical, Open Graph, robots), `robots.txt` e `sitemap.xml` por host, `noindex` nas áreas de conta | o marcador age (canonical do principal para ele mesmo, `og:*` novos); sem endereço, nada de sitemap de organização | baixo-médio (muda o HTML servido; o hash da CSP não muda, conferir) |
+| 6 | **SEO e a identificação do fornecedor** — *feito em 18/10/2026 (ver 15.1)* | marcador no `index.html` (canonical, Open Graph, robots), `robots.txt` e `sitemap.xml` por host, `noindex` nas áreas de conta | o marcador age (canonical do principal para ele mesmo, `og:*` novos); sem endereço, nada de sitemap de organização | baixo-médio (muda o HTML servido; o hash da CSP não muda, conferir) |
 | 7 | **Ligar** | `SUBDOMINIO_BASE=loteriasdobem.com.br`, curinga no Railway, auditoria dos slugs, ligar **uma** organização de teste, depois as demais; CI com a variável; `.env.example`; `docs/ORDEM-DE-LANCAMENTO.md`; skill `provar` | liga | **alto até a prova em produção**: reversível desligando a variável ou o interruptor por organização |
 | 8 | **Depois do lançamento** | Cloudflare (`ipViaCloudflare`), PSL, *hand-off* do login do Google, manifesto/PWA por endereço, endereço de afiliado (`af-`), domínio próprio da promotora, prazo de rótulo antigo (se houver renomeação) | — | cada um tem plano próprio |
 
@@ -894,3 +894,43 @@ O parecer completo está em `docs/PERGUNTAS-AO-ADVOGADO.md`. Efeito neste plano:
   financeira ou loteria oficial (R33); rótulo desligado nunca é reatribuído (R34).
 - **Textos**: cláusula de desligamento e licença do endereço no contrato da
   promotora; proibição de `af-<código>` como destino pago no termo do afiliado (R35).
+
+### 15.1 O PR 6, como foi feito (18/10/2026)
+
+- **O `<head>` por requisição.** `client/index.html` ganhou o marcador `<!--rifa-meta-->`;
+  `serveStatic` lê o arquivo uma vez e `metaDaRequisicao()` (`server/services/seo.ts`)
+  troca o marcador por `canonical`, `og:*`, `twitter:card`, o `<title>` e a
+  `description` da página (organização ou rifa) e, quando cabe, `robots` e
+  `rifa:endereco`. O `express.static` passou a `index: false`: a raiz também passa
+  pelo marcador. Os scripts em linha não mudam, então o hash da CSP é o mesmo.
+  `Vary: Host` e `no-cache`: o HTML muda com o host e o caminho.
+- **Canônico = o endereço da organização, quando ligado** (perfil e rifa); o
+  principal aponta para ele sem redirecionar. Sem endereço ligado, o canônico é o
+  principal. Rascunho, rifa que não existe e organização arquivada ou banida: página
+  genérica com `noindex` — nunca dado da rifa.
+- **`og:image` é a foto da organização** (o banner da rifa não entrou; fica para
+  quando houver variante de tamanho de prévia). Sem preço no título (muda).
+- **`robots.txt` e `sitemap.xml` por host.** Host que não é da casa: `Disallow: /`.
+  Principal e endereço: fecha as áreas de conta e de dinheiro (`CAMINHOS_QUE_NAO_INDEXAM`);
+  `/api` e `/uploads` ficam abertos porque é por eles que saem as imagens. O
+  sitemap e a linha `Sitemap:` só existem com **`SEO_INDEXAR=1`** (de fábrica:
+  404). O do endereço lista o perfil e as rifas da vitrine; o do principal, a
+  vitrine, ajuda, termos e privacidade e o perfil e as rifas das organizações
+  **sem** endereço ligado (as que têm estão no sitemap do endereço delas).
+- **`X-Robots-Tag: noindex, nofollow`** nas páginas de conta e de dinheiro, em todo
+  host (além do `<meta>`).
+- **A abertura da plataforma não aparece no endereço.** O servidor escreve
+  `<meta name="rifa:endereco">` e o script em linha do `index.html` não monta o
+  `#abertura` quando ele existe.
+- **R31 (parecer): dupla identificação.** `FaixaDaPromotora` (logo abaixo do topo,
+  nome, CNPJ, cidade e autorização SPA/MF do que a organização cadastrou) e
+  `OperadoraNoEndereco` (rodapé: razão social, CNPJ e e-mail dos Dados da empresa
+  publicados, e **nada** se faltar dado). Regras em `identificacaoDaPromotora()` e
+  `identificacaoDaPlataforma()` (`shared/rodape.ts`).
+- **Prova:** `npm run subdominio` (HTML, canonical, noindex, robots, sitemap
+  desligado), `npm run subdominio-spa` (a faixa na primeira tela, sem abertura) e
+  `tests/seo.test.ts`.
+- **Custo:** a página de perfil e a de rifa fazem uma consulta a mais por abertura (a meta); se pesar, guardar 15 s por caminho, como o guarda do endereço.
+- **Fica:** a triagem de rótulo que sugere banco ou "oficial" (R33) segue a de
+  hoje (`RESERVADOS` + `rotuloPareceMarca()`, que pede confirmação); o
+  `og:image` da rifa; o sitemap por partes se passar de 5 mil rifas (teto atual).

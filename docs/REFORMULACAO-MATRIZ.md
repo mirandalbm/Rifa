@@ -9,7 +9,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Cartões (componentes usados pelas telas) | 867 |
 | Rotas da API | 489, das quais 486 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 69 |
-| Testes de regra (`tests/`) | 147 arquivos |
+| Testes de regra (`tests/`) | 148 arquivos |
 | Destinos decididos | 974 de 974 |
 
 ## 1. Telas
@@ -1725,7 +1725,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/o/:slug/termo-afiliado` | `publico-test.ts` |
 | POST | `/o/:slug/colaborador` | `afiliados-test.ts` |
 | GET | `/o/:slug` | `perfil-test.ts`, `poster-test.ts`, `publico-test.ts` +7 |
-| GET | `/o/:slug/foto` | `publico-test.ts`, `semNulo.test.ts` |
+| GET | `/o/:slug/foto` | `publico-test.ts`, `semNulo.test.ts`, `seo.test.ts` |
 | GET | `/o/:slug/capa` | `publico-test.ts` |
 | GET | `/o/:slug/qr.svg` | `perfil-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |

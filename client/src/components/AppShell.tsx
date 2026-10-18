@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RodapeDaPlataforma } from "@/components/RodapeDaPlataforma";
+import { FaixaDaPromotora, OperadoraNoEndereco } from "@/components/IdentificacaoNoEndereco";
 import { Marketing, useTemMarketing } from "@/components/Marketing";
 import { ALTURA_DO_CONSOLE, BotaoPublicar, ConsoleDoApp, TrevoDeAvisos, acimaDoConsole } from "@/components/Console";
 import { reabrirAviso, useEscolha } from "@/lib/marketing";
@@ -138,8 +139,10 @@ export function PublicShell({
           </nav>
         </div>
       </header>
+      {noEnderecoDaOrganizacao() ? <FaixaDaPromotora largura={largura} /> : null}
       <main className={`mx-auto ${largura} px-4 pb-8 pt-4 ${vitrine ? "md:p-0" : ""}`}>{children}</main>
       {rodape ? <RodapeDaPlataforma /> : null}
+      {noEnderecoDaOrganizacao() ? <OperadoraNoEndereco largura={largura} /> : null}
       <RodapePublico largura={largura} comRodape={Boolean(rodape)} />
       {/* Verificado com a autorização de antes: pede de novo ao entrar (resposta 7.3). */}
       {sessao?.buyer?.conta ? <RenovarConsentimento base="/api/public/conta/verificacao" /> : null}

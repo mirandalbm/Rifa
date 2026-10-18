@@ -376,6 +376,18 @@ async function acessosEmExcesso(req: Request): Promise<boolean> {
 const MUITOS_ACESSOS = "Muitos acessos criados em pouco tempo. Espere um pouco e tente de novo.";
 
 /* ---------------- painel ---------------- */
+/**
+ * `featured` e `sortWeight` mandam na ordem da vitrine (destaque e peso do
+ * feed): são da plataforma. O schema da rifa os aceita porque a plataforma
+ * edita a rifa de qualquer organização pelas mesmas rotas — mas o organizador
+ * que os mandasse empurraria a própria rifa para o topo do feed de todos.
+ */
+function semOrdemDaVitrine<T extends object>(req: Request, dados: T): T {
+  if (!orgOf(req)) return dados;
+  const { featured: _f, sortWeight: _w, ...resto } = dados as Record<string, unknown>;
+  return resto as T;
+}
+
 
 adminRouter.get("/overview", async (req, res, next) => {
   try {
@@ -579,7 +591,7 @@ adminRouter.get("/campaigns", async (req, res, next) => {
 
 adminRouter.post("/campaigns", async (req, res, next) => {
   try {
-    const input = insertCampaignSchema.parse(req.body);
+    const input = semOrdemDaVitrine(req, insertCampaignSchema.parse(req.body));
     assertQuotaRange(input.totalQuotas);
 
     // Organizador cria na própria; o administrador geral precisa dizer em
@@ -614,7 +626,7 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
 
-    const changes = insertCampaignSchema.partial().parse(req.body);
+    const changes = semOrdemDaVitrine(req, insertCampaignSchema.partial().parse(req.body));
     // A campanha não muda de dono por PATCH: seria transferir venda, cota e
     // comissão de uma administradora para outra com um campo de formulário.
     delete (changes as { organizationId?: unknown }).organizationId;
@@ -678,7 +690,7 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
     }
 
     if (campaign.status === "draft") {
-      const changes = insertCampaignSchema.partial().parse(corpo);
+      const changes = semOrdemDaVitrine(req, insertCampaignSchema.partial().parse(corpo));
       delete (changes as { organizationId?: unknown }).organizationId;
       if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
       if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PRAZO_ESTORNO_MIN, PRAZO_ESTORNO_MAX, telefoneDeAvisoValido } from "@shared/chamados";
 import { maskPhone } from "@shared/format";
 import { PanelShell } from "@/components/AppShell";
-import { Button, Pill, Empty, Filtros, Campo } from "@/components/bits";
+import { Button, Pill, Empty, Filtros, Campo, Caixa } from "@/components/bits";
 import { CartaoDoPainel, TabelaOuCartoes } from "@/components/painel";
 import { apiRequest } from "@/lib/queryClient";
 import { MIN_SENHA, senhaInvalida } from "@shared/senha";
@@ -53,6 +53,13 @@ interface Organizacao {
   banidaMotivo: string | null;
   campanhas: number;
   pessoas: number;
+  enderecoAtivo: boolean;
+  enderecoMotivo: string | null;
+  /** O endereço no ar (`rotulo.base`), ou `null` se desligado ou sem domínio configurado. */
+  endereco: string | null;
+  enderecoPossivel: boolean;
+  enderecoProblema: string | null;
+  enderecoPareceMarca: boolean;
 }
 
 type Situacao = "ativas" | "arquivadas";
@@ -642,6 +649,7 @@ function DetalheDaOrganizacao({ o, aoFechar }: { o: Organizacao; aoFechar: () =>
           />
         </div>
       )}
+      {o.archivedAt ? null : <SubdominioDaOrganizacao o={o} />}
       {o.archivedAt ? null : <PagamentoDaOrganizacao o={o} />}
       {o.archivedAt ? null : <ExemploDaOrganizacao id={o.id} aoFeito={recarregarLista} />}
     </section>
@@ -662,6 +670,90 @@ function Dado({ rotulo, valor, tnum = false }: { rotulo: string; valor: string |
  * A carteira só a plataforma cadastra (a rota confere); a liberação o próprio
  * organizador também escolhe, em Configurações.
  */
+/**
+ * O endereço próprio da organização (`<slug>.<domínio>`). Nasce desligado; a
+ * plataforma liga uma a uma e desliga na hora (phishing, marca, ordem
+ * judicial). Desligar não toca rifa, venda nem o perfil no domínio principal.
+ */
+function SubdominioDaOrganizacao({ o }: { o: Organizacao }) {
+  const qc = useQueryClient();
+  const [motivo, setMotivo] = useState("");
+  const [confirmaMarca, setConfirmaMarca] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const mudar = useMutation({
+    mutationFn: (ativo: boolean) =>
+      apiRequest("PUT", `/api/admin/organizacoes/${o.id}/subdominio`, { ativo, motivo, confirmarMarca: confirmaMarca }),
+    onSuccess: (_r, ativo) => {
+      setMsg({ ok: true, texto: ativo ? "Endereço ligado." : "Endereço desligado." });
+      setMotivo("");
+      qc.invalidateQueries({ queryKey: ["/api/admin/organizacoes"] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, texto: e.message }),
+  });
+  return (
+    <div className="mt-4 min-w-0 border-t border-line pt-3">
+      <p className="label-xs mb-2">
+        Endereço próprio{" "}
+        {o.enderecoAtivo ? <Pill status="paid">ligado</Pill> : <Pill status="pending">desligado</Pill>}
+      </p>
+      {o.enderecoPossivel ? (
+        <p className="mb-2 break-words text-sm">
+          O endereço seria <span className="tnum font-medium">{o.slug}</span> no domínio da plataforma
+          {o.endereco ? (
+            <>
+              : <span className="tnum font-medium">{o.endereco}</span>
+            </>
+          ) : null}
+          . Confira o nome antes de ligar.
+        </p>
+      ) : (
+        <p role="note" className="mb-2 text-sm text-ink-soft">
+          Esta organização não pode ter endereço próprio: {o.enderecoProblema} O perfil dela no domínio principal não
+          muda.
+        </p>
+      )}
+      {o.enderecoPossivel && !o.enderecoAtivo && o.enderecoPareceMarca ? (
+        <Caixa marcada={confirmaMarca} aoMudar={setConfirmaMarca} sub="O nome lembra a marca da plataforma, do Estado ou de um banco.">
+          Conferi o nome e quero ligar mesmo assim
+        </Caixa>
+      ) : null}
+      {o.enderecoAtivo ? (
+        <Campo rotulo="Motivo para desligar" className="mt-2 max-w-md">
+          <input
+            id={`subdominio-motivo-${o.id}`}
+            value={motivo}
+            maxLength={300}
+            onChange={(e) => {
+              setMsg(null);
+              setMotivo(e.target.value);
+            }}
+            className="campo text-sm"
+          />
+        </Campo>
+      ) : null}
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        {o.enderecoAtivo ? (
+          <Button variant="contorno" onClick={() => mudar.mutate(false)} disabled={mudar.isPending || motivo.trim().length < 3}>
+            Desligar o endereço
+          </Button>
+        ) : (
+          <Button
+            onClick={() => mudar.mutate(true)}
+            disabled={mudar.isPending || !o.enderecoPossivel || (o.enderecoPareceMarca && !confirmaMarca)}
+          >
+            Ligar o endereço
+          </Button>
+        )}
+        {msg ? (
+          <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-green-deep" : "text-red"}`}>
+            {msg.texto}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function PagamentoDaOrganizacao({ o }: { o: Organizacao }) {
   const qc = useQueryClient();
   const [carteira, setCarteira] = useState(o.asaasWalletId ?? "");

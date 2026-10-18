@@ -5,6 +5,7 @@ import {
   hostNormalizado,
   identificarHost,
   motivoDeOrigemDiferente,
+  problemaParaLigarEndereco,
   rotuloPareceMarca,
   linkDaRifaNoEndereco,
   problemaNoRotulo,
@@ -302,5 +303,30 @@ describe("Origin do pedido que muda estado", () => {
 
   it("a Origin vence o Sec-Fetch-Site", () => {
     expect(motivoDeOrigemDiferente({ host, origin: `https://${host}`, secFetchSite: "cross-site" }, true)).toBeNull();
+  });
+});
+
+describe("ligar o endereço da organização", () => {
+  const ok = { arquivada: false, banida: false };
+
+  it("slug que vale liga", () => {
+    expect(problemaParaLigarEndereco("rifa-solidaria", ok, false)).toBeNull();
+  });
+
+  it("slug que não vira rótulo não liga (422)", () => {
+    expect(problemaParaLigarEndereco("ab", ok, true)?.status).toBe(422);
+    expect(problemaParaLigarEndereco("admin", ok, true)?.status).toBe(422);
+    expect(problemaParaLigarEndereco("af-joao", ok, true)?.status).toBe(422);
+    expect(problemaParaLigarEndereco("a--b", ok, true)?.status).toBe(422);
+  });
+
+  it("arquivada e banida não ligam (409)", () => {
+    expect(problemaParaLigarEndereco("rifa-solidaria", { arquivada: true, banida: false }, false)?.status).toBe(409);
+    expect(problemaParaLigarEndereco("rifa-solidaria", { arquivada: false, banida: true }, false)?.status).toBe(409);
+  });
+
+  it("rótulo que lembra a marca só liga com a confirmação", () => {
+    expect(problemaParaLigarEndereco("caixa-premios", ok, false)?.status).toBe(409);
+    expect(problemaParaLigarEndereco("caixa-premios", ok, true)).toBeNull();
   });
 });

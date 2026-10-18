@@ -1,4 +1,5 @@
 import { type Figurinha, figurinhasParaATela } from "@shared/figurinhasStory";
+import type { EnderecoDaRequisicao } from "../services/enderecoDaOrganizacao";
 import { lerResultado, numeracaoZero } from "@shared/apuracao";
 import { arquivoDaAta, ataDaSessao, seloDaRifa, sorteioOficialDaTela } from "../services/sorteiosOficiais";
 import { bannerPublico, imagemPublica } from "../services/bannerDivulgacao";
@@ -1014,6 +1015,20 @@ async function contaParaVerificar(req: Request) {
 montarRotasDaVerificacao(publicRouter, "/conta/verificacao", "apostador", contaParaVerificar);
 
 /** O que o topo do app precisa saber: como o trevo avisa e se o apostador publica. */
+/**
+ * De quem é o endereço que o navegador abriu. Quem decidiu foi o guarda
+ * (`guardaDoEndereco`, só pelo `Host`); aqui só se conta. Muda por `Host`, então
+ * nunca é guardada: `no-store` e `Vary: Host`.
+ */
+publicRouter.get("/endereco", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Vary", "Host");
+  const e = res.locals.endereco as EnderecoDaRequisicao | undefined;
+  if (e?.tipo === "organizacao") return res.json({ tipo: "organizacao", slug: e.slug, nome: e.nome });
+  if (e?.tipo === "inexistente") return res.json({ tipo: "inexistente" });
+  res.json({ tipo: "principal" });
+});
+
 publicRouter.get("/app", async (_req, res, next) => {
   try {
     const p = await getPlataforma();

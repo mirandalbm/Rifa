@@ -6,11 +6,11 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 |---|---|
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
-| Cartões (componentes usados pelas telas) | 866 |
-| Rotas da API | 487, das quais 484 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 67 |
-| Testes de regra (`tests/`) | 144 arquivos |
-| Destinos decididos | 973 de 973 |
+| Cartões (componentes usados pelas telas) | 867 |
+| Rotas da API | 489, das quais 486 citadas por alguma prova |
+| Provas contra a API (`npm run …`) | 68 |
+| Testes de regra (`tests/`) | 145 arquivos |
+| Destinos decididos | 974 de 974 |
 
 ## 1. Telas
 
@@ -611,6 +611,7 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 |---|---|
 | `AprovarTelefone` | manter · na tela P25 Organizações · onda 3 |
 | `Button` | manter · peça do kit (onda 1) · na tela P25 Organizações |
+| `Caixa` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 | `Campo` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 | `CartaoDoPainel` | manter · peça do kit (onda 1) · na tela P25 Organizações |
 | `Empty` | manter · peça do kit (onda 1) · na tela P25 Organizações |
@@ -1338,13 +1339,13 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 A API não muda de lugar na reformulação. Aqui está para que a tela nova não deixe rota sem prova: "—" quer dizer que nenhum arquivo de `scripts/` ou `tests/` cita o caminho.
 
-### `server/routes/admin.ts` — /api/admin (267 rotas, 266 com prova)
+### `server/routes/admin.ts` — /api/admin (268 rotas, 267 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/overview` | `afiliados-test.ts`, `cambista-test.ts`, `guarda-test.ts` +1 |
-| GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +4 |
-| POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +4 |
+| GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +5 |
+| POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +5 |
 | PATCH | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +9 |
 | POST | `/campaigns/:id/editar` | `acessos-test.ts`, `apuracao-test.ts`, `isolation-test.ts` +1 |
 | POST | `/campaigns/:id/adiar` | `isolation-test.ts`, `solicitacoes-test.ts`, `sorteios-oficiais-test.ts` |
@@ -1437,7 +1438,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PUT | `/organizer` | `banner-pago-test.ts`, `isolation-test.ts`, `sorteios-oficiais-test.ts` +3 |
 | GET | `/exportacoes` | `acessos-test.ts` |
 | GET | `/exportacoes/:key` | `apuracao-test.ts`, `cambista-test.ts`, `guarda-test.ts` +2 |
-| GET | `/organizacoes` | `isolation-test.ts` |
+| GET | `/organizacoes` | `isolation-test.ts`, `subdominio-test.ts` |
 | GET | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/organizacoes/:id/exemplo` | `isolation-test.ts`, `vitrine-test.ts` |
@@ -1445,7 +1446,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/organizacoes/:id/links/cliques` | `isolation-test.ts`, `perfil-test.ts` |
 | POST | `/campaigns/:id/link-curto` | `isolation-test.ts` |
 | DELETE | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
-| POST | `/organizacoes` | `isolation-test.ts` |
+| POST | `/organizacoes` | `isolation-test.ts`, `subdominio-test.ts` |
 | PATCH | `/organizacoes/:id` | `isolation-test.ts` |
 | PUT | `/organizacoes/:id/endereco` | `isolation-test.ts` |
 | GET | `/organizacoes/:id/socios` | `apuracao-test.ts`, `isolation-test.ts` |
@@ -1455,6 +1456,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PUT | `/organizacoes/:id/perfil` | `isolation-test.ts`, `perfil-test.ts` |
 | POST | `/organizacoes/:id/acessos` | `acessos-test.ts`, `isolation-test.ts` |
 | POST | `/organizacoes/:id/arquivar` | `isolation-test.ts`, `sorteios-oficiais-test.ts` |
+| PUT | `/organizacoes/:id/subdominio` | `isolation-test.ts`, `subdominio-test.ts` |
 | POST | `/organizacoes/:id/restaurar` | `isolation-test.ts` |
 | GET | `/plataforma` | `acessos-test.ts`, `bonus-test.ts`, `fiscal-test.ts` +5 |
 | PUT | `/app` | `acessos-test.ts`, `buscar-test.ts`, `divulgacao-test.ts` +5 |
@@ -1626,7 +1628,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/editor/:slug/foco/:mediaId` | `artes-test.ts` |
 | POST | `/editor/:slug/conferir` | `artes-test.ts` |
 | PATCH | `/pix-key` | `afiliados-test.ts` |
-| GET | `/saldo` | `afiliados-test.ts`, `cambista-test.ts`, `fiscal-test.ts` +1 |
+| GET | `/saldo` | `afiliados-test.ts`, `cambista-test.ts`, `fiscal-test.ts` +3 |
 | POST | `/payouts` | `afiliados-test.ts`, `cambista-test.ts`, `fiscal-test.ts` +2 |
 | GET | `/payouts/:id/nota` | `afiliados-test.ts`, `fiscal-test.ts` |
 | GET | `/payouts` | `afiliados-test.ts`, `cambista-test.ts`, `fiscal-test.ts` +2 |
@@ -1655,16 +1657,16 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/me` | `acessos-test.ts`, `google-test.ts`, `marketing-test.ts` |
-| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +47 |
-| POST | `/senha` | `acessos-test.ts`, `afiliados-test.ts`, `cambista-test.ts` |
-| POST | `/logout` | `acessos-test.ts` |
+| GET | `/me` | `acessos-test.ts`, `google-test.ts`, `marketing-test.ts` +1 |
+| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +49 |
+| POST | `/senha` | `acessos-test.ts`, `afiliados-test.ts`, `cambista-test.ts` +1 |
+| POST | `/logout` | `acessos-test.ts`, `enderecoRotas.test.ts` |
 
 ### `server/routes/dev.ts` — /api/dev (4 rotas, 4 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
-| POST | `/google` | `google-test.ts` |
+| POST | `/google` | `google-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
 | POST | `/pay/:code` | `afiliados-test.ts`, `bonus-test.ts`, `carrinho-test.ts` +12 |
 | POST | `/ia-pagamento/:codigo` | `ia-acoes-test.ts`, `ia-test.ts` |
 | POST | `/recarga/:codigo` | `patrocinio-test.ts` |
@@ -1679,24 +1681,24 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/mensagens` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 | POST | `/acoes/:id/confirmar` | `ia-acoes-test.ts`, `isolation-test.ts` |
 | POST | `/acoes/:id/recusar` | `ia-acoes-test.ts`, `isolation-test.ts` |
-| GET | `/conta` | `ia-test.ts`, `isolation-test.ts` |
+| GET | `/conta` | `ia-test.ts`, `isolation-test.ts`, `enderecoRotas.test.ts` |
 | POST | `/pagamentos` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 
-### `server/routes/public.ts` — /api/public (156 rotas, 154 com prova)
+### `server/routes/public.ts` — /api/public (157 rotas, 155 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/campaigns` | `comentarios-test.ts`, `publicacao-test.ts`, `publico-test.ts` +4 |
-| GET | `/mensagens/resumo` | `grupos-test.ts`, `mensagens-test.ts` |
+| GET | `/campaigns` | `comentarios-test.ts`, `publicacao-test.ts`, `publico-test.ts` +6 |
+| GET | `/mensagens/resumo` | `grupos-test.ts`, `mensagens-test.ts`, `subdominio-test.ts` |
 | GET | `/mensagens/destino` | `mensagens-test.ts` |
-| GET | `/mensagens/conversas` | `mensagens-test.ts` |
-| POST | `/mensagens/conversas` | `mensagens-test.ts` |
+| GET | `/mensagens/conversas` | `mensagens-test.ts`, `enderecoRotas.test.ts` |
+| POST | `/mensagens/conversas` | `mensagens-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/mensagens/conversas/:id` | `mensagens-test.ts` |
 | POST | `/mensagens/conversas/:id/mensagens` | `mensagens-test.ts` |
 | GET | `/mensagens/conversas/:id/fotos/:fotoId` | — |
 | GET | `/mensagens/grupos` | `grupos-test.ts` |
 | POST | `/mensagens/grupos` | `grupos-test.ts` |
-| GET | `/mensagens/grupos/rifa/:slug` | `grupos-test.ts` |
+| GET | `/mensagens/grupos/rifa/:slug` | `grupos-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/mensagens/grupos/:id` | `grupos-test.ts` |
 | POST | `/mensagens/grupos/:id/entrar` | `grupos-test.ts` |
 | POST | `/mensagens/grupos/:id/sair` | `grupos-test.ts` |
@@ -1709,12 +1711,12 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | POST | `/mensagens/conversas/:id/pedido` | `mensagens-test.ts` |
 | PUT | `/mensagens/conversas/:id/bloqueio` | `mensagens-test.ts` |
 | POST | `/mensagens/conversas/:id/denuncia` | `mensagens-test.ts` |
-| GET | `/buscar` | `buscar-test.ts` |
-| GET | `/reels` | `publicacao-test.ts` |
-| GET | `/banners` | `banner-pago-test.ts`, `vitrine-test.ts` |
+| GET | `/buscar` | `buscar-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/reels` | `publicacao-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/banners` | `banner-pago-test.ts`, `vitrine-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/banners/:id/imagem` | `publico-test.ts` |
 | GET | `/banners-pagos/:id/imagem` | `banner-pago-test.ts`, `publico-test.ts` |
-| GET | `/estados` | `publico-test.ts`, `vitrine-test.ts` |
+| GET | `/estados` | `publico-test.ts`, `vitrine-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/o/:slug/stories` | `poster-test.ts`, `vitrine-test.ts` |
 | POST | `/stories/:id/enquete` | `vitrine-test.ts` |
 | GET | `/stories/:id/poster` | `conta-test.ts`, `poster-test.ts`, `publico-test.ts` |
@@ -1722,33 +1724,34 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/recibos/:codigo` | `fiscal-test.ts`, `publico-test.ts` |
 | GET | `/o/:slug/termo-afiliado` | `publico-test.ts` |
 | POST | `/o/:slug/colaborador` | `afiliados-test.ts` |
-| GET | `/o/:slug` | `perfil-test.ts`, `poster-test.ts`, `publico-test.ts` +5 |
+| GET | `/o/:slug` | `perfil-test.ts`, `poster-test.ts`, `publico-test.ts` +7 |
 | GET | `/o/:slug/foto` | `publico-test.ts`, `semNulo.test.ts` |
 | GET | `/o/:slug/capa` | `publico-test.ts` |
-| GET | `/o/:slug/qr.svg` | `perfil-test.ts` |
-| GET | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` |
-| POST | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` |
-| DELETE | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` |
+| GET | `/o/:slug/qr.svg` | `perfil-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
+| POST | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
+| DELETE | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
 | PUT | `/o/:slug/sino` | `perfil-test.ts`, `push-test.ts` |
-| GET | `/seguindo` | `perfil-test.ts` |
+| GET | `/seguindo` | `perfil-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/campaigns/:slug/quem-joga` | `bonus-test.ts` |
-| GET | `/campaigns/:slug/comentarios` | `comentarios-test.ts`, `seguranca-test.ts`, `verificacao-test.ts` |
-| POST | `/campaigns/:slug/comentarios` | `comentarios-test.ts`, `seguranca-test.ts`, `verificacao-test.ts` |
+| GET | `/campaigns/:slug/comentarios` | `comentarios-test.ts`, `seguranca-test.ts`, `verificacao-test.ts` +1 |
+| POST | `/campaigns/:slug/comentarios` | `comentarios-test.ts`, `seguranca-test.ts`, `verificacao-test.ts` +1 |
 | DELETE | `/comentarios/:id` | `comentarios-test.ts`, `isolation-test.ts` |
 | PUT | `/comentarios/:id/curtida` | `comentarios-test.ts` |
 | POST | `/denuncias` | `seguranca-test.ts` |
-| GET | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +2 |
-| PUT | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +2 |
+| GET | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +3 |
+| PUT | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +3 |
 | PUT | `/conta/nota` | `nota-test.ts` |
-| GET | `/app` | `buscar-test.ts`, `divulgacao-test.ts`, `grupos-test.ts` +4 |
+| GET | `/endereco` | `subdominio-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/app` | `buscar-test.ts`, `divulgacao-test.ts`, `grupos-test.ts` +5 |
 | GET | `/selos` | `verificacao-test.ts` |
 | PUT | `/campaigns/:slug/acoes/:acao` | `publicacao-test.ts` |
 | POST | `/campaigns/:slug/compartilhamentos` | `publicacao-test.ts` |
-| POST | `/carrinho` | `carrinho-test.ts`, `publicacao-test.ts` |
+| POST | `/carrinho` | `carrinho-test.ts`, `publicacao-test.ts`, `subdominio-test.ts` +1 |
 | GET | `/conta/salvos` | `publicacao-test.ts` |
 | GET | `/conta/bilhetes` | `bilhetes-test.ts`, `isolation-test.ts` |
 | GET | `/u/:apelido/republicacoes` | `publicacao-test.ts` |
-| GET | `/u/:apelido` | `bilhetes-test.ts`, `comentarios-test.ts`, `publicacao-test.ts` +2 |
+| GET | `/u/:apelido` | `bilhetes-test.ts`, `comentarios-test.ts`, `publicacao-test.ts` +3 |
 | POST | `/u/:apelido/seguir` | `nota-test.ts`, `seguir-pessoas-test.ts` |
 | DELETE | `/u/:apelido/seguir` | `nota-test.ts`, `seguir-pessoas-test.ts` |
 | GET | `/conta/marcacoes` | `marcados-test.ts` |
@@ -1757,47 +1760,47 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/u/:apelido/marcados` | `marcados-test.ts` |
 | GET | `/u/:apelido/foto` | `publico-test.ts` |
 | GET | `/notificacoes/resumo` | `bonus-test.ts`, `push-test.ts` |
-| GET | `/notificacoes` | `bonus-test.ts`, `push-test.ts` |
+| GET | `/notificacoes` | `bonus-test.ts`, `push-test.ts`, `enderecoRotas.test.ts` |
 | POST | `/notificacoes/lidas` | `push-test.ts` |
-| GET | `/stories` | `vitrine-test.ts` |
-| GET | `/template` | `aparencia-test.ts`, `base-ia.ts`, `publico-test.ts` |
+| GET | `/stories` | `vitrine-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/template` | `aparencia-test.ts`, `base-ia.ts`, `publico-test.ts` +1 |
 | GET | `/marca/logo` | `aparencia-test.ts` |
 | GET | `/marca/icone/:tamanho` | `aparencia-test.ts`, `manifest.test.ts` |
 | GET | `/marca/apoio/:id` | `aoVivo.test.ts` |
 | GET | `/push/chave` | `push-test.ts` |
 | POST | `/push/inscricoes` | `push-test.ts` |
 | DELETE | `/push/inscricoes` | `push-test.ts` |
-| GET | `/cep/:cep` | `conta-test.ts`, `publico-test.ts` |
+| GET | `/cep/:cep` | `conta-test.ts`, `publico-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/campaigns/:slug/certificado` | `publico-test.ts` |
 | GET | `/campaigns/:slug/banner-divulgacao` | `banner-divulgacao-test.ts` |
-| GET | `/campaigns/:slug` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-divulgacao-test.ts` +8 |
-| GET | `/campaigns/:slug/regulamento` | `apuracao-test.ts`, `bonus-test.ts`, `transparencia-test.ts` |
+| GET | `/campaigns/:slug` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-divulgacao-test.ts` +10 |
+| GET | `/campaigns/:slug/regulamento` | `apuracao-test.ts`, `bonus-test.ts`, `subdominio-test.ts` +1 |
 | GET | `/campaigns/:slug/sorteio` | `apuracao-test.ts`, `transparencia-test.ts` |
 | GET | `/campaigns/:slug/foto-ganhador` | `publico-test.ts` |
 | GET | `/campaigns/:slug/blocks/:block` | `senha-test.ts` |
 | GET | `/campaigns/:slug/cartelas` | `carrinho-test.ts`, `load-test.ts` |
-| GET | `/campaigns/:slug/numbers/:number` | `publico-test.ts` |
+| GET | `/campaigns/:slug/numbers/:number` | `publico-test.ts`, `enderecoRotas.test.ts` |
 | POST | `/track-click` | `publico-test.ts` |
-| GET | `/checkout` | `base-ia.ts`, `pagarme-test.ts` |
-| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +21 |
-| POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts` |
-| GET | `/orders/:code` | `carrinho-test.ts`, `conta-test.ts`, `marketing-test.ts` +2 |
+| GET | `/checkout` | `base-ia.ts`, `pagarme-test.ts`, `enderecoRotas.test.ts` |
+| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +23 |
+| POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts`, `subdominio-test.ts` +1 |
+| GET | `/orders/:code` | `carrinho-test.ts`, `conta-test.ts`, `marketing-test.ts` +3 |
 | GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts`, `conta-test.ts`, `publico-test.ts` |
 | POST | `/my-quotas/request-code` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | POST | `/my-quotas/verify` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | GET | `/my-quotas` | `chamados-test.ts`, `conta-test.ts` |
 | GET | `/conta/google/disponivel` | `afiliados-test.ts`, `google-test.ts` |
-| GET | `/conta/google/entrar` | `afiliados-test.ts`, `google-test.ts` |
+| GET | `/conta/google/entrar` | `afiliados-test.ts`, `google-test.ts`, `subdominio-test.ts` +1 |
 | GET | `/conta/google/ligar` | `google-test.ts` |
 | GET | `/conta/google/retorno` | `google-test.ts` |
 | POST | `/conta/cpf` | `google-test.ts` |
 | POST | `/conta/telefone/codigo` | `bonus-test.ts`, `conta-test.ts`, `google-test.ts` |
 | POST | `/conta/telefone/confirmar` | `bonus-test.ts`, `conta-test.ts`, `google-test.ts` |
 | DELETE | `/conta/google` | `google-test.ts` |
-| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +19 |
+| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +20 |
 | POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `publico-test.ts` +1 |
 | POST | `/conta/sair` | `bilhetes-test.ts`, `conta-test.ts` |
-| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +19 |
+| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +20 |
 | PUT | `/conta/senha` | `conta-test.ts` |
 | PUT | `/conta/cep` | `conta-test.ts` |
 | PUT | `/conta/perfil-publico` | `perfil-test.ts` |
@@ -1813,45 +1816,45 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/bonus` | `bonus-test.ts` |
 | POST | `/bonus/resgatar` | `bonus-test.ts`, `conta-test.ts` |
 | POST | `/bonus/visita` | `bonus-test.ts` |
-| GET | `/marketing` | `marketing-test.ts`, `publico-test.ts` |
-| GET | `/patrocinadas` | `patrocinio-test.ts`, `aparelhoNaLeitura.test.ts` |
+| GET | `/marketing` | `marketing-test.ts`, `publico-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/patrocinadas` | `patrocinio-test.ts`, `aparelhoNaLeitura.test.ts`, `enderecoRotas.test.ts` |
 | POST | `/patrocinadas/exibicoes` | `patrocinio-test.ts` |
 | POST | `/patrocinadas/:id/clique` | `patrocinio-test.ts`, `aparelhoNaLeitura.test.ts` |
-| GET | `/tickets/:code` | `conta-test.ts`, `publico-test.ts` |
+| GET | `/tickets/:code` | `conta-test.ts`, `publico-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/tickets/:code/escpos` | `publico-test.ts` |
 | POST | `/tickets/:code/printed` | `cambista-test.ts`, `isolation-test.ts`, `publico-test.ts` |
 | GET | `/campaigns/:slug/premios` | `publico-test.ts` |
 | GET | `/sorteio-oficial/:id/ata` | `apuracao-test.ts` |
-| GET | `/sorteio-oficial` | `sorteios-oficiais-test.ts` |
+| GET | `/sorteio-oficial` | `sorteios-oficiais-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/sorteio-oficial/:id/comentarios` | `sorteio-comentarios-test.ts` |
 | POST | `/sorteio-oficial/:id/comentarios` | `sorteio-comentarios-test.ts` |
 | DELETE | `/sorteio-oficial/comentarios/:id` | `isolation-test.ts`, `sorteio-comentarios-test.ts` |
 | POST | `/sorteio-oficial/comentarios/:id/denuncia` | `sorteio-comentarios-test.ts` |
 | PUT | `/sorteio-oficial/comentarios/:id/curtida` | `sorteio-comentarios-test.ts` |
-| GET | `/vitrine/ao-vivo` | `vitrine-test.ts` |
+| GET | `/vitrine/ao-vivo` | `subdominio-test.ts`, `vitrine-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/campaigns/:slug/ultimas-compras` | `publico-test.ts` |
 | POST | `/afiliados/cadastro` | `afiliados-test.ts`, `divulgacao-test.ts`, `publico-test.ts` |
 | GET | `/campaigns/:slug/ranking` | `publico-test.ts` |
 | GET | `/campaigns/:slug/divulgacoes` | `divulgacao-test.ts` |
-| GET | `/divulgacoes/feed` | `divulgacao-test.ts` |
+| GET | `/divulgacoes/feed` | `divulgacao-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/divulgacoes/rifas` | `divulgacao-test.ts` |
 | GET | `/divulgacoes/minhas` | `divulgacao-test.ts` |
 | POST | `/divulgacoes` | `divulgacao-test.ts`, `marcados-test.ts` |
 | GET | `/divulgacoes/minhas/:id/fotos/:fotoId` | — |
 | GET | `/divulgacoes/:id/fotos/:fotoId` | `divulgacao-test.ts`, `isolation-test.ts` |
 | GET | `/divulgacoes/:id/video` | `divulgacao-test.ts`, `isolation-test.ts` |
-| PATCH | `/divulgacoes/:id` | `divulgacao-test.ts`, `marcados-test.ts` |
-| DELETE | `/divulgacoes/:id` | `divulgacao-test.ts`, `marcados-test.ts` |
+| PATCH | `/divulgacoes/:id` | `divulgacao-test.ts`, `marcados-test.ts`, `enderecoRotas.test.ts` |
+| DELETE | `/divulgacoes/:id` | `divulgacao-test.ts`, `marcados-test.ts`, `enderecoRotas.test.ts` |
 
 ### `server/routes/seller.ts` — /api/seller (6 rotas, 6 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/overview` | `cambista-test.ts`, `isolation-test.ts` |
-| POST | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` +1 |
+| POST | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` +3 |
 | POST | `/sales/:code/confirm` | `cambista-test.ts`, `isolation-test.ts`, `publico-test.ts` |
 | POST | `/sales/:code/cancel` | `cambista-test.ts`, `isolation-test.ts` |
-| GET | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` +1 |
+| GET | `/sales` | `afiliados-test.ts`, `cambista-test.ts`, `isolation-test.ts` +3 |
 | GET | `/settlement` | `cambista-test.ts`, `isolation-test.ts` |
 
 ### `server/routes/verificacaoRotas.ts` — (montada em public.ts, affiliate.ts e admin.ts) (5 rotas, 5 com prova)
@@ -1868,14 +1871,14 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| POST | `/:provider` | `pagarme-test.ts`, `webhook-test.ts`, `enderecoDoHost.test.ts` |
+| POST | `/:provider` | `pagarme-test.ts`, `subdominio-test.ts`, `webhook-test.ts` +2 |
 
 ## 5. Rotas que nenhuma prova cita
 
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
-- `server/routes/admin.ts` (1 de 267): PUT `/media/raw`
-- `server/routes/public.ts` (2 de 156): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
+- `server/routes/admin.ts` (1 de 268): PUT `/media/raw`
+- `server/routes/public.ts` (2 de 157): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 
 ## 6. Provas contra a API
 
@@ -1941,6 +1944,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `solicitacoes` | `scripts/solicitacoes-test.ts` |
 | `sorteio-comentarios` | `scripts/sorteio-comentarios-test.ts` |
 | `sorteios` | `scripts/sorteios-oficiais-test.ts` |
+| `subdominio` | `scripts/subdominio-test.ts` |
 | `telas` | `scripts/telas.ts` |
 | `trafego` | `scripts/trafego-test.ts` |
 | `trafego-criacao` | `scripts/trafego-criacao-test.ts` |

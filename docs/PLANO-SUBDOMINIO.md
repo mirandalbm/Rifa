@@ -1,6 +1,6 @@
 # Plano: o endereço próprio da organização (`<rotulo>.loteriasdobem.com.br`)
 
-Data: 18/10/2026. Estado: **plano; o PR 1 está no código** (regra pura corrigida, `www`,
+Data: 18/10/2026. Estado: **plano; o PR 1 e o PR 2 estão no código** (regra pura corrigida, `www`,
 `noindex`, `Origin` por host em modo relatório — falta só o cookie `__Host-`, que espera a
 pergunta 11); do resto, existe o middleware que marca a requisição e nenhuma rota usa o destino.
 Ler com `CLAUDE.md` (invariantes 11 e 15 e a seção "Multi-organizador"),
@@ -161,6 +161,16 @@ host normalizado ─┬─ não é do domínio base ........ segue como hoje (pr
   para um varredor de rótulos não virar uma consulta ao banco por requisição.
 - **Limite por IP** na resolução de rótulo inexistente (`hit`, mesmo desenho do
   `csp:`): varrer rótulos é descobrir quais organizações existem.
+
+**Revisão do PR 2 (18/10/2026) — o que a lista fechada tem de ler como o Express lê:** o
+Express casa rota **sem diferenciar maiúscula** (`/API/public/…` chega ao mesmo
+handler) e aceita a forma absoluta do pedido (`GET http://x/api/…`). Por isso o guarda
+trata `/api` em qualquer caixa (`ehCaminhoDeApi`), nega o que não é a forma minúscula
+classificada, recusa a forma absoluta (400) e **nunca** segue para a rota quando nega.
+Cada rota de compra confere **o campo que ela usa** (`/orders` → `campaignId`;
+`/carrinho` e `/carrinho/checkout` → todos os `itens`); o destino do 301 de
+`/o/<este rótulo>` é sempre um caminho do próprio endereço. A invalidação do cache é
+local ao processo: com várias réplicas, desligar leva até 15 s nas outras.
 
 ### 1.4 Os casos que o responsável pediu
 
@@ -740,7 +750,7 @@ sem a variável está marcado.
 |---|---|---|---|---|
 | 0 | **Este plano** + R30 a R35 + seção em `PENDENCIAS.md` | documentos | — | nenhum |
 | 1 | **Endurecimento que independe do domínio** — *feito (b, c, d, e) em 18/10/2026; (a) aguarda o OK da pergunta 11* | (a) `__Host-rifa.sid` em produção; (b) `exigirOrigemDoHost` em modo relatório; (c) `shared/subdominio.ts` corrigido (`--`, ponto final, porta, marcas) + testes; (d) `www` → principal; (e) `X-Robots-Tag` para host desconhecido | **age** (a, b, d, e). (a) desloga todos uma vez; (b) só registra; (d) é o único efeito visível | **médio** pelo (a): avisar antes e fazer em horário calmo. (b) em relatório não derruba nada |
-| 2 | **Guarda do endereço no servidor** | `guardaDoEndereco`, `hostDaRequisicao`, cache, `GET /api/public/endereco`, classificador de rotas (+ teste de cobertura), 404 com status, canonicalização `/o/<rótulo>`, redirecionamentos ao principal, bloqueio de painel/webhook no endereço; coluna `organizations.endereco_ativo` e a rota `PUT /organizacoes/:id/endereco` (com a auditoria); `npm run subdominio` (servidor) e entradas do `isolation` | **inerte** (sem base, nenhum host é endereço; a coluna fica sem uso) | **médio**: é um middleware global; o teste de cobertura e a prova seguram. `db:push` **antes** do código |
+| 2 | **Guarda do endereço no servidor** — *feito em 18/10/2026 (a rota do interruptor é `PUT /organizacoes/:id/subdominio`, porque `/endereco` já é o CEP; os curtos de outra organização ficaram para o PR 4)* | `guardaDoEndereco`, `hostDaRequisicao`, cache, `GET /api/public/endereco`, classificador de rotas (+ teste de cobertura), 404 com status, canonicalização `/o/<rótulo>`, redirecionamentos ao principal, bloqueio de painel/webhook no endereço; coluna `organizations.endereco_ativo` e a rota `PUT /organizacoes/:id/endereco` (com a auditoria); `npm run subdominio` (servidor) e entradas do `isolation` | **inerte** (sem base, nenhum host é endereço; a coluna fica sem uso) | **médio**: é um middleware global; o teste de cobertura e a prova seguram. `db:push` **antes** do código |
 | 3 | **SPA: roteador por endereço** | `RoteadorPorEndereco`, `useEndereco`, `useLocationDoEndereco`, console filtrado, botão do Google, intro e faixa de instalar escondidos no endereço, carrinho e "Minhas compras" do endereço; `npm run telas` com a rodada `*.localhost`; registro em `VERSOES.md` | **inerte** (`/api/public/endereco` responde `principal`) | **médio**: mexe na navegação, mas só troca o `Router` quando é endereço |
 | 4 | **URLs absolutas** | `urls.ts` (os três auxiliares), artes, kit do afiliado, curtos, QR do perfil, WhatsApp, push, compartilhar, marketing por servidor, **tráfego (`linkDoAnuncio`)** + varredura de URL no teste | **inerte** (cai no caminho de hoje) | **médio-alto** pela atribuição: o tráfego e o `?ref=` mudam de host. Provar com `npm run trafego-criacao`, `npm run afiliados`, `npm run artes`, `npm run marketing`, `npm run perfil` |
 | 5 | **Pixels, cookies e Privacidade** | organização do endereço na raiz, `cookie_domain` (GA4/Ads), texto da Privacidade e `GUARDADO_NO_NAVEGADOR`, relatório de CSP com o host | **inerte** | baixo |

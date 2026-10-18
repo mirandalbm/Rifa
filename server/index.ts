@@ -12,7 +12,7 @@ import { mensagemDeValidacao } from "@shared/zodPt";
 import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
-import { reconhecerSubdominio } from "./services/subdominio";
+import { guardaDoEndereco, webhookSoNoPrincipal } from "./services/enderecoDaOrganizacao";
 import { exigirOrigemDoHost, protegerOHost } from "./services/enderecoDoHost";
 import { startJobs } from "./jobs";
 import { LocalDiskStorage, chaveRestauravel, storage } from "./services/storage";
@@ -33,6 +33,10 @@ process.on("unhandledRejection", (motivo) => {
 });
 
 const app = express();
+// Atrás do proxy da Railway, o IP de quem chegou vem do `X-Forwarded-For`. O
+// `setupAuth` repete o ajuste; ele vem aqui antes porque o relatório de CSP e o
+// guarda do endereço limitam por IP antes da sessão.
+app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 // Cabeçalhos de defesa baratos: o navegador não adivinha tipo de arquivo
@@ -96,7 +100,7 @@ app.post(
 );
 
 // O webhook precisa do corpo cru para validar assinatura: vem antes do JSON.
-app.use("/api/webhooks", express.raw({ type: "*/*" }), webhookRouter);
+app.use("/api/webhooks", webhookSoNoPrincipal, express.raw({ type: "*/*" }), webhookRouter);
 
 // O manifesto do app instalado segue o template publicado (nome, cor, logo).
 // Antes do arquivo estático e do Vite; se o banco falhar, segue para o
@@ -228,7 +232,9 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(reconhecerSubdominio);
+// O endereço da organização (`<rotulo>.<SUBDOMINIO_BASE>`): decide por `Host`,
+// antes da sessão e das rotas. Sem `SUBDOMINIO_BASE` não faz nada.
+app.use(guardaDoEndereco);
 // `Origin` de quem muda estado: o mesmo `Host`. Modo relatório até o log ficar
 // limpo (`ORIGEM_POR_HOST=recusar` passa a recusar).
 app.use("/api", exigirOrigemDoHost);

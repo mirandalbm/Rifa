@@ -24,7 +24,9 @@ function caminhoDe(req: Request): string {
 
 /** Webhook de provedor e relatório de CSP não vêm de navegador nosso: ficam como estão. */
 function ehRotaDeFora(caminho: string): boolean {
-  return caminho.startsWith("/api/webhooks") || caminho === ROTA_DO_RELATORIO_CSP;
+  // O Express casa o prefixo sem diferenciar maiúscula: `/API/webhooks` é o mesmo roteador.
+  const c = caminho.toLowerCase();
+  return c.startsWith("/api/webhooks") || c === ROTA_DO_RELATORIO_CSP;
 }
 
 /**

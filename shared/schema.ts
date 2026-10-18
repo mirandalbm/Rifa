@@ -239,6 +239,16 @@ export const organizations = pgTable(
     sociosDeclaradosPor: uuid("socios_declarados_por"),
     /** Banida por fraude (ex.: Pix fora da plataforma): porta fechada e rifas travadas. */
     banidaEm: timestamp("banida_em"),
+    /**
+     * Endereço próprio (`<slug>.<SUBDOMINIO_BASE>`). **Nasce desligado** e só a
+     * plataforma liga, organização por organização: é o lançamento gradual e o
+     * interruptor de emergência (rótulo parecido com marca, phishing, ordem
+     * judicial) na mesma peça. Desligar não toca rifa, venda nem o perfil no
+     * principal. docs/PLANO-SUBDOMINIO.md, cap. 2.1 e 3.
+     */
+    enderecoAtivo: boolean("endereco_ativo").notNull().default(false),
+    /** Por que o endereço foi ligado, desligado ou negado (texto da plataforma). */
+    enderecoMotivo: text("endereco_motivo"),
     banidaMotivo: text("banida_motivo"),
     /**
      * Perfil público (`/o/:slug`). A bio é o texto do organizador; a parte da

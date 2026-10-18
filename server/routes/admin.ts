@@ -1,4 +1,7 @@
 import { numeracaoZero, validarMetodosLiberados } from "@shared/apuracao";
+import { EnderecoError, invalidarEndereco, mudarEndereco } from "../services/enderecoDaOrganizacao";
+import { hostDoRotulo, problemaNoRotulo, rotuloPareceMarca } from "@shared/subdominio";
+import { subdominioBaseDoAmbiente } from "../services/subdominio";
 import { problemaNoPremio } from "@shared/premio";
 import { mesclarConfigBannerPago } from "@shared/bannerPago";
 import { calendario, cancelarSorteioOficial, criarSorteioOficial, editarSorteioOficial, integrarAoSorteioOficial, lancarResultado, salvarArquivoDaAta } from "../services/sorteiosOficiais";
@@ -2808,6 +2811,11 @@ adminRouter.get("/organizacoes", async (req, res, next) => {
         foto: urlDaFoto(o.slug, fotoDe.get(o.id)),
         capa: urlDaCapa(o.slug, capaDe.get(o.id)),
         destaque: destaqueDa(o),
+        // O endereço próprio: se o rótulo vale (e por que não) e onde fica.
+        enderecoPossivel: problemaNoRotulo(o.slug) === null,
+        enderecoProblema: problemaNoRotulo(o.slug),
+        enderecoPareceMarca: rotuloPareceMarca(o.slug),
+        endereco: o.enderecoAtivo ? hostDoRotulo(o.slug, subdominioBaseDoAmbiente()) : null,
       })),
     );
   } catch (err) {
@@ -3158,11 +3166,26 @@ adminRouter.post("/organizacoes/:id/arquivar", async (req, res, next) => {
     if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
 
     const arquivada = await archiveOrganization(req.params.id);
+    invalidarEndereco(); // arquivar também desliga o endereço (e restaurar não o religa)
     await audit(req, "organizacao.arquivar", "organization", arquivada.id, {
       name: arquivada.name,
     });
     res.json(arquivada);
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Liga ou desliga o endereço próprio (`<slug>.<SUBDOMINIO_BASE>`) da
+ * organização. Só a plataforma (403 para organizador, no `npm run isolation`).
+ */
+adminRouter.put("/organizacoes/:id/subdominio", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    res.json(await mudarEndereco(req, req.params.id, req.body ?? {}));
+  } catch (err) {
+    if (err instanceof EnderecoError) return res.status(err.status).json({ message: err.message });
     next(err);
   }
 });

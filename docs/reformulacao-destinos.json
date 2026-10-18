@@ -971,5 +971,6 @@
  "cartao:/admin/configuracoes#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
  "cartao:/admin/financeiro#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
  "cartao:/admin/pedidos#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
- "cartao:/admin/sorteios#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)"
+ "cartao:/admin/sorteios#BarraDeAcessos": "manter · na tela P01 Painel (visão geral) · onda 2 (a barra só aparece no Painel; o gerador marca o arquivo admin.tsx inteiro)",
+ "cartao:/admin/organizacoes#Caixa": "manter · peça do kit (onda 1) · na tela P25 Organizações"
 }

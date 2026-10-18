@@ -121,6 +121,8 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   As tabelas dos anexos do contrato (`contrato_anexos`,
   `contrato_anexo_aceites`) e a coluna `campaigns.contrato_anexo_ids` também.
   E as da fila de trabalho (`trabalhos`, `trabalho_arquivos`, `trabalhadores`).
+  E as colunas `organizations.endereco_ativo` (nasce `false`) e `endereco_motivo`
+  do endereço próprio da organização (subdomínio, PR 2) — **antes** do código.
   E as do tráfego pago (`trafego_campanhas`, `trafego_gastos`, com as
   colunas `cliques`, `origem` e `excedente_cents` da fase 2, e
   `trafego_criacoes` da fase 3 — sem ela, o painel do tráfego dá 500) e as

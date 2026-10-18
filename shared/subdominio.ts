@@ -216,3 +216,26 @@ export function linkDaRifaNoEndereco(opcoes: {
   const ref = opcoes.codigoDoAfiliado ? `?ref=${encodeURIComponent(opcoes.codigoDoAfiliado)}` : "";
   return `https://${host}/r/${encodeURIComponent(opcoes.rifaSlug)}${ref}`;
 }
+
+/**
+ * Por que o endereço da organização não pode ser ligado agora, ou `null`.
+ * `confirmouMarca`: a plataforma leu que o rótulo lembra a marca ou o Estado e
+ * quer ligar mesmo assim (conscientemente, nunca sozinho).
+ */
+export function problemaParaLigarEndereco(
+  slug: string,
+  situacao: { arquivada: boolean; banida: boolean },
+  confirmouMarca: boolean,
+): { status: 409 | 422; mensagem: string } | null {
+  const rotulo = problemaNoRotulo(slug);
+  if (rotulo) return { status: 422, mensagem: `Esta organização não pode ter endereço próprio: ${rotulo}` };
+  if (situacao.banida) return { status: 409, mensagem: "Organização banida não tem endereço." };
+  if (situacao.arquivada) return { status: 409, mensagem: "Organização arquivada não tem endereço." };
+  if (rotuloPareceMarca(slug) && !confirmouMarca) {
+    return {
+      status: 409,
+      mensagem: "O endereço lembra a marca da plataforma, do Estado ou de um banco. Confirme que você conferiu e quer ligar.",
+    };
+  }
+  return null;
+}

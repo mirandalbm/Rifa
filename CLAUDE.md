@@ -197,7 +197,7 @@ arquitetura.
 | tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `ContagemDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
 | sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
-| rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
+| rodapé da plataforma: colunas de links, redes sociais, espaço de apoio e o texto oficial embaixo da logo (razão social e CNPJ dos Dados da empresa publicados, e o aviso de jogo responsável) | `shared/rodape.ts` (colunas, `linhaDaEmpresa()`, `avisoDeJogoResponsavel()`), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | intro animada da marca ao abrir o app (celular e tablet), a abertura antes do JavaScript, o trevo do ícone e a logo escrita do topo, e os arquivos da marca (logo oficial, ícones, vídeo da intro) | `client/src/lib/intro.ts` (quando aparece, o trevo em geometria e cores, as posições, a abertura), `client/src/components/IntroDaMarca.tsx`, `client/src/components/TrevoDaMarca.tsx`, `Marca`/`LogoEscrita` em `client/src/components/Marca.tsx`, `#abertura` em `client/index.html`, `npm run logo-escrita`, `tests/marca.test.ts`, `.intro-*` em `client/src/index.css`, `client/public/intro/`, `docs/marca/`, `tests/intro.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem), os agentes (`implementador-da-rifa`, `revisor-de-invariantes`, `conferente-de-telas`, `pesquisador-de-integracao`, `analista-de-csp`), o fluxo entre eles e as skills de terceiros que o projeto usa (com o ajuste de cada uma) | `docs/AGENTES-E-SKILLS.md` (o guia), `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/`, `skills-lock.json`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
@@ -558,11 +558,17 @@ arquitetura.
     cheia não sair da vista.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
   no celular isso mora em `/perfil/configuracoes`), no desenho de rodapé de produto:
-  **à esquerda** a logo, o texto de apresentação do template e, embaixo do
-  texto, as **redes sociais em botão redondo**; **no meio** o espaço de
+  **à esquerda** a logo, **duas linhas de texto oficial** (a razão social e
+  o CNPJ — os "Dados da empresa" **publicados** no template, `linhaDaEmpresa()`
+  em `shared/rodape.ts`, que os confere de novo na régua e **some a linha se
+  faltar um dos dois**, nunca digitados no código nem inventados — e o aviso
+  de jogo responsável, `avisoDeJogoResponsavel()`, **uma versão só**: o pé
+  ficou só com o selo "18+"), o texto de apresentação do template e, embaixo
+  do texto, as **redes sociais em botão redondo**; **sem bandeiras** (elas
+  são só do painel "Locais"); **no meio** o espaço de
   apoio (as logos, com o atalho da central de ajuda); **à direita quatro
   colunas** com o título em negrito (Plataforma, Rifas, Ajuda, Legal); no
-  pé, o © e o 18+ com o aviso de jogo responsável, o Pix e os cookies. No
+  pé, o © e o selo 18+, o Pix e os cookies. No
   tablet as colunas ficam ao lado da logo e o apoio desce para uma linha
   própria.
   - **As colunas moram em `shared/rodape.ts`** (`COLUNAS_DO_RODAPE`), e

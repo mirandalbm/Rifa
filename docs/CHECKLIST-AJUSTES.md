@@ -28,7 +28,7 @@ aparelho.
 - [ ] **6. Seletor "Rifas perto de" vira "Locais"** — **[decisão]**
   - Trocar o texto, tirar o `<select>` e abrir um painel com **todos os estados**.
   - Bandeiras: o projeto não tem imagens de bandeiras de estado. Opções: (a) vocês enviam as imagens das bandeiras; (b) usamos a sigla do estado num selo como ícone enquanto isso.
-- [ ] **3. Texto oficial abaixo do nome e da logo no "roadmap" de baixo** — **[decisão]**
+- [x] **3. Texto oficial abaixo do nome e da logo no "roadmap" de baixo** — **[decisão]** (feito em 18/10/2026, no rodapé da plataforma: razão social e CNPJ dos Dados da empresa publicados, e o aviso de jogo responsável)
   - Não sei qual rodapé/faixa é o "roadmap". Preciso do texto exato e do lugar (rodapé da plataforma, faixa do console, ou outro).
 
 ## Produto — rifas nacionais e estados

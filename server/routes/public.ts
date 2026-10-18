@@ -1341,6 +1341,11 @@ publicRouter.delete("/push/inscricoes", async (req, res, next) => {
  */
 publicRouter.get("/cep/:cep", async (req, res, next) => {
   try {
+    // Rota aberta que chama um serviço de fora: sem limite por IP era um proxy
+    // grátis para o ViaCEP (o cache guarda só 5 mil CEPs). Folgado de propósito:
+    // a operadora de celular põe um bairro atrás do mesmo IP.
+    const limite = await hit(`cep:${identify(req).ipHash ?? "sem-ip"}`, 10, 120);
+    if (limite.excedeu) return res.status(429).json({ message: "Muitas consultas de CEP. Preencha o endereço à mão ou tente em alguns minutos." });
     const r = await consultarCep(req.params.cep);
     if (r === "invalido") return res.status(400).json({ message: "CEP inválido: são 8 números." });
     if (r === "nao_encontrado") return res.status(404).json({ message: "CEP não encontrado." });

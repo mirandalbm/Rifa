@@ -319,6 +319,9 @@ async function regiaoDoCep(entrada: string) {
 /** Trocar o CEP da conta (mudou de cidade). */
 export async function trocarCep(req: Request, cep: string) {
   const sessao = compradorDaSessao(req);
+  // Cada CEP novo é uma consulta ao serviço de fora: o limite é da conta.
+  const limite = await hit(`cep-conta:${sessao.id}`, 60, 20);
+  if (limite.excedeu) throw new ContaError("Muitas trocas de CEP. Tente de novo em uma hora.", 429);
   const regiao = await regiaoDoCep(cep);
   const [c] = await db
     .update(buyers)

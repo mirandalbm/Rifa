@@ -15,6 +15,7 @@ import { db } from "../db";
 import { buyers, compradorFotos, seguidoresPessoas } from "@shared/schema";
 import { nomeRealPublico, notaAte, notaVigente, validarApelido, validarBio, validarLinkDoApostador } from "@shared/perfilApostador";
 import { isUniqueViolation } from "../pgError";
+import { hit } from "./antifraude";
 import { depoisDaFoto, fotoMudouNaTransacao } from "./verificacao";
 import type { StatusVerificacao } from "@shared/verificacao";
 
@@ -26,6 +27,8 @@ export class PerfilApostadorError extends Error {
 }
 
 const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+/** Trocas de foto do perfil por conta e por hora. */
+const FOTOS_POR_HORA = 20;
 
 export function urlDaFotoDoApostador(apelido: string | null, em: Date | null) {
   return apelido && em ? `/api/public/u/${apelido}/foto?v=${em.getTime()}` : null;
@@ -96,6 +99,12 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
     const v = validarLinkDoApostador(entrada.link);
     if (!v.ok) throw new PerfilApostadorError(v.erro);
     link = v.link;
+  }
+  // Abrir imagem de até 5 MB (40 MP) é CPU do servidor: a troca de foto tem
+  // limite por conta, contado depois dos erros de preenchimento acima.
+  if (typeof entrada.foto === "string") {
+    const limite = await hit(`perfil-foto:${buyerId}`, 60, FOTOS_POR_HORA);
+    if (limite.excedeu) throw new PerfilApostadorError("Muitas trocas de foto. Tente de novo em uma hora.", 429);
   }
   const foto =
     typeof entrada.foto === "string" ? await processarFoto(entrada.foto) : entrada.foto === null ? null : undefined;

@@ -2457,7 +2457,10 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   vitrine errado sem ninguém ver. Por isso `cidade` saiu do `PATCH` genérico.
 - **O CEP é atalho, não porteiro.** `consultarCep()` tem prazo de 3 s e toda
   falha vira resposta (`indisponivel`, `nao_encontrado`); a tela deixa
-  digitar à mão.
+  digitar à mão. **E tem limite por endereço** (`GET /cep/:cep`: 120 em 10 min,
+  `hit` com `ipHash`) e por conta (`trocarCep`: 20 por hora): rota aberta que
+  chama o ViaCEP sem limite era um proxy grátis, e o ViaCEP bloquearia o
+  servidor.
 - **A região de quem compra vem do CEP do cadastro** (`buyers.cep`, `cidade`,
   `uf`; o CEP é obrigatório ao criar conta). O seletor de estado da vitrine
   vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só

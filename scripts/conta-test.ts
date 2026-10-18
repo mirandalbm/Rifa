@@ -485,6 +485,24 @@ async function main() {
     checa("perfil público com corpo vazio: 200 e nada muda (era 500)", r.status === 200, `HTTP ${r.status}`);
     r = await aud.req("PUT", "/api/public/conta/perfil", { campoQueNaoExiste: 1 });
     checa("perfil público com campo desconhecido: 200 e nada muda", r.status === 200, `HTTP ${r.status}`);
+    // Trocar a foto abre uma imagem de até 5 MB: limite por conta (20 por hora).
+    await db.execute(sql`delete from rate_events where bucket like 'perfil-foto:%'`);
+    const trocas: number[] = [];
+    for (let i = 0; i < 21; i++) trocas.push((await aud.req("PUT", "/api/public/conta/perfil", { foto: PNG })).status);
+    checa("a 21ª troca de foto em uma hora é barrada (429)", trocas.slice(0, 20).every((c) => c === 200) && trocas[20] === 429, trocas.join(","));
+    await db.execute(sql`delete from rate_events where bucket like 'perfil-foto:%'`);
+    r = await aud.req("PUT", "/api/public/conta/perfil", { foto: null });
+    checa("tirar a foto não conta no limite", r.status === 200, `HTTP ${r.status}`);
+
+    // O CEP é rota aberta que chama o ViaCEP: tem limite por endereço (120 em 10 minutos).
+    await db.execute(sql`delete from rate_events where bucket like 'cep:%'`);
+    let barrou = 0;
+    for (let i = 0; i < 125; i++) {
+      const g = await new Cliente().req("GET", "/api/public/cep/abc");
+      if (g.status === 429) barrou++;
+    }
+    checa("o CEP é barrado depois de 120 consultas do mesmo endereço (429)", barrou === 5, `${barrou} barradas de 125`);
+    await db.execute(sql`delete from rate_events where bucket like 'cep:%'`);
 
     // Entrou pela senha (telefone da conta já confirmado): é "sessão confirmada" para
     // ver as compras, mas NÃO prova que é o dono para trocar a senha ou excluir.

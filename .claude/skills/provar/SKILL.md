@@ -106,6 +106,12 @@ Para parar o servidor: `kill -- -$(cat /tmp/dev.pid)` (o grupo todo). **Nunca
   entre execuções do `relogios`.
 - Prova que apaga saque apaga o recibo antes (FK sem cascata).
 - `npm run telas` demora minutos; rode no fim, com o servidor de pé.
+- `npm run telas` entra **uma vez por papel** (a sessão vai às três larguras):
+  `guardLogin` conta também a tentativa que acerta (8 em 15 minutos por conta).
+  Papel que não entra **reprova** a rodada ("não entrou como …"); se acontecer,
+  `delete from rate_events where bucket like 'login:%'` no banco local e rode de novo.
+- Rodar várias provas de conta seguidas esgota o cadastro por endereço (10 por
+  hora): `delete from rate_events` entre elas.
 
 ## 5. Relato
 

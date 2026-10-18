@@ -334,6 +334,14 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   180 capturas, log do servidor e `npm audit`; uma falha alta e quatro médias
   corrigidas, com prova. Registro e o que ficou para depois em
   `docs/SEGURANCA.md`.
+- [x] Auditoria do acesso apostador (18/10/2026): três falhas altas (trocar
+  a senha e excluir a conta com a sessão roubada, bônus e avisos herdados por
+  quem cadastra o telefone de outra pessoa, sessão expulsa que voltava) e o
+  resto, com prova. **`db:push` antes do código** (`buyers.sessoes_validas_desde`).
+  O que ficou aberto — inclusive a mesma corrida de sessão no painel — está em
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`.
+- [ ] **[código]** A mesma marca de sessão (`sessoes_validas_desde`) para as
+  contas do painel (`users`): hoje só o apostador tem (achado 4 da auditoria).
 
 ## 3b. Decisões de produto (1º/10/2026)
 

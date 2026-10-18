@@ -66,7 +66,7 @@ o estado é o da promotora (`organizations.uf`).
 | Acesso | Telas a auditar | Prova que já existe |
 |---|---|---|
 | Público (visitante) | vitrine, rifa, estado, perfil, buscar, reels, sorteio, ajuda | `npm run publico`, `npm run telas` |
-| Apostador (conta) | Minhas compras, bilhetes, mensagens, carrinho, pedido, Pix, perfil | `npm run conta`, `npm run bilhetes`, `npm run mensagens` |
+| Apostador (conta) | Minhas compras, bilhetes, mensagens, carrinho, pedido, Pix, perfil | **auditado em 18/10/2026 — `docs/AUDITORIA-ACESSO-APOSTADOR.md`**; `npm run conta`, `npm run bilhetes`, `npm run mensagens` |
 | Organizador | painel: rifas, pedidos, afiliados, cobrança, marketing, aparência, atendimento | `npm run isolation`, `npm run solicitacoes`, `npm run cobranca` |
 | Afiliado | painel: divulgar, comissões, saque, cadastro fiscal, kit | `npm run afiliados`, `npm run fiscal`, `npm run artes` |
 | Cambista | venda física, acerto | `npm run cambista` |

@@ -151,6 +151,7 @@ arquitetura.
 | contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts`; os anexos por modalidade (cláusula 7): `shared/contratoAnexos.ts` (modalidades e régua), `server/services/contratoAnexos.ts` (`anexosDaPublicacao`, `exigirAnexoNaRifa`), `/contrato-promotora/anexos*`, `AnexosDaOrganizacao`/`AnexosDaPlataforma` no mesmo cartão, `scripts/contrato-anexos-test.ts`, `tests/contratoAnexos.test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | sócios e diretores da organização (CPF, declaração da lista, compra recusada) | `shared/socios.ts` (regras), `server/services/socios.ts` (`cpfDeSocio`, `problemaDosSocios`), `/organizacoes/:id/socios*` em `server/routes/admin.ts`, `client/src/components/SociosDaOrganizacaoCard.tsx` (Configurações → Organização e perfil), `scripts/apuracao-test.ts`, `tests/juridico2.test.ts` |
+| "Locais": o painel de estados com a bandeira (antes "Rifas perto de") | `shared/locais.ts` (os 27 locais e o caminho da bandeira), `client/src/components/LocaisDaVitrine.tsx` (o painel), `client/src/components/SeletorDeRegiao.tsx` (o botão no topo e na lateral, `useRegiaoDaVitrine`), `client/src/lib/regiao.ts` (a escolha), `client/public/bandeiras/`, `docs/LICENCAS-DE-TERCEIROS.md`, `tests/locais.test.ts` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
@@ -477,10 +478,9 @@ arquitetura.
   - **O estado e a contagem no Início do celular**: o estado mora **no
     topo, só o ícone do local** (o pino), à esquerda da varinha
     (`noTopo` do `PublicShell`, a vitrine o passa) — saiu da faixa a
-    pedido, a caixa da sigla incomodava. O `<select>` de verdade fica por
-    cima do ícone, transparente (o toque, o teclado e o leitor de tela são
-    dele), e o estado escolhido vai no rótulo ("Rifas perto de: São
-    Paulo") e no `title` — o ícone sozinho não diz qual é. Na faixa fica
+    pedido, a caixa da sigla incomodava. É um botão ("Locais", abaixo) com o
+    estado escolhido no rótulo ("Locais: São Paulo") e no `title` — o ícone
+    sozinho não diz qual é. Na faixa fica
     só a **contagem do próximo sorteio**, como um **banner pequeno de
     ponta a ponta** (`ContagemDoSorteio`, a cara da tela do sorteio: fundo
     escuro, cantos arredondados como o carrossel de cima), tudo
@@ -496,11 +496,39 @@ arquitetura.
     (nem oficial nem de rifa), "Sorteios". **É só do celular**:
     do tablet em diante a contagem não existe — lá a tela do sorteio
     principal é a coluna ao vivo, já definida. **O seletor de estado
-    ("Rifas perto de") não fica mais na faixa do feed**: no tablet e no
+    ("Locais") não fica mais na faixa do feed**: no tablet e no
     celular é o pino do topo (`SeletorDeRegiao`); no computador é um item
     da lateral logo abaixo do Início, com a sigla embaixo quando recolhida
-    e "Rifas perto de: <estado>" quando abre. A lateral mostra o seletor só
+    e "Locais" com o estado quando abre. A lateral mostra o seletor só
     na vitrine (rota `/`). Escolher num lugar muda no outro (`ouvirRegiao`).
+  - **"Locais" (antes "Rifas perto de")**: o pino é um botão que abre um
+    painel (`LocaisDaVitrine`, diálogo pela `Janela`, num portal no `body`)
+    com **"Nacional" no alto** (a bandeira do Brasil; Brasil todo, sem
+    prioridade de estado) e depois os **27 estados**, cada um com a
+    **bandeira em círculo** e o nome escrito ao lado — o escolhido com "✓
+    Escolhido" e `aria-pressed`, nunca só a cor; a bandeira é enfeite (`alt`
+    vazio) porque o nome está no botão. **A escolha vai para o mesmo lugar
+    de antes** (`regiao.ts`, `useRegiaoDaVitrine` → `escolhaDoLocal()` →
+    `gravarRegiao`): o estado escolhido é o que vai na frente; **"Nacional"
+    só LIMPA a escolha manual** (`null`) — não esconde estado nenhum e não
+    muda a ordem automática de sempre (o CEP e a cidade da conta, quando há
+    conta). **Quem ordena segue sendo `ordenarPorProximidade()`** (cidade,
+    estado, resto, estável), que não foi tocada, e a **única página que
+    filtra é `/estado/UF`**; nenhum filtro entra aqui (`tests/locais.test.ts`
+    prova que nenhuma escolha reduz a lista). O rótulo do botão diz o que
+    está valendo (`rotuloDoLocalEmVigor()`, `aria-label` e `title`): "Locais:
+    São Paulo", "Locais: Nacional" ou, sem escolha e com conta, "Locais:
+    Nacional (automático: RJ)". Quando a rifa nacional existir (plano em
+    `docs/`), ela passa a liderar o feed por outra função, sem mudar o painel. As
+    bandeiras são arquivos do próprio site (`client/public/bandeiras/<uf>.svg`, mais `br.svg`,
+    conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, sem
+    dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`, a dúvida do uso
+    da bandeira de estado em plataforma comercial é a R24 de
+    `docs/PERGUNTAS-AO-ADVOGADO.md`) — a CSP não muda. Só ícone do local,
+    com o nome do estado junto: **nunca em peça de divulgação nem em
+    anúncio** até a resposta do advogado. `shared/locais.ts` (os 27 locais e
+    o caminho), `tests/locais.test.ts` (um arquivo por estado, SVG sem
+    script, o painel).
   - **O voltar do aparelho fecha** (`#sorteio`, `useSorteioDoInicio()`):
     abrir empurra a marca no histórico, fechar a tira; chegar com
     `#sorteio` abre direto.
@@ -2430,7 +2458,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   digitar à mão.
 - **A região de quem compra vem do CEP do cadastro** (`buyers.cep`, `cidade`,
   `uf`; o CEP é obrigatório ao criar conta). O seletor de estado da vitrine
-  vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só
+  ("Locais", o painel com os 27 estados) vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só
   ele. CEP inexistente é recusado; serviço de CEP fora do ar **não** barra o
   cadastro — guarda o CEP e o relógio completa cidade e UF
   (`completarRegioesPendentes`, trava 811009).

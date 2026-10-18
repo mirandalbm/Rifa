@@ -390,3 +390,22 @@ operação ou para o globo) que mude a análise de "agregador" do Google e de qu
 pede a permissão à Meta? Antes da homologação do globo, o que a plataforma pode
 afirmar sobre ele nas peças e nos anúncios (por exemplo, "sem manipulação")?
 
+
+## Quarta rodada — bandeiras dos estados (18/10/2026)
+
+O painel "Locais" da vitrine (`client/src/components/LocaisDaVitrine.tsx`)
+mostra as 27 bandeiras de estado em círculo ao lado do nome. As imagens são do
+conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (origem e licença em
+`docs/LICENCAS-DE-TERCEIROS.md`). A licença do desenho está resolvida; a
+pergunta é do **uso da bandeira em si**.
+
+**R24. [3] Uso de bandeira de estado numa plataforma comercial.** As bandeiras
+dos estados são símbolos oficiais. Mostrá-las, em tamanho pequeno e como ícone
+de seleção de local ("Locais: São Paulo") numa plataforma privada de rifas
+autorizadas, exige autorização do ente, fere alguma regra sobre símbolos
+oficiais (por exemplo, uso comercial ou sugestão de vínculo ou aval do governo
+estadual) ou precisa de aviso na tela ("não há vínculo com os governos
+estaduais")? Se houver restrição, qual é o desenho aceitável (só a sigla, a
+silhueta do estado, bandeira só em material institucional)? Até a resposta, a
+plataforma usa a bandeira só como ícone do local, sempre com o nome do estado
+escrito ao lado, e nunca em peça de divulgação nem em anúncio.

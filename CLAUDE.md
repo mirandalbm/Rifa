@@ -1585,6 +1585,16 @@ Por isso o limite mais apertado é o de reserva em aberto
   vencer (`purgarGuardaDoAntifraude()`, no relógio de limpeza); o bloqueio
   sem prazo fica até a plataforma tirar. Mudou o prazo, o texto acompanha
   (lê das mesmas constantes). `npm run pix-tardio` prova.
+- **O balde nunca é texto cru e longo** (`chaveDoBalde()` em
+  `server/services/balde.ts`): o balde vem, muitas vezes, do que a pessoa digitou
+  (o e-mail do login, o telefone do código), e a linha do índice `idx_rate_bucket`
+  tem teto de ~2,7 KB. Texto longo (mais de 200 letras) ou com byte nulo vira o
+  começo legível mais a impressão do todo — o mesmo texto cai sempre no mesmo
+  balde. Foi assim que `POST /api/auth/login` com um e-mail enorme derrubava o
+  servidor (a rota `async` não tinha `try`, e o Express 4 não pega a rejeição).
+  **Rota `async` do Express 4 leva `try/catch` com `next(err)`, sem exceção**; e o
+  byte nulo (`%00` no endereço, `\u0000` no JSON) é recusado na porta, uma vez, para
+  todas as rotas (`shared/semNulo.ts`, 400). `npm run publico` prova.
 - **`rate_events` é lixo com data.** O relógio limpa o que passou de 2 horas
   (`purgeRateEvents`, trava de aplicação 811004). Sem isso a tabela só cresce.
 - **A reserva em aberto é conferida de novo dentro da transação que grava o
@@ -1656,6 +1666,13 @@ tem atrás.
 - **404, não 403, para o dado do vizinho.** "Existe, mas não é sua" já entrega
   que o id é válido — dá para varrer a plataforma contando rifa alheia. 403
   fica só para rota que é da plataforma e todo mundo sabe que existe.
+- **Promotora arquivada ou banida não existe para o público**, além do perfil:
+  a vitrine, os Reels e a busca (`listPublicCampaigns()`), a contagem de
+  estados, o termo de afiliado, o pixel público, o link do perfil (`/l/…`) e o
+  endereço curto (`/c/…`) seguem a mesma régua. A rifa **travada** segue com a
+  página e o aviso (é regra), mas fora das listas. A página da rifa só oferece
+  compra onde `rifaAVenda()` diz que vende (a mesma régua do feed e do carrinho):
+  sorteada, encerrada ou esgotada mostra o motivo, nunca o botão.
 - **Rascunho não existe para o público.** Toda rota pública por `slug` responde
   404 (igual a inexistente) para rifa em rascunho — página, regulamento,
   mapa de números, número, prêmios, ranking e últimas compras. Responder "só

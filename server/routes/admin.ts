@@ -2449,6 +2449,11 @@ adminRouter.post("/sellers", async (req, res, next) => {
       req,
       req.body?.organizationId ? String(req.body.organizationId) : undefined,
     );
+    // A organização escolhida pela plataforma tem de existir: id fora do formato
+    // ou de organização que não existe caía na chave estrangeira (500).
+    if (!ehUuid(organizationId)) return res.status(400).json({ message: "Organização inválida." });
+    const [dona] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, organizationId));
+    if (!dona) return res.status(404).json({ message: "Organização não encontrada." });
     if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     const created = await db.transaction(async (tx) => {
@@ -2507,12 +2512,15 @@ adminRouter.get("/settlements", async (req, res, next) => {
 adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
   try {
     await assertAffiliateInScope(req, req.params.sellerId);
+    // A observação é texto (até 500): objeto virava "[object Object]" e o
+    // corpo, sem teto, ia inteiro para o histórico do acerto.
+    const observacao = req.body?.notes;
+    if (observacao !== undefined && observacao !== null && (typeof observacao !== "string" || observacao.length > 500)) {
+      return res.status(400).json({ message: "A observação do acerto é texto de até 500 caracteres." });
+    }
     let created;
     try {
-      created = await closeSettlement(
-        req.params.sellerId,
-        req.body?.notes ? String(req.body.notes) : undefined,
-      );
+      created = await closeSettlement(req.params.sellerId, observacao ? observacao : undefined);
     } catch (err) {
       if (err instanceof AcertoError) return res.status(err.status).json({ message: err.message });
       throw err;

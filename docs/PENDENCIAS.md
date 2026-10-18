@@ -1504,6 +1504,17 @@ Na ordem de entrega do plano:
   teste numa Ton (lista em `docs/MAQUININHAS.md`, "Stone por deeplink").
 - [ ] **[código]** Compilar o APK das maquininhas — precisa de máquina com o
   Android SDK.
+- [ ] **[código, antes de publicar o APK]** A ponte da maquininha vale para
+  **toda página** que a WebView abrir: `addJavascriptInterface` expõe
+  `RifaPOSNative` a qualquer origem, o `onPageFinished` injeta o shim em
+  qualquer endereço e a `WebViewClient` não restringe a navegação — um link
+  externo aberto dentro do app (o perfil de uma organização tem links
+  `https:`) poderia mandar imprimir ou abrir uma cobrança de valor qualquer
+  na maquininha do cambista. Falta, em `MainActivity.kt`: `shouldOverrideUrlLoading`
+  deixando só a origem de `BuildConfig.APP_URL` na WebView e abrindo o resto no
+  navegador do aparelho; injetar o shim só se `url` for dessa origem (ou trocar
+  por `WebViewCompat.addWebMessageListener` com `allowedOriginRules`). Não dá para
+  provar aqui (sem Android SDK): `docs/AUDITORIA-ACESSO-CAMBISTA.md`.
 - [x] **Pôster dos vídeos** (rifa, reels e story): o quadro sai em segundo
   plano pelo `ffmpeg` local, se o servidor o tiver, e degrada para "sem
   pôster" sem ele (seção "Pôster do vídeo" do `CLAUDE.md`, `npm run

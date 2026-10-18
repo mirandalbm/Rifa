@@ -76,7 +76,7 @@ import { enabledPhysical, labelFor } from "@shared/payments";
 import { notify } from "../notifications";
 import { publicUrl } from "./urls";
 import { formatBRL, formatQuota, cpfValido, emailValido } from "@shared/format";
-import { isUniqueViolation } from "../pgError";
+import { isDeadlock, isUniqueViolation } from "../pgError";
 import { avaliarMetas, confirmarIndicacao, desfazerMetasNoEstorno, estornarIndicacao, registrarIndicacao, travarPessoasDoEstorno } from "./bonus";
 import { registrarPixTardio } from "./pixTardio";
 import { anuncioDaVenda } from "./patrocinio";
@@ -133,6 +133,9 @@ function isOrderCodeConflict(err: unknown): boolean {
 
 /** Quantas vezes sorteamos de novo antes de desistir. */
 const ORDER_CODE_RETRIES = 10;
+
+/** Quantas vezes a compra recomeça depois de um deadlock antes de pedir que tente de novo. */
+const DEADLOCK_RETRIES = 6;
 
 async function upsertBuyer(input: CreateOrderInput["buyer"]) {
   const phone = normalizePhone(input.phone);
@@ -318,6 +321,9 @@ async function prepararPedido(
       },
     };
   }
+  // Número repetido no pedido é um número só: o preço e o limite contam o que
+  // de fato é reservado (`[1, 1, 1]` cobrava três cotas por uma).
+  if (input.numbers?.length) input = { ...input, numbers: [...new Set(input.numbers)] };
   if (campaign.status !== "published") {
     throw new OrderError("Esta rifa não está aberta para compra.", 409);
   }
@@ -621,10 +627,25 @@ async function inserirPedido(
  * perdida.
  */
 async function comCodigoLivre<T>(gravar: () => Promise<T>, colidiu: (err: unknown) => boolean): Promise<T> {
+  let deadlocks = 0;
   for (let tentativa = 0; tentativa < ORDER_CODE_RETRIES; tentativa++) {
     try {
       return await gravar();
     } catch (err) {
+      // Duas compras grandes tomando números em comum ao mesmo tempo podem se
+      // esperar uma à outra (cada rodada de sorteio é um comando): o Postgres
+      // desfaz uma das transações inteiras e a outra segue. Repetir é seguro —
+      // nada ficou gravado — e a espera aleatória desfaz o empate. Não gasta
+      // volta do código do pedido.
+      if (isDeadlock(err) && deadlocks < DEADLOCK_RETRIES) {
+        deadlocks++;
+        tentativa--;
+        await new Promise((r) => setTimeout(r, 20 + Math.random() * 80 * deadlocks));
+        continue;
+      }
+      if (isDeadlock(err)) {
+        throw new OrderError("Muitas compras ao mesmo tempo nesta rifa. Tente de novo em instantes.", 503);
+      }
       if (!colidiu(err)) throw err;
     }
   }
@@ -1052,7 +1073,9 @@ async function settleOrderAsPaid(order: typeof orders.$inferSelect) {
 
     const [updated] = await tx
       .update(orders)
-      .set({ status: "paid", paidAt })
+      // Meio e comprovante: os do pedido que quem chamou trouxe (o Pix online
+      // traz o que já estava; a venda do cambista traz o que ele recolheu).
+      .set({ status: "paid", paidAt, method: order.method, posAuthCode: order.posAuthCode, posTerminal: order.posTerminal })
       .where(and(eq(orders.id, order.id), eq(orders.status, "pending")))
       .returning();
 
@@ -1374,16 +1397,16 @@ export async function confirmSellerSale(params: {
     );
   }
 
-  await db
-    .update(orders)
-    .set({
-      method: params.method,
-      posAuthCode: params.posAuthCode ?? null,
-      posTerminal: params.posTerminal ?? null,
-    })
-    .where(eq(orders.id, order.id));
-
-  const atualizado = { ...order, method: params.method };
+  // O meio e o comprovante vão no mesmo `UPDATE` que paga (`settleOrderAsPaid`),
+  // não antes: gravados à parte, duas confirmações ao mesmo tempo com meios
+  // diferentes deixavam no pedido pago o meio de quem perdeu a corrida — e o
+  // bilhete, o acerto e a conferência do caixa contam o meio de cada venda.
+  const atualizado = {
+    ...order,
+    method: params.method,
+    posAuthCode: params.posAuthCode ?? null,
+    posTerminal: params.posTerminal ?? null,
+  };
   const result = await settleOrderAsPaid(atualizado);
 
   if (!result) {

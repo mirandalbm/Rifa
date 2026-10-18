@@ -823,6 +823,70 @@ async function bilhetesSoDaConta(eu: Lado) {
 }
 
 /**
+ * A sessão do cambista (`/api/seller/*`): ele é preso à organização do
+ * usuário e às vendas dele. O que é do colega da vizinha é 404 — nunca 403,
+ * que entregaria que o código existe —, o que não é número de venda também, e
+ * nada do painel nem do afiliado abre para ele. Os dois lados têm uma venda
+ * paga de cambista (`92_100_00N`), por isso o conteúdo da lista é conferido.
+ */
+async function rotasDoCambista(eu: Lado, outro: Lado) {
+  const cookie = await entrar(`iso-cambista-${eu.nome}@rifa.teste`, eu.senha);
+  const meuCodigo = 92_100_000 + (eu.nome === "norte" ? 1 : 2);
+  const codigoDoOutro = 92_100_000 + (outro.nome === "norte" ? 1 : 2);
+  const estadoDoOutro = async () =>
+    (await db.select({ s: orders.status, t: orders.ticketPrintedAt }).from(orders).where(eq(orders.code, codigoDoOutro)))[0];
+
+  let res = await pedir(cookie, "/api/seller/sales");
+  const minhas = (await res.json()) as { code: number }[];
+  checa("a lista de vendas do cambista traz só a dele", res.status === 200 && minhas.some((v) => v.code === meuCodigo) && !minhas.some((v) => v.code === codigoDoOutro), JSON.stringify(minhas.map((v) => v.code)));
+
+  res = await pedir(cookie, "/api/seller/overview");
+  const visao = (await res.json()) as { campanhas: { id: string }[] };
+  // As rifas deste teste são rascunho: o cambista não é oferecido a nenhuma, e muito menos à do vizinho.
+  checa("as rifas oferecidas não incluem a da organização vizinha (nem rascunho)", !visao.campanhas.some((c) => c.id === outro.campaignId || c.id === eu.campaignId), JSON.stringify(visao.campanhas.map((c) => c.id)));
+
+  res = await pedir(cookie, "/api/seller/sales", { method: "POST", body: JSON.stringify({ campaignId: outro.campaignId, quantity: 1, buyer: { name: "Intruso", phone: "11961999999" } }) });
+  checa("vender a rifa da organização vizinha: 404", res.status === 404, `HTTP ${res.status}`);
+  const gravou = await db.select({ id: orders.id }).from(orders).innerJoin(buyers, eq(buyers.id, orders.buyerId)).where(eq(buyers.phone, "11961999999"));
+  checa("…e nada é gravado", gravou.length === 0);
+
+  res = await pedir(cookie, `/api/seller/sales/${codigoDoOutro}/confirm`, { method: "POST", body: '{"method":"dinheiro"}' });
+  checa("confirmar a venda do cambista vizinho: 404", res.status === 404, `HTTP ${res.status}`);
+  res = await pedir(cookie, `/api/seller/sales/${codigoDoOutro}/cancel`, { method: "POST" });
+  checa("cancelar a venda do cambista vizinho: 404", res.status === 404, `HTTP ${res.status}`);
+  res = await pedir(cookie, `/api/public/tickets/${codigoDoOutro}/printed`, { method: "POST" });
+  const vizinho = await estadoDoOutro();
+  checa("marcar impresso o bilhete do vizinho: 404, e a trilha dele não muda", res.status === 404 && vizinho?.s === "paid" && vizinho.t === null, `HTTP ${res.status}`);
+
+  const ruins = ["abc", "12.5", "99999999999999", "NaN", "2147483648"];
+  const codigos: number[] = [];
+  for (const c of ruins) {
+    codigos.push((await pedir(cookie, `/api/seller/sales/${c}/confirm`, { method: "POST", body: '{"method":"dinheiro"}' })).status);
+    codigos.push((await pedir(cookie, `/api/seller/sales/${c}/cancel`, { method: "POST" })).status);
+  }
+  checa("código de venda fora do formato: 404, nunca 500", codigos.every((s) => s === 404), codigos.join(","));
+
+  res = await pedir(cookie, "/api/seller/settlement");
+  const acerto = (await res.json()) as { aberto: { orderCount: number }; historico: { settlement: { sellerId: string } }[] };
+  checa("o acerto do cambista é o dele", res.status === 200 && acerto.aberto.orderCount === 1 && acerto.historico.every((h) => h.settlement.sellerId === eu.cambistaId), JSON.stringify(acerto.aberto));
+
+  const fechadas: [string, string, RequestInit][] = [
+    ["GET painel", "/api/admin/overview", {}],
+    ["GET pedidos", "/api/admin/orders", {}],
+    ["GET acertos", "/api/admin/settlements", {}],
+    ["POST fechar o próprio acerto", `/api/admin/settlements/${eu.cambistaId}/close`, { method: "POST", body: "{}" }],
+    ["POST cadastrar cambista", "/api/admin/sellers", { method: "POST", body: "{}" }],
+    ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
+    ["GET afiliado", "/api/affiliate/overview", {}],
+    ["POST saque de afiliado", "/api/affiliate/payouts", { method: "POST", body: "{}" }],
+  ];
+  for (const [nome, caminho, init] of fechadas) {
+    const x = await pedir(cookie, caminho, init);
+    checa(`${nome}: cambista 403`, x.status === 403, `HTTP ${x.status}`);
+  }
+}
+
+/**
  * O assistente de IA (`/api/ia/*`): a conversa é da sessão — nenhuma rota
  * recebe id de ninguém. Visitante 401, cambista 403; o organizador, com o
  * assistente desligado (o padrão), não alcança nada (404) e nada sai para o
@@ -1458,6 +1522,10 @@ async function main() {
 
     console.log("\n  bilhetes privados do apostador (espera 401):");
     await bilhetesSoDaConta(norte);
+
+    console.log("\n  o cambista (preso à organização e às vendas dele):");
+    await rotasDoCambista(norte, sul);
+    await rotasDoCambista(sul, norte);
 
     console.log("\n  assistente de IA (a conversa é da sessão):");
     await assistenteDeIA(norte);

@@ -276,7 +276,9 @@ export function setupAuth(app: Express) {
 
         // Organizador sem organização viraria administrador geral por
         // omissão — o recorte nulo abre tudo. Recusa na porta.
-        if (user.role === "organizer" && !user.organizationId) {
+        // O cambista também: é colaborador preso à organização, e o recorte
+        // nulo das rotas dele (a plataforma) abriria as rifas de todas.
+        if ((user.role === "organizer" || user.role === "cambista") && !user.organizationId) {
           return done(null, false, {
             message: "Seu acesso não está ligado a nenhuma organização.",
           });
@@ -326,7 +328,7 @@ export function setupAuth(app: Express) {
       };
       // Mesma recusa da entrada: a organização pode ter sido desligada com a
       // sessão dele já aberta.
-      if (user.role === "organizer" && !user.organizationId) return done(null, false);
+      if ((user.role === "organizer" || user.role === "cambista") && !user.organizationId) return done(null, false);
       if (await barreiraDaOrganizacao(user)) return done(null, false);
       if (user.role === "affiliate" || user.role === "cambista") {
         const [aff] = await db

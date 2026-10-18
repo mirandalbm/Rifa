@@ -27,7 +27,26 @@ export const RESERVADOS = new Set([
   "static", "cdn", "assets", "img", "imagens", "uploads", "status",
   "suporte", "ajuda", "termos", "privacidade", "legal", "webhook",
   "webhooks", "dev", "teste", "staging", "homolog", "o", "r", "u", "c",
+  // Marca da plataforma, do Estado e de quem o apostador já reconhece: o
+  // endereço carrega a confiança da casa (docs/PLANO-SUBDOMINIO.md, cap. 3).
+  "loteriasdobem", "loterias", "loteria", "bem", "oficial", "federal",
+  "caixa", "cef", "gov", "fazenda", "receita", "spa", "pix", "pagamento",
+  "pagamentos", "login", "entrar", "conta", "seguranca", "bancodobrasil",
+  "bb", "itau", "bradesco", "santander", "nubank", "inter", "mercadopago",
+  "pagarme", "stone", "asaas", "google", "facebook", "meta", "instagram",
+  "tiktok", "whatsapp", "youtube", "windsor", "cloudflare", "railway",
 ]);
+
+/**
+ * Começo ou fim de rótulo que lembra a marca ou o Estado (`caixa-premios`,
+ * `rifa-oficial`, `gov-sorteios`, `loteriasdobem-x`). Não é proibido: o rótulo
+ * só liga o endereço se a plataforma ligar conscientemente (`PUT` com
+ * confirmação), nunca sozinho.
+ */
+const PARECE_MARCA = /^(?:loteriasdobem|caixa-|gov-|oficial-)|(?:loteriasdobem|-caixa|-oficial)$/;
+export function rotuloPareceMarca(rotulo: string): boolean {
+  return PARECE_MARCA.test(rotulo);
+}
 
 const ROTULO = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const CODIGO_DO_AFILIADO = /^[a-z0-9]{3,40}$/;
@@ -37,6 +56,8 @@ export function problemaNoRotulo(rotulo: string): string | null {
   if (rotulo.length < TAMANHO_MIN_DO_ROTULO) return "O endereço precisa de pelo menos 3 letras ou números.";
   if (rotulo.length > TAMANHO_MAX_DO_ROTULO) return `O endereço pode ter no máximo ${TAMANHO_MAX_DO_ROTULO} caracteres.`;
   if (!ROTULO.test(rotulo)) return "Use só letras minúsculas, números e hífen, sem hífen no começo ou no fim.";
+  // Dois hífens seguidos são ambíguos e é assim que se escreve IDN (`xn--`).
+  if (rotulo.includes("--")) return "O endereço não pode ter dois hífens seguidos.";
   if (RESERVADOS.has(rotulo)) return "Esse endereço é reservado pelo sistema.";
   if (rotulo.startsWith(PREFIXO_DO_AFILIADO)) return `Endereço de organização não pode começar com "${PREFIXO_DO_AFILIADO}".`;
   return null;
@@ -59,23 +80,124 @@ export type DestinoDoHost =
   | { tipo: "afiliado"; codigo: string };
 
 /**
+ * Põe o `Host` na forma que se compara: minúsculo, sem o ponto final (que é DNS
+ * válido: `org.base.` é o mesmo endereço) e sem a porta. Em produção só a porta
+ * padrão (`:80` e `:443`) passa; qualquer outra, e tudo que não parece um nome
+ * de máquina (usuário, barra, espaço, `%`, IPv6 literal), devolve `null`. Fora
+ * de produção a porta é livre (a prova e `*.localhost:5000`).
+ */
+export function hostNormalizado(host: string | undefined, producao = false): string | null {
+  if (!host) return null;
+  const m = /^([a-z0-9.-]+?)\.?(?::(\d{1,5}))?$/.exec(host.trim().toLowerCase());
+  if (!m || !m[1]) return null;
+  const porta = m[2];
+  if (producao && porta !== undefined && porta !== "80" && porta !== "443") return null;
+  return m[1];
+}
+
+/**
  * Diz de quem é o endereço que chegou (`Host` da requisição). Recusa domínio
  * que não é o `base`, mais de um nível antes do `base`, porta estranha e
  * rótulo inválido. O `Host` vem do cliente: nada aqui confia nele além do
  * formato.
  */
-export function identificarHost(host: string, base: string | null): DestinoDoHost | null {
+export function identificarHost(host: string, base: string | null, producao = false): DestinoDoHost | null {
   if (!base) return null;
-  const limpo = host.trim().toLowerCase().replace(/:\d+$/, "");
+  const limpo = hostNormalizado(host, producao);
+  if (!limpo) return null;
   const sufixo = `.${base.toLowerCase()}`;
   if (!limpo.endsWith(sufixo)) return null;
   const rotulo = limpo.slice(0, -sufixo.length);
   if (!rotulo || rotulo.includes(".")) return null;
   if (rotulo.startsWith(PREFIXO_DO_AFILIADO)) {
     const codigo = rotulo.slice(PREFIXO_DO_AFILIADO.length);
-    return CODIGO_DO_AFILIADO.test(codigo) ? { tipo: "afiliado", codigo } : null;
+    return CODIGO_DO_AFILIADO.test(codigo) && !codigo.includes("--") ? { tipo: "afiliado", codigo } : null;
   }
   return problemaNoRotulo(rotulo) === null ? { tipo: "organizacao", slug: rotulo } : null;
+}
+
+/**
+ * Para onde mandar quem chegou pelo `www` (ou pela raiz, se o canônico é o
+ * `www`): o outro nome da casa principal. Duas casas com o mesmo conteúdo
+ * dividem sessão e `localStorage` ao meio e duplicam o conteúdo no buscador.
+ * `principal` é a `PUBLIC_BASE_URL`. Devolve a origem de destino
+ * (`https://loteriasdobem.com.br`) ou `null` quando o `Host` não é o par.
+ */
+export function destinoDoWww(host: string | undefined, principal: string | undefined, producao = false): string | null {
+  if (!principal) return null;
+  let url: URL;
+  try {
+    url = new URL(principal);
+  } catch {
+    return null;
+  }
+  const canonico = url.hostname.toLowerCase();
+  const chegou = hostNormalizado(host, producao);
+  if (!chegou || chegou === canonico) return null;
+  const par = canonico.startsWith("www.") ? canonico.slice(4) : `www.${canonico}`;
+  return chegou === par ? url.origin : null;
+}
+
+/**
+ * O `Host` é um endereço que este sistema conhece? O principal (`PUBLIC_BASE_URL`)
+ * e o seu par com/sem `www` sim; um endereço de organização (dentro do `base`)
+ * sim. O resto — o domínio gerado pela Railway, um IP, um nome apontado para cá
+ * por engano — recebe `X-Robots-Tag: noindex`: serve como hoje (a verificação de
+ * saúde usa um `Host` próprio), mas não entra no buscador duplicando a casa.
+ */
+export function hostEhConhecido(
+  host: string | undefined,
+  principal: string | undefined,
+  base: string | null,
+  producao = false,
+): boolean {
+  const chegou = hostNormalizado(host, producao);
+  if (!chegou) return false;
+  if (principal) {
+    try {
+      const canonico = new URL(principal).hostname.toLowerCase();
+      const par = canonico.startsWith("www.") ? canonico.slice(4) : `www.${canonico}`;
+      if (chegou === canonico || chegou === par) return true;
+    } catch {
+      // PUBLIC_BASE_URL torta: nada é "conhecido" por ela
+    }
+  }
+  return identificarHost(chegou, base, producao) !== null;
+}
+
+/**
+ * O pedido que muda estado veio de outra casa? `Origin` tem de ser o mesmo
+ * `Host` (SameSite não separa subdomínios da mesma família: um endereço poderia
+ * mandar um formulário ao principal com o cookie do principal). Sem `Origin`,
+ * o `Sec-Fetch-Site` tem de ser `same-origin` ou `none`; sem nenhum dos dois
+ * (curl, prova, servidor a servidor) passa. Devolve o motivo, ou `null`.
+ */
+export function motivoDeOrigemDiferente(
+  cabecalhos: { host?: string; origin?: string; secFetchSite?: string },
+  producao = false,
+): string | null {
+  const { origin, secFetchSite } = cabecalhos;
+  if (origin !== undefined && origin !== "") {
+    let doOrigin: string;
+    try {
+      doOrigin = new URL(origin).host.toLowerCase();
+    } catch {
+      return "origin-invalida";
+    }
+    const dele = hostNormalizado(doOrigin, false);
+    const meu = hostNormalizado(cabecalhos.host, false);
+    if (!dele || !meu) return "host-invalido";
+    // Compara o nome da máquina: é ele que separa um endereço do outro.
+    if (dele !== meu) return "origin-de-outro-host";
+    if (producao && !origin.startsWith("https://")) return "origin-sem-https";
+    return null;
+  }
+  if (secFetchSite !== undefined && secFetchSite !== "") {
+    const v = secFetchSite.toLowerCase();
+    if (v === "same-origin" || v === "none") return null;
+    return `sec-fetch-site-${v.replace(/[^a-z-]/g, "").slice(0, 20)}`;
+  }
+  return null;
 }
 
 /**

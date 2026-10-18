@@ -9,7 +9,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Cartões (componentes usados pelas telas) | 866 |
 | Rotas da API | 487, das quais 484 citadas por alguma prova |
 | Provas contra a API (`npm run …`) | 67 |
-| Testes de regra (`tests/`) | 143 arquivos |
+| Testes de regra (`tests/`) | 144 arquivos |
 | Destinos decididos | 973 de 973 |
 
 ## 1. Telas
@@ -1779,7 +1779,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/campaigns/:slug/numbers/:number` | `publico-test.ts` |
 | POST | `/track-click` | `publico-test.ts` |
 | GET | `/checkout` | `base-ia.ts`, `pagarme-test.ts` |
-| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +20 |
+| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +21 |
 | POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts` |
 | GET | `/orders/:code` | `carrinho-test.ts`, `conta-test.ts`, `marketing-test.ts` +2 |
 | GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts`, `conta-test.ts`, `publico-test.ts` |
@@ -1868,7 +1868,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| POST | `/:provider` | `pagarme-test.ts`, `webhook-test.ts` |
+| POST | `/:provider` | `pagarme-test.ts`, `webhook-test.ts`, `enderecoDoHost.test.ts` |
 
 ## 5. Rotas que nenhuma prova cita
 

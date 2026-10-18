@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (seção 0b: rifa nacional, PR 1).
+Última atualização: 18/10/2026 (auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -14,8 +14,8 @@ resposta de produto antes de codar.
 O checklist completo, com o que falta em cada item e quem decide, está em
 `docs/CHECKLIST-AJUSTES.md`. Resumo:
 
-- [ ] **[você]** Autorizar o merge do PR #266 (ícone do app) e publicar o
-  template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
+- [x] **[você]** Merge do PR #266 (ícone do app): mesclada em 18/10/2026.
+- [ ] **[você]** Publicar o template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
 - [x] **[decisão]** Largura da publicação da rifa: decidido em 18/10/2026, fica a atual (1408 px no computador, `larga ampla`). Nada a mudar.
 - [x] **[decisão]** Cor dos ícones de compra: decidido em 18/10/2026, o "+" é vermelho nos dois temas (`--mais` = `--red`, registro 202 de `docs/VERSOES.md`); a sacola segue verde.
 - [x] **[código]** Ícone do topo à esquerda centralizado na vertical (18/10/2026: `AppShell.tsx`, o link da marca ficou `flex items-center`; registro 201 de `docs/VERSOES.md`).
@@ -70,6 +70,117 @@ nenhuma delas vale para ninguém ainda. Marque aqui quando confirmar.
   (rifa da própria plataforma), 8 (tirar do ar e o selo depois do sorteio),
   9 (selo nas artes), 10 (cobrança do topo), 12, 13 e as respostas R24 a R29
   do advogado — nenhuma afeta o PR 1.
+
+### Respostas de 18/10/2026 (seções 1 e 2 das perguntas)
+
+Estado confirmado com o responsável, mais o que foi conferido no Railway (só
+os nomes das variáveis, nunca os valores):
+
+- **Feito**: PR #266 mesclada e no ar (deploy `13923e2`); dados da empresa
+  (encarregado e e-mail institucional) publicados; serviço **Trabalhador**
+  criado no Railway (mesmo repositório, `npm run start:worker`, só
+  `DATABASE_URL`; subiu e avisou "no ar … tipos: reels_gerado").
+- **Dele, com data**: trocar e apagar `ADMIN_PASSWORD` do Railway (19/10);
+  conferir o token permanente do WhatsApp (#13, não sabe: precisa do passo a
+  passo); perfil da empresa, termos de desenvolvedor e teste de modelo (#11,
+  #14) e o modelo `chamado_novo` (#21) esperam a verificação da empresa na Meta
+  (#10, em análise); ativar o **R2** no painel da Cloudflare (a conta recusou
+  a listagem: "enable R2 through the dashboard") e então eu crio o bucket;
+  ligar "Aceitar pedidos de reembolso" junto com o Pix no ar (#23).
+- **Meu**: conferir o texto final do contrato devolvido pelo advogado contra
+  `docs/RESPOSTA-ADVOGADO-COBRANCA.md` (#64, #65, #68); preparar o pacote do
+  Lucky/Chatbase (#15, #16) antes do lançamento; provar que o IP chega
+  diferente por visitante (#39; `trust proxy` = 1 em `server/auth.ts`, vale
+  enquanto o Railway for o único salto — com domínio atrás da Cloudflare
+  passa a 2).
+- **Decidido**: Google login e guarda da comissão ficam para depois do
+  lançamento; presente (#29) e bônus (#51) ligam no lançamento; Meta/Google
+  Ads em análise na Meta (#54).
+
+Seções 3 e 4 (mesma data):
+
+- **Decidido**: rifa nacional vale a partir de **R$ 100.000** de arrecadação
+  total (cotas × preço); tráfego pago terá **os dois modelos** (A, com saldo e
+  taxa, e B, com a promotora anunciante); **globo: quer homologar já**
+  (roteiro do tabelionato por escrever); APK das maquininhas depois do
+  lançamento; repasse à promotora **manual, por acerto**, até haver split;
+  Asaas **saiu do plano** (itens #27, #41, #81 não se aplicam); comparador
+  AWS decide pela demanda (#55, #66); reembolso do saldo do patrocínio
+  desligado (#53); CNAE 6311-9/00 consta no CNPJ (#56).
+- **Funcionalidade nova pedida (#47)**: o organizador cria o banner, paga e
+  ele entra na fila respeitando o tempo de exibição **por cliques ou por
+  dia**, no painel Marketing. O banner pago por dia já existe (arte aprovada,
+  vagas, devolução); falta cobrar também por clique.
+- **Dele, hoje**: teste no celular de verdade (#44, #28); ativar o R2 na
+  Cloudflare; colar o texto final do contrato no chat (#68).
+- **Meu**: sugerir preço do dia e vagas do banner pago (#46) e a tabela das
+  patrocinadas (#52); implementar rifa nacional, "Locais" com bandeiras e o
+  texto do rodapé; roteiro do tabelionato do globo; limpar branches (todas as
+  `claude/*` menos a da sessão, `fix/*` e `feature-media-library-page`: não há
+  PR aberto; ligar "excluir branch ao mesclar" no GitHub).
+
+### Subdomínio do organizador (incluído no cronograma em 18/10/2026)
+
+Cada organização (e cada afiliado) ter o endereço próprio, `<slug>.<base>` e
+`af-<código>.<base>`, para a divulgação sair como white label e a página de
+destino do anúncio ser da promotora (decisão A3 de
+`docs/FECHAMENTO-JURIDICO-CONTABIL.md`, que também ajuda no tráfego pago
+modelo B e na exigência do Google).
+
+- **Já existe** (PR #257): as regras puras (`shared/subdominio.ts`: rótulo,
+  reservados, prefixo `af-`, `identificarHost`), a leitura da variável
+  `SUBDOMINIO_BASE` e o middleware que põe o destino em
+  `res.locals.subdominio` (`server/services/subdominio.ts`, `server/index.ts`).
+  Sem a variável, tudo segue como hoje. **Nenhuma rota usa o destino ainda.**
+- **Falta o domínio**: comprar o domínio base (loteriasnacional.com ou .com.br
+  foi o nome cogitado), apontar o DNS e cadastrar o **domínio curinga**
+  (`*.base`) no Railway, que aceita curinga e dá dois CNAME e um TXT para
+  verificar. Curinga e subdomínio específico do mesmo nome não convivem.
+- **Falta o código** (cronograma, depois do plano): a página da organização e
+  da rifa atendidas pelo endereço; links, QR das artes, anúncios, e-mail e
+  Open Graph usando o endereço da organização (`PUBLIC_BASE_URL` hoje é um
+  só); `canonical` para não duplicar conteúdo com o domínio principal;
+  pixels da organização; cookie da sessão (hoje sem `Domain`, logo por host)
+  e o que acontece com quem entra no subdomínio; a lista de reservados; e o
+  que acontece quando a organização troca o slug (redirecionar o antigo).
+- **Decidido (18/10/2026)**: o domínio base é **loteriasdobem.com.br**, que já
+  está no Railway como domínio personalizado do serviço Rifa (a raiz e o
+  `www`); `SUBDOMINIO_BASE=loteriasdobem.com.br`. **Login por endereço**: o
+  apostador entra em cada subdomínio (o cookie `rifa.sid` segue sem `Domain`,
+  como hoje; nenhum cookie no domínio base). **Quem ganha endereço no
+  lançamento**: recomendo **só a organização** — endereço de afiliado
+  (`af-<código>`) multiplica o risco de golpe com o nome da marca e de
+  reputação do domínio nos anúncios, e a divulgação do afiliado já sai pelo
+  endereço da organização com o `?ref=` dele; o do afiliado entra depois, se
+  houver demanda (**confirmado pelo responsável em 18/10/2026: "façamos do seu jeito"**).
+- **Para ligar**: cadastrar `*.loteriasdobem.com.br` no Railway (Configurações
+  → Rede → domínio personalizado, no serviço Rifa; o curinga convive com o
+  `www` porque é o mesmo serviço) e criar no DNS os dois CNAME e o TXT que o
+  Railway mostrar; depois pôr `SUBDOMINIO_BASE`. Só então o código ligado
+  ao endereço faz efeito.
+- **Perguntas ao advogado**: o endereço com a marca da promotora muda quem
+  responde perante o consumidor (CDC, art. 7º, parágrafo único)? Precisa de
+  texto no rodapé do subdomínio dizendo que a venda é pela plataforma?
+
+### Para ver amanhã (19/10/2026): o que eu não consegui fazer
+
+Regra combinada em 18/10/2026: o que eu não puder fazer entra aqui, sem
+travar o resto, e a gente vê no dia seguinte.
+
+| # | O que | Por que não fiz | O que destrava |
+|---|---|---|---|
+| A1 | Criar o bucket R2 (Cloudflare) | A conta recusou ("enable R2 through the dashboard"); ativar exige o painel e cartão | Você ativa o R2; eu crio o bucket e te passo as variáveis `R2_*` |
+| A2 | Cadastrar `*.loteriasdobem.com.br` no Railway e o DNS | O conector do Railway não tem "adicionar domínio personalizado"; o DNS é no registrador | Você cadastra o curinga (Rede → domínio) e cria os 2 CNAME e o TXT; depois `SUBDOMINIO_BASE` |
+| A3 | Apagar as branches antigas do GitHub (86, todas sem PR aberta) | Sem permissão para apagar branch | Você apaga (ou liga "excluir branch ao mesclar" e limpa uma vez) |
+| A4 | Conferir o texto final do contrato do advogado (#68) | Falta o texto | Você cola no chat |
+| A5 | Saber se o token do WhatsApp é permanente (#13) | Não consigo ler a validade do token pelas ferramentas | Você confere na Meta (usuário do sistema, validade "Nunca"); posso montar o passo a passo |
+| A6 | Provar que o IP chega diferente por visitante (#39) | Tenho uma saída de rede só; não dá para comparar origens distintas | Você acessa de dois aparelhos/redes e eu leio o log; ou vemos no primeiro dia com tráfego |
+| A7 | Teste no celular de verdade (#44, #28) | Preciso do seu aparelho | Você testa e conta o que viu |
+| A8 | Perfil da empresa, termos de desenvolvedor, teste de modelo e `chamado_novo` na Meta (#11, #14, #21), anúncios (#54) | Dependem da verificação da empresa (#10, em análise) | Aprovação da Meta |
+| A9 | Trocar e apagar `ADMIN_PASSWORD` do Railway (#34) | Segredo seu; combinado para amanhã | Você faz; eu confiro que sumiu pelo nome |
+| A10 | Chaves do Chatbase e do Google (`CHATBASE_*`, `GOOGLE_*`) | Contas suas | Lucky: antes do lançamento; Google: depois |
+| A11 | Responder se o endereço com a marca da promotora muda a responsabilidade (R-subdomínio) e as dúvidas R24–R29 | São do advogado | Advogado |
+| A12 | Decisões de preço do banner e das patrocinadas | Cinco perguntas em `docs/SUGESTAO-PRECOS-PUBLICIDADE.md` | Você responde |
 
 ## 1. WhatsApp
 

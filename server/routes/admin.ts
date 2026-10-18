@@ -3044,19 +3044,10 @@ adminRouter.post("/organizacoes/:id/acessos", async (req, res, next) => {
 adminRouter.post("/organizacoes/:id/arquivar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const [eu] = await db.select().from(users).where(eq(users.id, req.user!.id));
-    if (!eu.totpSecret) {
-      return res.status(409).json({
-        message: "Ative o segundo fator (em Configurações) para poder arquivar organizações.",
-        code: "totp_required",
-      });
-    }
-    if (!(await verifyPassword(String(req.body?.password ?? ""), eu.passwordHash))) {
-      return res.status(401).json({ message: "Senha incorreta." });
-    }
-    if (!codigoConfere(eu.totpSecret, String(req.body?.code ?? ""))) {
-      return res.status(401).json({ message: "Código do autenticador incorreto." });
-    }
+    // A mesma função dos outros atos sensíveis: senha e código na hora, e o
+    // limite de tentativas por pessoa (a cópia que havia aqui não tinha).
+    const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "arquivar organizações");
+    if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
 
     const arquivada = await archiveOrganization(req.params.id);
     await audit(req, "organizacao.arquivar", "organization", arquivada.id, {

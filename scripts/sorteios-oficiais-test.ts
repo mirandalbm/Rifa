@@ -209,6 +209,27 @@ async function main() {
     checa("com a senha errada, o resultado não entra (401)", r.status === 401, `HTTP ${r.status}`);
     const [antes] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, s1.id));
     checa("recusado, nada foi gravado", antes.resultado === null);
+
+    // Arquivar organização pede o mesmo segundo fator, pela mesma função, e conta a tentativa
+    // no limite (a cópia que havia na rota deixava chutar o código sem teto).
+    await db.execute(sql`delete from organizations where slug = ${`${PREFIXO}-arquivar`}`);
+    const [paraArquivar] = await db.insert(organizations).values({ slug: `${PREFIXO}-arquivar`, name: "Org para arquivar" }).returning();
+    const tentativasDoFator = async () =>
+      Number((await db.execute(sql`select count(*)::int as n from rate_events where bucket = ${`segundo-fator:${adminDb.id}`}`)).rows[0]?.["n"] ?? 0);
+    r = await admin.req("POST", `/api/admin/organizacoes/${paraArquivar.id}/arquivar`, {});
+    checa("arquivar sem senha e código (401)", r.status === 401 && r.json?.code === "segundo_fator_pedido", `HTTP ${r.status} ${r.json?.code}`);
+    const antesDeErrar = await tentativasDoFator();
+    r = await admin.req("POST", `/api/admin/organizacoes/${paraArquivar.id}/arquivar`, { password: senhaAdmin, code: totpCode(segredo) === "000000" ? "111111" : "000000" });
+    checa("arquivar com o código errado (401)", r.status === 401, `HTTP ${r.status}`);
+    checa("a tentativa errada conta no limite do segundo fator", (await tentativasDoFator()) === antesDeErrar + 1);
+    let [arq] = await db.select().from(organizations).where(eq(organizations.id, paraArquivar.id));
+    checa("recusado, a organização não foi arquivada", arq.archivedAt === null);
+    r = await admin.req("POST", `/api/admin/organizacoes/${paraArquivar.id}/arquivar`, fator());
+    checa("com senha e código certos, arquiva (200)", r.status === 200, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+    [arq] = await db.select().from(organizations).where(eq(organizations.id, paraArquivar.id));
+    checa("…e fica arquivada", arq.archivedAt !== null);
+    await db.execute(sql`delete from organizations where id = ${paraArquivar.id}`);
+
     await db.update(users).set({ totpSecret: null }).where(eq(users.id, adminDb.id));
     r = await admin.req("POST", `/api/admin/sorteios-oficiais/${s1.id}/resultado`, { ...bolasOk, ...fator() });
     checa("sem o segundo fator ligado, manda ligar (409)", r.status === 409 && r.json?.code === "totp_required", `HTTP ${r.status} ${r.json?.code}`);

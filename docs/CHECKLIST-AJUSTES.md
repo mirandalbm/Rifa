@@ -22,7 +22,8 @@ aparelho.
 - [ ] **4. Cores dos ícones de compra não mudaram** — **[decisão]**
   - Hoje: o "+" do carrinho é vermelho no tema claro (`--mais`, pedido de 14/10), a sacola de comprar é verde (`text-green-deep`).
   - Decidir para qual cor ir (e se vale no claro e no escuro). Ação de comprar não pode ser vermelha se o vermelho é reservado a erro — ver a regra de paleta no `CLAUDE.md`.
-- [ ] **5. Ícone do topo à esquerda não centralizado verticalmente** — **[código]**
+- [x] **5. Ícone do topo à esquerda não centralizado verticalmente** — **[código]** (feito em 18/10/2026)
+  - Feito: o link da marca no topo (`PublicShell`) passou a `flex items-center`; o trevo e a frase ficam no mesmo centro vertical dos botões (28 px) em 390 e 820, claro e escuro. Registro 201 de `docs/VERSOES.md`.
   - Ajuste de alinhamento no topo mobile (`AppShell.tsx`, bloco `<header … lg:hidden>`, a `Marca`). Precisa conferir nas três larguras com `npm run telas` antes do PR.
 - [ ] **6. Seletor "Rifas perto de" vira "Locais"** — **[decisão]**
   - Trocar o texto, tirar o `<select>` e abrir um painel com **todos os estados**.

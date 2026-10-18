@@ -18,7 +18,7 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
 - [ ] **[decisão]** Largura da publicação da rifa (igual ao cartão da vitrine?).
 - [ ] **[decisão]** Cor dos ícones de compra ("+" e sacola).
-- [ ] **[código]** Ícone do topo à esquerda centralizado na vertical.
+- [x] **[código]** Ícone do topo à esquerda centralizado na vertical (18/10/2026: `AppShell.tsx`, o link da marca ficou `flex items-center`; registro 201 de `docs/VERSOES.md`).
 - [ ] **[decisão]** "Rifas perto de" vira "Locais": painel com todos os
   estados e bandeiras (enviar as imagens, ou selo com a sigla).
 - [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo.

@@ -2308,6 +2308,20 @@ adminRouter.post("/coupons", async (req, res, next) => {
     if (!Number.isInteger(discountPct) || discountPct < 1 || discountPct > 50) {
       return res.status(400).json({ message: "O desconto precisa ficar entre 1% e 50%." });
     }
+    // Limite de usos e validade: o corpo é do navegador, e texto ou data torta
+    // virava erro de conversão do banco (500).
+    const bruto = req.body?.maxUses;
+    const maxUses = bruto === undefined || bruto === null || bruto === "" ? null : Number(bruto);
+    if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 1_000_000)) {
+      return res.status(400).json({ message: "O limite de usos é um número inteiro a partir de 1." });
+    }
+    let expiresAt: Date | null = null;
+    if (req.body?.expiresAt) {
+      expiresAt = new Date(req.body.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+        return res.status(400).json({ message: "Informe uma validade futura, ou deixe em branco." });
+      }
+    }
 
     // Cupom de organizador tem que morder algo dele. Sem campanha e sem
     // afiliado o cupom vale em toda a plataforma — isso é da plataforma.
@@ -2338,8 +2352,8 @@ adminRouter.post("/coupons", async (req, res, next) => {
         organizationId,
         affiliateId: req.body?.affiliateId || null,
         campaignId: req.body?.campaignId || null,
-        maxUses: req.body?.maxUses ? Number(req.body.maxUses) : null,
-        expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
+        maxUses,
+        expiresAt,
       })
       .onConflictDoNothing({ target: coupons.code })
       .returning();

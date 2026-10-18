@@ -75,6 +75,7 @@
     "ia": "tsx scripts/ia-test.ts",
     "ia-acoes": "tsx scripts/ia-acoes-test.ts",
     "base-ia": "tsx scripts/base-ia.ts",
+    "pacote-lucky": "tsx scripts/pacote-lucky.ts",
     "google": "tsx scripts/google-test.ts",
     "marketing": "tsx scripts/marketing-test.ts",
     "matriz": "tsx scripts/matriz.ts",

@@ -98,5 +98,19 @@ export function podePedirReembolso(
   return pedidoVisivel(p, t) && p.method === "pix_online";
 }
 
+/**
+ * Quanto tempo vale o código do WhatsApp como prova de "sou eu" para trocar a
+ * senha sem a atual e excluir a conta sem a senha (o "esqueci a senha"). Só o
+ * código vale: entrar com a senha numa conta de telefone confirmado NÃO
+ * dispensa a senha nesses dois atos — a sessão roubada trocaria a senha sem
+ * saber a atual e trancaria o dono do lado de fora.
+ */
+export const CODIGO_RECENTE_MS = 30 * 60 * 1000;
+
+/** O código foi provado nesta sessão há pouco? (`porCodigoEm`: instante em ms.) */
+export function codigoRecente(porCodigoEm: number | undefined, agora = Date.now()): boolean {
+  return typeof porCodigoEm === "number" && porCodigoEm <= agora && agora - porCodigoEm <= CODIGO_RECENTE_MS;
+}
+
 /** Como o titular aparece depois de excluir a conta (LGPD). */
 export const NOME_EXCLUIDO = "Titular removido";

@@ -22,6 +22,7 @@ import {
 } from "@shared/schema";
 import { type Figurinha, figurinhasParaATela, validarFigurinhas } from "@shared/figurinhasStory";
 import { rifaAVenda } from "@shared/carrinho";
+import { ehUuid } from "@shared/uuid";
 import { getPaymentMethods } from "./settings";
 import { ENQUETE_VOTOS_POR_JANELA, opcaoValida, percentuais, validarEnquete } from "@shared/enqueteStory";
 import {
@@ -515,6 +516,7 @@ export async function ultimoStoryPorOrganizacao(orgIds: string[]) {
 
 /** A imagem, só enquanto o story está no ar. */
 export async function imagemDoStory(id: string) {
+  if (!ehUuid(id)) return null; // id fora do formato não existe (404), nunca 500 do Postgres
   const [s] = await db
     .select({ bytes: stories.bytes, mime: stories.mime, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt, banida: organizations.banidaEm })
     .from(stories)
@@ -530,6 +532,7 @@ export async function imagemDoStory(id: string) {
  * ainda não vê). Quem chama confere o recorte antes (`donoDoStory`).
  */
 export async function arquivoDoStoryNoPainel(id: string, qual: "imagem" | "poster") {
+  if (!ehUuid(id)) return null;
   const [s] = await db
     .select({ bytes: stories.bytes, mime: stories.mime, poster: stories.poster })
     .from(stories)
@@ -541,6 +544,7 @@ export async function arquivoDoStoryNoPainel(id: string, qual: "imagem" | "poste
 
 /** O pôster do vídeo, só enquanto o story está no ar (a mesma regra da imagem). */
 export async function posterDoStory(id: string) {
+  if (!ehUuid(id)) return null;
   const [s] = await db
     .select({ poster: stories.poster, publicaEm: stories.publicaEm, expiraEm: stories.expiraEm, arquivada: organizations.archivedAt, banida: organizations.banidaEm })
     .from(stories)
@@ -641,7 +645,8 @@ export async function estadosNoAr(ufDeQuemOlha?: string | null) {
     .select({ uf: organizations.uf, rifas: sql<number>`count(*)::int` })
     .from(campaigns)
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
-    .where(and(eq(campaigns.status, "published"), isNull(organizations.archivedAt)))
+    // A mesma régua da vitrine: o que está na contagem é o que a pessoa vai ver ao abrir o estado.
+    .where(and(eq(campaigns.status, "published"), isNull(campaigns.travadaEm), isNull(organizations.archivedAt), isNull(organizations.banidaEm)))
     .groupBy(organizations.uf);
   return estadosComRifa(linhas, ufDeQuemOlha);
 }

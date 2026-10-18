@@ -19,15 +19,21 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 - [x] **[decisão]** Largura da publicação da rifa: decidido em 18/10/2026, fica a atual (1408 px no computador, `larga ampla`). Nada a mudar.
 - [x] **[decisão]** Cor dos ícones de compra: decidido em 18/10/2026, o "+" é vermelho nos dois temas (`--mais` = `--red`, registro 202 de `docs/VERSOES.md`); a sacola segue verde.
 - [x] **[código]** Ícone do topo à esquerda centralizado na vertical (18/10/2026: `AppShell.tsx`, o link da marca ficou `flex items-center`; registro 201 de `docs/VERSOES.md`).
-- [ ] **[decisão]** "Rifas perto de" vira "Locais": painel com todos os
-  estados. Decidido em 18/10/2026: bandeiras do conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (estilo `circle`, copiadas e otimizadas, sem dependência), com a origem em `docs/LICENCAS-DE-TERCEIROS.md`; a dúvida sobre usar bandeira de estado numa plataforma comercial vai para `docs/PERGUNTAS-AO-ADVOGADO.md`. Falta: eu implementar.
-- [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo. Decidido em 18/10/2026: no rodapé da plataforma, em duas linhas (razão social e CNPJ dos Dados da empresa publicados; e o aviso de jogo responsável). Falta: eu implementar.
+- [x] **[código]** "Rifas perto de" virou "Locais" (18/10/2026): painel com "Nacional" no alto (limpa a escolha manual) e os 27 estados com a bandeira de cada um (`LocaisDaVitrine.tsx`, bandeiras CC0 do `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, em `client/public/bandeiras/`, sem dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** o advogado responder a **R42** de `docs/PERGUNTAS-AO-ADVOGADO.md` (uso de bandeira de estado numa plataforma comercial); até lá a bandeira é só o ícone do local, com o nome junto, e fora de peça de divulgação e de anúncio.
+- [x] **[código]** Texto oficial abaixo do nome e da logo do rodapé da plataforma (18/10/2026): razão social e CNPJ dos Dados da empresa **publicados** (a linha some se faltar dado) e o aviso de jogo responsável, sem bandeiras (`RodapeDaPlataforma.tsx`, `linhaDaEmpresa()` em `shared/rodape.ts`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** a plataforma cadastrar e **publicar** os Dados da empresa em Aparência → Rodapé e empresa — sem isso, só o aviso aparece.
 - [ ] **[decisão]** Rifa nacional: valor mínimo, aprovação só pelo admin e
   ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço; falta o valor em reais). Falta: plano e implementação.
 - [ ] **[decisão]** Banners por estado (carrossel de 5 em cada estado e no
   nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
   afiliado, cambista, plataforma, marketing), um PR por acesso.
+  - [x] Organizador (18/10/2026): `docs/AUDITORIA-ACESSO-ORGANIZADOR.md`, 13
+    defeitos corrigidos. **Ficaram para decidir**: a rifa da Federal fora de um
+    sorteio oficial, em que o organizador digita os 5 prêmios; os pacotes que
+    mudam depois de publicada; nome e CNPJ da promotora editáveis com rifa no ar
+    (e o CNPJ sem dígito conferido); a senha inicial do afiliado que a
+    organização cria; e o parecer do `revisor-de-invariantes` sobre os commits
+    de dinheiro e isolamento.
 
 ## 1. WhatsApp
 
@@ -92,13 +98,23 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   conhece todos os painéis), as ações "o que falta para publicar" e "o que
   falta para sacar" e a base de conhecimento gerada do sistema
   (`npm run base-ia`).
+- [x] **[código]** O **pacote do Lucky para colar** (cronograma 5): o passo a
+  passo numerado, as instruções do agente em bloco pronto, a tabela das 11
+  ações do tipo Client (descrição, parâmetros e esquema JSON de cada uma), a
+  ordem de ligar (D8) e o teste de fumaça com recusas, em
+  **`docs/PACOTE-LUCKY.md`** — gerado do código (`npm run pacote-lucky`,
+  `shared/pacoteLucky.ts`), e `tests/pacoteLucky.test.ts` falha se ele
+  divergir.
 - [ ] **[você]** Chatbase: em Actions, cadastrar cada ação da lista de
   Aparência → Assistente de IA ("Ações do assistente") como ação do tipo
-  **Client**, com o mesmo nome e os mesmos parâmetros. Ação não cadastrada lá
-  simplesmente não é pedida.
+  **Client**, com o mesmo nome e os mesmos parâmetros — **passo 3 de
+  `docs/PACOTE-LUCKY.md`** (descrição e esquema prontos para colar). Ação não
+  cadastrada lá simplesmente não é pedida.
 - [ ] **[você]** Chatbase: criar a conta e o agente **Lucky**, colar as
-  instruções do roteiro (`docs/ROTEIRO-ASSISTENTE-IA.md`) e subir os arquivos
-  de `npm run base-ia` (gerado com o banco de produção) em Sources → Files;
+  instruções (**passos 1 e 2 de `docs/PACOTE-LUCKY.md`**, o bloco pronto; o
+  rascunho antigo está em `docs/ROTEIRO-ASSISTENTE-IA.md`) e subir os arquivos
+  de `npm run base-ia` (gerado com o banco de produção, ou pelo workflow "Base
+  do Lucky" — passo 4) em Sources → Files;
   copiar o **id do agente** e criar uma **chave da API** (Settings →
   API keys). A chave vai só no Railway (`CHATBASE_API_KEY`); o id vai em
   Aparência → Assistente de IA, e só então liga. Para liberar organizador e
@@ -314,6 +330,19 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 
 ## 3. Segurança e acessos (no painel)
 
+- [ ] **[produto e contador]** Recarga de patrocínio estornada no provedor depois
+  de gasta: `estornarRecarga()` tira o que ainda há no saldo e deixa o resto
+  (`faltouCents`) na auditoria `patrocinio.recarga.estornada` e no log
+  (`[patrocinio] recarga … estornada`). Decidir o que fazer com esse resto (saldo
+  negativo que trava, retenção cautelar automática ou cobrança à parte) —
+  `docs/AUDITORIA-ACESSO-MARKETING.md`.
+- [ ] **[advogado]** Revogar os cookies não alcança o pedido já criado com o
+  consentimento (o servidor ainda manda a compra, com o telefone em hash, quando
+  o Pix cai), e o telefone em hash vai também ao pixel da organização.
+- [ ] **[você]** No primeiro evento de compra de verdade na Meta e no TikTok,
+  conferir o formato (`client_user_agent` e IP da Meta, o cabeçalho
+  `Access-Token` do TikTok): hoje só foi provado contra um provedor de mentira.
+
 - [ ] **[você]** Ativar o segundo fator (Configurações). Também é exigido
   para arquivar organização.
 - [ ] **[você]** Trocar a senha do administrador (passou pela conversa) e
@@ -334,6 +363,22 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   180 capturas, log do servidor e `npm audit`; uma falha alta e quatro médias
   corrigidas, com prova. Registro e o que ficou para depois em
   `docs/SEGURANCA.md`.
+- [x] Auditoria do acesso público (18/10/2026): uma falha alta (login anônimo
+  derrubava o servidor), várias médias e baixas corrigidas, com prova. Relatório
+  em `docs/AUDITORIA-ACESSO-PUBLICO.md`.
+- [ ] **[decisão]** O que a auditoria do acesso público deixou aberto
+  (`docs/AUDITORIA-ACESSO-PUBLICO.md`, "Ficou aberto"): a vitrine devolve todas
+  as rifas de uma vez (sem paginação); `/cartelas` sem limite por IP; a página
+  da rifa de promotora banida ainda mostra o nome e o "Seguir"; e-mail e telefone
+  crus por 2 h em `rate_events`; `robots.txt` e `noindex`.
+- [x] Auditoria do acesso apostador (18/10/2026): três falhas altas (trocar
+  a senha e excluir a conta com a sessão roubada, bônus e avisos herdados por
+  quem cadastra o telefone de outra pessoa, sessão expulsa que voltava) e o
+  resto, com prova. **`db:push` antes do código** (`buyers.sessoes_validas_desde`).
+  O que ficou aberto — inclusive a mesma corrida de sessão no painel — está em
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`.
+- [ ] **[código]** A mesma marca de sessão (`sessoes_validas_desde`) para as
+  contas do painel (`users`): hoje só o apostador tem (achado 4 da auditoria).
 
 ## 3b. Decisões de produto (1º/10/2026)
 
@@ -579,7 +624,8 @@ Na ordem de entrega do plano:
   3 a 9 do pacote também foram respondidos (05 e 06/10/2026) e estão no
   código, e os prazos de guarda do antifraude foram confirmados em
   07/10/2026. Do advogado falta só o contrato da promotora (versão final em
-  09/10/2026); o globo fica desligado até a demanda justificar o cartório.
+  09/10/2026); o globo segue desligado, mas a homologação foi decidida em
+  18/10/2026 (`docs/ROTEIRO-GLOBO-TABELIONATO.md`).
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo. O texto-base já foi validado pelo advogado
@@ -1332,13 +1378,19 @@ Na ordem de entrega do plano:
   termo publicado veem o aviso de texto desatualizado). `npm run guarda`
   prova. A organização sem CNPJ cadastrado aparece como "CNPJ ainda não
   cadastrado" — cadastre o CNPJ de cada promotora.
-- [ ] **Homologar o globo** (você, com o advogado): **fica desligado até a
-  demanda comercial justificar o custo do cartório** (advogado, 07/10/2026).
-  Quando for a hora: parceria com um Tabelionato de Notas, que lavra a ata
-  notarial de cada sessão de extração (é o que a SPA/MF exige para sorteio
-  fora da Loteria Federal); então ligar o globo em "Métodos de apuração",
-  cadastrar a sessão no calendário e anexar o arquivo da ata depois do
-  resultado.
+- [ ] **Homologar o globo** (você, com o advogado): **decidido em 18/10/2026
+  fazer já**, sem esperar a demanda comercial (a posição de 07/10/2026 era
+  deixar desligado até o custo do cartório se justificar). O roteiro está em
+  `docs/ROTEIRO-GLOBO-TABELIONATO.md`: o que contratar (Tabelionato de Notas,
+  que lavra a ata notarial de cada sessão, mais auditor ou 2 testemunhas), as
+  perguntas ao cartório, o dia da sessão minuto a minuto, cada campo da ata
+  como o código exige hoje e o checklist para ligar o globo em "Métodos de
+  apuração". **O globo segue desligado** até esse checklist estar inteiro e o
+  anexo "globo" do contrato estar publicado. Depende do advogado: as perguntas
+  **R36 a R41** (`docs/PERGUNTAS-AO-ADVOGADO.md`, quarta rodada), em especial
+  conciliar o Q39 (laudo e auditoria, R$ 15 mil a R$ 50 mil, sem fonte) com a
+  ata notarial por sessão. Depende de você: escolher o cartório, o auditor ou
+  as testemunhas, o equipamento e quem paga.
 
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o
@@ -1482,6 +1534,17 @@ Na ordem de entrega do plano:
   teste numa Ton (lista em `docs/MAQUININHAS.md`, "Stone por deeplink").
 - [ ] **[código]** Compilar o APK das maquininhas — precisa de máquina com o
   Android SDK.
+- [ ] **[código, antes de publicar o APK]** A ponte da maquininha vale para
+  **toda página** que a WebView abrir: `addJavascriptInterface` expõe
+  `RifaPOSNative` a qualquer origem, o `onPageFinished` injeta o shim em
+  qualquer endereço e a `WebViewClient` não restringe a navegação — um link
+  externo aberto dentro do app (o perfil de uma organização tem links
+  `https:`) poderia mandar imprimir ou abrir uma cobrança de valor qualquer
+  na maquininha do cambista. Falta, em `MainActivity.kt`: `shouldOverrideUrlLoading`
+  deixando só a origem de `BuildConfig.APP_URL` na WebView e abrindo o resto no
+  navegador do aparelho; injetar o shim só se `url` for dessa origem (ou trocar
+  por `WebViewCompat.addWebMessageListener` com `allowedOriginRules`). Não dá para
+  provar aqui (sem Android SDK): `docs/AUDITORIA-ACESSO-CAMBISTA.md`.
 - [x] **Pôster dos vídeos** (rifa, reels e story): o quadro sai em segundo
   plano pelo `ffmpeg` local, se o servidor o tiver, e degrada para "sem
   pôster" sem ele (seção "Pôster do vídeo" do `CLAUDE.md`, `npm run

@@ -434,3 +434,76 @@ gestão do tráfego pago?
 (potencial, não o vendido). Se a tela disser "arrecadação prevista de R$ …",
 precisa de ressalva de que a rifa pode não vender todas as cotas e do mínimo de
 cotas vendidas para sortear? Ou é melhor não mostrar o valor ao público?
+
+## Sétima rodada — bandeiras dos estados (18/10/2026)
+
+O painel "Locais" da vitrine (`client/src/components/LocaisDaVitrine.tsx`)
+mostra as 27 bandeiras de estado em círculo ao lado do nome. As imagens são do
+conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (origem e licença em
+`docs/LICENCAS-DE-TERCEIROS.md`). A licença do desenho está resolvida; a
+pergunta é do **uso da bandeira em si**.
+
+**R42. [3] Uso de bandeira de estado numa plataforma comercial.** As bandeiras
+dos estados são símbolos oficiais. Mostrá-las, em tamanho pequeno e como ícone
+de seleção de local ("Locais: São Paulo") numa plataforma privada de rifas
+autorizadas, exige autorização do ente, fere alguma regra sobre símbolos
+oficiais (por exemplo, uso comercial ou sugestão de vínculo ou aval do governo
+estadual) ou precisa de aviso na tela ("não há vínculo com os governos
+estaduais")? Se houver restrição, qual é o desenho aceitável (só a sigla, a
+silhueta do estado, bandeira só em material institucional)? Até a resposta, a
+plataforma usa a bandeira só como ícone do local, sempre com o nome do estado
+escrito ao lado, e nunca em peça de divulgação nem em anúncio.
+
+## Sexta rodada — o globo e o tabelionato (18/10/2026)
+
+O responsável decidiu homologar o globo já (18/10/2026). O roteiro prático
+está em `docs/ROTEIRO-GLOBO-TABELIONATO.md`; estas são as perguntas que
+ele deixa em aberto (R36 a R41). A numeração continua a partir de R36 porque
+**R24 a R35** estão em outros ramos ainda não mesclados (rodada do endereço
+próprio e perguntas dos PRs abertos): ao mesclar, confira que não colidem.
+R23 (o que dizer sobre o globo nas peças antes da homologação) segue valendo.
+
+**R36. [1] O que é "homologar o globo" e o roteiro com fonte.** (a) Na rodada
+final (P8) você ficou de entregar o roteiro da homologação com fonte quando
+houvesse demanda; ela existe desde 18/10/2026. Entregue o roteiro com a norma e
+o órgão. (b) Concilie o Q39 (requerimento à SPA/MF, laudo técnico, auditoria,
+R$ 15 mil a R$ 50 mil) com as respostas 8.9 a 8.12 (ata notarial por sessão): o
+laudo e a auditoria vêm **além** da ata? De onde vem a faixa de valor? (c) A
+homologação é **da plataforma** (ato único) ou **de cada promotora**, no plano de
+operação (8.11)? Que documento prova que o globo está homologado, para o selo
+"em aberto" virar selo?
+
+**R37. [1] Equipamento, independência e o papel do auditor.** (a) O globo físico
+(6 globos, 10 bolas de 0 a 9 cada) precisa de laudo, certificação ou lacre? Quem
+pode fornecê-lo e operá-lo? (b) A auditoria independente é obrigatória ou pode
+ser substituída por 2 testemunhas (como o sistema aceita hoje, sempre com o
+tabelião)? (c) Quem conta como "sem vínculo": só as promotoras da sessão, ou
+também a plataforma, seus sócios, funcionários e parentes?
+
+**R38. [1] Nova extração no mesmo ato e a ata.** (a) A ata notarial precisa
+descrever **cada** nova extração (por rifa)? Basta uma ata única da sessão?
+(b) O sistema só registra a nova extração quando a rifa não tem **reserva
+esperando Pix** (15 min por padrão): o ato pode ficar **aberto** esperando a
+reserva vencer, ou a espera descaracteriza o "mesmo ato"? (c) Quantas novas
+extrações são aceitáveis numa sessão antes de reabrir a data (rifa pouco
+vendida)?
+
+**R39. [2] Dados pessoais na ata pública.** O nome do auditor, das testemunhas e
+do tabelionato fica público na página da rifa, e a gravação da sessão fica na
+plataforma de vídeo. Qual a base legal (LGPD) e que autorização escrita dessas
+pessoas é necessária? Por quanto tempo guardar a gravação? O texto da
+Privacidade já diz que a ata é pública: basta?
+
+**R40. [2] Prazo do arquivo da ata e divergência.** O sistema lança o resultado
+e sorteia as rifas na hora; o arquivo do cartório chega dias depois. (a) O
+resultado vale antes de o arquivo existir? Há prazo máximo para anexá-lo e o que
+acontece se passar? (b) O prêmio pode ser entregue antes do arquivo? (c) Se o
+relato digitado no sistema divergir da ata do cartório, qual prevalece e qual o
+procedimento de correção (hoje o sistema não edita o relato)?
+
+**R41. [2] Quem paga o cartório e o anexo "globo".** (a) A despesa do cartório e
+do auditor por sessão pode ser repassada às promotoras (taxa por sessão, parte
+do preço da rifa ou custo da plataforma)? Que cláusula do anexo "globo"
+(cláusula 7) e da tabela de cobrança (X.3, aviso de 30 dias) cobre isso?
+(b) Redija o **anexo "globo"** (texto de aceite da promotora) com o método, a
+ata, a nova extração, a falta do tabelião e o adiamento causado pelo cartório.

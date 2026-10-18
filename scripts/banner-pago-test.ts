@@ -156,6 +156,21 @@ async function main() {
     checa("título curto: 400", r.status === 400, r.json?.message);
     r = await pedido(marina, rifaA.id, { imagem: "data:text/html;base64,PHNjcmlwdD4=" });
     checa("arquivo que não é imagem: 400", r.status === 400, r.json?.message);
+    // Auditoria do acesso marketing: dias que não são número e o ritmo dos pedidos.
+    for (const dias of [[2], "", true, "2x"]) {
+      r = await pedido(marina, rifaA.id, { dias });
+      checa(`dias ${JSON.stringify(dias)} não é número: 400`, r.status === 400, r.json?.message);
+    }
+    r = await admin.req("PUT", "/api/admin/banner-pago/config", { precoDiaCents: "" });
+    checa("a plataforma não zera o preço mandando vazio (400)", r.status === 400, r.json?.message);
+    r = await admin.req("GET", "/api/admin/banner-pago");
+    checa("…e o preço segue o que era", r.json?.config?.precoDiaCents === 1000, JSON.stringify(r.json?.config));
+    // Abrir a imagem custa CPU e o pedido sem saldo só cai depois dela: 20 pedidos a cada 10 minutos por organização.
+    await db.execute(sql`delete from rate_events where bucket like 'banner-pedido:%'`);
+    const rajada: number[] = [];
+    for (let i = 0; i < 24; i++) rajada.push((await pedido(marina, rifaA.id, { imagem: "data:text/html;base64,PHNjcmlwdD4=" })).status);
+    checa("pedidos em rajada: param no teto e respondem 429", rajada.slice(0, 20).every((x) => x === 400) && rajada.slice(20).every((x) => x === 429), rajada.join());
+    await db.execute(sql`delete from rate_events where bucket like 'banner-pedido:%'`);
     r = await pedido(marina, rifaVizinha.id);
     checa("rifa do vizinho: 404", r.status === 404, `HTTP ${r.status}`);
     r = await pedido(marina, rifaRascunho.id);

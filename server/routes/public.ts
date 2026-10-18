@@ -188,6 +188,7 @@ import {
   compradorDaSessao,
   dadosDaConta,
   entrarComoComprador,
+  sessaoProvouPorCodigo,
   entrarNaConta,
   encerrarOutrasSessoes,
   titularidadeDaSessao,
@@ -654,7 +655,7 @@ publicRouter.get("/banners/:id/imagem", async (req, res, next) => {
 /** A arte de banner pago, só enquanto ele está no ar (some junto com a rifa). */
 publicRouter.get("/banners-pagos/:id/imagem", async (req, res, next) => {
   try {
-    const b = await imagemDoBannerPago(req.params.id);
+    const b = ehUuid(req.params.id) ? await imagemDoBannerPago(req.params.id) : null;
     if (!b) return res.status(404).json({ message: "Banner não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=300");
     res.type(b.mime).send(b.bytes);
@@ -705,7 +706,7 @@ publicRouter.post("/stories/:id/enquete", async (req, res, next) => {
 
 publicRouter.get("/stories/:id/poster", async (req, res, next) => {
   try {
-    const poster = await posterDoStory(req.params.id);
+    const poster = ehUuid(req.params.id) ? await posterDoStory(req.params.id) : null;
     if (!poster) return res.status(404).json({ message: "Pôster não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.type("image/webp").send(poster);
@@ -717,7 +718,7 @@ publicRouter.get("/stories/:id/poster", async (req, res, next) => {
 publicRouter.get("/stories/:id/imagem", async (req, res, next) => {
   try {
     // Só enquanto o story está no ar: vencido some, como no Instagram.
-    const s = await imagemDoStory(req.params.id);
+    const s = ehUuid(req.params.id) ? await imagemDoStory(req.params.id) : null;
     if (!s) return res.status(404).json({ message: "Story não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     // Vídeo pede `Range` (o Safari não toca sem 206); imagem vai inteira.
@@ -1213,7 +1214,7 @@ publicRouter.get("/notificacoes/resumo", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     // Sem sessão não é erro aqui: o coração só não mostra número.
-    res.json({ naoLidas: id ? await naoLidas(id) : 0 });
+    res.json({ naoLidas: id ? await naoLidas(id, await titularidadeDaSessao(req)) : 0 });
   } catch (err) {
     next(err);
   }
@@ -1222,7 +1223,8 @@ publicRouter.get("/notificacoes/resumo", async (req, res, next) => {
 publicRouter.get("/notificacoes", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "private, no-store");
-    res.json(await notificacoesDe(donoDosAvisos(req)));
+    const dono = donoDosAvisos(req);
+    res.json(await notificacoesDe(dono, await titularidadeDaSessao(req)));
   } catch (err) {
     next(err);
   }
@@ -1230,7 +1232,8 @@ publicRouter.get("/notificacoes", async (req, res, next) => {
 
 publicRouter.post("/notificacoes/lidas", async (req, res, next) => {
   try {
-    await marcarTodasLidas(donoDosAvisos(req));
+    const dono = donoDosAvisos(req);
+    await marcarTodasLidas(dono, await titularidadeDaSessao(req));
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -1338,6 +1341,11 @@ publicRouter.delete("/push/inscricoes", async (req, res, next) => {
  */
 publicRouter.get("/cep/:cep", async (req, res, next) => {
   try {
+    // Cada CEP novo é uma chamada ao serviço de fora (que nos bloquearia por abuso, e aí
+    // ninguém preencheria endereço): limite por IP, folgado para quem digita de verdade.
+    if ((await hit(`cep:${identify(req).ipHash ?? "sem-origem"}`, 1, 120)).excedeu) {
+      return res.status(429).json({ message: "Muitas consultas de CEP seguidas. Espere um pouco ou preencha o endereço à mão." });
+    }
     const r = await consultarCep(req.params.cep);
     if (r === "invalido") return res.status(400).json({ message: "CEP inválido: são 8 números." });
     if (r === "nao_encontrado") return res.status(404).json({ message: "CEP não encontrado." });
@@ -1910,7 +1918,9 @@ async function lookupGuard(req: Request, res: Response): Promise<boolean> {
 publicRouter.get("/orders/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await orderByCode(Number(req.params.code));
+    // Pedido, Pix e nome de quem comprou: nunca em cache de ninguém.
+    res.setHeader("Cache-Control", "private, no-store");
+    const found = await orderByCode(codigoDoPedido(req.params.code));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Pedido não encontrado." });
@@ -1962,7 +1972,8 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
 publicRouter.get("/carrinho/pedidos/:codigo", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await cartByCode(Number(req.params.codigo));
+    res.setHeader("Cache-Control", "private, no-store");
+    const found = await cartByCode(codigoDoPedido(req.params.codigo));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Carrinho não encontrado." });
@@ -2045,12 +2056,14 @@ publicRouter.post("/my-quotas/verify", async (req, res, next) => {
       req,
       buyer ? { id: buyer.id, phone: buyer.phone, name: buyer.name } : { id: "", phone, name: "" },
       true,
+      false,
+      true, // provado pelo código agora: só isto dispensa a senha atual (ver `codigoRecente`)
     );
     // Primeira prova do telefone numa conta que ninguém tinha provado: quem
     // entrou antes pela senha pode não ser o dono — sai.
     if (buyer && !buyer.telefoneConfirmadoEm) {
       await db.update(buyers).set({ telefoneConfirmadoEm: new Date() }).where(eq(buyers.id, buyer.id));
-      if (buyer.passwordHash) await encerrarOutrasSessoes(buyer.id, req.sessionID);
+      if (buyer.passwordHash) await encerrarOutrasSessoes(buyer.id, req);
     }
 
     res.json({
@@ -2212,7 +2225,10 @@ publicRouter.post("/conta/sair", (req, res) => {
 publicRouter.get("/conta", async (req, res, next) => {
   try {
     const sessao = compradorDaSessao(req);
-    res.json({ ...(await dadosDaConta(sessao.id)), sessaoConfirmada: sessao.confirmado === true });
+    const dados = await dadosDaConta(sessao.id);
+    // Conta com senha: "confirmada" é ter provado o código há pouco (a tela só
+    // pede a senha atual quando não). Sem senha para conferir, o telefone da sessão.
+    res.json({ ...dados, sessaoConfirmada: dados.temSenha ? sessaoProvouPorCodigo(req) : sessao.confirmado === true });
   } catch (err) {
     erroDeConta(err, res, next);
   }
@@ -2365,7 +2381,7 @@ publicRouter.get("/presente/meu", async (req, res, next) => {
 publicRouter.get("/bonus", async (req, res, next) => {
   try {
     const c = exigirComprador(req);
-    res.json(await estadoDoBonus(c.id));
+    res.json(await estadoDoBonus(c.id, (await titularidadeDaSessao(req)).telefoneConfirmado));
   } catch (err) {
     next(err);
   }
@@ -2375,9 +2391,17 @@ publicRouter.get("/bonus", async (req, res, next) => {
 publicRouter.post("/bonus/resgatar", async (req, res, next) => {
   try {
     const c = exigirComprador(req);
+    // O saldo é da linha do telefone: conta de telefone ainda não provado pode ser
+    // de quem se cadastrou com o número de outra pessoa. Ver e usar o bônus pede o código.
+    if (!(await titularidadeDaSessao(req)).telefoneConfirmado) {
+      return res.status(403).json({ message: "Confirme o telefone da conta pelo código do WhatsApp para usar o bônus." });
+    }
     const limite = await hit(`bonus-resgate:${c.id}`, 60, 10);
     if (limite.excedeu) return res.status(429).json({ message: "Muitos resgates em pouco tempo. Aguarde um pouco." });
-    const r = await resgatarCotasDeBonus(c.id, String(req.body?.campaignId ?? ""), Number(req.body?.quantidade));
+    // O id vem do corpo: fora do formato a rifa não existe (404), nunca 500 do Postgres.
+    const campaignId = String(req.body?.campaignId ?? "");
+    if (!ehUuid(campaignId)) return res.status(404).json({ message: "Rifa não encontrada." });
+    const r = await resgatarCotasDeBonus(c.id, campaignId, Number(req.body?.quantidade));
     res.status(201).json(r);
   } catch (err) {
     if (err instanceof NoQuotasAvailableError) return res.status(409).json({ message: err.message });
@@ -2472,6 +2496,7 @@ publicRouter.post("/patrocinadas/:id/clique", async (req, res, next) => {
 publicRouter.get("/tickets/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
+    res.setHeader("Cache-Control", "private, no-store");
     const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));
@@ -2487,6 +2512,7 @@ publicRouter.get("/tickets/:code", async (req, res, next) => {
 publicRouter.get("/tickets/:code/escpos", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
+    res.setHeader("Cache-Control", "private, no-store");
     const ticket = await buildTicket(codigoDoPedido(req.params.code));
     if (!ticket) {
       await recordLookupMiss(identify(req));
@@ -2805,11 +2831,20 @@ function* codigosDeAfiliado(name: string): Generator<string> {
 
 /* ---------------- ranking público ---------------- */
 
+const RANKING_GUARDADO_MS = 10_000;
+const cacheDoRanking = new Map<string, { ate: number; valor: { nome: string; telefone: string; quotas: number }[] }>();
+
 publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
     // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
     if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
+
+    // Soma todos os pedidos pagos da rifa: numa rifa grande, é uma varredura por
+    // pedido de quem abrir a rota. O ranking é prova social, não precisa ser
+    // do segundo: o mesmo resultado fica guardado alguns segundos por rifa.
+    const guardado = cacheDoRanking.get(found.campaign.id);
+    if (guardado && guardado.ate > Date.now()) return res.json(guardado.valor);
 
     const rows = await db.execute(sql`
       SELECT b.name, b.phone, sum(o.quantity)::int AS quotas
@@ -2822,13 +2857,14 @@ publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
     `);
 
     // Ranking é tela pública: nome reduzido e telefone escondido.
-    res.json(
-      (rows.rows as { name: string; phone: string; quotas: number }[]).map((r) => ({
-        nome: firstNameAndInitial(r.name),
-        telefone: hidePhone(r.phone),
-        quotas: r.quotas,
-      })),
-    );
+    const valor = (rows.rows as { name: string; phone: string; quotas: number }[]).map((r) => ({
+      nome: firstNameAndInitial(r.name),
+      telefone: hidePhone(r.phone),
+      quotas: r.quotas,
+    }));
+    if (cacheDoRanking.size >= 500) cacheDoRanking.clear();
+    cacheDoRanking.set(found.campaign.id, { ate: Date.now() + RANKING_GUARDADO_MS, valor });
+    res.json(valor);
   } catch (err) {
     next(err);
   }

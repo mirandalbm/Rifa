@@ -51,6 +51,10 @@ describe("tabela de cobrança da plataforma", () => {
 
   it("aceita percentual com duas casas e recusa acima do teto ou com três casas", () => {
     expect(validarConfigCobranca({ percentualPct: 4.9 }).percentualPct).toBe(4.9);
+    // null e vazio não são "ausente": zerariam a taxa como se fosse redução.
+    expect(() => validarConfigCobranca({ percentualPct: null })).toThrow();
+    expect(() => validarConfigCobranca({ porCotaCents: null })).toThrow();
+    expect(() => validarConfigCobranca({ percentualPct: "" })).toThrow();
     expect(() => validarConfigCobranca({ percentualPct: 31 })).toThrow();
     expect(() => validarConfigCobranca({ percentualPct: 1.234 })).toThrow();
     expect(() => validarConfigCobranca({ percentualPct: -1 })).toThrow();

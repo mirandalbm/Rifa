@@ -106,7 +106,7 @@ export const MOTIVOS_DA_DENUNCIA_DE_MENSAGEM = {
 } as const;
 export type MotivoDaDenunciaDeMensagem = keyof typeof MOTIVOS_DA_DENUNCIA_DE_MENSAGEM;
 export const motivoDaMensagemValido = (m: unknown): m is MotivoDaDenunciaDeMensagem =>
-  typeof m === "string" && m in MOTIVOS_DA_DENUNCIA_DE_MENSAGEM;
+  typeof m === "string" && Object.hasOwn(MOTIVOS_DA_DENUNCIA_DE_MENSAGEM, m);
 
 export type DecisaoDaDenunciaDeMensagem = "improcedente" | "procedente";
 export const decisaoValida = (d: unknown): d is DecisaoDaDenunciaDeMensagem => d === "improcedente" || d === "procedente";

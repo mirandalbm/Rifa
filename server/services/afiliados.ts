@@ -20,6 +20,7 @@ import {
   users,
 } from "@shared/schema";
 import {
+  lerComissaoDoCadastro,
   montarTermo,
   pctDaComissao,
   podeReceberComissao,
@@ -218,9 +219,10 @@ export async function decidirVinculo(
     mudar.decididoEm = new Date();
   }
   if (entrada.commissionPct !== undefined) {
-    const pct = entrada.commissionPct === null ? null : Number(entrada.commissionPct);
-    if (pct !== null && (!Number.isInteger(pct) || pct < 0 || pct > 50)) throw new AfiliadoError("Comissão de 0 a 50%.");
-    mudar.commissionPct = pct;
+    // A mesma leitura do cadastro: vazio é "vale a da rifa" (null), nunca 0%.
+    const lida = lerComissaoDoCadastro(entrada.commissionPct);
+    if ("problema" in lida) throw new AfiliadoError(lida.problema);
+    mudar.commissionPct = lida.pct;
   }
   if (Object.keys(mudar).length === 0) throw new AfiliadoError("Nada para mudar.");
   const [feito] = await db
@@ -285,11 +287,13 @@ export async function organizacoesDoAfiliado(affiliateId: string) {
         .from(termoAceites)
         .where(inArray(termoAceites.vinculoId, vinculos.map((v) => v.id)))
     : [];
+  // Só a versão em vigor de cada organização (a mais alta): trazer todas as
+  // versões de todas as organizações crescia a cada termo publicado.
   const termos = await db
-    .select()
+    .selectDistinctOn([organizacaoTermos.organizationId])
     .from(organizacaoTermos)
     .where(inArray(organizacaoTermos.organizationId, orgs.length ? orgs.map((o) => o.id) : ["00000000-0000-0000-0000-000000000000"]))
-    .orderBy(desc(organizacaoTermos.versao));
+    .orderBy(organizacaoTermos.organizationId, desc(organizacaoTermos.versao));
   return orgs.map((o) => {
     const v = vinculos.find((x) => x.organizationId === o.id);
     const termo = termos.find((t) => t.organizationId === o.id) ?? null;
@@ -310,7 +314,7 @@ export async function termoPublico(slug: string) {
   const [org] = await db
     .select({ id: organizations.id, nome: organizations.name })
     .from(organizations)
-    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt)));
+    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
   if (!org) throw new AfiliadoError("Organização não encontrada.", 404);
   const t = await termoAtual(org.id);
   return { organizacao: org.nome, termo: t ? { versao: t.versao, comissaoPct: t.comissaoPct, texto: t.texto } : null };

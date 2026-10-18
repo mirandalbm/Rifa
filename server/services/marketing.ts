@@ -22,6 +22,7 @@ import {
   corpoMeta,
   corpoTiktok,
   mesclarCredenciais,
+  pixelsSeguros,
   quaisCredenciais,
   rotuloDaCampanha,
   telefoneParaHash,
@@ -110,11 +111,15 @@ export async function pixelsPublicos(organizacao?: unknown) {
         and(
           sql`(${organizations.slug} = ${organizacao} or ${organizations.id}::text = ${organizacao})`,
           sql`${organizations.archivedAt} is null`,
+          sql`${organizations.banidaEm} is null`,
         ),
       );
-    daOrg = o && temPixel(o.pixels) ? o.pixels : null;
+    // Conferido de novo na saída: o valor guardado vai parar dentro de um script na tela de todo apostador.
+    const seguros = o ? pixelsSeguros(o.pixels) : {};
+    daOrg = temPixel(seguros) ? seguros : null;
   }
-  return { plataforma: temPixel(cfg.marketingPixels) ? cfg.marketingPixels : null, organizacao: daOrg };
+  const daPlataforma = pixelsSeguros(cfg.marketingPixels);
+  return { plataforma: temPixel(daPlataforma) ? daPlataforma : null, organizacao: daOrg };
 }
 
 /* ------------------------------------------------------------------ *
@@ -275,23 +280,48 @@ export async function painelDoMarketing(req: Request, diasBrutos?: unknown) {
   const cfg = await getPlataforma();
   const dias = [7, 30, 90].includes(Number(diasBrutos)) ? Number(diasBrutos) : 30;
   const filtroOrg = org ? sql`and c.organization_id = ${org}::uuid` : sql``;
+  // Agrupado no banco: trazer cada pedido com UTM de 90 dias para a memória cresce com a venda (a plataforma
+  // inteira, no recorte nulo). O rótulo mora em `rotuloDaCampanha`; o banco só reduz a fonte, o meio, a campanha e
+  // a presença do identificador de clique — o que o rótulo lê.
   const linhas = (
     await db.execute(sql`
-      select o.utm, o.status, o.amount_cents
+      select o.utm->>'source' as source, o.utm->>'medium' as medium, o.utm->>'campaign' as campaign,
+             coalesce(o.utm->>'gclid', '') <> '' as gclid, coalesce(o.utm->>'fbclid', '') <> '' as fbclid,
+             coalesce(o.utm->>'ttclid', '') <> '' as ttclid,
+             count(*)::int as pedidos,
+             count(*) filter (where o.status = 'paid')::int as vendas,
+             coalesce(sum(o.amount_cents) filter (where o.status = 'paid'), 0)::bigint as receita
         from orders o join campaigns c on c.id = o.campaign_id
-       where o.utm is not null and o.created_at > now() - make_interval(days => ${dias}) ${filtroOrg}`)
-  ).rows as { utm: Utm; status: string; amount_cents: number }[];
-  // Agrupado aqui: as linhas são poucas (só venda que veio com UTM) e o rótulo mora em `rotuloDaCampanha`.
+       where o.utm is not null and o.created_at > now() - make_interval(days => ${dias}) ${filtroOrg}
+       group by 1, 2, 3, 4, 5, 6
+       order by receita desc, pedidos desc
+       limit 500`)
+  ).rows as {
+    source: string | null;
+    medium: string | null;
+    campaign: string | null;
+    gclid: boolean;
+    fbclid: boolean;
+    ttclid: boolean;
+    pedidos: number;
+    vendas: number;
+    receita: string;
+  }[];
   const grupos = new Map<string, { fonte: string; meio: string; campanha: string; pedidos: number; vendas: number; receitaCents: number }>();
   for (const l of linhas) {
-    const r = rotuloDaCampanha(l.utm);
+    const r = rotuloDaCampanha({
+      ...(l.source ? { source: l.source } : {}),
+      ...(l.medium ? { medium: l.medium } : {}),
+      ...(l.campaign ? { campaign: l.campaign } : {}),
+      ...(l.gclid ? { gclid: "x" } : {}),
+      ...(l.fbclid ? { fbclid: "x" } : {}),
+      ...(l.ttclid ? { ttclid: "x" } : {}),
+    });
     const k = `${r.fonte}|${r.meio}|${r.campanha}`;
     const g = grupos.get(k) ?? { ...r, pedidos: 0, vendas: 0, receitaCents: 0 };
-    g.pedidos++;
-    if (l.status === "paid") {
-      g.vendas++;
-      g.receitaCents += Number(l.amount_cents);
-    }
+    g.pedidos += Number(l.pedidos);
+    g.vendas += Number(l.vendas);
+    g.receitaCents += Number(l.receita);
     grupos.set(k, g);
   }
   const campanhas = [...grupos.values()].sort((a, b) => b.receitaCents - a.receitaCents || b.pedidos - a.pedidos).slice(0, 50);

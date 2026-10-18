@@ -69,6 +69,19 @@ export function validarPixels(bruto: unknown): Pixels {
   return saida;
 }
 
+/**
+ * Os pixels que já estão guardados, conferidos de novo antes de sair para o navegador: o que não passa na régua
+ * (um valor torto no banco, de uma versão antiga) não vai à tela de ninguém — vira "sem pixel". O que sai daqui
+ * vai parar dentro de um script na tela de todo apostador.
+ */
+export function pixelsSeguros(guardado: unknown): Pixels {
+  try {
+    return validarPixels(guardado);
+  } catch {
+    return {};
+  }
+}
+
 export const temPixel = (p: Pixels | null | undefined) => Boolean(p && (p.meta || p.ga4 || p.googleAds || p.tiktok));
 
 /* ------------------------------------------------------------------ *
@@ -344,3 +357,25 @@ export function corpoTiktok(pixel: string, c: Compra) {
 
 /** Quantas tentativas o relógio faz antes de desistir de um envio. */
 export const TENTATIVAS_MAX = 5;
+
+/* ------------------------------------------------------------------ *
+ * Pixel de outra página
+ * ------------------------------------------------------------------ */
+
+/** Todos os números de pixel de um conjunto de alvos (um só id, qualquer provedor). */
+export function idsDosPixels(alvos: Pixels[]): string[] {
+  const ids = new Set<string>();
+  for (const p of alvos) for (const c of ["meta", "ga4", "googleAds", "tiktok"] as const) if (p[c]) ids.add(p[c]!);
+  return [...ids];
+}
+
+/**
+ * Pixel já carregado que **não** é desta página. O navegador não descarrega um pixel: depois do `init`, o da
+ * promotora A segue na memória e, com a navegação sem recarregar, escuta os botões e os formulários da página da B
+ * (a medição automática da Meta e a correspondência avançada leem o que se digita). Só enviar o evento ao pixel
+ * certo (`trackSingle`) não basta. A saída é recarregar a página quando sobra algum.
+ */
+export function pixelsForaDaPagina(iniciados: Iterable<string>, alvos: Pixels[]): string[] {
+  const daPagina = new Set(idsDosPixels(alvos));
+  return [...iniciados].filter((id) => !daPagina.has(id));
+}

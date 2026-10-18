@@ -211,6 +211,7 @@ async function main() {
       buyerId: carlaId,
       quantity: 1,
       amountCents: 1000,
+      viaConta: true, // comprou dentro da conta: o aviso da rifa dela aparece mesmo sem o telefone provado
       status: "paid",
       paidAt: new Date(),
     });

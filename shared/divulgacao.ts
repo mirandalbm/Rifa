@@ -31,7 +31,7 @@ export type ModoDeDivulgacao = keyof typeof MODOS_DE_DIVULGACAO;
 export const MODO_PADRAO: ModoDeDivulgacao = "autorizacao";
 
 export function validarModo(v: unknown): ModoDeDivulgacao {
-  if (typeof v === "string" && v in MODOS_DE_DIVULGACAO) return v as ModoDeDivulgacao;
+  if (typeof v === "string" && Object.hasOwn(MODOS_DE_DIVULGACAO, v)) return v as ModoDeDivulgacao;
   throw new Error("Escolha publicação direta ou só depois da sua autorização.");
 }
 

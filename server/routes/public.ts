@@ -2810,11 +2810,20 @@ function* codigosDeAfiliado(name: string): Generator<string> {
 
 /* ---------------- ranking público ---------------- */
 
+const RANKING_GUARDADO_MS = 10_000;
+const cacheDoRanking = new Map<string, { ate: number; valor: { nome: string; telefone: string; quotas: number }[] }>();
+
 publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
   try {
     const found = await campaignBySlug(req.params.slug);
     // Rascunho não é público: nem o número dele sai (404, igual a inexistente).
     if (!found || found.campaign.status === "draft") return res.status(404).json({ message: "Rifa não encontrada." });
+
+    // Soma todos os pedidos pagos da rifa: numa rifa grande, é uma varredura por
+    // pedido de quem abrir a rota. O ranking é prova social, não precisa ser
+    // do segundo: o mesmo resultado fica guardado alguns segundos por rifa.
+    const guardado = cacheDoRanking.get(found.campaign.id);
+    if (guardado && guardado.ate > Date.now()) return res.json(guardado.valor);
 
     const rows = await db.execute(sql`
       SELECT b.name, b.phone, sum(o.quantity)::int AS quotas
@@ -2827,13 +2836,14 @@ publicRouter.get("/campaigns/:slug/ranking", async (req, res, next) => {
     `);
 
     // Ranking é tela pública: nome reduzido e telefone escondido.
-    res.json(
-      (rows.rows as { name: string; phone: string; quotas: number }[]).map((r) => ({
-        nome: firstNameAndInitial(r.name),
-        telefone: hidePhone(r.phone),
-        quotas: r.quotas,
-      })),
-    );
+    const valor = (rows.rows as { name: string; phone: string; quotas: number }[]).map((r) => ({
+      nome: firstNameAndInitial(r.name),
+      telefone: hidePhone(r.phone),
+      quotas: r.quotas,
+    }));
+    if (cacheDoRanking.size >= 500) cacheDoRanking.clear();
+    cacheDoRanking.set(found.campaign.id, { ate: Date.now() + RANKING_GUARDADO_MS, valor });
+    res.json(valor);
   } catch (err) {
     next(err);
   }

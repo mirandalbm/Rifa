@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (subdomínio PR 2: o guarda do endereço da organização no servidor; PR 1 mesclado, `__Host-rifa.sid` aguarda o seu OK).
+Última atualização: 18/10/2026 (subdomínio PR 3: o SPA no endereço da organização; PRs 1 e 2 mesclados, deploy do 2 concluído; `__Host-rifa.sid` aguarda o seu OK).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -133,6 +133,22 @@ modelo B e na exigência do Google).
   `SUBDOMINIO_BASE` e o middleware que põe o destino em
   `res.locals.subdominio` (`server/services/subdominio.ts`, `server/index.ts`).
   Sem a variável, tudo segue como hoje. **Nenhuma rota usa o destino ainda.**
+  Depois vieram o guarda no servidor (PR #288) e o **SPA no endereço (PR 3)**:
+  o `Router` do wouter troca de `hook` quando o `Host` é de uma organização
+  (`client/src/lib/endereco.ts`; a raiz é o perfil dela, `/r/<rifa>` a rifa), o
+  console fica com Início, Carrinho e Perfil, o Google e a intro somem, e
+  "Minhas compras" e "Meus bilhetes" só trazem as compras daquela organização.
+  `npm run subdominio-spa` prova no Chromium (local, não roda no CI).
+- **Ficou para os PRs 4 a 6 (não bloqueia o PR 3, só o ligar em produção)**:
+  (1) a abertura do `index.html` (`#abertura`, o trevo da plataforma antes do
+  JavaScript) ainda aparece no endereço da organização na primeira visita do
+  aparelho — o script em linha não sabe o `Host`; entra no PR 6 com o
+  marcador no `index.html`; (2) o trevo de avisos e a central
+  (`/notificacoes`) listam os avisos da conta inteira, de todas as
+  organizações — filtrar por organização no endereço é do PR 5; (3) o carrinho
+  do endereço é o `localStorage` daquele endereço (só tem rifa da organização),
+  então não existe o "Ver o carrinho completo no site principal" do capítulo 7.3
+  — só passa a existir se medirmos a dor.
 - **Falta o domínio**: comprar o domínio base (loteriasnacional.com ou .com.br
   foi o nome cogitado), apontar o DNS e cadastrar o **domínio curinga**
   (`*.base`) no Railway, que aceita curinga e dá dois CNAME e um TXT para

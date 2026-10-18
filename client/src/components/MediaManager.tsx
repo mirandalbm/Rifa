@@ -171,13 +171,19 @@ export function MediaManager({ campaignId }: { campaignId: string }) {
             <p className="text-[11px] text-muted">{DICA[role]}</p>
 
             {role === "photo" ? (
-              <input
-                id="alt-text"
-                value={altText}
-                onChange={(e) => setAltText(e.target.value)}
-                placeholder="texto alternativo da próxima foto (obrigatório)"
-                className="w-full rounded-md border border-line-2 px-3 py-1.5 text-xs"
-              />
+              <div>
+                {/* Rótulo visível: o placeholder some ao digitar e não é nome de campo. */}
+                <label htmlFor="alt-text" className="label-xs block">
+                  Texto alternativo da próxima foto (obrigatório)
+                </label>
+                <input
+                  id="alt-text"
+                  value={altText}
+                  onChange={(e) => setAltText(e.target.value)}
+                  placeholder="Descreva a foto para quem não a enxerga"
+                  className="w-full rounded-md border border-line-2 px-3 py-1.5 text-xs"
+                />
+              </div>
             ) : null}
 
             {byRole(role).length === 0 ? (

@@ -67,7 +67,7 @@ export function ReembolsoCard() {
           className="tnum w-24 rounded-md border border-line-2 px-3 py-2"
         />
         <p className="text-xs text-muted">
-          O comprador pede o reembolso em "Minhas cotas", logado e com o print do bilhete. Ao
+          O comprador pede o reembolso em "Minhas cotas", logado (o print do bilhete é opcional). Ao
           aprovar em Atendimento, o protocolo sai com a data-limite calculada por este prazo (de{" "}
           <span className="tnum">{PRAZO_ESTORNO_MIN}</span> a <span className="tnum">{PRAZO_ESTORNO_MAX}</span>{" "}
           dias). Este prazo vale só para o reembolso com taxa: no arrependimento (até 7 dias) e no sorteio adiado, a

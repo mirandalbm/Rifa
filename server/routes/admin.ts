@@ -15,6 +15,9 @@ import {
 } from "../services/bannerDivulgacao";
 import { SociosError, adicionarSocio, declararSocios, listarSocios, removerSocio } from "../services/socios";
 import { agendarPublicacao } from "../services/publicacaoAgendada";
+import { validarPacotes } from "@shared/pacotes";
+import { lerComissaoDoCadastro } from "@shared/afiliados";
+import { problemaNosLimitesDoPedido } from "@shared/solicitacoes";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { abaterRetencao, liberarRetencao, listarRetencoes, reterManual } from "../services/retencao";
@@ -317,6 +320,21 @@ import { EMPRESA_VAZIA } from "@shared/legal";
 
 export const adminRouter = Router();
 
+/**
+ * Todo id que vem no caminho deste painel é UUID. O id torto (`/campaigns/abc`)
+ * chegava ao Postgres, que recusa a conversão com erro — e a resposta era 500
+ * em mais de cinquenta rotas. Aqui ele é "não existe" (404), igual ao id de
+ * quem não é dono, antes de qualquer consulta. (Rota da plataforma chamada
+ * por organizador com id torto também diz 404: não há dado nenhum a esconder.)
+ */
+const PARAMETROS_DE_ID = ["id", "mediaId", "prizedId", "socioId", "sellerId", "campaignId", "affiliateId", "fotoId"] as const;
+for (const nome of PARAMETROS_DE_ID) {
+  adminRouter.param(nome, (_req, res, next, valor) => {
+    if (!ehUuid(valor)) return res.status(404).json({ message: "Não encontrado." });
+    next();
+  });
+}
+
 async function audit(
   req: Request,
   action: string,
@@ -344,6 +362,30 @@ async function audit(
 function escopoDaCampanha(req: Request) {
   const org = orgOf(req);
   return org ? eq(campaigns.organizationId, org) : sql`TRUE`;
+}
+
+/**
+ * Criar acesso e redefinir senha custam um hash de senha (64 MiB e uma thread
+ * do libuv, que também serve o disco). Sem limite, uma sessão de organizador
+ * (ou uma sessão roubada) abriria centenas em rajada e seguraria o servidor.
+ * Conta depois do erro de preenchimento, como os outros limites.
+ */
+const ACESSOS_POR_HORA = 30;
+async function acessosEmExcesso(req: Request): Promise<boolean> {
+  return (await hit(`acesso-novo:${req.user!.id}`, 60, ACESSOS_POR_HORA)).excedeu;
+}
+const MUITOS_ACESSOS = "Muitos acessos criados em pouco tempo. Espere um pouco e tente de novo.";
+
+/**
+ * `featured` e `sortWeight` mandam na ordem da vitrine (destaque e peso do
+ * feed): são da plataforma. O schema da rifa os aceita porque a plataforma
+ * edita a rifa de qualquer organização pelas mesmas rotas — mas o organizador
+ * que os mandasse empurraria a própria rifa para o topo do feed de todos.
+ */
+function semOrdemDaVitrine<T extends object>(req: Request, dados: T): T {
+  if (!orgOf(req)) return dados;
+  const { featured: _f, sortWeight: _w, ...resto } = dados as Record<string, unknown>;
+  return resto as T;
 }
 
 /* ---------------- painel ---------------- */
@@ -550,7 +592,7 @@ adminRouter.get("/campaigns", async (req, res, next) => {
 
 adminRouter.post("/campaigns", async (req, res, next) => {
   try {
-    const input = insertCampaignSchema.parse(req.body);
+    const input = semOrdemDaVitrine(req, insertCampaignSchema.parse(req.body));
     assertQuotaRange(input.totalQuotas);
 
     // Organizador cria na própria; o administrador geral precisa dizer em
@@ -566,6 +608,12 @@ adminRouter.post("/campaigns", async (req, res, next) => {
     const metodoApuracao = (await getPlataforma()).metodosDeApuracao[0] ?? null;
     const premio = problemaNoPremio(input.prizeTitle, Boolean(metodoApuracao));
     if (premio) return res.status(422).json({ message: premio });
+    const limites = problemaNosLimitesDoPedido({
+      minPerOrder: input.minPerOrder ?? 1,
+      maxPerOrder: input.maxPerOrder ?? 1000,
+      reservationTtlMin: input.reservationTtlMin ?? 15,
+    });
+    if (limites) return res.status(422).json({ message: limites });
     const [created] = await db
       .insert(campaigns)
       .values({ ...input, organizationId, status: "draft", metodoApuracao })
@@ -585,7 +633,7 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
 
-    const changes = insertCampaignSchema.partial().parse(req.body);
+    const changes = semOrdemDaVitrine(req, insertCampaignSchema.partial().parse(req.body));
     // A campanha não muda de dono por PATCH: seria transferir venda, cota e
     // comissão de uma administradora para outra com um campo de formulário.
     delete (changes as { organizationId?: unknown }).organizationId;
@@ -609,6 +657,16 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
       const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
       if (premio) return res.status(422).json({ message: premio });
     }
+    // Só confere os limites quando o pedido mexe neles: rifa antiga com valor de
+    // antes da régua não pode travar a troca de título, destaque ou comissão.
+    const limites = mexeNosLimites(changes)
+      ? problemaNosLimitesDoPedido({
+          minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+          maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+          reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+        })
+      : null;
+    if (limites) return res.status(422).json({ message: limites });
 
     const [updated] = await db
       .update(campaigns)
@@ -649,7 +707,7 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
     }
 
     if (campaign.status === "draft") {
-      const changes = insertCampaignSchema.partial().parse(corpo);
+      const changes = semOrdemDaVitrine(req, insertCampaignSchema.partial().parse(corpo));
       delete (changes as { organizationId?: unknown }).organizationId;
       if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
       if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
@@ -657,6 +715,14 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
         const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
         if (premio) return res.status(422).json({ message: premio });
       }
+      const limites = mexeNosLimites(changes)
+        ? problemaNosLimitesDoPedido({
+            minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+            maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+            reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+          })
+        : null;
+      if (limites) return res.status(422).json({ message: limites });
       const [updated] = await db.update(campaigns).set(changes).where(eq(campaigns.id, campaign.id)).returning();
       await audit(req, "campaign.update", "campaign", campaign.id, changes);
       return res.json({ aplicada: true, campaign: updated });
@@ -1528,11 +1594,11 @@ adminRouter.put("/campaigns/:id/agendar-publicacao", async (req, res, next) => {
 adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
   try {
     const campanha = await assertCampaignInScope(req, req.params.id);
-    const list = (req.body?.packages ?? []) as {
-      quantity: number;
-      discountPct: number;
-      highlight?: boolean;
-    }[];
+    // O corpo é do navegador: sem teto, o desconto de 100% (ou 150%) virava
+    // pedido de valor zero (ou negativo) com as cotas reservadas.
+    const lida = validarPacotes(req.body?.packages, campanha.totalQuotas);
+    if ("problema" in lida) return res.status(422).json({ message: lida.problema });
+    const list = lida.pacotes;
     // Por cota: o desconto do pacote não pode levar a cota abaixo da taxa da
     // plataforma (a fotografada na publicação, ou a de hoje no rascunho).
     const tabela = campanha.cobranca ?? (await tabelaDeCobrancaAgora());
@@ -2026,7 +2092,11 @@ adminRouter.get("/busca", async (req, res, next) => {
 
 adminRouter.get("/orders", async (req, res, next) => {
   try {
-    const status = req.query.status ? String(req.query.status) : null;
+    // O filtro vem da barra de endereço: situação que o banco não conhece é
+    // ignorada (a lista segue no recorte), em vez de virar erro de conversão do enum.
+    const status = ["pending", "paid", "expired", "refunded"].includes(String(req.query.status))
+      ? String(req.query.status)
+      : null;
     // A busca do painel chega aqui com `?codigo=` (o pedido) ou `?cliente=`
     // (o ID): a lista fica só com eles, dentro do mesmo recorte.
     const codigo = /^\d{8}$/.test(String(req.query.codigo ?? "")) ? Number(req.query.codigo) : null;
@@ -2126,10 +2196,18 @@ adminRouter.post("/affiliates", async (req, res, next) => {
     if (!name || !email || !password || !code) {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
+    // A mesma régua de senha do cambista e do resto do painel (`senhaInvalida`):
+    // esta conta recebe comissão e pede saque, e antes aceitava até "1".
+    const senhaRuim = senhaInvalida(String(password), "affiliate");
+    if (senhaRuim) return res.status(400).json({ message: senhaRuim });
+    const comissao = lerComissaoDoCadastro(commissionPct);
+    if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
 
     // O afiliado é avulso (a conta não tem organização). Criado por um
     // organizador, já nasce com o vínculo aprovado com a organização dele.
     const organizationId = orgOf(req) ?? (req.body?.organizationId ? String(req.body.organizationId) : null);
+    if (organizationId && !ehUuid(organizationId)) return res.status(400).json({ message: "Organização inválida." });
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
@@ -2148,7 +2226,7 @@ adminRouter.post("/affiliates", async (req, res, next) => {
         .values({
           userId: user.id,
           code: String(code).toUpperCase().trim(),
-          commissionPct: commissionPct ? Number(commissionPct) : null,
+          commissionPct: comissao.pct,
           status: "active",
           approvedAt: new Date(),
         })
@@ -2161,6 +2239,11 @@ adminRouter.post("/affiliates", async (req, res, next) => {
           .onConflictDoNothing();
       }
       return aff;
+    }).catch((err) => {
+      // Repetido: quem decide é o índice (e vira 409, não erro interno).
+      if (isUniqueViolation(err, "uq_users_email")) throw new OrgScopeError("Já existe um acesso com este e-mail.", 409);
+      if (isUniqueViolation(err, "uq_affiliates_code")) throw new OrgScopeError("Este código já é de outro afiliado ou cambista.", 409);
+      throw err;
     });
 
     await audit(req, "affiliate.create", "affiliate", created.id, { code: created.code });
@@ -2190,10 +2273,18 @@ adminRouter.patch("/affiliates/:id", async (req, res, next) => {
     }
 
     const changes: Record<string, unknown> = {};
-    if (req.body?.status) changes.status = req.body.status;
-    if (req.body?.commissionPct !== undefined) {
-      changes.commissionPct = req.body.commissionPct === null ? null : Number(req.body.commissionPct);
+    if (req.body?.status) {
+      if (!["pending", "active", "blocked"].includes(String(req.body.status))) {
+        return res.status(400).json({ message: "Situação do cadastro inválida." });
+      }
+      changes.status = req.body.status;
     }
+    if (req.body?.commissionPct !== undefined) {
+      const comissao = lerComissaoDoCadastro(req.body.commissionPct);
+      if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
+      changes.commissionPct = comissao.pct;
+    }
+    if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
     if (changes.status === "active") changes.approvedAt = new Date();
 
     const [updated] = await db
@@ -2254,6 +2345,20 @@ adminRouter.post("/coupons", async (req, res, next) => {
     if (!Number.isInteger(discountPct) || discountPct < 1 || discountPct > 50) {
       return res.status(400).json({ message: "O desconto precisa ficar entre 1% e 50%." });
     }
+    // Limite de usos e validade: o corpo é do navegador, e texto ou data torta
+    // virava erro de conversão do banco (500).
+    const bruto = req.body?.maxUses;
+    const maxUses = bruto === undefined || bruto === null || bruto === "" ? null : Number(bruto);
+    if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 1_000_000)) {
+      return res.status(400).json({ message: "O limite de usos é um número inteiro a partir de 1." });
+    }
+    let expiresAt: Date | null = null;
+    if (req.body?.expiresAt) {
+      expiresAt = new Date(req.body.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+        return res.status(400).json({ message: "Informe uma validade futura, ou deixe em branco." });
+      }
+    }
 
     // Cupom de organizador tem que morder algo dele. Sem campanha e sem
     // afiliado o cupom vale em toda a plataforma — isso é da plataforma.
@@ -2284,8 +2389,8 @@ adminRouter.post("/coupons", async (req, res, next) => {
         organizationId,
         affiliateId: req.body?.affiliateId || null,
         campaignId: req.body?.campaignId || null,
-        maxUses: req.body?.maxUses ? Number(req.body.maxUses) : null,
-        expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
+        maxUses,
+        expiresAt,
       })
       .onConflictDoNothing({ target: coupons.code })
       .returning();
@@ -2335,11 +2440,14 @@ adminRouter.post("/sellers", async (req, res, next) => {
     // O cambista vende e dá baixa em dinheiro: a mesma régua de senha do resto.
     const senhaRuim = senhaInvalida(String(password), "cambista");
     if (senhaRuim) return res.status(400).json({ message: senhaRuim });
+    const comissao = lerComissaoDoCadastro(commissionPct);
+    if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
 
     const organizationId = organizationForNewCampaign(
       req,
       req.body?.organizationId ? String(req.body.organizationId) : undefined,
     );
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
@@ -2360,7 +2468,7 @@ adminRouter.post("/sellers", async (req, res, next) => {
           userId: user.id,
           code: String(code).toUpperCase().trim(),
           kind: "cambista",
-          commissionPct: commissionPct ? Number(commissionPct) : null,
+          commissionPct: comissao.pct,
           status: "active",
           approvedAt: new Date(),
         })
@@ -3568,6 +3676,7 @@ adminRouter.post("/usuarios/:id/senha", async (req, res, next) => {
     const senha = String(req.body?.password ?? "");
     const invalida = senhaInvalida(senha, alvo.role);
     if (invalida) return res.status(400).json({ message: invalida });
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     await db
       .update(users)
@@ -5579,3 +5688,8 @@ adminRouter.post("/fiscal/:affiliateId/decidir", async (req, res, next) => {
     next(err);
   }
 });
+
+/** O pedido de mudança leva algum dos três limites de pedido (mínimo, máximo, reserva)? */
+function mexeNosLimites(changes: Record<string, unknown>): boolean {
+  return changes.minPerOrder !== undefined || changes.maxPerOrder !== undefined || changes.reservationTtlMin !== undefined;
+}

@@ -27,6 +27,13 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
   afiliado, cambista, plataforma, marketing), um PR por acesso.
+  - [x] Organizador (18/10/2026): `docs/AUDITORIA-ACESSO-ORGANIZADOR.md`, 13
+    defeitos corrigidos. **Ficaram para decidir**: a rifa da Federal fora de um
+    sorteio oficial, em que o organizador digita os 5 prêmios; os pacotes que
+    mudam depois de publicada; nome e CNPJ da promotora editáveis com rifa no ar
+    (e o CNPJ sem dígito conferido); a senha inicial do afiliado que a
+    organização cria; e o parecer do `revisor-de-invariantes` sobre os commits
+    de dinheiro e isolamento.
 
 ## 1. WhatsApp
 

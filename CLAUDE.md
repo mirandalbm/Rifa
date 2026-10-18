@@ -239,8 +239,8 @@ arquitetura.
   (seção "Sorteios oficiais"), a cor de cada pessoa na conversa por cima do
   vídeo do sorteio (`CORES_DOS_NOMES`) e o **vermelho da marca** — o da
   logo, do ícone e da intro (`docs/marca/`) e o do **"+" do carrinho** no
-  tema claro (`--mais` = `--red`, pedido do produto em 14/10/2026; no escuro
-  segue verde). O "+" é ação, não estado: vermelho continua sendo erro em
+  tema claro e no escuro (`--mais` = `--red`, pedido do produto em 14/10/2026 e
+  estendido ao escuro em 18/10/2026). O "+" é ação, não estado: vermelho continua sendo erro em
   todo o resto, e nenhum aviso, pílula ou estado novo usa o vermelho fora de
   erro.
 
@@ -3386,7 +3386,7 @@ emoji da lista, preço, selo SPA/MF, foto da organização e QR da rifa.
 
 ## Carrinho e comprar — o que não pode afrouxar
 
-Na barra da publicação, o **"+"** (vermelho da marca no claro, verde no escuro — `--mais` —, em negrito) fica no espaço do meio
+Na barra da publicação, o **"+"** (vermelho nos dois temas — `--mais` —, em negrito) fica no espaço do meio
 e o **comprar** (a sacola, em verde — `text-green-deep`, dinheiro entrando; no console ela segue na cor do console) no canto direito, onde era o salvar. O "+" abre
 a janela dos números (`EscolherBilhete`): os tamanhos 5, 10, 25 e 50 (ou
 uma quantidade digitada, no mínimo e máximo da rifa) e as cartelas daquele

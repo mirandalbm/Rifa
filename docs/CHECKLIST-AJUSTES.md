@@ -16,10 +16,10 @@ aparelho.
   - O nome vem do template **publicado** em Aparência → Identidade. O nome foi trocado no rascunho; falta **publicar**.
   - Depois do deploy, **desinstalar e reinstalar** o app no aparelho (o sistema guarda o ícone no momento da instalação).
   - Tela de carregamento (linha cinza em volta do trevo): conferir no aparelho depois do deploy; se persistir, opção 3 da conversa (tirar o maskable do manifesto).
-- [ ] **2. Largura da publicação da rifa fora do padrão da vitrine** — **[decisão]**
+- [x] **2. Largura da publicação da rifa fora do padrão da vitrine** — **[decisão]** (18/10/2026: fica a atual, 1408 px)
   - Hoje a página da rifa abre `larga ampla` (até 1408 px no computador). A vitrine usa `max-w-3xl` no celular e feed em `md:max-w-none`.
   - Decidir: a publicação da rifa deve ter **a mesma largura do cartão do feed** (`PublicShell` sem `larga`), ou só a mesma **proporção** do cartão?
-- [ ] **4. Cores dos ícones de compra não mudaram** — **[decisão]**
+- [x] **4. Cores dos ícones de compra não mudaram** — **[decisão]** (18/10/2026: o "+" vermelho nos dois temas; a sacola verde)
   - Hoje: o "+" do carrinho é vermelho no tema claro (`--mais`, pedido de 14/10), a sacola de comprar é verde (`text-green-deep`).
   - Decidir para qual cor ir (e se vale no claro e no escuro). Ação de comprar não pode ser vermelha se o vermelho é reservado a erro — ver a regra de paleta no `CLAUDE.md`.
 - [x] **5. Ícone do topo à esquerda não centralizado verticalmente** — **[código]** (feito em 18/10/2026)

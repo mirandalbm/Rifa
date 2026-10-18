@@ -16,16 +16,16 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 
 - [ ] **[você]** Autorizar o merge do PR #266 (ícone do app) e publicar o
   template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
-- [ ] **[decisão]** Largura da publicação da rifa (igual ao cartão da vitrine?).
-- [ ] **[decisão]** Cor dos ícones de compra ("+" e sacola).
+- [x] **[decisão]** Largura da publicação da rifa: decidido em 18/10/2026, fica a atual (1408 px no computador, `larga ampla`). Nada a mudar.
+- [x] **[decisão]** Cor dos ícones de compra: decidido em 18/10/2026, o "+" é vermelho nos dois temas (`--mais` = `--red`, registro 202 de `docs/VERSOES.md`); a sacola segue verde.
 - [x] **[código]** Ícone do topo à esquerda centralizado na vertical (18/10/2026: `AppShell.tsx`, o link da marca ficou `flex items-center`; registro 201 de `docs/VERSOES.md`).
 - [ ] **[decisão]** "Rifas perto de" vira "Locais": painel com todos os
-  estados e bandeiras (enviar as imagens, ou selo com a sigla).
-- [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo.
+  estados. Decidido em 18/10/2026: bandeiras do conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (estilo `circle`, copiadas e otimizadas, sem dependência), com a origem em `docs/LICENCAS-DE-TERCEIROS.md`; a dúvida sobre usar bandeira de estado numa plataforma comercial vai para `docs/PERGUNTAS-AO-ADVOGADO.md`. Falta: eu implementar.
+- [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo. Decidido em 18/10/2026: no rodapé da plataforma, em duas linhas (razão social e CNPJ dos Dados da empresa publicados; e o aviso de jogo responsável). Falta: eu implementar.
 - [ ] **[decisão]** Rifa nacional: valor mínimo, aprovação só pelo admin e
-  ordem no topo (muda a regra "a localização ordena, nunca esconde").
+  ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço; falta o valor em reais). Falta: plano e implementação.
 - [ ] **[decisão]** Banners por estado (carrossel de 5 em cada estado e no
-  nacional) e cadastro no portal de marketing.
+  nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
   afiliado, cambista, plataforma, marketing), um PR por acesso.
 

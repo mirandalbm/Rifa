@@ -3143,19 +3143,17 @@ adminRouter.put("/selos", async (req, res, next) => {
 adminRouter.put("/plataforma", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Sem o campo, vale o que já estava — nada volta ao padrão por omissão
+    // (antes, mandar só a taxa desligava o reembolso e voltava o provedor ao
+    // automático). `provedorPix: null` é a escolha "automático", dita de
+    // propósito. `undefined` o `setPlataforma` ignora e junta com a
+    // configuração de agora, já com a trava.
     const salva = await setPlataforma({
-      provedorPix: req.body?.provedorPix ?? null,
-      estornoManual: req.body?.estornoManual === true,
-      // Sem o campo, vale o que já estava — não volta ao padrão por omissão.
-      taxaReembolsoPct:
-        req.body?.taxaReembolsoPct !== undefined
-          ? Number(req.body.taxaReembolsoPct)
-          : (await getPlataforma()).taxaReembolsoPct,
-      // Guarda da comissão (etapa 12): sem o campo, vale o que já estava.
-      guardaComissao:
-        req.body?.guardaComissao !== undefined
-          ? req.body.guardaComissao === true
-          : (await getPlataforma()).guardaComissao,
+      provedorPix: req.body?.provedorPix,
+      estornoManual: req.body?.estornoManual === undefined ? undefined : req.body.estornoManual === true,
+      taxaReembolsoPct: req.body?.taxaReembolsoPct === undefined ? undefined : Number(req.body.taxaReembolsoPct),
+      // Guarda da comissão (etapa 12).
+      guardaComissao: req.body?.guardaComissao === undefined ? undefined : req.body.guardaComissao === true,
     });
     await audit(req, "plataforma.update", "settings", "plataforma", salva);
     res.json(salva);
@@ -3665,11 +3663,14 @@ async function haPromotorasComContrato(): Promise<boolean> {
 adminRouter.put("/cobranca/tabela", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const nova = validarConfigCobranca(req.body ?? {});
     const vigenteEm = req.body?.vigenteEm ? String(req.body.vigenteEm) : null;
     const agora = new Date();
     const p = await getPlataforma();
     const antes = tabelaVigente(p.cobranca, p.cobrancaProxima, agora);
+    // O campo que não vier fica como está na tabela vigente: o percentual, o
+    // valor por cota e as faixas do Pix. Antes, omitir o valor por cota o
+    // zerava e, omitindo as faixas, voltavam as de fábrica — e redução vale na hora.
+    const nova = validarConfigCobranca(req.body && typeof req.body === "object" && !Array.isArray(req.body) ? { ...antes, ...req.body } : req.body);
     const problema = problemaNaVigencia({ antes, depois: nova, vigenteEm, agora, comPromotoras: await haPromotorasComContrato() });
     if (problema) return res.status(422).json({ message: problema });
     const salva = await setPlataforma(

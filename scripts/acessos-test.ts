@@ -243,6 +243,18 @@ async function main() {
     r = await new Cliente().req("POST", "/api/public/orders", { campaignId: camp.id, quantity: 1, buyer: { name: "Liberado", phone: TELEFONE_BLOQUEADO } });
     checa("desbloqueado, o mesmo telefone compra (201)", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
 
+    // O reembolso e o provedor do Pix não voltam ao padrão quando só a taxa é salva.
+    const plataformaAntes = (await admin.req("GET", "/api/admin/plataforma")).json;
+    await admin.req("PUT", "/api/admin/plataforma", { estornoManual: !plataformaAntes.estornoManual });
+    r = await admin.req("PUT", "/api/admin/plataforma", { taxaReembolsoPct: plataformaAntes.taxaReembolsoPct });
+    const cfgDepois = (await admin.req("GET", "/api/admin/plataforma")).json;
+    checa(
+      "plataforma: mandar só a taxa não desliga o reembolso nem volta o provedor ao automático",
+      r.status === 200 && cfgDepois.estornoManual === !plataformaAntes.estornoManual && cfgDepois.provedorPix === plataformaAntes.provedorPix && cfgDepois.guardaComissao === plataformaAntes.guardaComissao,
+      `HTTP ${r.status}`,
+    );
+    await admin.req("PUT", "/api/admin/plataforma", { estornoManual: plataformaAntes.estornoManual });
+
     /* ----------------------------- segundo fator ------------------------- */
     console.log("\n  segundo fator:");
     r = await a.req("GET", "/api/admin/2fa");

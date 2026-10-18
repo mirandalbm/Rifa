@@ -2128,12 +2128,17 @@ adminRouter.post("/affiliates", async (req, res, next) => {
     if (!name || !email || !password || !code) {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
+    // A mesma régua de senha do cambista e do resto do painel (`senhaInvalida`):
+    // esta conta recebe comissão e pede saque, e antes aceitava até "1".
+    const senhaRuim = senhaInvalida(String(password), "affiliate");
+    if (senhaRuim) return res.status(400).json({ message: senhaRuim });
     const comissao = lerComissaoDoCadastro(commissionPct);
     if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
 
     // O afiliado é avulso (a conta não tem organização). Criado por um
     // organizador, já nasce com o vínculo aprovado com a organização dele.
     const organizationId = orgOf(req) ?? (req.body?.organizationId ? String(req.body.organizationId) : null);
+    if (organizationId && !ehUuid(organizationId)) return res.status(400).json({ message: "Organização inválida." });
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
@@ -2165,6 +2170,11 @@ adminRouter.post("/affiliates", async (req, res, next) => {
           .onConflictDoNothing();
       }
       return aff;
+    }).catch((err) => {
+      // Repetido: quem decide é o índice (e vira 409, não erro interno).
+      if (isUniqueViolation(err, "uq_users_email")) throw new OrgScopeError("Já existe um acesso com este e-mail.", 409);
+      if (isUniqueViolation(err, "uq_affiliates_code")) throw new OrgScopeError("Este código já é de outro afiliado ou cambista.", 409);
+      throw err;
     });
 
     await audit(req, "affiliate.create", "affiliate", created.id, { code: created.code });

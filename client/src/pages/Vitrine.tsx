@@ -160,7 +160,7 @@ function FeedInfinito({ lista, comDivulgacoes }: { lista: RifaDoFeed[]; comDivul
       {tem ? (
         <div ref={fim} className="py-4 text-center">
           {/* Sem rolagem (ou sem IntersectionObserver), o botão faz o mesmo. */}
-          <button type="button" onClick={() => setMostrando((n) => n + LEVA_DO_FEED)} className="inline-flex min-h-6 items-center text-sm font-semibold text-marca hover:underline">
+          <button type="button" onClick={() => setMostrando((n) => n + LEVA_DO_FEED)} className="inline-flex h-10 items-center px-4 text-sm font-semibold text-marca hover:underline">
             Ver mais rifas
           </button>
         </div>

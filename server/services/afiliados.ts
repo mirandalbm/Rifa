@@ -20,6 +20,7 @@ import {
   users,
 } from "@shared/schema";
 import {
+  lerComissaoDoCadastro,
   montarTermo,
   pctDaComissao,
   podeReceberComissao,
@@ -218,9 +219,10 @@ export async function decidirVinculo(
     mudar.decididoEm = new Date();
   }
   if (entrada.commissionPct !== undefined) {
-    const pct = entrada.commissionPct === null ? null : Number(entrada.commissionPct);
-    if (pct !== null && (!Number.isInteger(pct) || pct < 0 || pct > 50)) throw new AfiliadoError("Comissão de 0 a 50%.");
-    mudar.commissionPct = pct;
+    // A mesma leitura do cadastro: vazio é "vale a da rifa" (null), nunca 0%.
+    const lida = lerComissaoDoCadastro(entrada.commissionPct);
+    if ("problema" in lida) throw new AfiliadoError(lida.problema);
+    mudar.commissionPct = lida.pct;
   }
   if (Object.keys(mudar).length === 0) throw new AfiliadoError("Nada para mudar.");
   const [feito] = await db
@@ -310,7 +312,7 @@ export async function termoPublico(slug: string) {
   const [org] = await db
     .select({ id: organizations.id, nome: organizations.name })
     .from(organizations)
-    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt)));
+    .where(and(eq(organizations.slug, slug), isNull(organizations.archivedAt), isNull(organizations.banidaEm)));
   if (!org) throw new AfiliadoError("Organização não encontrada.", 404);
   const t = await termoAtual(org.id);
   return { organizacao: org.nome, termo: t ? { versao: t.versao, comissaoPct: t.comissaoPct, texto: t.texto } : null };

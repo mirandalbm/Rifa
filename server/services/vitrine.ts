@@ -645,7 +645,8 @@ export async function estadosNoAr(ufDeQuemOlha?: string | null) {
     .select({ uf: organizations.uf, rifas: sql<number>`count(*)::int` })
     .from(campaigns)
     .innerJoin(organizations, eq(organizations.id, campaigns.organizationId))
-    .where(and(eq(campaigns.status, "published"), isNull(organizations.archivedAt)))
+    // A mesma régua da vitrine: o que está na contagem é o que a pessoa vai ver ao abrir o estado.
+    .where(and(eq(campaigns.status, "published"), isNull(campaigns.travadaEm), isNull(organizations.archivedAt), isNull(organizations.banidaEm)))
     .groupBy(organizations.uf);
   return estadosComRifa(linhas, ufDeQuemOlha);
 }

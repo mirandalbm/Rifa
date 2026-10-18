@@ -6,6 +6,7 @@ import {
   validarPedidoDeColaborador,
   validarTermo,
   COMISSAO_MAX_PCT,
+  lerComissaoDoCadastro,
 } from "../shared/afiliados";
 
 describe("termo de adesão", () => {
@@ -91,6 +92,22 @@ describe("quem recebe e quanto", () => {
     expect(pctDaComissao({ termoPct: null, vinculoPct: 20, afiliadoPct: 30, rifaPct: 10 })).toBe(20);
     expect(pctDaComissao({ termoPct: null, vinculoPct: null, afiliadoPct: 30, rifaPct: 10 })).toBe(30);
     expect(pctDaComissao({ termoPct: null, vinculoPct: null, afiliadoPct: null, rifaPct: 10 })).toBe(10);
+  });
+});
+
+describe("comissão própria no cadastro do cambista e do afiliado", () => {
+  it("vazia vale a da rifa; número é inteiro de 0 ao máximo", () => {
+    for (const vazio of [undefined, null, "", "  "]) expect(lerComissaoDoCadastro(vazio)).toEqual({ pct: null });
+    expect(lerComissaoDoCadastro("10")).toEqual({ pct: 10 });
+    expect(lerComissaoDoCadastro(" 7 ")).toEqual({ pct: 7 });
+    expect(lerComissaoDoCadastro(0)).toEqual({ pct: 0 });
+    expect(lerComissaoDoCadastro(COMISSAO_MAX_PCT)).toEqual({ pct: COMISSAO_MAX_PCT });
+  });
+
+  it("recusa o que faria a confirmação do Pix falhar (acima de 100%) ou o banco errar", () => {
+    for (const ruim of [150, 51, -1, 12.5, NaN, Infinity, "abc", "12,5", "-3", "1e3", "9999", true, {}, []]) {
+      expect(lerComissaoDoCadastro(ruim), String(ruim)).toHaveProperty("problema");
+    }
   });
 });
 

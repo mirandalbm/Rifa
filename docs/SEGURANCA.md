@@ -43,6 +43,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Cabeçalhos: `nosniff`, `X-Frame-Options`, `frame-ancestors`, `Referrer-Policy`; HSTS em produção | `server/index.ts` | — |
 | Política de conteúdo (CSP) **em modo relatório**, só em produção: a lista do que o sistema carrega (pixels, fontes, Stream, players), o script do tema pelo hash, `object-src 'none'`; os relatórios vão ao log agrupados (diretiva e origem, nunca a URL) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts` | `tests/csp.test.ts` |
 | Clique patrocinado: cobra só com o comprovante da exibição (HMAC por anúncio e aparelho, de 1 s a 30 min) e no máximo 3 por IP por anúncio em 24 h | `server/services/ticketDoClique.ts`, `registrarClique` em `server/services/patrocinio.ts` | `tests/ticketDoClique.test.ts`, `npm run patrocinio` |
+| A porta recusa o que ninguém digita: byte nulo no endereço, na consulta ou no JSON é 400 para todas as rotas; o erro 22021 que escapar também; `unhandledRejection` vai ao log. Balde do antifraude de texto longo vira começo + impressão (`chaveDoBalde`); rota `async` leva `try/catch`. Leitura pública em `private, no-cache` por padrão, pedido/carrinho/bilhete em `no-store` | `server/index.ts`, `shared/semNulo.ts`, `server/services/balde.ts`, `server/routes/index.ts` | `tests/semNulo.test.ts`, `npm run publico` |
 | Rascunho não responde em rota pública (mapa, número, prêmios, ranking, últimas compras): 404, igual a inexistente | `server/routes/public.ts` | `npm run senha` |
 | Segredos obrigatórios em produção (`SESSION_SECRET`, `COFRE_CHAVE`, R2); o seed se recusa em produção | `server/auth.ts`, `cofre.ts`, `storage.ts`, `scripts/seed.ts` | — |
 | Log: método, caminho sem a query, status e tempo; recusa de login com o e-mail mascarado | `server/index.ts`, `server/routes/auth.ts` | — |
@@ -86,6 +87,20 @@ npm run telas                      # telas: nome dos controles, estouro, erros
 O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
+
+### 18/10/2026 — acesso público (visitante sem login)
+
+Escopo: tudo o que o visitante alcança (telas e `/api/public/*`, `/c/`, `/l/`,
+login, webhooks). Relatório completo, com o que ficou aberto, em
+`docs/AUDITORIA-ACESSO-PUBLICO.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| Alta | `POST /api/auth/login` sem `try`: o e-mail com byte nulo ou enorme (estoura a linha do índice do antifraude) derrubava o processo — um pedido anônimo tirava o site do ar | `routes/auth.ts`, `index.ts`, `balde.ts`, `semNulo.ts` (`npm run publico`, `tests/semNulo.test.ts`) |
+| Média | Id fora do formato e byte nulo em rota pública respondiam 500 (pedido, carrinho, story, banner pago, perfil, recibo, pixel…) | `routes/public.ts`, `index.ts` (`npm run publico`) |
+| Média | Promotora banida ainda aparecia na vitrine, nos estados, no termo, no pixel e no link do perfil (por onde o Pix por fora costuma ir) | `campaigns.ts`, `vitrine.ts`, `links.ts`, `afiliados.ts`, `marketing.ts` (`npm run publico`) |
+| Média | Leitura pública sem `Cache-Control` (varia com a sessão); pedido e bilhete sem `no-store` | `routes/index.ts`, `public.ts` (`npm run publico`) |
+| Baixa | Ranking sem guarda (varredura por pedido); consulta de CEP sem limite (ViaCEP) | `public.ts` (`npm run publico`) |
 
 ### 02/10/2026
 

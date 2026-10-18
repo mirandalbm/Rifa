@@ -116,6 +116,7 @@ arquitetura.
 | fila de trabalho pesado e o trabalhador (processo à parte), o reels gerado com as fotos da rifa (Fase F) | `shared/fila.ts` (regras), `server/services/fila.ts` (enfileirar, tomar, terminar, devolver os presos, receber), `server/worker.ts` e `server/trabalhos/` (o laço e os tipos), `shared/reelsGerado.ts` (roteiro, comando do `ffmpeg`, texto gravado), `faixaDoReelsGerado()` em `server/services/arteDesenho.ts`, `server/services/reelsGerado.ts` (pedir, situação, receber), `/campaigns/:id/reels-gerado` em `server/routes/admin.ts`, relógio em `server/jobs/index.ts` (trava 811022), `client/src/components/GerarReels.tsx` (no cartão Reels da rifa), `scripts/fila-test.ts`, `tests/fila.test.ts`, `tests/reelsGerado.test.ts` |
 | limites de antifraude | `shared/antifraude.ts` (regras) e `server/services/antifraude.ts` |
 | isolamento entre organizadores | `server/services/orgs.ts` e `scripts/isolation-test.ts` |
+| pacotes de cotas da rifa (desconto de 0 a 50%, sem pedido de valor zero ou negativo) e a comissão própria do cambista e do afiliado no cadastro (0 a 50) | `validarPacotes()` em `shared/pacotes.ts` (`PUT /campaigns/:id/packages`), o total ≥ 1 centavo em `prepararPedido()` (`server/services/orders.ts`), `lerComissaoDoCadastro()` em `shared/afiliados.ts` (`POST /sellers`, `POST /affiliates`, `PATCH /affiliates/:id`), `tests/pacotes.test.ts`, `tests/afiliados.test.ts`, `docs/AUDITORIA-ACESSO-ORGANIZADOR.md` |
 | rateio da venda | `shared/pricing.ts` (`splitOrder`) |
 | estorno | `server/services/orders.ts` (`refundOrder`) e `scripts/refund-test.ts` |
 | Pix que chegou tarde (reserva vencida ou depois do sorteio): fila de devolução | `shared/pixTardio.ts`, `server/services/pixTardio.ts`, `/pix-tardios*` em `server/routes/admin.ts`, `client/src/components/PixTardios.tsx` (em Pedidos), tipo `pix_tardio` em `shared/caixa.ts`, `scripts/pix-tardio-test.ts` |
@@ -151,6 +152,7 @@ arquitetura.
 | contrato da plataforma com a promotora (versões, aceite da organização, trava de publicação, campos da empresa preenchidos pela plataforma) | `shared/contratoPromotora.ts` (régua do texto, `preencherContrato`), `server/services/contratoPromotora.ts` (`problemaDoContrato`, `TRAVA_CONTRATO`), `/contrato-promotora*` em `server/routes/admin.ts`, `publishBlockers`/`publishCampaign()` em `server/services/campaigns.ts`, `client/src/components/ContratoPromotoraCard.tsx` (Configurações), `scripts/contrato-promotora-test.ts`, `tests/contratoPromotora.test.ts`; os anexos por modalidade (cláusula 7): `shared/contratoAnexos.ts` (modalidades e régua), `server/services/contratoAnexos.ts` (`anexosDaPublicacao`, `exigirAnexoNaRifa`), `/contrato-promotora/anexos*`, `AnexosDaOrganizacao`/`AnexosDaPlataforma` no mesmo cartão, `scripts/contrato-anexos-test.ts`, `tests/contratoAnexos.test.ts` |
 | autorização SPA/MF e data do sorteio | `shared/campanhaLegal.ts`, `salvarDadosLegais()` em `server/services/campaigns.ts`, `client/src/components/DadosLegaisCard.tsx` |
 | sócios e diretores da organização (CPF, declaração da lista, compra recusada) | `shared/socios.ts` (regras), `server/services/socios.ts` (`cpfDeSocio`, `problemaDosSocios`), `/organizacoes/:id/socios*` em `server/routes/admin.ts`, `client/src/components/SociosDaOrganizacaoCard.tsx` (Configurações → Organização e perfil), `scripts/apuracao-test.ts`, `tests/juridico2.test.ts` |
+| "Locais": o painel de estados com a bandeira (antes "Rifas perto de") | `shared/locais.ts` (os 27 locais e o caminho da bandeira), `client/src/components/LocaisDaVitrine.tsx` (o painel), `client/src/components/SeletorDeRegiao.tsx` (o botão no topo e na lateral, `useRegiaoDaVitrine`), `client/src/lib/regiao.ts` (a escolha), `client/public/bandeiras/`, `docs/LICENCAS-DE-TERCEIROS.md`, `tests/locais.test.ts` |
 | endereço do organizador e ordem da vitrine por região | `shared/endereco.ts` (regra), `salvarEndereco()` em `server/services/orgs.ts`, `server/services/cep.ts`, `client/src/components/EnderecoForm.tsx` |
 | perfil do organizador, seguir e sino | `shared/perfil.ts` (regras), `server/services/perfil.ts`, `client/src/pages/Perfil.tsx`, `client/src/components/Seguir.tsx`, `scripts/perfil-test.ts` |
 | perfil de demonstração (organização de exemplo, sem rifa à venda) | `server/services/demonstracao.ts`, card em `client/src/pages/adminOrganizacoes.tsx` |
@@ -197,7 +199,7 @@ arquitetura.
 | tela do sorteio no Início do celular (deslizar para a direita, vídeo e comentários como no YouTube) | `client/src/components/SorteioDoInicio.tsx` (`useSorteioDoInicio`, `ContagemDoSorteio`), a regra do gesto em `client/src/lib/deslizar.ts`, `TelaDoProximoSorteio` em `client/src/components/ColunaAoVivo.tsx`, `antesDaMarca` em `PublicShell`, `tests/deslizar.test.ts` |
 | sorteios oficiais da plataforma (calendário, integrar a rifa, selo, resultado oficial, sorteio automático, outras loterias, troca pelo adiamento, a tela do celular) | `shared/sorteiosOficiais.ts` (regras e loterias), `server/services/sorteiosOficiais.ts`, `sortearRifasDoSorteioOficial()` em `server/services/sortear.ts` (e o relógio em `server/jobs/index.ts`), `pedirAdiamento()` com `sorteioOficialId` em `server/services/solicitacoes.ts`, os comentários em `server/services/sorteioComentarios.ts` (o componente `Comentarios` com `sorteioOficialId`, `scripts/sorteio-comentarios-test.ts`) e a denúncia deles (`shared/sorteioDenuncias.ts`, `ComentariosDoSorteioDenunciados` em `client/src/components/ConversasDenunciadas.tsx`, tipo `comentario_sorteio` em `shared/caixa.ts`, `tests/sorteioDenuncias.test.ts`), `/sorteios-oficiais*` e `PUT /campaigns/:id/sorteio-oficial` em `server/routes/admin.ts`, `GET /api/public/sorteio-oficial` em `server/routes/public.ts`, `client/src/pages/adminSorteiosOficiais.tsx`, `ConteudoDoSorteio`/`ContagemDoSorteio` em `client/src/components/SorteioDoInicio.tsx`, `scripts/sorteios-oficiais-test.ts`, `tests/sorteiosOficiais.test.ts` |
 | vitrine no tablet e no computador: coluna ao vivo (tela do sorteio, ganhadores, jogando agora), tela flutuante e rodapé com logos | `shared/aoVivo.ts` (regras), `server/services/aoVivo.ts`, `client/src/components/ColunaAoVivo.tsx`, `client/src/components/RodapeDaPlataforma.tsx`, `validarApoios()` em `shared/template.ts`, `tests/aoVivo.test.ts`, `scripts/vitrine-test.ts` |
-| rodapé da plataforma: colunas de links, redes sociais e espaço de apoio | `shared/rodape.ts` (colunas), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
+| rodapé da plataforma: colunas de links, redes sociais, espaço de apoio e o texto oficial embaixo da logo (razão social e CNPJ dos Dados da empresa publicados, e o aviso de jogo responsável) | `shared/rodape.ts` (colunas, `linhaDaEmpresa()`, `avisoDeJogoResponsavel()`), `validarRedes()`/`REDES_DO_RODAPE` em `shared/template.ts`, `client/src/components/RodapeDaPlataforma.tsx`, cartão "Redes sociais do rodapé" em `client/src/pages/adminAparencia.tsx`, `preencherRodapeComExemplo()` em `server/services/template.ts`, `tests/rodape.test.ts` |
 | intro animada da marca ao abrir o app (celular e tablet), a abertura antes do JavaScript, o trevo do ícone e a logo escrita do topo, e os arquivos da marca (logo oficial, ícones, vídeo da intro) | `client/src/lib/intro.ts` (quando aparece, o trevo em geometria e cores, as posições, a abertura), `client/src/components/IntroDaMarca.tsx`, `client/src/components/TrevoDaMarca.tsx`, `Marca`/`LogoEscrita` em `client/src/components/Marca.tsx`, `#abertura` em `client/index.html`, `npm run logo-escrita`, `tests/marca.test.ts`, `.intro-*` em `client/src/index.css`, `client/public/intro/`, `docs/marca/`, `tests/intro.test.ts` |
 | app instalável (PWA): casca, nome e ícone | `client/public/sw.js`, `shared/manifest.ts` (o manifesto montado), `manifestDaPlataforma()`/`iconeDaMarca()` em `server/services/template.ts`, `client/public/manifest.webmanifest` (o de fábrica, se o banco falhar), `client/src/lib/pwa.ts`, `tests/manifest.test.ts`, `scripts/aparencia-test.ts` |
 | automação do Claude no projeto: `/provar` (escolhe as provas pela área mexida), `/pr-check` (o rito do PR: docs, capturas, rascunho, mesclagem), os agentes (`implementador-da-rifa`, `revisor-de-invariantes`, `conferente-de-telas`, `pesquisador-de-integracao`, `analista-de-csp`), o fluxo entre eles e as skills de terceiros que o projeto usa (com o ajuste de cada uma) | `docs/AGENTES-E-SKILLS.md` (o guia), `.claude/skills/provar/SKILL.md`, `.claude/skills/pr-check/SKILL.md`, `.claude/agents/`, `skills-lock.json`. **Invariante nova ou regra de PR nova entra nos três** — o `.gitignore` libera só estes (o resto de `.claude/skills` é instalado por `npx skills add`, com o `skills-lock.json`) |
@@ -477,10 +479,9 @@ arquitetura.
   - **O estado e a contagem no Início do celular**: o estado mora **no
     topo, só o ícone do local** (o pino), à esquerda da varinha
     (`noTopo` do `PublicShell`, a vitrine o passa) — saiu da faixa a
-    pedido, a caixa da sigla incomodava. O `<select>` de verdade fica por
-    cima do ícone, transparente (o toque, o teclado e o leitor de tela são
-    dele), e o estado escolhido vai no rótulo ("Rifas perto de: São
-    Paulo") e no `title` — o ícone sozinho não diz qual é. Na faixa fica
+    pedido, a caixa da sigla incomodava. É um botão ("Locais", abaixo) com o
+    estado escolhido no rótulo ("Locais: São Paulo") e no `title` — o ícone
+    sozinho não diz qual é. Na faixa fica
     só a **contagem do próximo sorteio**, como um **banner pequeno de
     ponta a ponta** (`ContagemDoSorteio`, a cara da tela do sorteio: fundo
     escuro, cantos arredondados como o carrossel de cima), tudo
@@ -496,11 +497,39 @@ arquitetura.
     (nem oficial nem de rifa), "Sorteios". **É só do celular**:
     do tablet em diante a contagem não existe — lá a tela do sorteio
     principal é a coluna ao vivo, já definida. **O seletor de estado
-    ("Rifas perto de") não fica mais na faixa do feed**: no tablet e no
+    ("Locais") não fica mais na faixa do feed**: no tablet e no
     celular é o pino do topo (`SeletorDeRegiao`); no computador é um item
     da lateral logo abaixo do Início, com a sigla embaixo quando recolhida
-    e "Rifas perto de: <estado>" quando abre. A lateral mostra o seletor só
+    e "Locais" com o estado quando abre. A lateral mostra o seletor só
     na vitrine (rota `/`). Escolher num lugar muda no outro (`ouvirRegiao`).
+  - **"Locais" (antes "Rifas perto de")**: o pino é um botão que abre um
+    painel (`LocaisDaVitrine`, diálogo pela `Janela`, num portal no `body`)
+    com **"Nacional" no alto** (a bandeira do Brasil; Brasil todo, sem
+    prioridade de estado) e depois os **27 estados**, cada um com a
+    **bandeira em círculo** e o nome escrito ao lado — o escolhido com "✓
+    Escolhido" e `aria-pressed`, nunca só a cor; a bandeira é enfeite (`alt`
+    vazio) porque o nome está no botão. **A escolha vai para o mesmo lugar
+    de antes** (`regiao.ts`, `useRegiaoDaVitrine` → `escolhaDoLocal()` →
+    `gravarRegiao`): o estado escolhido é o que vai na frente; **"Nacional"
+    só LIMPA a escolha manual** (`null`) — não esconde estado nenhum e não
+    muda a ordem automática de sempre (o CEP e a cidade da conta, quando há
+    conta). **Quem ordena segue sendo `ordenarPorProximidade()`** (cidade,
+    estado, resto, estável), que não foi tocada, e a **única página que
+    filtra é `/estado/UF`**; nenhum filtro entra aqui (`tests/locais.test.ts`
+    prova que nenhuma escolha reduz a lista). O rótulo do botão diz o que
+    está valendo (`rotuloDoLocalEmVigor()`, `aria-label` e `title`): "Locais:
+    São Paulo", "Locais: Nacional" ou, sem escolha e com conta, "Locais:
+    Nacional (automático: RJ)". Quando a rifa nacional existir (plano em
+    `docs/`), ela passa a liderar o feed por outra função, sem mudar o painel. As
+    bandeiras são arquivos do próprio site (`client/public/bandeiras/<uf>.svg`, mais `br.svg`,
+    conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, sem
+    dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`, a dúvida do uso
+    da bandeira de estado em plataforma comercial é a R24 de
+    `docs/PERGUNTAS-AO-ADVOGADO.md`) — a CSP não muda. Só ícone do local,
+    com o nome do estado junto: **nunca em peça de divulgação nem em
+    anúncio** até a resposta do advogado. `shared/locais.ts` (os 27 locais e
+    o caminho), `tests/locais.test.ts` (um arquivo por estado, SVG sem
+    script, o painel).
   - **O voltar do aparelho fecha** (`#sorteio`, `useSorteioDoInicio()`):
     abrir empurra a marca no histórico, fechar a tira; chegar com
     `#sorteio` abre direto.
@@ -558,11 +587,17 @@ arquitetura.
     cheia não sair da vista.
 - **Rodapé da plataforma** (`RodapeDaPlataforma`, só tablet e computador;
   no celular isso mora em `/perfil/configuracoes`), no desenho de rodapé de produto:
-  **à esquerda** a logo, o texto de apresentação do template e, embaixo do
-  texto, as **redes sociais em botão redondo**; **no meio** o espaço de
+  **à esquerda** a logo, **duas linhas de texto oficial** (a razão social e
+  o CNPJ — os "Dados da empresa" **publicados** no template, `linhaDaEmpresa()`
+  em `shared/rodape.ts`, que os confere de novo na régua e **some a linha se
+  faltar um dos dois**, nunca digitados no código nem inventados — e o aviso
+  de jogo responsável, `avisoDeJogoResponsavel()`, **uma versão só**: o pé
+  ficou só com o selo "18+"), o texto de apresentação do template e, embaixo
+  do texto, as **redes sociais em botão redondo**; **sem bandeiras** (elas
+  são só do painel "Locais"); **no meio** o espaço de
   apoio (as logos, com o atalho da central de ajuda); **à direita quatro
   colunas** com o título em negrito (Plataforma, Rifas, Ajuda, Legal); no
-  pé, o © e o 18+ com o aviso de jogo responsável, o Pix e os cookies. No
+  pé, o © e o selo 18+, o Pix e os cookies. No
   tablet as colunas ficam ao lado da logo e o apoio desce para uma linha
   própria.
   - **As colunas moram em `shared/rodape.ts`** (`COLUNAS_DO_RODAPE`), e
@@ -1585,6 +1620,16 @@ Por isso o limite mais apertado é o de reserva em aberto
   vencer (`purgarGuardaDoAntifraude()`, no relógio de limpeza); o bloqueio
   sem prazo fica até a plataforma tirar. Mudou o prazo, o texto acompanha
   (lê das mesmas constantes). `npm run pix-tardio` prova.
+- **O balde nunca é texto cru e longo** (`chaveDoBalde()` em
+  `server/services/balde.ts`): o balde vem, muitas vezes, do que a pessoa digitou
+  (o e-mail do login, o telefone do código), e a linha do índice `idx_rate_bucket`
+  tem teto de ~2,7 KB. Texto longo (mais de 200 letras) ou com byte nulo vira o
+  começo legível mais a impressão do todo — o mesmo texto cai sempre no mesmo
+  balde. Foi assim que `POST /api/auth/login` com um e-mail enorme derrubava o
+  servidor (a rota `async` não tinha `try`, e o Express 4 não pega a rejeição).
+  **Rota `async` do Express 4 leva `try/catch` com `next(err)`, sem exceção**; e o
+  byte nulo (`%00` no endereço, `\u0000` no JSON) é recusado na porta, uma vez, para
+  todas as rotas (`shared/semNulo.ts`, 400). `npm run publico` prova.
 - **`rate_events` é lixo com data.** O relógio limpa o que passou de 2 horas
   (`purgeRateEvents`, trava de aplicação 811004). Sem isso a tabela só cresce.
 - **A reserva em aberto é conferida de novo dentro da transação que grava o
@@ -1656,6 +1701,13 @@ tem atrás.
 - **404, não 403, para o dado do vizinho.** "Existe, mas não é sua" já entrega
   que o id é válido — dá para varrer a plataforma contando rifa alheia. 403
   fica só para rota que é da plataforma e todo mundo sabe que existe.
+- **Promotora arquivada ou banida não existe para o público**, além do perfil:
+  a vitrine, os Reels e a busca (`listPublicCampaigns()`), a contagem de
+  estados, o termo de afiliado, o pixel público, o link do perfil (`/l/…`) e o
+  endereço curto (`/c/…`) seguem a mesma régua. A rifa **travada** segue com a
+  página e o aviso (é regra), mas fora das listas. A página da rifa só oferece
+  compra onde `rifaAVenda()` diz que vende (a mesma régua do feed e do carrinho):
+  sorteada, encerrada ou esgotada mostra o motivo, nunca o botão.
 - **Rascunho não existe para o público.** Toda rota pública por `slug` responde
   404 (igual a inexistente) para rifa em rascunho — página, regulamento,
   mapa de números, número, prêmios, ranking e últimas compras. Responder "só
@@ -1665,6 +1717,13 @@ tem atrás.
   trazem a campanha no caminho; sem buscar o dono antes, o id do vizinho
   apaga o banner dele. E a conferência vem **antes** do `DELETE`, senão a
   linha já sumiu quando a checagem roda.
+- **Id fora do formato é 404, nunca 500.** `adminRouter.param()` confere os
+  ids do caminho (`id`, `mediaId`, `prizedId`, `socioId`, `sellerId`,
+  `campaignId`, `affiliateId`, `fotoId`) e `assertCampaignInScope()` recusa o id
+  vazio ou torto que vem do corpo: nome de parâmetro de id novo entra na lista.
+  **`featured` e `sortWeight` (a ordem da vitrine) são da plataforma**: o
+  organizador que os manda em `POST /campaigns`, `PATCH` ou `/editar` os tem
+  descartados (`semOrdemDaVitrine()`). `npm run isolation` prova.
 - **Campanha não muda de dono por `PATCH`.** Seria transferir venda, cota e
   comissão de uma administradora para outra com um campo de formulário.
 - **Organizador sem organização é recusado na entrada.** Recorte nulo abre
@@ -2463,7 +2522,7 @@ pedido, cotas e valor, e o cliente só pelo ID (`Cliente C-XXXXXXXX`).
   servidor.
 - **A região de quem compra vem do CEP do cadastro** (`buyers.cep`, `cidade`,
   `uf`; o CEP é obrigatório ao criar conta). O seletor de estado da vitrine
-  vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só
+  ("Locais", o painel com os 27 estados) vale mais e fica no aparelho (`client/src/lib/regiao.ts`); sem conta, só
   ele. CEP inexistente é recusado; serviço de CEP fora do ar **não** barra o
   cadastro — guarda o CEP e o relógio completa cidade e UF
   (`completarRegioesPendentes`, trava 811009).

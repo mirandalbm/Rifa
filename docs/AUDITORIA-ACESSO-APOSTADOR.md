@@ -23,7 +23,7 @@ carrinho, chamado e as quatro abas de Minhas compras.
 | 3 | **Alta** | **Quem se cadastra com o telefone de outra pessoa herdava o bônus e os avisos dela.** O comprador convidado (sem CPF gravado) vira conta de quem digitar o número; as compras já ficavam escondidas, mas `GET /bonus` mostrava o saldo, o progresso e o extrato e `POST /bonus/resgatar` deixava **gastar o saldo da vítima em cotas grátis** (provado: saldo 3, resgate 201), e `GET /notificacoes` trazia "sorteio chegando" e "saiu o resultado" das rifas dela. Agora, com o telefone não provado: bônus zerado e resgate 403; avisos de compra de rifa em que a linha tem pedido pago que a conta não enxerga ficam de fora. Quem comprou dentro da conta e quem só segue a organização veem tudo | `1f70d17` |
 | 4 | **Alta** | **Sessão expulsa voltava** (a suspeita de 12/10 em `docs/SEGURANCA.md`, agora provada): uma requisição em andamento da sessão expulsa a regravava depois do `DELETE` (`INSERT … ON CONFLICT` do `connect-pg-simple`); 24 requisições em laço contra `/conta/google/entrar` bastaram. Coluna nova `buyers.sessoes_validas_desde` (**`db:push` antes do código**), `entrouEm` na sessão e middleware em `setupAuth` | `b77bbf0` |
 | 5 | Baixa | Limites ausentes: `GET /cep/:cep` (proxy aberto para o ViaCEP), `PUT /conta/cep` e a troca de foto do perfil (abre imagem de até 5 MB). Agora 120 em 10 min por endereço (o CEP aberto), 20 por hora por conta (trocar o CEP) e 20 por hora por conta (a foto) | `24b3fc7` |
-| 6 | Baixa | Tela: "Ver mais rifas" no fim do feed tinha 20 px de altura no celular (alvo < 24 px, WCAG 2.5.8) | `908188e` |
+| 6 | Baixa | Tela: "Ver mais rifas" no fim do feed tinha 20 px de altura no celular (alvo < 24 px, WCAG 2.5.8) | `908188e` (substituído pelos 40 px da auditoria pública no #278) |
 | 7 | Baixa (texto) | Privacidade dizia que o `rifa.sid` vale 7 dias; com "Lembrar de mim" (padrão da tela de entrar) são 30. `SESSAO_LEMBRAR_DIAS` é a fonte única; `VIGENCIA_DOS_TERMOS` sobe para 2026-10-18 | `9711799` |
 | 8 | Baixa (texto) | Privacidade dizia que a plataforma "não guarda dados bancários de quem compra"; o pedido de reembolso guarda a chave Pix informada, o motivo, a conversa e o print, e a exclusão da conta não os apaga. O texto diz a exceção | `5d15d0f` |
 | 9 | Ferramenta | **O "login de apostador" que falhava**: `npm run telas` entrava de novo em cada largura (3 por papel) e `guardLogin` conta também a tentativa que acerta (8 em 15 min); na terceira rodada seguida o papel era barrado, escrevia "não entrou — pulando" e saía com **0 reprovações** — o acesso passava sem ser auditado. Agora um login por papel (`storageState`) e papel que não entra reprova a rodada. Também passou a abrir pedido, bilhete, Pix, `/carrinho`, carrinho Pix e as abas Reembolsos, Bônus e Salvos com dado de verdade | `f9894a6`, `e2dd949` |
@@ -32,7 +32,7 @@ Cada defeito tem prova contra a API de verdade em `scripts/conta-test.ts`
 (seção "auditoria do acesso apostador"), `scripts/bonus-test.ts` (cenário
 "conta cadastrada com o telefone de outra pessoa") e `tests/contaComprador.test.ts`,
 `tests/legal.test.ts`. A matriz (`docs/REFORMULACAO-MATRIZ.md`) foi regenerada
-(`57cc3df`). Mudança de tela registrada em `docs/VERSOES.md` (linha 203).
+(`57cc3df`). Sem linha nova em `docs/VERSOES.md`: o botão "Ver mais rifas" foi resolvido (40 px) na auditoria do acesso público, linha 208.
 
 ## Conferido, sem achado
 

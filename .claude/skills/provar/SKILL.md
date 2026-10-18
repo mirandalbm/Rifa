@@ -35,12 +35,13 @@ Pelo caminho que mudou (a mesma tabela "Onde mexer" do `CLAUDE.md`):
 | pedido, preço, webhook (`services/orders.ts`) | `load`, `refund`, `pix-tardio`, `cobranca` |
 | provedor do Pix (`server/payments/`, `EXIGE_CPF`/`EXIGE_EMAIL` em `shared/plataforma.ts`, `server/routes/webhooks.ts`) | `pagarme` (com `PAGARME_SECRET_KEY`, `PAGARME_WEBHOOK_TOKEN` e `PAGARME_API_URL=http://127.0.0.1:5095/core/v5` no servidor e no script: a prova sobe o Pagar.me de mentira), `webhook`, `carrinho`, `chamados`, `pix-tardio`, `tests/pagarme.test.ts` |
 | cobrança da plataforma (`shared/cobranca.ts`, `shared/billing.ts`, `services/billing.ts`, a fotografia em `publishCampaign()`, `/cobranca/tabela`, a tabela agendada, a taxa Pix no estorno, a falta de pagamento (`shared/inadimplencia.ts`, `services/inadimplencia.ts`), `adminCobranca.tsx`, `CobrancaDaRifa.tsx`) | `cobranca`, `carrinho`, `presente`, `refund`, `chamados`, `retencao`, `isolation`, `tests/avisos.test.ts`, `tests/cobranca.test.ts`, `tests/inadimplencia.test.ts`, `tests/billing.test.ts`, `tests/split.test.ts`; mexeu na tela, `telas` |
+| pacotes de cotas, comissão do cambista e do afiliado no cadastro, limites do pedido do rascunho (`shared/pacotes.ts`, `lerComissaoDoCadastro()`, `problemaNosLimitesDoPedido()`) | `cobranca`, `solicitacoes`, `afiliados`, `cambista`, `publicacao`, `isolation`, `tests/pacotes.test.ts`, `tests/afiliados.test.ts`, `tests/solicitacoes.test.ts` |
 | estorno | `refund`, `presente`, `bonus` |
 | chamado de reembolso, disputa | `chamados`, `disputa` |
 | **rota nova ou nova consulta do painel** (qualquer `routes/admin.ts`) | `isolation` — rota que não aparece lá é rota que ninguém provou |
 | relógios (`jobs/`, `db.ts`) | `relogios` |
 | conta do apostador | `conta` |
-| login, senha, segundo fator, cofre, cabeçalhos e CSP (`auth.ts`, `hashSenha.ts`, `segundoFator.ts`, `cofre.ts`, `shared/csp.ts`, `server/index.ts`), rota pública por `slug` | `senha` (o script com o mesmo `SESSION_SECRET` do servidor), `conta`, `seguranca`, `tests/hashSenha.test.ts`, `tests/segundoFator.test.ts`, `tests/csp.test.ts` |
+| login, senha, segundo fator, cofre, cabeçalhos e CSP (`auth.ts`, `hashSenha.ts`, `segundoFator.ts`, `cofre.ts`, `shared/csp.ts`, `server/index.ts`), rota pública por `slug`, a porta (`shared/semNulo.ts`, `server/services/balde.ts`), cache e promotora arquivada ou banida | `publico`, `senha` (o script com o mesmo `SESSION_SECRET` do servidor), `conta`, `seguranca`, `tests/semNulo.test.ts`, `tests/hashSenha.test.ts`, `tests/segundoFator.test.ts`, `tests/csp.test.ts` |
 | bilhetes como publicações privadas (`/perfil/bilhetes`) | `bilhetes`, `conta` |
 | perfil do organizador, seguir, links curtos | `perfil` |
 | push, central de avisos | `push` |

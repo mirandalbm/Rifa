@@ -57,10 +57,17 @@ authRouter.get("/me", async (req, res, next) => {
 
 /** Uma porta de entrada só: o papel no banco decide onde a pessoa cai. */
 authRouter.post("/login", async (req, res, next) => {
-  // Força bruta é barrada antes de a senha ser sequer comparada.
-  const veredito = await guardLogin(String(req.body?.email ?? ""), identify(req));
-  if (!veredito.allowed) {
-    return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+  // Força bruta é barrada antes de a senha ser sequer comparada. Esta rota é
+  // aberta e o Express 4 não pega a rejeição de uma função `async`: sem o
+  // `try`, um erro do banco aqui derrubava o processo inteiro (era o e-mail
+  // com byte nulo ou enorme).
+  try {
+    const veredito = await guardLogin(String(req.body?.email ?? ""), identify(req));
+    if (!veredito.allowed) {
+      return res.status(429).json({ message: veredito.reason, code: veredito.rule });
+    }
+  } catch (err) {
+    return next(err);
   }
 
   passport.authenticate(

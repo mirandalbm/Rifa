@@ -616,6 +616,11 @@ async function rotasDaPlataforma(eu: Lado, outro: Lado) {
   const tentativas: [string, string, RequestInit][] = [
     ["GET organizações", "/api/admin/organizacoes", {}],
     ["GET antifraude", "/api/admin/antifraude", {}],
+    ["PUT limites do antifraude", "/api/admin/antifraude/limites", { method: "PUT", body: '{"openOrdersPerPhone":1000}' }],
+    ["POST bloqueio manual do antifraude", "/api/admin/antifraude/bloqueios", { method: "POST", body: '{"kind":"phone","value":"11999990000"}' }],
+    ["DELETE bloqueio do antifraude", "/api/admin/antifraude/bloqueios/00000000-0000-0000-0000-000000000000", { method: "DELETE" }],
+    ["POST criar organização", "/api/admin/organizacoes", { method: "POST", body: '{"name":"Organização do organizador"}' }],
+    ["POST criar acesso de organizador", `/api/admin/organizacoes/${eu.orgId}/acessos`, { method: "POST", body: '{"name":"Outro","email":"outro-acesso@rifa.teste","password":"senhaForte123!"}' }],
     ["PUT meios de pagamento", "/api/admin/payment-methods", { method: "PUT", body: "{}" }],
     ["GET auditoria", "/api/admin/audit", {}],
     ["GET carteira de cobrança", "/api/admin/cobranca", {}],
@@ -745,6 +750,40 @@ async function rotasDaPlataforma(eu: Lado, outro: Lado) {
     const res = await pedir(eu.cookie, caminho, init);
     checa(nome, res.status === 403, `HTTP ${res.status}`);
   }
+}
+
+/**
+ * Id fora do formato de UUID é "não existe" (404), nunca erro do banco (500):
+ * na URL de qualquer rota do painel e também no corpo (comprar anúncio).
+ */
+async function idForaDoFormato(eu: Lado) {
+  const torto = "nao-e-um-uuid";
+  const tentativas: [string, string, RequestInit][] = [
+    ["GET mídias de rifa", `/api/admin/campaigns/${torto}/media`, {}],
+    ["PATCH rifa", `/api/admin/campaigns/${torto}`, { method: "PATCH", body: "{}" }],
+    ["DELETE rifa", `/api/admin/campaigns/${torto}`, { method: "DELETE" }],
+    ["GET chamado", `/api/admin/chamados/${torto}`, {}],
+    ["PATCH usuário", `/api/admin/usuarios/${torto}`, { method: "PATCH", body: "{}" }],
+    ["GET sócios de organização", `/api/admin/organizacoes/${torto}/socios`, {}],
+    ["DELETE cupom", `/api/admin/coupons/${torto}`, { method: "DELETE" }],
+    ["DELETE mídia", `/api/admin/media/${torto}`, { method: "DELETE" }],
+  ];
+  for (const [nome, caminho, init] of tentativas) {
+    const res = await pedir(eu.cookie, caminho, init);
+    checa(`${nome} com id fora do formato: 404`, res.status === 404, `HTTP ${res.status}`);
+  }
+  const comprar = await pedir(eu.cookie, "/api/admin/patrocinio/anuncios", { method: "POST", body: "{}" });
+  checa("comprar anúncio sem rifa: 404, não erro do banco", comprar.status === 404, `HTTP ${comprar.status}`);
+}
+
+/** Corpo com o tipo errado (número, lista, objeto no lugar do texto) é 400, nunca 500. */
+async function tipoErradoNoCorpo(eu: Lado) {
+  const tipos = await pedir(eu.cookie, `/api/admin/organizacoes/${eu.orgId}`, { method: "PATCH", body: '{"name":123,"cnpj":["x"]}' });
+  checa("editar a própria organização com tipo errado: 400", tipos.status === 400, `HTTP ${tipos.status}`);
+  const contato = await pedir(eu.cookie, `/api/admin/organizacoes/${eu.orgId}`, { method: "PATCH", body: '{"contato":{"a":1}}' });
+  checa("contato que não é texto: 400", contato.status === 400, `HTTP ${contato.status}`);
+  const administradora = await pedir(eu.cookie, "/api/admin/organizer", { method: "PUT", body: '{"nome":123}' });
+  checa("a administradora com nome que não é texto: 400", administradora.status === 400, `HTTP ${administradora.status}`);
 }
 
 /**
@@ -1173,6 +1212,12 @@ async function main() {
 
     console.log("\n  rotas da plataforma (espera 403):");
     await rotasDaPlataforma(norte, sul);
+
+    console.log("\n  id fora do formato (espera 404, nunca 500):");
+    await idForaDoFormato(norte);
+
+    console.log("\n  corpo com o tipo errado (espera 400, nunca 500):");
+    await tipoErradoNoCorpo(norte);
 
     console.log("\n  o que as listas dele realmente trazem:");
     await conteudoDasListas(norte, sul);

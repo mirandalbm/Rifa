@@ -317,6 +317,18 @@ import { EMPRESA_VAZIA } from "@shared/legal";
 
 export const adminRouter = Router();
 
+/**
+ * Id na URL fora do formato de UUID é "não existe": o Postgres recusa o texto
+ * (22P02) e a rota respondia 500 em mais de setenta caminhos. Vale para todo
+ * parâmetro que é id de linha; 404, como o dado do vizinho.
+ */
+for (const nome of ["id", "mediaId", "prizedId", "campaignId", "affiliateId", "sellerId", "socioId", "fotoId"]) {
+  adminRouter.param(nome, (_req, res, next, valor) => {
+    if (ehUuid(valor)) return next();
+    res.status(404).json({ message: "Não encontrado." });
+  });
+}
+
 async function audit(
   req: Request,
   action: string,

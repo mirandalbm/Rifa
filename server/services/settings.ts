@@ -34,16 +34,18 @@ export async function getOrganizer(): Promise<OrganizerInfo> {
 }
 
 export async function setOrganizer(info: OrganizerInfo): Promise<OrganizerInfo> {
-  const nome = info.nome?.trim();
+  // Vem do corpo da requisição: número ou lista no lugar do texto quebrava no `trim()` (500).
+  const texto = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const nome = texto(info.nome);
   if (!nome || nome.length < 2) {
     throw Object.assign(new Error("Informe o nome da administradora da rifa."), { status: 400 });
   }
   const value: OrganizerInfo = {
     nome,
-    cnpj: info.cnpj?.trim() || undefined,
-    contato: info.contato?.trim() || undefined,
-    cidade: info.cidade?.trim() || undefined,
-    observacao: info.observacao?.trim() || PADRAO.observacao,
+    cnpj: texto(info.cnpj) || undefined,
+    contato: texto(info.contato) || undefined,
+    cidade: texto(info.cidade) || undefined,
+    observacao: texto(info.observacao) || PADRAO.observacao,
   };
 
   await db

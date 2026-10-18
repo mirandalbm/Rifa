@@ -163,6 +163,7 @@ import {
   resumoDasMensagens,
   responderPedido,
 } from "../services/mensagens";
+import { conversaComAOrganizacao, mandarParaAOrganizacao, naoLidasComAOrganizacao } from "../services/mensagensNoEndereco";
 import {
   criarGrupo,
   denunciarGrupo,
@@ -256,6 +257,33 @@ type LinhaDaVitrine = Awaited<ReturnType<typeof listPublicCampaigns>>[number] & 
  * `minhaIdentidade()` (sem conta, 401). A conversa que não é da sessão é
  * 404 — nunca 403, que entregaria que o id existe.
  */
+/**
+ * Mensagens no endereço da organização: só a conversa do apostador com a
+ * organização do `slug` (`server/services/mensagensNoEndereco.ts`). O guarda do
+ * endereço já confere que o `slug` é o do endereço (`/o/<slug>/…`).
+ */
+publicRouter.get("/o/:slug/mensagens", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await conversaComAOrganizacao(req, req.params.slug, req.query.antes));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/o/:slug/mensagens/resumo", async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(await naoLidasComAOrganizacao(req, req.params.slug));
+});
+
+publicRouter.post("/o/:slug/mensagens", async (req, res, next) => {
+  try {
+    res.status(201).json(await mandarParaAOrganizacao(req, req.params.slug, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/mensagens/resumo", async (req, res) => {
   // O número do botão do console: sem sessão ou desligado, é zero — nunca erro.
   try {

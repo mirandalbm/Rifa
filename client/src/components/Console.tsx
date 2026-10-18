@@ -24,7 +24,7 @@ import { IconeTrevo } from "@/components/Publicacao";
 import { FotoDoApostador } from "@/components/PerfilDoApostador";
 import { Marca } from "@/components/Marca";
 import { SeletorDeRegiao } from "@/components/SeletorDeRegiao";
-import { noEnderecoDaOrganizacao } from "@/lib/endereco";
+import { noEnderecoDaOrganizacao, slugDoEndereco } from "@/lib/endereco";
 import { CriarReels } from "@/components/CriarReels";
 import { useNoComputador } from "@/lib/largura";
 
@@ -253,8 +253,16 @@ export function usePendencias(): string[] {
 function useMensagensNaoLidas(ativo: boolean) {
   const { mensagensLigado } = useConfigDoApp();
   const { data: sessao } = useSession();
+  // No endereço da organização, o número é o da conversa com ela (não o da caixa inteira).
+  const slug = slugDoEndereco();
   const { data } = useQuery<{ naoLidas: number }>({
-    queryKey: ["/api/public/mensagens/resumo"],
+    queryKey: slug ? ["/api/public/o", slug, "mensagens", "resumo"] : ["/api/public/mensagens/resumo"],
+    queryFn: slug
+      ? async () => {
+          const r = await fetch(`/api/public/o/${slug}/mensagens/resumo`, { credentials: "include" });
+          return r.ok ? ((await r.json()) as { naoLidas: number }) : { naoLidas: 0 };
+        }
+      : undefined,
     refetchInterval: 30_000,
     enabled: ativo && mensagensLigado && Boolean(sessao?.buyer || sessao?.user),
   });
@@ -333,7 +341,9 @@ export function ConsoleDoApp() {
   const [local] = useLocation();
   const ativo = botaoAtivo(local);
   const noEndereco = noEnderecoDaOrganizacao();
-  const botoes = botoesNoEndereco(noEndereco);
+  const { mensagensLigado } = useConfigDoApp();
+  // No endereço, sem a caixa ligada pela plataforma, o botão nem aparece (não há "Em breve" na casa da promotora).
+  const botoes = botoesNoEndereco(noEndereco).filter((b) => !(noEndereco && b.chave === "mensagens" && !mensagensLigado));
   return (
     <>
       <nav

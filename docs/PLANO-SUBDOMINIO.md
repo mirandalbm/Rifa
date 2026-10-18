@@ -950,7 +950,14 @@ falar direto com o usuário** — não para ser destino de anúncio. Por isso:
   Sufixos Públicos (PR 8).
 - Seguem valendo a dupla identificação (R31), a licença e o desligamento do
   endereço (R33, R34) e `af-<código>` fora de anúncio pago (R35).
-- "Comunicação direta com o usuário": hoje o console do endereço não tem
-  Mensagens (`botoesNoEndereco()`). Abrir a caixa de conversa **com a
-  organização do endereço** é o passo natural — proposta na pendência abaixo.
+- "Comunicação direta com o usuário": o console do endereço tem **Mensagens, só
+  a conversa com a organização do endereço** (decisão de 18/10/2026). Feito:
+  `GET/POST /api/public/o/:slug/mensagens` e `…/resumo`
+  (`server/services/mensagensNoEndereco.ts`, as regras de sempre das Mensagens
+  — pedido para quem não segue, texto sem link nem telefone, só texto), classe
+  `conferir-organizacao` em `shared/enderecoRotas.ts` (só vale para o slug do
+  próprio endereço; outro é 404), tela `ConversaComAOrganizacao` (a rota
+  `/mensagens` do endereço), botão do console escondido se a plataforma
+  desligou a caixa. A caixa inteira da pessoa segue no domínio principal;
+  `npm run subdominio` prova o isolamento.
 

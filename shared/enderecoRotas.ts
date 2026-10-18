@@ -97,10 +97,10 @@ const PAGINAS: Regra[] = [
   { padrao: /^\/o\/([^/]+)((?:\/.*)?)$/, faz: (m, slug) => (m[1] === slug ? caminhoCanonico(m[2] ?? "") : PRINCIPAL) },
   { padrao: /^\/r\/([^/]+)(?:\/regulamento)?$/, faz: (m) => ({ acao: "conferir-rifa", slug: m[1]! }) },
   {
-    padrao: /^\/(?:pedido\/[^/]+|carrinho(?:\/pix\/[^/]+)?|entrar|criar-conta|minhas-compras|minhas-cotas|notificacoes|perfil(?:\/bilhetes|\/configuracoes)?|ajuda|termos|privacidade|bilhete\/[^/]+|recibo\/[^/]+)$/,
+    padrao: /^\/(?:pedido\/[^/]+|carrinho(?:\/pix\/[^/]+)?|mensagens|entrar|criar-conta|minhas-compras|minhas-cotas|notificacoes|perfil(?:\/bilhetes|\/configuracoes)?|ajuda|termos|privacidade|bilhete\/[^/]+|recibo\/[^/]+)$/,
     faz: seguir,
   },
-  { padrao: /^\/(?:reels|buscar|mensagens(?:\/[^/]+)?|u\/[^/]+|publicar|seja-afiliado|estado\/[^/]+)$/, faz: principal },
+  { padrao: /^\/(?:reels|buscar|mensagens\/[^/]+|u\/[^/]+|publicar|seja-afiliado|estado\/[^/]+)$/, faz: principal },
   { padrao: /^\/(?:admin|afiliado|cambista)(?:\/.*)?$/, faz: () => NEGADO },
   { padrao: /^\/conta\/senha$/, faz: () => NEGADO },
 ];

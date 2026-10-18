@@ -23,6 +23,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { archiveOrganization, restoreOrganization } from "../server/services/orgs";
+import { setPlataforma, getPlataforma } from "../server/services/settings";
 import { auditLog, buyers, campaigns, orders, organizations, users } from "../shared/schema";
 
 const BASE = process.env.SUBDOMINIO_BASE ?? "loteriasdobem.test";
@@ -92,6 +93,7 @@ const CPF_COMPRADOR = "52998224725";
 async function limpar() {
   const compradores = (await db.execute(sql`select id from buyers where phone = ${TEL_COMPRADOR}`)).rows as { id: string }[];
   for (const c of compradores) {
+    await db.execute(sql`delete from conversas where (a_tipo = 'comprador' and a_id = ${c.id}) or (b_tipo = 'comprador' and b_id = ${c.id})`);
     await db.execute(sql`delete from orders where buyer_id = ${c.id}`);
     await db.execute(sql`delete from buyers where id = ${c.id}`);
   }
@@ -312,11 +314,11 @@ async function main() {
     checa("/o/<este>//evil… não vira redirecionamento aberto", r.status === 301 && /^\/(?!\/)/.test(r.local ?? ""), `${r.status} ${r.local ?? ""}`);
 
     // ------------------------------------------------ da plataforma
-    for (const c of ["/reels", "/buscar", "/mensagens", "/u/ana", "/estado/SP", "/publicar", "/seja-afiliado", `/o/${b.slug}`]) {
+    for (const c of ["/reels", "/buscar", "/mensagens/abc", "/u/ana", "/estado/SP", "/publicar", "/seja-afiliado", `/o/${b.slug}`]) {
       r = await pedir(A, "GET", c);
       checa(`${c} vai ao principal (302)`, r.status === 302 && (r.local ?? "").endsWith(c), `HTTP ${r.status} ${r.local ?? ""}`);
     }
-    for (const c of ["/api/public/reels", "/api/public/campaigns", "/api/public/vitrine/ao-vivo", "/api/public/buscar", "/api/public/mensagens/resumo", "/api/public/conta/google/entrar"]) {
+    for (const c of ["/api/public/reels", "/api/public/campaigns", "/api/public/vitrine/ao-vivo", "/api/public/buscar", "/api/public/mensagens/resumo", "/api/public/mensagens/conversas", "/api/public/conta/google/entrar"]) {
       r = await pedir(A, "GET", c);
       checa(`${c} na API: 404`, r.status === 404, `HTTP ${r.status}`);
     }
@@ -388,6 +390,35 @@ async function main() {
       checa("no principal, os bilhetes são dos dois", r.status === 200 && Array.isArray(r.json) && r.json.length === 2, `HTTP ${r.status} ${r.json?.length}`);
       r = await pedir(A, "GET", "/api/public/conta/bilhetes", { cookie: sessao });
       checa("no endereço da A, só o bilhete da A", r.status === 200 && Array.isArray(r.json) && r.json.length === 1 && r.json[0].rifa?.slug === rifaA.slug, `HTTP ${r.status} ${JSON.stringify(r.json?.map?.((b: any) => b.rifa?.slug))}`);
+
+      // ---------------------------------------------- Mensagens no endereço: só a conversa com a organização
+      const ligadoAntes = (await getPlataforma()).mensagensLigado;
+      try {
+        await setPlataforma({ mensagensLigado: true });
+        r = await pedir(A, "GET", `/api/public/o/${a.slug}/mensagens`);
+        checa("a conversa com a organização pede conta (401)", r.status === 401, `HTTP ${r.status}`);
+        r = await pedir(A, "GET", `/api/public/o/${a.slug}/mensagens`, { cookie: sessao });
+        checa("com conta, a conversa da A abre vazia", r.status === 200 && r.json?.conversa === null && r.json?.itens?.length === 0 && r.json?.organizacao?.nome === a.name, `HTTP ${r.status} ${JSON.stringify(r.json)?.slice(0, 120)}`);
+        r = await pedir(A, "GET", `/api/public/o/${b.slug}/mensagens`, { cookie: sessao });
+        checa("no endereço da A, a conversa com a B não existe (404)", r.status === 404, `HTTP ${r.status}`);
+        r = await pedir(A, "POST", `/api/public/o/${b.slug}/mensagens`, { cookie: sessao, corpo: { texto: "oi" } });
+        checa("…e escrever para a B pelo endereço da A também é 404", r.status === 404, `HTTP ${r.status}`);
+        r = await pedir(A, "POST", `/api/public/o/${a.slug}/mensagens`, { cookie: sessao, corpo: { texto: "Olá, tenho uma dúvida sobre a rifa" } });
+        checa("a primeira mensagem vira pedido (a compradora não segue a A)", r.status === 201, `HTTP ${r.status} ${r.json?.message ?? ""}`);
+        r = await pedir(A, "POST", `/api/public/o/${a.slug}/mensagens`, { cookie: sessao, corpo: { texto: "chama no zap 11 98765-4321" } });
+        checa("telefone na mensagem é recusado (400)", r.status === 400, `HTTP ${r.status}`);
+        r = await pedir(A, "GET", `/api/public/o/${a.slug}/mensagens`, { cookie: sessao });
+        checa("a conversa mostra a mensagem enviada e a situação de pedido", r.status === 200 && r.json?.itens?.length === 1 && r.json?.itens?.[0]?.minha === true && r.json?.conversa?.situacao === "pedido", `HTTP ${r.status}`);
+        r = await pedir(A, "GET", `/api/public/o/${a.slug}/mensagens/resumo`, { cookie: sessao });
+        checa("o resumo do endereço responde com número", r.status === 200 && typeof r.json?.naoLidas === "number", `HTTP ${r.status}`);
+        r = await pedir("localhost", "GET", `/api/public/o/${a.slug}/mensagens`, { cookie: sessao });
+        checa("a mesma conversa também abre pelo principal (é a mesma conta)", r.status === 200 && r.json?.itens?.length === 1, `HTTP ${r.status}`);
+        await setPlataforma({ mensagensLigado: false });
+        r = await pedir(A, "GET", `/api/public/o/${a.slug}/mensagens`, { cookie: sessao });
+        checa("com Mensagens desligada na plataforma, a conversa some (404)", r.status === 404, `HTTP ${r.status}`);
+      } finally {
+        await setPlataforma({ mensagensLigado: ligadoAntes });
+      }
     }
 
     // ------------------------------------------------ PR 6: SEO e identificação por endereço

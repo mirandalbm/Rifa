@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import ConversaComAOrganizacao from "@/pages/ConversaComAOrganizacao";
+import { noEnderecoDaOrganizacao } from "@/lib/endereco";
 import { Link, useLocation, useRoute, useSearch } from "wouter";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Ban, Flag, ImagePlus, PenSquare, Send } from "lucide-react";
@@ -99,7 +101,16 @@ const hora = (iso: string) => {
  * telefone, pedido de mensagem, bloqueio) são do servidor — a tela só
  * mostra o que ele responde.
  */
-export default function MensagensPagina() {
+/**
+ * No endereço de uma organização, Mensagens é só a conversa com ela (docs/PLANO-SUBDOMINIO.md,
+ * cap. 15.2); no domínio principal, a caixa inteira. A troca fica aqui, num invólucro sem estado,
+ * para a rota do App seguir a mesma nos dois lugares.
+ */
+export default function Mensagens() {
+  return noEnderecoDaOrganizacao() ? <ConversaComAOrganizacao /> : <MensagensPagina />;
+}
+
+function MensagensPagina() {
   const { mensagensLigado } = useConfigDoApp();
   const { data: sessao, isLoading } = useSession();
   const [, parametros] = useRoute<{ id: string }>("/mensagens/:id");

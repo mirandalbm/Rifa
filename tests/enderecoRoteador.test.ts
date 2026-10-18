@@ -57,7 +57,7 @@ describe("para onde um link leva no endereço", () => {
   });
 
   it("o que é da plataforma sai para o domínio principal", () => {
-    for (const p of ["/reels", "/buscar", "/mensagens", "/mensagens/abc", "/u/ana", "/estado/SP", "/publicar", "/seja-afiliado", "/o/outra", "/o/outra/r/x"]) {
+    for (const p of ["/reels", "/buscar", "/mensagens/abc", "/u/ana", "/estado/SP", "/publicar", "/seja-afiliado", "/o/outra", "/o/outra/r/x"]) {
       expect(d(p)).toEqual({ onde: "principal", caminho: p });
     }
   });
@@ -80,7 +80,7 @@ describe("para onde um link leva no endereço", () => {
 describe("console no endereço", () => {
   it("no principal são os seis; no endereço, só os da organização", () => {
     expect(botoesNoEndereco(false)).toEqual(BOTOES_DO_CONSOLE);
-    expect(botoesNoEndereco(true).map((b) => b.chave)).toEqual(["inicio", "carrinho", "perfil"]);
+    expect(botoesNoEndereco(true).map((b) => b.chave)).toEqual(["inicio", "mensagens", "carrinho", "perfil"]);
   });
 });
 

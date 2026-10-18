@@ -28,9 +28,13 @@ describe("páginas no endereço da organização", () => {
   });
 
   it("o que é da plataforma vai ao principal", () => {
-    for (const c of ["/reels", "/buscar", "/mensagens", "/mensagens/abc", "/u/ana", "/publicar", "/seja-afiliado", "/estado/SP"]) {
+    for (const c of ["/reels", "/buscar", "/mensagens/abc", "/u/ana", "/publicar", "/seja-afiliado", "/estado/SP"]) {
       expect(d("GET", c), c).toEqual({ acao: "principal" });
     }
+  });
+
+  it("/mensagens fica no endereço (só a conversa com a organização); a caixa por id vai ao principal", () => {
+    expect(d("GET", "/mensagens")).toEqual({ acao: "seguir" });
   });
 
   it("painel e conta de painel respondem 404 no endereço", () => {

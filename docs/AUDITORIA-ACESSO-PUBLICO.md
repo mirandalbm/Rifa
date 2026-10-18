@@ -2,7 +2,7 @@
 
 Primeiro acesso do item 14 de `docs/CHECKLIST-AJUSTES.md` (cronograma 5).
 Data: 18/10/2026. Branch `claude/auditoria-publico`, a partir de `origin/main`
-(13923e2). Registro de telas: linhas 203 a 206 de `docs/VERSOES.md` (todas `aguardando
+(13923e2). Registro de telas: linhas 205 a 208 de `docs/VERSOES.md` (todas `aguardando
 leva`; o registro passou de 2 para 6 aguardando, abaixo do limite de 10).
 
 **Resumo.** Um defeito grave de disponibilidade (um pedido anônimo derrubava o

@@ -14,6 +14,33 @@ perfil (`/perfil/configuracoes`, as Configurações do perfil).
 A casa (Início), o trevo (curtir, avisos e selo) e o "+" do carrinho são
 desenhos nossos.
 
+## Bandeiras dos estados (painel "Locais")
+
+O painel "Locais" da vitrine (`client/src/components/LocaisDaVitrine.tsx`)
+mostra a bandeira de cada um dos 27 estados em círculo, ao lado do nome. Os
+arquivos moram no próprio site (`client/public/bandeiras/<uf>.svg`), servidos
+como imagem — nenhuma dependência de execução e nenhuma origem nova na CSP.
+
+| O quê | Onde | Origem | Licença |
+|---|---|---|---|
+| 27 bandeiras de estado e a do Brasil (item "Nacional"), estilo `circle` | `client/public/bandeiras/<uf>.svg` e `br.svg`, painel "Locais" | [`pierrelapalu/icones-bandeiras-br-uf`](https://github.com/pierrelapalu/icones-bandeiras-br-uf), pasta `dist/circle/svg`, commit `ed47411` (28/10/2021) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) — dedicação ao domínio público; não pede crédito |
+
+- **Só no painel "Locais"**: nenhuma bandeira vai no rodapé, em peça de
+  divulgação ou em anúncio.
+- **Escolha de cada arquivo**: o original `NN-<estado>-circle.svg`; só o
+  Espírito Santo usa a variante `-v2` (com o lema "Trabalha e confia", que a
+  bandeira oficial tem e a original do conjunto não traz). Ceará e Paraíba
+  seguem o original (o brasão do Ceará e a palavra "Nego" da Paraíba).
+- **Otimização**: SVGO 3 (fora do projeto, sem dependência), só para tirar
+  título, classes e espaços (66 KB → 59 KB no total); o desenho e o
+  `viewBox` ficam como vêm, e as cores não mudam.
+- **Licença vs. uso**: a CC0 resolve a licença do **desenho** do conjunto. O
+  uso da bandeira de estado numa plataforma comercial é pergunta ao advogado
+  (R24 em `docs/PERGUNTAS-AO-ADVOGADO.md`); até a resposta, a bandeira é só o
+  ícone do local, sempre com o nome escrito ao lado, e nunca vai em peça de
+  divulgação nem em anúncio. Cada arquivo sai a imagem do estado — nenhuma foi
+  desenhada por nós, e nenhuma bandeira foi inventada.
+
 ## Fontes e bibliotecas das artes prontas
 
 As artes prontas (`server/services/arteDesenho.ts`) desenham o texto com as

@@ -364,7 +364,7 @@ export function DadosLegaisCard({ campanha }: { campanha: Campanha }) {
                 href={`/api/admin/campaigns/${campanha.id}/certificado`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs text-green-deep underline"
+                className="inline-flex min-h-6 items-center text-xs text-green-deep underline"
               >
                 ver certificado enviado
               </a>

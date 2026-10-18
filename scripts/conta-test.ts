@@ -43,6 +43,8 @@ const TEL_CPF = "11966660004";
 const TEL_CONFIRMA = "11966660005";
 const TEL_TROCA = "11966660007";
 const TEL_OUTRO = "11966660006";
+/** Auditoria do acesso apostador: a conta que entra pela senha e a que entra pelo código. */
+const TEL_AUDITORIA = "11966660008";
 /** CPF válido sorteado: os fixos já aparecem em outras provas do mesmo banco. */
 function cpfSorteado() {
   const base = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));
@@ -71,11 +73,12 @@ let rifaId = "";
 async function limpar() {
   await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:comprador:%'`);
   // Os pedidos de código desta prova não podem esgotar o limite da próxima rodada.
-  for (const tel of [TEL_CONFIRMA, TEL_TROCA, TEL_OUTRO]) {
+  await db.execute(sql`delete from rate_events where bucket like 'lookup:miss:%'`);
+  for (const tel of [TEL_CONFIRMA, TEL_TROCA, TEL_OUTRO, TEL_AUDITORIA]) {
     await db.execute(sql`delete from rate_events where bucket in (${`otp:${tel}`}, ${`otp:verify:${tel}`})`);
   }
   const rows = await db.execute(
-    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, ${TEL_CPF}, ${TEL_CONFIRMA}, ${TEL_TROCA}, ${TEL_OUTRO}, '11966660003', '11900001234')`,
+    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, ${TEL_CPF}, ${TEL_CONFIRMA}, ${TEL_TROCA}, ${TEL_OUTRO}, ${TEL_AUDITORIA}, '11966660003', '11900001234')`,
   );
   for (const r of rows.rows as { id: string }[]) criados.add(r.id);
   for (const id of criados) {
@@ -421,6 +424,140 @@ async function main() {
     checa("e a conta ficou confirmada, com o mesmo número", Boolean(duplo?.telefoneConfirmadoEm) && duplo?.phone === TEL_TROCA);
     r = await tp.req("GET", "/api/public/conta");
     checa("a sessão de quem clicou duas vezes ficou confirmada", r.status === 200 && r.json?.sessaoConfirmada === true, `HTTP ${r.status}`);
+
+    // ---- auditoria do acesso apostador ----
+    // 1) Id ou código fora do formato é "não existe" (404), nunca 500 do Postgres.
+    // 2) Entrar com a senha não dispensa a senha para trocá-la nem para excluir a
+    //    conta: só o código do WhatsApp pedido há pouco (sessão roubada não tranca o dono).
+    console.log("\n  · auditoria do acesso apostador");
+    // As contas anteriores já gastaram o limite de cadastro por endereço (10 por hora).
+    await db.execute(sql`delete from rate_events where bucket like 'cadastro:%'`);
+    const aud = new Cliente();
+    const SENHA_AUD = "senha-auditoria-1";
+    r = await aud.req("POST", "/api/public/conta", {
+      apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x",
+      cep: CEP,
+      nome: "Conta Da Auditoria",
+      telefone: TEL_AUDITORIA,
+      cpf: cpfSorteado(),
+      senha: SENHA_AUD,
+    });
+    checa("conta da auditoria criada", r.status === 201, r.json?.message ?? "");
+    await db.execute(sql`update buyers set telefone_confirmado_em = now() where phone = ${TEL_AUDITORIA}`);
+
+    const ruins = ["abc", "99999999999999", "1.5", "%00"];
+    const semErro500: string[] = [];
+    const naoEncontrados: string[] = [];
+    for (const v of ruins) {
+      const x = encodeURIComponent(v);
+      for (const caminho of [`/api/public/orders/${x}`, `/api/public/carrinho/pedidos/${x}`, `/api/public/tickets/${x}`]) {
+        const g = await aud.req("GET", caminho);
+        if (g.status >= 500) semErro500.push(`${caminho} → ${g.status}`);
+        if (g.status !== 404 && g.status !== 429) naoEncontrados.push(`${caminho} → ${g.status}`);
+      }
+      for (const caminho of [
+        `/api/public/stories/${x}/imagem`,
+        `/api/public/stories/${x}/poster`,
+        `/api/public/chamados/${x}`,
+        `/api/public/chamados/anexos/${x}`,
+      ]) {
+        const g = await aud.req("GET", caminho);
+        if (g.status >= 500) semErro500.push(`${caminho} → ${g.status}`);
+        if (g.status !== 404) naoEncontrados.push(`${caminho} → ${g.status}`);
+      }
+      for (const caminho of [`/api/public/chamados/${x}/mensagens`, `/api/public/chamados/${x}/disputa`]) {
+        const g = await aud.req("POST", caminho, { texto: "oi", motivo: "x".repeat(30) });
+        if (g.status >= 500) semErro500.push(`POST ${caminho} → ${g.status}`);
+        if (g.status !== 404) naoEncontrados.push(`POST ${caminho} → ${g.status}`);
+      }
+    }
+    checa("id/código fora do formato: nenhuma rota responde 500", semErro500.length === 0, semErro500.join("; "));
+    checa("e todas dizem 404 (ou 429 na consulta de pedido varrida)", naoEncontrados.length === 0, naoEncontrados.join("; "));
+    for (const orderCode of ["abc", 1.5, 3_000_000_000, -4, 1e20, null]) {
+      const g = await aud.req("POST", "/api/public/chamados", { orderCode, motivo: "quero meu dinheiro de volta", cpf: "52998224725" });
+      checa(`chamado com código de pedido ${JSON.stringify(orderCode)}: 404, não 500`, g.status === 404, `HTTP ${g.status}`);
+    }
+    for (const corpo of [{}, { campaignId: "abc", quantidade: 1 }, { campaignId: "", quantidade: "x" }]) {
+      const g = await aud.req("POST", "/api/public/bonus/resgatar", corpo);
+      checa(`resgate de bônus com rifa ${JSON.stringify(corpo.campaignId ?? null)}: 404, não 500`, g.status === 404, `HTTP ${g.status}`);
+    }
+    r = await aud.req("PUT", "/api/public/conta/perfil", {});
+    checa("perfil público com corpo vazio: 200 e nada muda (era 500)", r.status === 200, `HTTP ${r.status}`);
+    r = await aud.req("PUT", "/api/public/conta/perfil", { campoQueNaoExiste: 1 });
+    checa("perfil público com campo desconhecido: 200 e nada muda", r.status === 200, `HTTP ${r.status}`);
+    // Trocar a foto abre uma imagem de até 5 MB: limite por conta (20 por hora).
+    await db.execute(sql`delete from rate_events where bucket like 'perfil-foto:%'`);
+    const trocas: number[] = [];
+    for (let i = 0; i < 21; i++) trocas.push((await aud.req("PUT", "/api/public/conta/perfil", { foto: PNG })).status);
+    checa("a 21ª troca de foto em uma hora é barrada (429)", trocas.slice(0, 20).every((c) => c === 200) && trocas[20] === 429, trocas.join(","));
+    await db.execute(sql`delete from rate_events where bucket like 'perfil-foto:%'`);
+    r = await aud.req("PUT", "/api/public/conta/perfil", { foto: null });
+    checa("tirar a foto não conta no limite", r.status === 200, `HTTP ${r.status}`);
+
+    // O CEP é rota aberta que chama o ViaCEP: tem limite por endereço (120 em 10 minutos).
+    await db.execute(sql`delete from rate_events where bucket like 'cep:%'`);
+    let barrou = 0;
+    for (let i = 0; i < 125; i++) {
+      const g = await new Cliente().req("GET", "/api/public/cep/abc");
+      if (g.status === 429) barrou++;
+    }
+    checa("o CEP é barrado depois de 120 consultas do mesmo endereço (429)", barrou === 5, `${barrou} barradas de 125`);
+    await db.execute(sql`delete from rate_events where bucket like 'cep:%'`);
+
+    // Entrou pela senha (telefone da conta já confirmado): é "sessão confirmada" para
+    // ver as compras, mas NÃO prova que é o dono para trocar a senha ou excluir.
+    const porSenha = new Cliente();
+    r = await porSenha.req("POST", "/api/public/conta/entrar", { identificador: TEL_AUDITORIA, senha: SENHA_AUD });
+    checa("entrar pela senha", r.status === 200, `HTTP ${r.status}`);
+    // Outro aparelho com a mesma conta (a sessão roubada): precisa cair na troca da senha.
+    await db.execute(sql`delete from rate_events where bucket like 'login:comprador:%'`);
+    const ladrao = new Cliente();
+    r = await ladrao.req("POST", "/api/public/conta/entrar", { identificador: TEL_AUDITORIA, senha: SENHA_AUD });
+    checa("o outro aparelho entra pela senha", r.status === 200, `HTTP ${r.status}`);
+    const [linhaDoLadrao] = (await db.execute(sql`select sid, sess, expire from sessions where sid = ${sid(ladrao.cookie)}`)).rows as { sid: string; sess: unknown; expire: Date }[];
+    r = await porSenha.req("GET", "/api/public/conta");
+    checa("a tela pede a senha atual (sessaoConfirmada falso)", r.status === 200 && r.json?.sessaoConfirmada === false && r.json?.telefoneConfirmado === true, JSON.stringify(r.json?.sessaoConfirmada));
+    r = await porSenha.req("PUT", "/api/public/conta/senha", { atual: "", nova: "outra-senha-9" });
+    checa("trocar a senha SEM a atual, entrando pela senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porSenha.req("POST", "/api/public/conta/excluir", { senha: "" });
+    checa("excluir a conta SEM a senha, entrando pela senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porSenha.req("GET", "/api/public/conta");
+    checa("a conta segue de pé", r.status === 200, `HTTP ${r.status}`);
+    r = await porSenha.req("PUT", "/api/public/conta/senha", { atual: SENHA_AUD, nova: "outra-senha-9" });
+    checa("trocar a senha com a atual certa: 200", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    checa("a sessão do outro aparelho caiu", (await ladrao.req("GET", "/api/public/conta")).status === 401);
+    // Uma requisição dela que já estava em andamento a regrava depois do DELETE
+    // (o connect-pg-simple faz INSERT … ON CONFLICT DO UPDATE): a marca na conta a derruba mesmo assim.
+    await db.execute(
+      sql`insert into sessions (sid, sess, expire) values (${linhaDoLadrao.sid}, ${JSON.stringify(linhaDoLadrao.sess)}::json, ${linhaDoLadrao.expire}) on conflict (sid) do update set sess = excluded.sess, expire = excluded.expire`,
+    );
+    checa("a sessão regravada depois da troca segue caída (401)", (await ladrao.req("GET", "/api/public/conta")).status === 401);
+    r = await porSenha.req("GET", "/api/public/conta");
+    checa("e a sessão de quem trocou a senha segue valendo", r.status === 200, `HTTP ${r.status}`);
+
+    // Pelo código do WhatsApp ("esqueci a senha"): vale sem a atual, e só por um tempo.
+    const porCodigo = new Cliente();
+    const pedido = await porCodigo.req("POST", "/api/public/my-quotas/request-code", { phone: TEL_AUDITORIA });
+    r = await porCodigo.req("POST", "/api/public/my-quotas/verify", { code: pedido.json?.devCode });
+    checa("entrar pelo código do WhatsApp", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    r = await porCodigo.req("GET", "/api/public/conta");
+    checa("a tela dispensa a senha atual (sessaoConfirmada verdadeiro)", r.status === 200 && r.json?.sessaoConfirmada === true, JSON.stringify(r.json?.sessaoConfirmada));
+    r = await porCodigo.req("PUT", "/api/public/conta/senha", { atual: "", nova: "senha-via-codigo-1" });
+    checa("trocar a senha sem a atual, com o código recém-provado: 200", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    // O código vence: com a prova de 31 minutos atrás, volta a pedir a senha.
+    await db.execute(
+      sql`update sessions set sess = jsonb_set(sess, '{buyer,porCodigoEm}', to_jsonb((extract(epoch from now()) * 1000)::bigint - 31 * 60 * 1000)) where sid = ${sid(porCodigo.cookie)}`,
+    );
+    r = await porCodigo.req("POST", "/api/public/conta/excluir", { senha: "" });
+    checa("o código provado há 31 minutos já não dispensa a senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porCodigo.req("PUT", "/api/public/conta/senha", { atual: "", nova: "senha-via-codigo-2" });
+    checa("nem para trocar a senha: 401", r.status === 401, `HTTP ${r.status}`);
+    r = await porCodigo.req("GET", "/api/public/conta");
+    checa("e a tela volta a pedir a senha atual", r.status === 200 && r.json?.sessaoConfirmada === false);
+    r = await porCodigo.req("POST", "/api/public/conta/excluir", { senha: "senha-via-codigo-1" });
+    checa("excluir com a senha certa: 200", r.status === 200, r.json?.message ?? `HTTP ${r.status}`);
+    r = await porCodigo.req("GET", "/api/public/conta");
+    checa("conta excluída: a sessão cai (401)", r.status === 401, `HTTP ${r.status}`);
   } finally {
     await limpar();
   }

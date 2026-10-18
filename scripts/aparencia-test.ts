@@ -69,6 +69,14 @@ async function main() {
     // Dados da empresa por etapas: o certo entra, o errado volta com a mensagem.
     r = await marina.req("PUT", "/api/admin/template/empresa", { razaoSocial: "Golpe Ltda" });
     checa("organizador não mexe nos dados da empresa (403)", r.status === 403, `HTTP ${r.status}`);
+    // Mexer no rascunho, nos dados da empresa e na logo deixa rastro (publicar já deixava).
+    const contarAuditoria = async (acao: string) =>
+      Number((await db.execute(sql`select count(*)::int as n from audit_log where action = ${acao}`)).rows[0]?.["n"] ?? 0);
+    const auditoriaAntes = {
+      empresa: await contarAuditoria("template.empresa"),
+      rascunho: await contarAuditoria("template.rascunho"),
+      logo: await contarAuditoria("template.logo"),
+    };
     r = await admin.req("PUT", "/api/admin/template/empresa", {
       razaoSocial: "",
       cnpj: "",
@@ -222,6 +230,18 @@ async function main() {
     r = await admin.req("PUT", "/api/admin/template/logo", { dataUrl: PNG });
     const logo = r.json?.identidade?.logo as string | undefined;
     checa("logo entra no rascunho", r.status === 200 && Boolean(logo?.startsWith("/api/public/marca/logo")), logo);
+    checa(
+      "os dados da empresa, o rascunho e a logo deixam linha de auditoria",
+      (await contarAuditoria("template.empresa")) > auditoriaAntes.empresa &&
+        (await contarAuditoria("template.rascunho")) > auditoriaAntes.rascunho &&
+        (await contarAuditoria("template.logo")) === auditoriaAntes.logo + 1,
+    );
+    const apoios = await db.execute(sql`select count(*)::int as n from audit_log where action = 'template.empresa' and diff::text like '%razaoSocial%'`);
+    const comValor = await db.execute(sql`select count(*)::int as n from audit_log where action = 'template.empresa' and diff::text like '%International Lottery%'`);
+    checa(
+      "a trilha dos dados da empresa guarda os campos mexidos, nunca os valores",
+      Number((apoios.rows[0] as { n: number }).n) >= 1 && Number((comValor.rows[0] as { n: number }).n) === 0,
+    );
     const arq = await anon.req("GET", logo ?? "/api/public/marca/logo");
     checa("e é servida reprocessada em WebP", arq.status === 200 && arq.tipo.startsWith("image/webp"), arq.tipo);
 

@@ -21,6 +21,7 @@
  *   npm run telas                          (com `npm run dev` no ar e o seed aplicado)
  *   npm run telas -- --larguras 390        (só o celular)
  *   npm run telas -- --papel organizador,cambista
+ *   npm run telas -- --rotas configuracoes  (só as rotas que têm o trecho)
  *   npm run telas -- --tema escuro
  *   npm run telas -- --saida /tmp/telas
  *
@@ -42,6 +43,8 @@ const arg = (nome: string) => {
 };
 const LARGURAS = (arg("larguras") ?? "390,820,1440").split(",").map(Number);
 const SO_PAPEIS = arg("papel")?.split(",");
+/** Só as rotas que contêm um destes trechos (`--rotas configuracoes,aparencia`): repete a ponta de uma rodada que caiu. */
+const SO_ROTAS = arg("rotas")?.split(",");
 const TEMA = arg("tema") === "escuro" ? "escuro" : "claro";
 const SAIDA = path.resolve(arg("saida") ?? "capturas");
 const CHROMIUM =
@@ -99,6 +102,17 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
     `select apelido from buyers where apelido is not null and apelido <> '${APOSTADOR.apelido}' order by created_at limit 1`,
     "apostador com apelido",
   );
+  // O que o apostador das capturas comprou DENTRO da conta (via_conta): pedido pago,
+  // pedido esperando o Pix e o carrinho dele. Sem isso, Minhas compras, o bilhete, o
+  // Pix e o carrinho ficariam sem conferir com dado de verdade (veja `docs/VERSOES.md`).
+  const doApostador = (extra: string) =>
+    `select o.code from orders o join buyers b on b.id = o.buyer_id where b.apelido = '${APOSTADOR.apelido}' ${extra} order by o.created_at desc limit 1`;
+  const pedidoDele = await um(doApostador(`and o.status = 'paid'`), "pedido pago do apostador das capturas");
+  const pedidoAbertoDele = await um(doApostador(`and o.status = 'pending'`), "pedido com Pix aberto do apostador das capturas");
+  const carrinhoDele = await um(
+    `select c.codigo from carrinho_pedidos c join orders o on o.carrinho_id = c.id join buyers b on b.id = o.buyer_id where b.apelido = '${APOSTADOR.apelido}' order by c.created_at desc limit 1`,
+    "carrinho do apostador das capturas",
+  );
   const uf = await um(
     `select uf from organizations where slug = '${(rifa?.organizacao?.slug ?? "").replace(/'/g, "")}'`,
     "UF da promotora",
@@ -147,7 +161,26 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           corpo: { identificador: APOSTADOR.telefone, senha: APOSTADOR.senha },
           criar: { url: "/api/public/conta", corpo: APOSTADOR },
         },
-        rotas: ["/", "/perfil", "/perfil/configuracoes", "/perfil/bilhetes", "/minhas-cotas", "/minhas-cotas?aba=conta", "/notificacoes", "/mensagens", "/publicar", `/u/${APOSTADOR.apelido}`, ...so(r, `/r/${r}`)],
+        rotas: [
+          "/",
+          "/perfil",
+          "/perfil/configuracoes",
+          "/perfil/bilhetes",
+          "/minhas-cotas",
+          "/minhas-cotas?aba=conta",
+          "/minhas-cotas?aba=reembolsos",
+          "/minhas-cotas?aba=bonus",
+          "/minhas-cotas?aba=salvos",
+          "/notificacoes",
+          "/mensagens",
+          "/publicar",
+          "/carrinho",
+          ...so(pedidoDele, `/pedido/${pedidoDele}`, `/bilhete/${pedidoDele}`),
+          ...so(pedidoAbertoDele, `/pedido/${pedidoAbertoDele}`),
+          ...so(carrinhoDele, `/carrinho/pix/${carrinhoDele}`),
+          `/u/${APOSTADOR.apelido}`,
+          ...so(r, `/r/${r}`),
+        ],
       },
       organizador: {
         login: { url: "/api/auth/login", corpo: { email: "marina@rifassaojose.br", password: "organizador123" } },
@@ -184,23 +217,47 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
             password: process.env.SEED_ADMIN_PASSWORD ?? "admin123",
           },
         },
+        // Tudo o que o menu do master alcança (`menuDe("admin")`): a caixa de
+        // entrada, os seis grupos e as abas de cada tela que tem abas.
         rotas: [
           "/admin",
           "/admin/caixa",
-          "/admin/pedidos",
-          "/admin/sorteios-oficiais",
-          "/admin/organizacoes",
-          "/admin/bonus",
-          "/admin/marketing/publicidade?aba=banner",
-          "/admin/fiscal",
-          "/admin/aparencia",
-          "/admin/antifraude",
           "/admin/atendimento",
-          "/admin/marketing/publicidade",
-          "/admin/marketing",
+          "/admin/atendimento?aba=rifas",
+          "/admin/atendimento?aba=denuncias",
+          "/admin/atendimento?aba=verificacoes",
+          "/admin/atendimento?aba=entidades",
+          "/admin/antifraude",
+          "/admin/antifraude?aba=bloqueios",
+          "/admin/antifraude?aba=barrado",
+          "/admin/resultados",
+          "/admin/campanhas",
+          "/admin/sorteios",
+          "/admin/sorteios-oficiais",
+          "/admin/stories",
+          "/admin/pedidos",
+          "/admin/financeiro",
+          "/admin/cobranca",
+          "/admin/exportacoes",
+          "/admin/organizacoes",
+          "/admin/usuarios",
+          "/admin/afiliados",
+          "/admin/cambistas",
+          "/admin/fiscal",
           "/admin/marketing/trafego",
           "/admin/marketing/ia",
+          "/admin/marketing/publicidade",
+          "/admin/marketing/publicidade?aba=banner",
+          "/admin/marketing",
+          "/admin/bonus",
+          "/admin/aparencia",
+          "/admin/aparencia?aba=topo",
+          "/admin/aparencia?aba=rodape",
+          "/admin/aparencia?aba=assistente",
           "/admin/configuracoes",
+          "/admin/configuracoes?aba=organizacao",
+          "/admin/configuracoes?aba=vendas",
+          "/admin/configuracoes?aba=auditoria",
         ],
       },
       afiliado: {
@@ -360,6 +417,23 @@ function julgar(m: Medida, erros: string[], consoleErros: string[]) {
   return { reprova, avisos };
 }
 
+/**
+ * Entra uma vez só por papel, num contexto à parte, e devolve a sessão
+ * (`storageState`) para as três larguras. Entrar em cada largura gastava 3 das
+ * 8 tentativas de entrada de 15 minutos (`guardLogin` conta também a que
+ * acerta): a terceira rodada seguida era barrada, o papel era pulado e a
+ * ferramenta saía com 0 reprovações.
+ */
+async function entrarUmaVez(navegador: import("playwright-core").Browser, login: Login) {
+  const ctx = await navegador.newContext();
+  try {
+    if (!(await entrar(ctx, login))) return null;
+    return await ctx.storageState();
+  } finally {
+    await ctx.close();
+  }
+}
+
 async function entrar(ctx: import("playwright-core").BrowserContext, login: Login) {
   const tentar = () => ctx.request.post(URL + login.url, { data: login.corpo });
   let r = await tentar();
@@ -407,12 +481,23 @@ async function main() {
   const { papeis: todos, carrinho, faltou } = await papeis();
   const navegador = await chromium.launch({ executablePath: CHROMIUM });
   const linhas: Linha[] = [];
+  const semLogin: string[] = [];
 
   for (const [papel, cfg] of Object.entries(todos)) {
     if (SO_PAPEIS && !SO_PAPEIS.includes(papel)) continue;
     console.log(`\n${papel}`);
+    const estado = cfg.login ? await entrarUmaVez(navegador, cfg.login) : undefined;
+    if (cfg.login && !estado) {
+      // Papel que não entra não foi auditado: isso reprova a rodada, não passa calado.
+      console.log(`  ✗ não entrou como ${papel} — as telas dele NÃO foram conferidas`);
+      semLogin.push(papel);
+      continue;
+    }
     for (const largura of LARGURAS) {
-      const ctx = await navegador.newContext({ viewport: { width: largura, height: altura(largura) } });
+      const ctx = await navegador.newContext({
+        viewport: { width: largura, height: altura(largura) },
+        ...(estado ? { storageState: estado } : {}),
+      });
       // O tsx embrulha função com `__name` (keepNames do esbuild); na página ela não existe.
       await ctx.addInitScript("window.__name = (f) => f;");
       // Tema da rodada, sem o convite de instalar por cima, e duas rifas à
@@ -425,40 +510,48 @@ async function main() {
         },
         { tema: TEMA, slugs: carrinho },
       );
-      if (cfg.login && !(await entrar(ctx, cfg.login))) {
-        console.log(`  ✗ não entrou como ${papel} — pulando`);
-        await ctx.close();
-        break;
-      }
-      const pagina = await ctx.newPage();
       let erros: string[] = [];
       let consoleErros: string[] = [];
-      pagina.on("pageerror", (e) => erros.push(`erro na página: ${e.message.slice(0, 160)}`));
-      pagina.on("console", (m) => {
-        const t = m.text();
-        // Recurso de fora (fonte do Google sem rede) não é defeito da tela.
-        if (m.type() === "error" && !/Failed to load resource|ERR_CERT|net::ERR/.test(t)) consoleErros.push(t.slice(0, 160));
-      });
-      pagina.on("response", (resp) => {
-        if (resp.url().startsWith(URL + "/api/") && resp.status() >= 500) {
-          erros.push(`HTTP ${resp.status()} ${resp.url().slice(URL.length)}`);
-        }
-      });
-      for (const rota of cfg.rotas) {
-        erros = [];
-        consoleErros = [];
-        try {
-          await pagina.goto(URL + rota, { waitUntil: "networkidle", timeout: 20000 });
-        } catch {
-          /* segue com o que carregou: a medida diz o resto */
-        }
-        await pagina.waitForTimeout(600);
+      /** Uma aba com os ouvintes. O Chromium cai de vez em quando com a máquina carregada: a aba nova refaz a rota. */
+      const abrirPagina = async () => {
+        const p = await ctx.newPage();
+        p.on("pageerror", (e) => erros.push(`erro na página: ${e.message.slice(0, 160)}`));
+        p.on("console", (m) => {
+          const t = m.text();
+          // Recurso de fora (fonte do Google sem rede) não é defeito da tela.
+          if (m.type() === "error" && !/Failed to load resource|ERR_CERT|net::ERR/.test(t)) consoleErros.push(t.slice(0, 160));
+        });
+        p.on("response", (resp) => {
+          if (resp.url().startsWith(URL + "/api/") && resp.status() >= 500) {
+            erros.push(`HTTP ${resp.status()} ${resp.url().slice(URL.length)}`);
+          }
+        });
+        return p;
+      };
+      let pagina = await abrirPagina();
+      const caiu = () => erros.some((e) => /Target crashed|has been closed|Access is denied for this document/.test(e));
+      for (const rota of cfg.rotas.filter((r) => !SO_ROTAS || SO_ROTAS.some((t) => r.includes(t)))) {
         const arquivo = `${papel}${rota.replace(/[/?=&]/g, "_")}-${largura}.png`;
         let medida: Medida | undefined;
-        try {
-          medida = await pagina.evaluate(medir);
-        } catch (e) {
-          erros.push(`não mediu: ${String(e).slice(0, 160)}`);
+        for (let tentativa = 0; tentativa < 2; tentativa++) {
+          erros = [];
+          consoleErros = [];
+          medida = undefined;
+          try {
+            await pagina.goto(URL + rota, { waitUntil: "networkidle", timeout: 20000 });
+          } catch {
+            /* segue com o que carregou: a medida diz o resto */
+          }
+          await pagina.waitForTimeout(600).catch(() => {});
+          try {
+            medida = await pagina.evaluate(medir);
+          } catch (e) {
+            erros.push(`não mediu: ${String(e).slice(0, 160)}`);
+          }
+          if (!caiu() || tentativa === 1) break;
+          // A aba caiu (não é a tela): abre outra e tenta a mesma rota de novo.
+          await pagina.close().catch(() => {});
+          pagina = await abrirPagina();
         }
         await pagina
           .screenshot({ path: path.join(SAIDA, arquivo), fullPage: true, timeout: 15000 })
@@ -485,9 +578,10 @@ async function main() {
   console.log(
     `\n${linhas.length} capturas em ${path.relative(process.cwd(), SAIDA) || "."}/ — ${reprovadas.length} reprovada(s), ${comAviso.length} com aviso.`,
   );
+  if (semLogin.length) console.log(`Não entrou como: ${semLogin.join(", ")} (reprova a rodada).`);
   if (faltou.length) console.log(`Sem exemplo no banco (rota fora): ${faltou.join(", ")}.`);
   console.log(`Veja lado a lado: ${path.join(SAIDA, "index.html")}`);
-  process.exit(reprovadas.length ? 1 : 0);
+  process.exit(reprovadas.length || semLogin.length ? 1 : 0);
 }
 
 main().catch(async (e) => {

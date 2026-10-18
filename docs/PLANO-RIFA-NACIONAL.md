@@ -424,6 +424,12 @@ o CI) e é revisada pelo `revisor-de-invariantes` antes de mesclar.
 | 5 | **Telas do painel** | `RifaNacionalCard` (aba "A rifa"), ramo em `SolicitacoesDeRifa.tsx`, tipo na Caixa, cartão da config, `docs/VERSOES.md`, `npm run telas` | Médio-baixo: arranjo em 3 larguras e aviso de total/preço travado |
 | 6 | **Texto jurídico** (quando as respostas chegarem) | Termos (e `VIGENCIA_DOS_TERMOS`), contrato/anexo, regulamento se pedirem, texto do selo | Depende de terceiros; **bloqueia ligar o interruptor, não o código** |
 
+**Situação:** a PR 1 está feita (regras puras e configuração, nada ligado;
+`ordenarVitrine()` recebe `{ ligado, teto }` e não só `{ teto }`, e
+`mesclarConfigRifaNacional()` faz a gravação partir da configuração atual).
+As propostas deste plano adotadas no código estão listadas em
+`docs/PENDENCIAS.md`, seção 0b.
+
 As PRs 1 a 5 podem ir ao ar com o interruptor **desligado**. Ligar em produção
 é um ato da plataforma, depois da PR 6.
 

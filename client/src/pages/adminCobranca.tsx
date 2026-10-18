@@ -463,7 +463,7 @@ function TabelaDeCobranca() {
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Taxa Pix por volume do mês</legend>
             <p className="text-xs text-muted">
-              De {1} a {FAIXAS_PIX_MAX} faixas, até {PIX_PCT_MAX}%. Os tetos sobem e a taxa nunca sobe; a última não tem
+              De <span className="tnum">1</span> a <span className="tnum">{FAIXAS_PIX_MAX}</span> faixas, até <span className="tnum">{PIX_PCT_MAX}%</span>. Os tetos sobem e a taxa nunca sobe; a última não tem
               teto.
             </p>
             {faixas.map((f, i) => {

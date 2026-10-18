@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { APOIOS_DE_EXEMPLO, COLUNAS_DO_RODAPE, REDES_DE_EXEMPLO, rodapeEmModoExemplo } from "../shared/rodape";
+import {
+  APOIOS_DE_EXEMPLO,
+  AVISO_DE_JOGO_PADRAO,
+  COLUNAS_DO_RODAPE,
+  REDES_DE_EXEMPLO,
+  avisoDeJogoResponsavel,
+  linhaDaEmpresa,
+  rodapeEmModoExemplo,
+} from "../shared/rodape";
+import { EMPRESA_VAZIA } from "../shared/legal";
 import { perguntasDaAjuda } from "../shared/ajuda";
 import { REDES_DO_RODAPE, TEMPLATE_PADRAO, TemplateInvalido, validarRedes, validarTemplate } from "../shared/template";
 
@@ -88,5 +97,52 @@ describe("rodapé de exemplo (fase de construção)", () => {
     expect(rodapeEmModoExemplo([], [])).toBe(true);
     expect(rodapeEmModoExemplo([{ rede: "x" }], [])).toBe(false);
     expect(rodapeEmModoExemplo([], [{ id: "a" }])).toBe(false);
+  });
+});
+
+describe("texto oficial embaixo da logo", () => {
+  const empresa = { ...EMPRESA_VAZIA, razaoSocial: "Sorte Nacional Ltda", cnpj: "11.222.333/0001-81" };
+
+  it("a empresa vem dos dados publicados, com o CNPJ formatado", () => {
+    expect(linhaDaEmpresa(empresa)).toEqual({ razaoSocial: "Sorte Nacional Ltda", cnpj: "11.222.333/0001-81" });
+    // O que vem só em dígitos também sai formatado.
+    expect(linhaDaEmpresa({ ...empresa, cnpj: "11222333000181" })?.cnpj).toBe("11.222.333/0001-81");
+  });
+
+  it("faltando razão social ou CNPJ, a linha não existe — nunca se inventa", () => {
+    expect(linhaDaEmpresa(EMPRESA_VAZIA)).toBeNull();
+    expect(linhaDaEmpresa({ ...empresa, cnpj: "" })).toBeNull();
+    expect(linhaDaEmpresa({ ...empresa, razaoSocial: "" })).toBeNull();
+    expect(linhaDaEmpresa(undefined)).toBeNull();
+    expect(linhaDaEmpresa(null)).toBeNull();
+    expect(linhaDaEmpresa("texto")).toBeNull();
+  });
+
+  it("CNPJ sem dígito certo não vira texto na tela", () => {
+    expect(linhaDaEmpresa({ ...empresa, cnpj: "11.222.333/0001-82" })).toBeNull();
+  });
+
+  it("o aviso de jogo responsável é o do template, senão o padrão", () => {
+    expect(avisoDeJogoResponsavel({ jogoResponsavel: "Jogue com responsabilidade." })).toBe("Jogue com responsabilidade.");
+    expect(avisoDeJogoResponsavel({ jogoResponsavel: "   " })).toBe(AVISO_DE_JOGO_PADRAO);
+    expect(avisoDeJogoResponsavel({ jogoResponsavel: "" })).toBe(AVISO_DE_JOGO_PADRAO);
+    expect(avisoDeJogoResponsavel(undefined)).toBe(AVISO_DE_JOGO_PADRAO);
+  });
+
+  it("o rodapé lê os dados do template publicado e só mostra o aviso uma vez", () => {
+    const fonte = readFileSync(new URL("../client/src/components/RodapeDaPlataforma.tsx", import.meta.url), "utf8");
+    expect(fonte).toContain("linhaDaEmpresa(t.legal)");
+    expect(fonte).toContain("avisoDeJogoResponsavel(t.textos)");
+    // Nada digitado no código: nem CNPJ, nem razão social.
+    expect(fonte).not.toMatch(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
+    // O aviso (e o padrão) não voltam a ser escritos no pé: uma versão só.
+    expect(fonte).not.toContain("t.textos.jogoResponsavel");
+    expect(fonte).not.toContain("Proibido para menores");
+    expect(fonte.match(/\{jogoResponsavel\}/g)).toHaveLength(1);
+  });
+
+  it("só no tablet e no computador, como o rodapé de hoje", () => {
+    const fonte = readFileSync(new URL("../client/src/components/RodapeDaPlataforma.tsx", import.meta.url), "utf8");
+    expect(fonte).toMatch(/<footer className="hidden [^"]*md:block"/);
   });
 });

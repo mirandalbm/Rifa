@@ -452,10 +452,12 @@ export async function listPublicCampaigns(ids?: string[]) {
     .leftJoin(organizations, eq(organizations.id, campaigns.organizationId))
     .leftJoin(organizacaoFotos, eq(organizacaoFotos.organizationId, campaigns.organizationId))
     // Travada pela plataforma sai da vitrine (a página segue, com o aviso).
+    // Promotora arquivada ou banida também: o perfil dela é 404, e a rifa dela
+    // não pode aparecer no feed, nos Reels nem na busca (que leem esta lista).
     .where(
       ids
-        ? and(inArray(campaigns.id, ids), sql`${campaigns.status} <> 'draft'`, isNull(organizations.archivedAt))
-        : and(eq(campaigns.status, "published"), isNull(campaigns.travadaEm)),
+        ? and(inArray(campaigns.id, ids), sql`${campaigns.status} <> 'draft'`, isNull(organizations.archivedAt), isNull(organizations.banidaEm))
+        : and(eq(campaigns.status, "published"), isNull(campaigns.travadaEm), isNull(organizations.archivedAt), isNull(organizations.banidaEm)),
     )
     .orderBy(
       sql`${campaigns.featured} DESC, ${campaigns.sortWeight} DESC, ${campaigns.publishedAt} DESC`,

@@ -15,6 +15,9 @@ import {
 } from "../services/bannerDivulgacao";
 import { SociosError, adicionarSocio, declararSocios, listarSocios, removerSocio } from "../services/socios";
 import { agendarPublicacao } from "../services/publicacaoAgendada";
+import { validarPacotes } from "@shared/pacotes";
+import { lerComissaoDoCadastro } from "@shared/afiliados";
+import { problemaNosLimitesDoPedido } from "@shared/solicitacoes";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { abaterRetencao, liberarRetencao, listarRetencoes, reterManual } from "../services/retencao";
@@ -129,7 +132,7 @@ import { buildExport, ExportError, toCsvLine } from "../services/exports";
 import { refundOrder } from "../services/orders";
 import { carteiraDaPlataforma, extratoDa, darBaixa } from "../services/billing";
 import { cancelarNotificacao, notificacaoDa, notificarFaltaDePagamento } from "../services/inadimplencia";
-import { AVISO_DA_TABELA_DIAS, primeiroDiaComAviso, problemaNaCobranca, problemaNaVigencia, tabelasDeCobranca, tabelaVigente, validarConfigCobranca, validarModo, type TabelasDaCobranca } from "@shared/cobranca";
+import { AVISO_DA_TABELA_DIAS, primeiroDiaComAviso, problemaNaCobranca, problemaNaVigencia, tabelasDeCobranca, tabelaVigente, validarConfigCobranca, validarModo, type ConfigCobranca, type TabelasDaCobranca } from "@shared/cobranca";
 import {
   orgOf,
   isPlatform,
@@ -314,8 +317,24 @@ import {
   publicarAnexo,
 } from "../services/contratoAnexos";
 import { EMPRESA_VAZIA } from "@shared/legal";
+import { numeroDoCorpo } from "@shared/inteiro";
 
 export const adminRouter = Router();
+
+/**
+ * Todo id que vem no caminho deste painel é UUID. O id torto (`/campaigns/abc`)
+ * chegava ao Postgres, que recusa a conversão com erro — e a resposta era 500
+ * em mais de cinquenta rotas. Aqui ele é "não existe" (404), igual ao id de
+ * quem não é dono, antes de qualquer consulta. (Rota da plataforma chamada
+ * por organizador com id torto também diz 404: não há dado nenhum a esconder.)
+ */
+const PARAMETROS_DE_ID = ["id", "mediaId", "prizedId", "socioId", "sellerId", "campaignId", "affiliateId", "fotoId"] as const;
+for (const nome of PARAMETROS_DE_ID) {
+  adminRouter.param(nome, (_req, res, next, valor) => {
+    if (!ehUuid(valor)) return res.status(404).json({ message: "Não encontrado." });
+    next();
+  });
+}
 
 async function audit(
   req: Request,
@@ -344,6 +363,30 @@ async function audit(
 function escopoDaCampanha(req: Request) {
   const org = orgOf(req);
   return org ? eq(campaigns.organizationId, org) : sql`TRUE`;
+}
+
+/**
+ * Criar acesso e redefinir senha custam um hash de senha (64 MiB e uma thread
+ * do libuv, que também serve o disco). Sem limite, uma sessão de organizador
+ * (ou uma sessão roubada) abriria centenas em rajada e seguraria o servidor.
+ * Conta depois do erro de preenchimento, como os outros limites.
+ */
+const ACESSOS_POR_HORA = 30;
+async function acessosEmExcesso(req: Request): Promise<boolean> {
+  return (await hit(`acesso-novo:${req.user!.id}`, 60, ACESSOS_POR_HORA)).excedeu;
+}
+const MUITOS_ACESSOS = "Muitos acessos criados em pouco tempo. Espere um pouco e tente de novo.";
+
+/**
+ * `featured` e `sortWeight` mandam na ordem da vitrine (destaque e peso do
+ * feed): são da plataforma. O schema da rifa os aceita porque a plataforma
+ * edita a rifa de qualquer organização pelas mesmas rotas — mas o organizador
+ * que os mandasse empurraria a própria rifa para o topo do feed de todos.
+ */
+function semOrdemDaVitrine<T extends object>(req: Request, dados: T): T {
+  if (!orgOf(req)) return dados;
+  const { featured: _f, sortWeight: _w, ...resto } = dados as Record<string, unknown>;
+  return resto as T;
 }
 
 /* ---------------- painel ---------------- */
@@ -550,7 +593,7 @@ adminRouter.get("/campaigns", async (req, res, next) => {
 
 adminRouter.post("/campaigns", async (req, res, next) => {
   try {
-    const input = insertCampaignSchema.parse(req.body);
+    const input = semOrdemDaVitrine(req, insertCampaignSchema.parse(req.body));
     assertQuotaRange(input.totalQuotas);
 
     // Organizador cria na própria; o administrador geral precisa dizer em
@@ -566,6 +609,12 @@ adminRouter.post("/campaigns", async (req, res, next) => {
     const metodoApuracao = (await getPlataforma()).metodosDeApuracao[0] ?? null;
     const premio = problemaNoPremio(input.prizeTitle, Boolean(metodoApuracao));
     if (premio) return res.status(422).json({ message: premio });
+    const limites = problemaNosLimitesDoPedido({
+      minPerOrder: input.minPerOrder ?? 1,
+      maxPerOrder: input.maxPerOrder ?? 1000,
+      reservationTtlMin: input.reservationTtlMin ?? 15,
+    });
+    if (limites) return res.status(422).json({ message: limites });
     const [created] = await db
       .insert(campaigns)
       .values({ ...input, organizationId, status: "draft", metodoApuracao })
@@ -585,7 +634,7 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
 
-    const changes = insertCampaignSchema.partial().parse(req.body);
+    const changes = semOrdemDaVitrine(req, insertCampaignSchema.partial().parse(req.body));
     // A campanha não muda de dono por PATCH: seria transferir venda, cota e
     // comissão de uma administradora para outra com um campo de formulário.
     delete (changes as { organizationId?: unknown }).organizationId;
@@ -609,6 +658,16 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
       const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
       if (premio) return res.status(422).json({ message: premio });
     }
+    // Só confere os limites quando o pedido mexe neles: rifa antiga com valor de
+    // antes da régua não pode travar a troca de título, destaque ou comissão.
+    const limites = mexeNosLimites(changes)
+      ? problemaNosLimitesDoPedido({
+          minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+          maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+          reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+        })
+      : null;
+    if (limites) return res.status(422).json({ message: limites });
 
     const [updated] = await db
       .update(campaigns)
@@ -649,7 +708,7 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
     }
 
     if (campaign.status === "draft") {
-      const changes = insertCampaignSchema.partial().parse(corpo);
+      const changes = semOrdemDaVitrine(req, insertCampaignSchema.partial().parse(corpo));
       delete (changes as { organizationId?: unknown }).organizationId;
       if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
       if (changes.totalQuotas) assertQuotaRange(changes.totalQuotas);
@@ -657,6 +716,14 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
         const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
         if (premio) return res.status(422).json({ message: premio });
       }
+      const limites = mexeNosLimites(changes)
+        ? problemaNosLimitesDoPedido({
+            minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+            maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+            reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+          })
+        : null;
+      if (limites) return res.status(422).json({ message: limites });
       const [updated] = await db.update(campaigns).set(changes).where(eq(campaigns.id, campaign.id)).returning();
       await audit(req, "campaign.update", "campaign", campaign.id, changes);
       return res.json({ aplicada: true, campaign: updated });
@@ -744,8 +811,11 @@ adminRouter.post("/organizacoes/:id/telefone/confirmar", async (req, res, next) 
 adminRouter.post("/organizacoes/:id/telefone/aprovar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // O `UPDATE` é condicional (telefone provado e ainda não aprovado): a
+    // auditoria vem depois dele, senão gravava "aprovado" para o que foi recusado.
+    const estado = await aprovarTelefone(req, req.params.id);
     await audit(req, "organizacao.telefone.aprovado", "organization", req.params.id, {});
-    res.json(await aprovarTelefone(req, req.params.id));
+    res.json(estado);
   } catch (err) {
     next(err);
   }
@@ -841,10 +911,7 @@ adminRouter.get("/denuncias/:id", async (req, res, next) => {
 adminRouter.post("/denuncias/:id/decidir", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    // Auditoria antes: travar e banir mudam rifa e organização na mesma transação.
-    await audit(req, `denuncia.${String(req.body?.acao ?? "")}`, "denuncia", req.params.id, {
-      resposta: req.body?.resposta ?? null,
-    });
+    // A auditoria vai na transação da decisão (travar e banir mudam rifa e organização ali mesmo).
     res.json(await decidirDenuncia(req, req.params.id, { acao: req.body?.acao, resposta: req.body?.resposta }));
   } catch (err) {
     next(err);
@@ -971,8 +1038,10 @@ adminRouter.post("/sorteios-oficiais/denuncias/:id/decidir", async (req, res, ne
 adminRouter.post("/campaigns/:id/destravar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Depois do `UPDATE` condicional: só registra a rifa que de fato foi destravada.
+    const feito = await destravarRifa(req.params.id);
     await audit(req, "campaign.destravar", "campaign", req.params.id, {});
-    res.json(await destravarRifa(req.params.id));
+    res.json(feito);
   } catch (err) {
     next(err);
   }
@@ -1528,11 +1597,11 @@ adminRouter.put("/campaigns/:id/agendar-publicacao", async (req, res, next) => {
 adminRouter.put("/campaigns/:id/packages", async (req, res, next) => {
   try {
     const campanha = await assertCampaignInScope(req, req.params.id);
-    const list = (req.body?.packages ?? []) as {
-      quantity: number;
-      discountPct: number;
-      highlight?: boolean;
-    }[];
+    // O corpo é do navegador: sem teto, o desconto de 100% (ou 150%) virava
+    // pedido de valor zero (ou negativo) com as cotas reservadas.
+    const lida = validarPacotes(req.body?.packages, campanha.totalQuotas);
+    if ("problema" in lida) return res.status(422).json({ message: lida.problema });
+    const list = lida.pacotes;
     // Por cota: o desconto do pacote não pode levar a cota abaixo da taxa da
     // plataforma (a fotografada na publicação, ou a de hoje no rascunho).
     const tabela = campanha.cobranca ?? (await tabelaDeCobrancaAgora());
@@ -2026,7 +2095,11 @@ adminRouter.get("/busca", async (req, res, next) => {
 
 adminRouter.get("/orders", async (req, res, next) => {
   try {
-    const status = req.query.status ? String(req.query.status) : null;
+    // O filtro vem da barra de endereço: situação que o banco não conhece é
+    // ignorada (a lista segue no recorte), em vez de virar erro de conversão do enum.
+    const status = ["pending", "paid", "expired", "refunded"].includes(String(req.query.status))
+      ? String(req.query.status)
+      : null;
     // A busca do painel chega aqui com `?codigo=` (o pedido) ou `?cliente=`
     // (o ID): a lista fica só com eles, dentro do mesmo recorte.
     const codigo = /^\d{8}$/.test(String(req.query.codigo ?? "")) ? Number(req.query.codigo) : null;
@@ -2126,10 +2199,18 @@ adminRouter.post("/affiliates", async (req, res, next) => {
     if (!name || !email || !password || !code) {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
+    // A mesma régua de senha do cambista e do resto do painel (`senhaInvalida`):
+    // esta conta recebe comissão e pede saque, e antes aceitava até "1".
+    const senhaRuim = senhaInvalida(String(password), "affiliate");
+    if (senhaRuim) return res.status(400).json({ message: senhaRuim });
+    const comissao = lerComissaoDoCadastro(commissionPct);
+    if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
 
     // O afiliado é avulso (a conta não tem organização). Criado por um
     // organizador, já nasce com o vínculo aprovado com a organização dele.
     const organizationId = orgOf(req) ?? (req.body?.organizationId ? String(req.body.organizationId) : null);
+    if (organizationId && !ehUuid(organizationId)) return res.status(400).json({ message: "Organização inválida." });
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
@@ -2148,7 +2229,7 @@ adminRouter.post("/affiliates", async (req, res, next) => {
         .values({
           userId: user.id,
           code: String(code).toUpperCase().trim(),
-          commissionPct: commissionPct ? Number(commissionPct) : null,
+          commissionPct: comissao.pct,
           status: "active",
           approvedAt: new Date(),
         })
@@ -2161,6 +2242,11 @@ adminRouter.post("/affiliates", async (req, res, next) => {
           .onConflictDoNothing();
       }
       return aff;
+    }).catch((err) => {
+      // Repetido: quem decide é o índice (e vira 409, não erro interno).
+      if (isUniqueViolation(err, "uq_users_email")) throw new OrgScopeError("Já existe um acesso com este e-mail.", 409);
+      if (isUniqueViolation(err, "uq_affiliates_code")) throw new OrgScopeError("Este código já é de outro afiliado ou cambista.", 409);
+      throw err;
     });
 
     await audit(req, "affiliate.create", "affiliate", created.id, { code: created.code });
@@ -2190,10 +2276,18 @@ adminRouter.patch("/affiliates/:id", async (req, res, next) => {
     }
 
     const changes: Record<string, unknown> = {};
-    if (req.body?.status) changes.status = req.body.status;
-    if (req.body?.commissionPct !== undefined) {
-      changes.commissionPct = req.body.commissionPct === null ? null : Number(req.body.commissionPct);
+    if (req.body?.status) {
+      if (!["pending", "active", "blocked"].includes(String(req.body.status))) {
+        return res.status(400).json({ message: "Situação do cadastro inválida." });
+      }
+      changes.status = req.body.status;
     }
+    if (req.body?.commissionPct !== undefined) {
+      const comissao = lerComissaoDoCadastro(req.body.commissionPct);
+      if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
+      changes.commissionPct = comissao.pct;
+    }
+    if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
     if (changes.status === "active") changes.approvedAt = new Date();
 
     const [updated] = await db
@@ -2254,6 +2348,20 @@ adminRouter.post("/coupons", async (req, res, next) => {
     if (!Number.isInteger(discountPct) || discountPct < 1 || discountPct > 50) {
       return res.status(400).json({ message: "O desconto precisa ficar entre 1% e 50%." });
     }
+    // Limite de usos e validade: o corpo é do navegador, e texto ou data torta
+    // virava erro de conversão do banco (500).
+    const bruto = req.body?.maxUses;
+    const maxUses = bruto === undefined || bruto === null || bruto === "" ? null : Number(bruto);
+    if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 1_000_000)) {
+      return res.status(400).json({ message: "O limite de usos é um número inteiro a partir de 1." });
+    }
+    let expiresAt: Date | null = null;
+    if (req.body?.expiresAt) {
+      expiresAt = new Date(req.body.expiresAt);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+        return res.status(400).json({ message: "Informe uma validade futura, ou deixe em branco." });
+      }
+    }
 
     // Cupom de organizador tem que morder algo dele. Sem campanha e sem
     // afiliado o cupom vale em toda a plataforma — isso é da plataforma.
@@ -2284,8 +2392,8 @@ adminRouter.post("/coupons", async (req, res, next) => {
         organizationId,
         affiliateId: req.body?.affiliateId || null,
         campaignId: req.body?.campaignId || null,
-        maxUses: req.body?.maxUses ? Number(req.body.maxUses) : null,
-        expiresAt: req.body?.expiresAt ? new Date(req.body.expiresAt) : null,
+        maxUses,
+        expiresAt,
       })
       .onConflictDoNothing({ target: coupons.code })
       .returning();
@@ -2335,11 +2443,19 @@ adminRouter.post("/sellers", async (req, res, next) => {
     // O cambista vende e dá baixa em dinheiro: a mesma régua de senha do resto.
     const senhaRuim = senhaInvalida(String(password), "cambista");
     if (senhaRuim) return res.status(400).json({ message: senhaRuim });
+    const comissao = lerComissaoDoCadastro(commissionPct);
+    if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
 
     const organizationId = organizationForNewCampaign(
       req,
       req.body?.organizationId ? String(req.body.organizationId) : undefined,
     );
+    // A organização escolhida pela plataforma tem de existir: id fora do formato
+    // ou de organização que não existe caía na chave estrangeira (500).
+    if (!ehUuid(organizationId)) return res.status(400).json({ message: "Organização inválida." });
+    const [dona] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, organizationId));
+    if (!dona) return res.status(404).json({ message: "Organização não encontrada." });
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
@@ -2360,7 +2476,7 @@ adminRouter.post("/sellers", async (req, res, next) => {
           userId: user.id,
           code: String(code).toUpperCase().trim(),
           kind: "cambista",
-          commissionPct: commissionPct ? Number(commissionPct) : null,
+          commissionPct: comissao.pct,
           status: "active",
           approvedAt: new Date(),
         })
@@ -2397,12 +2513,15 @@ adminRouter.get("/settlements", async (req, res, next) => {
 adminRouter.post("/settlements/:sellerId/close", async (req, res, next) => {
   try {
     await assertAffiliateInScope(req, req.params.sellerId);
+    // A observação é texto (até 500): objeto virava "[object Object]" e o
+    // corpo, sem teto, ia inteiro para o histórico do acerto.
+    const observacao = req.body?.notes;
+    if (observacao !== undefined && observacao !== null && (typeof observacao !== "string" || observacao.length > 500)) {
+      return res.status(400).json({ message: "A observação do acerto é texto de até 500 caracteres." });
+    }
     let created;
     try {
-      created = await closeSettlement(
-        req.params.sellerId,
-        req.body?.notes ? String(req.body.notes) : undefined,
-      );
+      created = await closeSettlement(req.params.sellerId, observacao ? observacao : undefined);
     } catch (err) {
       if (err instanceof AcertoError) return res.status(err.status).json({ message: err.message });
       throw err;
@@ -3032,19 +3151,10 @@ adminRouter.post("/organizacoes/:id/acessos", async (req, res, next) => {
 adminRouter.post("/organizacoes/:id/arquivar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const [eu] = await db.select().from(users).where(eq(users.id, req.user!.id));
-    if (!eu.totpSecret) {
-      return res.status(409).json({
-        message: "Ative o segundo fator (em Configurações) para poder arquivar organizações.",
-        code: "totp_required",
-      });
-    }
-    if (!(await verifyPassword(String(req.body?.password ?? ""), eu.passwordHash))) {
-      return res.status(401).json({ message: "Senha incorreta." });
-    }
-    if (!codigoConfere(eu.totpSecret, String(req.body?.code ?? ""))) {
-      return res.status(401).json({ message: "Código do autenticador incorreto." });
-    }
+    // A mesma função dos outros atos sensíveis: senha e código na hora, e o
+    // limite de tentativas por pessoa (a cópia que havia aqui não tinha).
+    const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "arquivar organizações");
+    if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
 
     const arquivada = await archiveOrganization(req.params.id);
     await audit(req, "organizacao.arquivar", "organization", arquivada.id, {
@@ -3138,19 +3248,17 @@ adminRouter.put("/selos", async (req, res, next) => {
 adminRouter.put("/plataforma", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
+    // Sem o campo, vale o que já estava — nada volta ao padrão por omissão
+    // (antes, mandar só a taxa desligava o reembolso e voltava o provedor ao
+    // automático). `provedorPix: null` é a escolha "automático", dita de
+    // propósito. `undefined` o `setPlataforma` ignora e junta com a
+    // configuração de agora, já com a trava.
     const salva = await setPlataforma({
-      provedorPix: req.body?.provedorPix ?? null,
-      estornoManual: req.body?.estornoManual === true,
-      // Sem o campo, vale o que já estava — não volta ao padrão por omissão.
-      taxaReembolsoPct:
-        req.body?.taxaReembolsoPct !== undefined
-          ? Number(req.body.taxaReembolsoPct)
-          : (await getPlataforma()).taxaReembolsoPct,
-      // Guarda da comissão (etapa 12): sem o campo, vale o que já estava.
-      guardaComissao:
-        req.body?.guardaComissao !== undefined
-          ? req.body.guardaComissao === true
-          : (await getPlataforma()).guardaComissao,
+      provedorPix: req.body?.provedorPix,
+      estornoManual: req.body?.estornoManual === undefined ? undefined : req.body.estornoManual === true,
+      taxaReembolsoPct: req.body?.taxaReembolsoPct === undefined ? undefined : Number(req.body.taxaReembolsoPct),
+      // Guarda da comissão (etapa 12).
+      guardaComissao: req.body?.guardaComissao === undefined ? undefined : req.body.guardaComissao === true,
     });
     await audit(req, "plataforma.update", "settings", "plataforma", salva);
     res.json(salva);
@@ -3468,10 +3576,14 @@ adminRouter.post("/whatsapp/teste", async (req, res, next) => {
     requirePlatformAdmin(req);
     const telefone = String(req.body?.telefone ?? "");
     const modelo = req.body?.modelo ? String(req.body.modelo) : undefined;
+    // Cada teste manda uma mensagem de verdade (custa, e a Meta mede a qualidade da conta): teto por pessoa.
+    if ((await hit(`whatsapp-teste:${req.user!.id}`, 60, 10)).excedeu) {
+      return res.status(429).json({ message: "Testes demais em pouco tempo. Espere um pouco e tente de novo." });
+    }
     await enviarTeste(telefone, modelo);
     await audit(req, "whatsapp.teste", "whatsapp", undefined, {
       modelo: modelo ?? "codigo_acesso",
-      telefone: telefone.replace(/\d(?=\d{4})/g, "•"),
+      telefone: telefone.replace(/\D/g, "").replace(/\d(?=\d{4})/g, "•"),
     });
     res.json({ ok: true });
   } catch (err) {
@@ -3568,6 +3680,7 @@ adminRouter.post("/usuarios/:id/senha", async (req, res, next) => {
     const senha = String(req.body?.password ?? "");
     const invalida = senhaInvalida(senha, alvo.role);
     if (invalida) return res.status(400).json({ message: invalida });
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     await db
       .update(users)
@@ -3594,6 +3707,9 @@ adminRouter.patch("/usuarios/:id", async (req, res, next) => {
       return res.status(400).json({ message: "Você não pode desligar o próprio acesso." });
     }
     await db.update(users).set({ active: req.body.active }).where(eq(users.id, alvo.id));
+    // Desligar encerra as sessões de vez: ligar de novo não traz de volta a que
+    // alguém guardou (a sessão só cai de `deserializeUser` enquanto está desligado).
+    if (!req.body.active) await encerrarSessoesDoUsuario(alvo.id);
     await audit(req, req.body.active ? "usuario.ativar" : "usuario.desativar", "user", alvo.id, {
       email: alvo.email,
     });
@@ -3660,16 +3776,24 @@ async function haPromotorasComContrato(): Promise<boolean> {
 adminRouter.put("/cobranca/tabela", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const nova = validarConfigCobranca(req.body ?? {});
     const vigenteEm = req.body?.vigenteEm ? String(req.body.vigenteEm) : null;
     const agora = new Date();
-    const p = await getPlataforma();
-    const antes = tabelaVigente(p.cobranca, p.cobrancaProxima, agora);
-    const problema = problemaNaVigencia({ antes, depois: nova, vigenteEm, agora, comPromotoras: await haPromotorasComContrato() });
-    if (problema) return res.status(422).json({ message: problema });
-    const salva = await setPlataforma(
-      vigenteEm ? { cobranca: antes, cobrancaProxima: { vigenteEm, tabela: nova } } : { cobranca: nova, cobrancaProxima: null },
-    );
+    // Só cresce (quem aceitou nunca "desaceita"), então lida antes da trava não erra para o lado perigoso.
+    const comPromotoras = await haPromotorasComContrato();
+    let nova!: ConfigCobranca;
+    // Ler a vigente, juntar, conferir o aviso e gravar acontecem sob a trava
+    // da configuração: duas mudanças ao mesmo tempo não se desfazem nem
+    // passam um aumento comparado com uma tabela que já mudou.
+    const salva = await setPlataforma((atual) => {
+      const antes = tabelaVigente(atual.cobranca, atual.cobrancaProxima, agora);
+      // O campo que não vier fica como está na tabela vigente: o percentual, o
+      // valor por cota e as faixas do Pix. Antes, omitir o valor por cota o
+      // zerava e, omitindo as faixas, voltavam as de fábrica — e redução vale na hora.
+      nova = validarConfigCobranca(req.body && typeof req.body === "object" && !Array.isArray(req.body) ? { ...antes, ...req.body } : req.body);
+      const problema = problemaNaVigencia({ antes, depois: nova, vigenteEm, agora, comPromotoras });
+      if (problema) throw Object.assign(new Error(problema), { status: 422 });
+      return vigenteEm ? { cobranca: antes, cobrancaProxima: { vigenteEm, tabela: nova } } : { cobranca: nova, cobrancaProxima: null };
+    });
     await audit(req, vigenteEm ? "cobranca.tabela.agendada" : "cobranca.tabela", "settings", "cobranca", {
       tabela: nova,
       vigenteEm,
@@ -3685,13 +3809,16 @@ adminRouter.delete("/cobranca/tabela/proxima", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     const agora = new Date();
-    const p = await getPlataforma();
-    if (!p.cobrancaProxima) return res.status(404).json({ message: "Não há tabela agendada." });
-    if (!tabelasDeCobranca(p.cobranca, p.cobrancaProxima, agora).proxima) {
-      return res.status(409).json({ message: "A tabela agendada já está valendo." });
-    }
-    await setPlataforma({ cobrancaProxima: null });
-    await audit(req, "cobranca.tabela.agendada.cancelar", "settings", "cobranca", p.cobrancaProxima);
+    let cancelada: unknown = null;
+    await setPlataforma((atual) => {
+      if (!atual.cobrancaProxima) throw Object.assign(new Error("Não há tabela agendada."), { status: 404 });
+      if (!tabelasDeCobranca(atual.cobranca, atual.cobrancaProxima, agora).proxima) {
+        throw Object.assign(new Error("A tabela agendada já está valendo."), { status: 409 });
+      }
+      cancelada = atual.cobrancaProxima;
+      return { cobrancaProxima: null };
+    });
+    await audit(req, "cobranca.tabela.agendada.cancelar", "settings", "cobranca", cancelada);
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -3804,7 +3931,8 @@ adminRouter.get("/antifraude", async (req, res, next) => {
 adminRouter.put("/antifraude/limites", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const saved = await setLimits(req.body ?? {});
+    // Sem o limite no corpo, vale o que já estava (não volta ao padrão por omissão).
+    const saved = await setLimits({ ...(await getLimits()), ...(req.body ?? {}) });
     await audit(req, "antifraude.limites", "settings", "antifraude", saved);
     res.json(saved);
   } catch (err) {
@@ -3891,7 +4019,8 @@ adminRouter.get("/payment-methods", async (_req, res, next) => {
 adminRouter.put("/payment-methods", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const saved = await setPaymentMethods(req.body ?? {});
+    // Sem o meio no corpo, vale o que já estava (não volta ao padrão por omissão).
+    const saved = await setPaymentMethods({ ...(await getPaymentMethods()), ...(req.body ?? {}) });
     await audit(req, "payment_methods.update", "settings", "meios_pagamento", saved);
     res.json(saved);
   } catch (err) {
@@ -4086,7 +4215,10 @@ adminRouter.get("/template/previa", async (req, res, next) => {
 adminRouter.put("/template/rascunho", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.json(await salvarRascunho(req.body));
+    const salvo = await salvarRascunho(req.body);
+    // O rascunho só vai ao ar ao publicar (também auditado); aqui fica quem mexeu e quando.
+    await audit(req, "template.rascunho", "template", "rascunho", {});
+    res.json(salvo);
   } catch (err) {
     next(err);
   }
@@ -4096,7 +4228,13 @@ adminRouter.put("/template/rascunho", async (req, res, next) => {
 adminRouter.put("/template/empresa", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.json(await salvarEmpresaDoTemplate(req.body));
+    const feito = await salvarEmpresaDoTemplate(req.body);
+    // Só os campos que vieram e os que deram erro: os Dados da empresa alimentam o contrato e os Termos.
+    await audit(req, "template.empresa", "template", "rascunho", {
+      campos: req.body && typeof req.body === "object" ? Object.keys(req.body).slice(0, 12) : [],
+      comErro: Object.keys(feito.erros),
+    });
+    res.json(feito);
   } catch (err) {
     next(err);
   }
@@ -4105,7 +4243,10 @@ adminRouter.put("/template/empresa", async (req, res, next) => {
 adminRouter.put("/template/logo", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.json(await salvarLogo(req.body?.dataUrl));
+    const salvo = await salvarLogo(req.body?.dataUrl);
+    // A logo é um arquivo único: troca no mesmo lugar e a pública já mostra a nova.
+    await audit(req, "template.logo", "template", "rascunho", {});
+    res.json(salvo);
   } catch (err) {
     next(err);
   }
@@ -4114,7 +4255,9 @@ adminRouter.put("/template/logo", async (req, res, next) => {
 adminRouter.put("/template/apoio", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.status(201).json(await salvarApoio(req.body?.dataUrl));
+    const feito = await salvarApoio(req.body?.dataUrl);
+    await audit(req, "template.apoio", "template", "rascunho", { id: feito.id });
+    res.status(201).json(feito);
   } catch (err) {
     next(err);
   }
@@ -4415,8 +4558,8 @@ adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
     // Decide o ganhador de várias rifas: senha e código na hora, antes de gravar.
     const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "lançar o resultado do sorteio");
     if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
-    const s = await lancarResultado(req.params.id, req.body?.numeros, req.body?.ata);
-    await audit(req, "sorteio_oficial.resultado", "sorteio_oficial", s.id, { resultado: s.resultado });
+    // A auditoria vai na transação do resultado: o ato que decide o ganhador não grava sem deixar rastro.
+    const s = await lancarResultado(req.params.id, req.body?.numeros, req.body?.ata, { id: req.user?.id, role: req.user?.role, ip: req.ip });
     // O resultado já está gravado: falha aqui não vira 500 (o segundo clique
     // daria 409 sem ninguém saber que gravou) — o relógio sorteia as rifas.
     const rifas = await sortearRifasDoSorteioOficial(s.id).catch((e) => {
@@ -4953,13 +5096,14 @@ adminRouter.get("/bonus", async (req, res, next) => {
 adminRouter.put("/bonus/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const atual = await getPlataforma();
+    // Só o que veio: o `setPlataforma` junta com a configuração de agora, com a
+    // trava. (Antes, espalhava a configuração lida aqui antes da trava, e o
+    // cartão salvo ao mesmo tempo em outra aba era desfeito por ela.)
     const salva = await setPlataforma({
-      ...atual,
-      bonusLigado: req.body?.bonusLigado === undefined ? atual.bonusLigado : req.body.bonusLigado === true,
-      bonusPorIndicacao: req.body?.bonusPorIndicacao === undefined ? atual.bonusPorIndicacao : req.body.bonusPorIndicacao,
+      bonusLigado: req.body?.bonusLigado === undefined ? undefined : req.body.bonusLigado === true,
+      bonusPorIndicacao: req.body?.bonusPorIndicacao,
       // O presente (desconto de primeira compra pago pela plataforma).
-      presente: req.body?.presente === undefined ? atual.presente : req.body.presente,
+      presente: req.body?.presente,
     });
     await audit(req, "bonus.config", "settings", "plataforma", {
       bonusLigado: salva.bonusLigado,
@@ -5066,7 +5210,10 @@ adminRouter.post("/banner-pago/pedidos/:id/decisao", async (req, res, next) => {
 adminRouter.put("/banner-pago/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const salva = await setPlataforma({ bannerPago: req.body });
+    // Parte da configuração atual: o corpo sem `ligado` desligava o produto, e sem preço ou dias voltava ao padrão.
+    const atual = (await getPlataforma()).bannerPago;
+    const corpo = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
+    const salva = await setPlataforma({ bannerPago: { ...atual, ...corpo } });
     await audit(req, "banner.config", "settings", "plataforma", { ...salva.bannerPago });
     res.json(salva.bannerPago);
   } catch (err) {
@@ -5249,7 +5396,10 @@ adminRouter.get("/ia/config", async (req, res, next) => {
 adminRouter.put("/ia/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    const candidata = validarConfigIA(req.body);
+    // Parte da configuração atual: sem `ligado` o assistente desligava, e sem `cobranca` os preços voltavam a zero.
+    const atual = (await getPlataforma()).assistenteIA;
+    const corpo = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : null;
+    const candidata = validarConfigIA(corpo === null ? req.body : { ...atual, ...corpo });
     if (candidata.ligado && !chaveDoChatbase()) {
       return res.status(409).json({ message: "Falta CHATBASE_API_KEY no servidor: sem ela o assistente não conversa." });
     }
@@ -5389,7 +5539,7 @@ adminRouter.post("/patrocinio/reembolsos/:id/pago", async (req, res, next) => {
 
 adminRouter.post("/patrocinio/recargas", async (req, res, next) => {
   try {
-    const r = await pedirRecarga(req, Number(req.body?.valorCents));
+    const r = await pedirRecarga(req, numeroDoCorpo(req.body?.valorCents));
     await audit(req, "patrocinio.recarga", "patrocinio_recarga", r.id, { valorCents: r.valorCents, codigo: r.codigo });
     res.status(201).json({ id: r.id, codigo: r.codigo, valorCents: r.valorCents, pix: { qr: r.pixQr, copyPaste: r.pixCopyPaste }, expiresAt: r.expiresAt });
   } catch (err) {
@@ -5401,11 +5551,25 @@ adminRouter.post("/patrocinio/recargas", async (req, res, next) => {
 adminRouter.put("/patrocinio/config", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    // Tabela de preço, faixas, mínimo, vagas e recarga mínima: o que vier
-    // substitui a configuração do patrocínio inteira (validada em conjunto).
+    // Tabela de preço, faixas, mínimo, vagas e recarga mínima, validadas em
+    // conjunto. O que não vier fica como estava, até dentro dos preços e das
+    // vagas; as faixas, se vierem, são a lista inteira.
+    const atual = (await getPlataforma()).patrocinio;
+    const novo = req.body?.patrocinio;
+    const objeto = novo && typeof novo === "object" && !Array.isArray(novo);
     const salva = await setPlataforma({
       patrocinioReembolso: req.body?.reembolso === undefined ? undefined : req.body.reembolso === true,
-      patrocinio: req.body?.patrocinio === undefined ? undefined : req.body.patrocinio,
+      patrocinio:
+        novo === undefined
+          ? undefined
+          : objeto
+            ? {
+                ...atual,
+                ...novo,
+                precos: { ...atual.precos, ...(novo.precos && typeof novo.precos === "object" ? novo.precos : {}) },
+                vagas: { ...atual.vagas, ...(novo.vagas && typeof novo.vagas === "object" ? novo.vagas : {}) },
+              }
+            : novo,
     });
     await audit(req, "patrocinio.config", "settings", "plataforma", {
       reembolso: salva.patrocinioReembolso,
@@ -5422,7 +5586,7 @@ adminRouter.post("/patrocinio/ajustes", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     const organizationId = String(req.body?.organizationId ?? "");
-    const valorCents = Number(req.body?.valorCents);
+    const valorCents = numeroDoCorpo(req.body?.valorCents);
     const r = await ajustarSaldo(req, organizationId, valorCents, String(req.body?.descricao ?? ""));
     await audit(req, "patrocinio.ajuste", "organization", organizationId, { valorCents, saldoCents: r.saldoCents });
     res.json(r);
@@ -5579,3 +5743,8 @@ adminRouter.post("/fiscal/:affiliateId/decidir", async (req, res, next) => {
     next(err);
   }
 });
+
+/** O pedido de mudança leva algum dos três limites de pedido (mínimo, máximo, reserva)? */
+function mexeNosLimites(changes: Record<string, unknown>): boolean {
+  return changes.minPerOrder !== undefined || changes.maxPerOrder !== undefined || changes.reservationTtlMin !== undefined;
+}

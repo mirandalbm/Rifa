@@ -65,15 +65,28 @@ async function insertNumbers(
 ): Promise<number[]> {
   if (numbers.length === 0) return [];
 
+  // Os números entram **em ordem crescente**. Cada linha nova espera a da
+  // outra transação que já tomou o mesmo número; com duas compras grandes ao
+  // mesmo tempo, cada uma inserindo os candidatos sorteados numa ordem
+  // própria, uma esperava a outra no meio do caminho — deadlock, e o
+  // comprador (ou o cambista no balcão) levava 500. Reproduzido: seis
+  // pedidos de 800 cotas em paralelo, metade falhava. Na mesma ordem, quem
+  // chegou segura o menor número em comum e a outra espera sem ciclo.
+  const unicos = [...new Set(numbers)];
+  const ordenados = [...unicos].sort((a, b) => a - b);
   const rows = await tx.execute(sql`
     INSERT INTO quota_alloc (campaign_id, number, status, order_id, reserved_until)
     SELECT ${campaignId}::uuid, n, 'reserved', ${orderId}::uuid, ${reservedUntil}
-    FROM unnest(${intArray(numbers)}::int[]) AS n
+    FROM unnest(${intArray(ordenados)}::int[]) AS n
     ON CONFLICT (campaign_id, number) DO NOTHING
     RETURNING number
   `);
 
-  return (rows.rows as { number: number }[]).map((r) => Number(r.number));
+  // Devolve na ordem em que vieram, como antes: a ordem do sorteio decide
+  // quais ficam quando sobram (`reserveRandom` guarda os primeiros) — a ordem
+  // de inserção não pode tirar sempre os menores.
+  const ganhos = new Set((rows.rows as { number: number }[]).map((r) => Number(r.number)));
+  return unicos.filter((n) => ganhos.has(n));
 }
 
 /* ------------------------------------------------------------------ *

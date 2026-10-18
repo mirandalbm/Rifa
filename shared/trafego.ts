@@ -23,6 +23,7 @@
 import { temLinkOuTelefone } from "./comentarios";
 import { ufValida, type UF } from "./endereco";
 import { formatBRL } from "./format";
+import { numeroDoCorpo } from "./inteiro";
 
 export const REDES_DE_ANUNCIO = {
   google: "Google",
@@ -92,7 +93,7 @@ export const PACOTES_MAX = 8;
 const erro = (m: string, status = 400) => Object.assign(new Error(m), { status });
 
 function inteiro(v: unknown, min: number, max: number, nome: string): number {
-  const n = Number(v);
+  const n = numeroDoCorpo(v);
   if (!Number.isInteger(n) || n < min || n > max) throw erro(`${nome}: de ${min} a ${max}.`);
   return n;
 }
@@ -121,8 +122,8 @@ export function pacotesValidos(v: unknown, minCents: number): number[] {
   if (v.length > PACOTES_MAX) throw erro(`No máximo ${PACOTES_MAX} pacotes.`);
   const out: number[] = [];
   for (const x of v) {
-    const n = Number(x);
-    if (typeof x === "boolean" || x === null || x === "" || !Number.isInteger(n) || n < minCents || n > INVESTIMENTO_MAX_CENTS) {
+    const n = numeroDoCorpo(x);
+    if (!Number.isInteger(n) || n < minCents || n > INVESTIMENTO_MAX_CENTS) {
       throw erro(`Cada pacote vai de ${formatBRL(minCents)} a ${formatBRL(INVESTIMENTO_MAX_CENTS)}.`);
     }
     if (out.includes(n)) throw erro("Há pacote repetido.");
@@ -271,11 +272,11 @@ export function validarPedidoDeTrafego(cfg: ConfigTrafegoPago, bruto: unknown): 
   if (redes.length === 0) throw erro("Escolha pelo menos uma rede.");
   const fora = redes.find((r) => !cfg.redes.includes(r));
   if (fora) throw erro(`${REDES_DE_ANUNCIO[fora]} não está disponível agora.`);
-  const investimentoCents = Number(b.investimentoCents);
+  const investimentoCents = numeroDoCorpo(b.investimentoCents);
   if (!Number.isInteger(investimentoCents) || investimentoCents < cfg.investimentoMinCents || investimentoCents > INVESTIMENTO_MAX_CENTS) {
     throw erro(`Invista de ${formatBRL(cfg.investimentoMinCents)} a ${formatBRL(INVESTIMENTO_MAX_CENTS)}.`);
   }
-  const verbaDiaCents = Number(b.verbaDiaCents);
+  const verbaDiaCents = numeroDoCorpo(b.verbaDiaCents);
   if (!Number.isInteger(verbaDiaCents) || verbaDiaCents < cfg.verbaDiaMinCents || verbaDiaCents > investimentoCents) {
     throw erro(`O valor por dia vai de ${formatBRL(cfg.verbaDiaMinCents)} até o investimento total.`);
   }
@@ -327,13 +328,13 @@ export function validarGasto(
   if (typeof b.rede !== "string" || !Object.hasOwn(REDES_DE_ANUNCIO, b.rede) || !c.redes.includes(b.rede)) {
     throw erro("Essa rede não faz parte da campanha.");
   }
-  const gastoCents = Number(b.gastoCents);
+  const gastoCents = numeroDoCorpo(b.gastoCents);
   if (!Number.isInteger(gastoCents) || gastoCents < 1) throw erro("Informe o gasto do dia em reais.");
   const resta = c.investimentoCents - c.gastoCents;
   if (gastoCents > resta) throw erro(`O gasto passa do que resta da verba (${formatBRL(resta)}).`, 409);
   let cliques: number | null = null;
   if (b.cliques !== undefined && b.cliques !== null && b.cliques !== "") {
-    cliques = Number(b.cliques);
+    cliques = numeroDoCorpo(b.cliques);
     if (!Number.isInteger(cliques) || cliques < 0 || cliques > CLIQUES_MAX_DIA) throw erro("Cliques inválidos.");
   }
   return { dia, rede: b.rede as RedeDeAnuncio, gastoCents, cliques };

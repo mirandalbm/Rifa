@@ -22,6 +22,7 @@ import { CORES_DO_SELO_PADRAO, validarCoresDoSelo, type CoresDoSelo } from "./ve
 import { idDoCanal } from "./aoVivo";
 import { LOTERIAS, type Loteria } from "./sorteiosOficiais";
 import { METODOS_LIBERADOS_PADRAO, metodosLiberadosGuardados, type MetodoDeApuracao } from "./apuracao";
+import { CONFIG_RIFA_NACIONAL_PADRAO, configRifaNacionalGuardada, type ConfigRifaNacional } from "./rifaNacional";
 import { CONFIG_COBRANCA_PADRAO, configCobrancaGuardada, tabelaAgendadaGuardada, type ConfigCobranca, type TabelaAgendada } from "./cobranca";
 
 export const PROVEDORES_PIX = ["mercadopago", "asaas", "pagarme"] as const;
@@ -176,6 +177,13 @@ export interface ConfigPlataforma {
    * dia dela (`tabelaVigente()`); aumento só com 30 dias de aviso.
    */
   cobrancaProxima: TabelaAgendada | null;
+  /**
+   * A rifa nacional (`shared/rifaNacional.ts`, `docs/PLANO-RIFA-NACIONAL.md`):
+   * interruptor, mínimo da arrecadação total em centavos (R$ 100.000) e
+   * quantas cabem no topo da vitrine. Nasce desligada. Por ora só a
+   * configuração existe; nada a lê.
+   */
+  rifaNacional: ConfigRifaNacional;
 }
 
 /**
@@ -206,7 +214,7 @@ export function validarCanaisDasLoterias(v: unknown): CanaisDasLoterias {
   }
   const saida: CanaisDasLoterias = {};
   for (const [chave, valor] of Object.entries(v as Record<string, unknown>)) {
-    if (!(chave in LOTERIAS)) throw Object.assign(new Error("Loteria desconhecida."), { status: 400 });
+    if (!Object.hasOwn(LOTERIAS, chave)) throw Object.assign(new Error("Loteria desconhecida."), { status: 400 });
     const id = idDoCanal(valor);
     if (id) saida[chave as Loteria] = id;
   }
@@ -219,7 +227,7 @@ function canaisGuardados(v: unknown): CanaisDasLoterias {
   const saida: CanaisDasLoterias = {};
   for (const [chave, valor] of Object.entries(v as Record<string, unknown>)) {
     try {
-      const id = chave in LOTERIAS ? idDoCanal(valor) : null;
+      const id = Object.hasOwn(LOTERIAS, chave) ? idDoCanal(valor) : null;
       if (id) saida[chave as Loteria] = id;
     } catch {
       // Canal estragado no banco: a loteria fica sem canal.
@@ -264,6 +272,7 @@ export const CONFIG_PADRAO: ConfigPlataforma = {
   assistenteIA: CONFIG_IA_PADRAO,
   cobranca: CONFIG_COBRANCA_PADRAO,
   cobrancaProxima: null,
+  rifaNacional: CONFIG_RIFA_NACIONAL_PADRAO,
 };
 
 /** Só as chaves conhecidas: isto vem do corpo da requisição. */
@@ -308,6 +317,10 @@ export function validarConfigPlataforma(entrada: Partial<ConfigPlataforma>): Con
     // derrubar o resto da configuração (a rota da tabela valida antes).
     cobranca: configCobrancaGuardada(entrada.cobranca),
     cobrancaProxima: tabelaAgendadaGuardada(entrada.cobrancaProxima),
+    // Como a cobrança: a guardada que não passe mais na régua volta ao padrão
+    // (desligada), sem derrubar o resto; a rota de gravar valida antes, com
+    // `mesclarConfigRifaNacional()` (parte da configuração atual).
+    rifaNacional: configRifaNacionalGuardada(entrada.rifaNacional),
   };
 }
 

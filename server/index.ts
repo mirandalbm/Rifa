@@ -20,7 +20,16 @@ import { setupVite, serveStatic, log } from "./vite";
 import { montarCsp, hashesDosScriptsEmLinha, ROTA_DO_RELATORIO_CSP } from "@shared/csp";
 import { registrarRelatorioCsp } from "./services/csp";
 import { hit, identify } from "./services/antifraude";
+import { enderecoTemByteNulo, erroDeByteNulo, temByteNulo } from "@shared/semNulo";
 
+
+// Express 4 não pega a rejeição de uma rota `async` sem `try`; no Node 22 isso
+// derruba o processo — e uma rota aberta com esse descuido seria um pedido
+// anônimo tirando o site do ar. O erro vai ao log (a rota que o deixou passar
+// precisa de conserto), mas o processo segue servindo os outros.
+process.on("unhandledRejection", (motivo) => {
+  console.error("[erro não tratado] uma promessa falhou sem `catch`:", motivo);
+});
 
 const app = express();
 app.disable("x-powered-by");
@@ -188,6 +197,16 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false }));
 
+// Byte nulo (`%00` no endereço ou `\u0000` num texto) o Postgres não aceita: a
+// consulta falha e a rota aberta respondia 500 — ou, sem `try`, derrubava o
+// processo. Ninguém digita isso; recusa na porta, para todas as rotas.
+app.use((req, res, next) => {
+  if (enderecoTemByteNulo(req.originalUrl) || temByteNulo(req.body) || temByteNulo(req.query)) {
+    return res.status(400).json({ message: "Pedido inválido: há um caractere que não é aceito." });
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   // O caminho é lido aqui, na entrada: dentro de um roteador montado o
@@ -217,6 +236,8 @@ app.use(reconhecerSubdominio);
         issues: err.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
       });
     }
+    // Rede de segurança: o byte nulo que passou pela porta (acima) não vira 500.
+    if (erroDeByteNulo(err)) return res.status(400).json({ message: "Pedido inválido: há um caractere que não é aceito." });
     const status = err.status ?? err.statusCode ?? 500;
     // O corpo passou do limite da rota: a mensagem do Express vem em inglês.
     // O 413 da régua de um serviço já vem em português e diz o que passou.

@@ -360,6 +360,23 @@ function julgar(m: Medida, erros: string[], consoleErros: string[]) {
   return { reprova, avisos };
 }
 
+/**
+ * Entra uma vez só por papel, num contexto à parte, e devolve a sessão
+ * (`storageState`) para as três larguras. Entrar em cada largura gastava 3 das
+ * 8 tentativas de entrada de 15 minutos (`guardLogin` conta também a que
+ * acerta): a terceira rodada seguida era barrada, o papel era pulado e a
+ * ferramenta saía com 0 reprovações.
+ */
+async function entrarUmaVez(navegador: import("playwright-core").Browser, login: Login) {
+  const ctx = await navegador.newContext();
+  try {
+    if (!(await entrar(ctx, login))) return null;
+    return await ctx.storageState();
+  } finally {
+    await ctx.close();
+  }
+}
+
 async function entrar(ctx: import("playwright-core").BrowserContext, login: Login) {
   const tentar = () => ctx.request.post(URL + login.url, { data: login.corpo });
   let r = await tentar();
@@ -407,12 +424,23 @@ async function main() {
   const { papeis: todos, carrinho, faltou } = await papeis();
   const navegador = await chromium.launch({ executablePath: CHROMIUM });
   const linhas: Linha[] = [];
+  const semLogin: string[] = [];
 
   for (const [papel, cfg] of Object.entries(todos)) {
     if (SO_PAPEIS && !SO_PAPEIS.includes(papel)) continue;
     console.log(`\n${papel}`);
+    const estado = cfg.login ? await entrarUmaVez(navegador, cfg.login) : undefined;
+    if (cfg.login && !estado) {
+      // Papel que não entra não foi auditado: isso reprova a rodada, não passa calado.
+      console.log(`  ✗ não entrou como ${papel} — as telas dele NÃO foram conferidas`);
+      semLogin.push(papel);
+      continue;
+    }
     for (const largura of LARGURAS) {
-      const ctx = await navegador.newContext({ viewport: { width: largura, height: altura(largura) } });
+      const ctx = await navegador.newContext({
+        viewport: { width: largura, height: altura(largura) },
+        ...(estado ? { storageState: estado } : {}),
+      });
       // O tsx embrulha função com `__name` (keepNames do esbuild); na página ela não existe.
       await ctx.addInitScript("window.__name = (f) => f;");
       // Tema da rodada, sem o convite de instalar por cima, e duas rifas à
@@ -425,11 +453,6 @@ async function main() {
         },
         { tema: TEMA, slugs: carrinho },
       );
-      if (cfg.login && !(await entrar(ctx, cfg.login))) {
-        console.log(`  ✗ não entrou como ${papel} — pulando`);
-        await ctx.close();
-        break;
-      }
       const pagina = await ctx.newPage();
       let erros: string[] = [];
       let consoleErros: string[] = [];
@@ -485,9 +508,10 @@ async function main() {
   console.log(
     `\n${linhas.length} capturas em ${path.relative(process.cwd(), SAIDA) || "."}/ — ${reprovadas.length} reprovada(s), ${comAviso.length} com aviso.`,
   );
+  if (semLogin.length) console.log(`Não entrou como: ${semLogin.join(", ")} (reprova a rodada).`);
   if (faltou.length) console.log(`Sem exemplo no banco (rota fora): ${faltou.join(", ")}.`);
   console.log(`Veja lado a lado: ${path.join(SAIDA, "index.html")}`);
-  process.exit(reprovadas.length ? 1 : 0);
+  process.exit(reprovadas.length || semLogin.length ? 1 : 0);
 }
 
 main().catch(async (e) => {

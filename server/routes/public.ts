@@ -654,7 +654,7 @@ publicRouter.get("/banners/:id/imagem", async (req, res, next) => {
 /** A arte de banner pago, só enquanto ele está no ar (some junto com a rifa). */
 publicRouter.get("/banners-pagos/:id/imagem", async (req, res, next) => {
   try {
-    const b = await imagemDoBannerPago(req.params.id);
+    const b = ehUuid(req.params.id) ? await imagemDoBannerPago(req.params.id) : null;
     if (!b) return res.status(404).json({ message: "Banner não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=300");
     res.type(b.mime).send(b.bytes);
@@ -705,7 +705,7 @@ publicRouter.post("/stories/:id/enquete", async (req, res, next) => {
 
 publicRouter.get("/stories/:id/poster", async (req, res, next) => {
   try {
-    const poster = await posterDoStory(req.params.id);
+    const poster = ehUuid(req.params.id) ? await posterDoStory(req.params.id) : null;
     if (!poster) return res.status(404).json({ message: "Pôster não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.type("image/webp").send(poster);
@@ -717,7 +717,7 @@ publicRouter.get("/stories/:id/poster", async (req, res, next) => {
 publicRouter.get("/stories/:id/imagem", async (req, res, next) => {
   try {
     // Só enquanto o story está no ar: vencido some, como no Instagram.
-    const s = await imagemDoStory(req.params.id);
+    const s = ehUuid(req.params.id) ? await imagemDoStory(req.params.id) : null;
     if (!s) return res.status(404).json({ message: "Story não encontrado." });
     res.setHeader("Cache-Control", "public, max-age=3600");
     // Vídeo pede `Range` (o Safari não toca sem 206); imagem vai inteira.
@@ -1910,7 +1910,9 @@ async function lookupGuard(req: Request, res: Response): Promise<boolean> {
 publicRouter.get("/orders/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await orderByCode(Number(req.params.code));
+    // Pedido, Pix e nome de quem comprou: nunca em cache de ninguém.
+    res.setHeader("Cache-Control", "private, no-store");
+    const found = await orderByCode(codigoDoPedido(req.params.code));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Pedido não encontrado." });
@@ -1962,7 +1964,8 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
 publicRouter.get("/carrinho/pedidos/:codigo", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await cartByCode(Number(req.params.codigo));
+    res.setHeader("Cache-Control", "private, no-store");
+    const found = await cartByCode(codigoDoPedido(req.params.codigo));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Carrinho não encontrado." });

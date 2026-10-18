@@ -348,6 +348,18 @@ function escopoDaCampanha(req: Request) {
   return org ? eq(campaigns.organizationId, org) : sql`TRUE`;
 }
 
+/**
+ * Criar acesso e redefinir senha custam um hash de senha (64 MiB e uma thread
+ * do libuv, que também serve o disco). Sem limite, uma sessão de organizador
+ * (ou uma sessão roubada) abriria centenas em rajada e seguraria o servidor.
+ * Conta depois do erro de preenchimento, como os outros limites.
+ */
+const ACESSOS_POR_HORA = 30;
+async function acessosEmExcesso(req: Request): Promise<boolean> {
+  return (await hit(`acesso-novo:${req.user!.id}`, 60, ACESSOS_POR_HORA)).excedeu;
+}
+const MUITOS_ACESSOS = "Muitos acessos criados em pouco tempo. Espere um pouco e tente de novo.";
+
 /* ---------------- painel ---------------- */
 
 adminRouter.get("/overview", async (req, res, next) => {
@@ -2139,6 +2151,7 @@ adminRouter.post("/affiliates", async (req, res, next) => {
     // organizador, já nasce com o vínculo aprovado com a organização dele.
     const organizationId = orgOf(req) ?? (req.body?.organizationId ? String(req.body.organizationId) : null);
     if (organizationId && !ehUuid(organizationId)) return res.status(400).json({ message: "Organização inválida." });
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
@@ -2364,6 +2377,7 @@ adminRouter.post("/sellers", async (req, res, next) => {
       req,
       req.body?.organizationId ? String(req.body.organizationId) : undefined,
     );
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     const created = await db.transaction(async (tx) => {
       const [user] = await tx
@@ -3592,6 +3606,7 @@ adminRouter.post("/usuarios/:id/senha", async (req, res, next) => {
     const senha = String(req.body?.password ?? "");
     const invalida = senhaInvalida(senha, alvo.role);
     if (invalida) return res.status(400).json({ message: invalida });
+    if (await acessosEmExcesso(req)) return res.status(429).json({ message: MUITOS_ACESSOS });
 
     await db
       .update(users)

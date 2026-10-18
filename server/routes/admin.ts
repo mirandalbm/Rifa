@@ -16,6 +16,7 @@ import {
 import { SociosError, adicionarSocio, declararSocios, listarSocios, removerSocio } from "../services/socios";
 import { agendarPublicacao } from "../services/publicacaoAgendada";
 import { validarPacotes } from "@shared/pacotes";
+import { lerComissaoDoCadastro } from "@shared/afiliados";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { abaterRetencao, liberarRetencao, listarRetencoes, reterManual } from "../services/retencao";
@@ -2127,6 +2128,8 @@ adminRouter.post("/affiliates", async (req, res, next) => {
     if (!name || !email || !password || !code) {
       return res.status(400).json({ message: "Nome, e-mail, senha e código são obrigatórios." });
     }
+    const comissao = lerComissaoDoCadastro(commissionPct);
+    if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
 
     // O afiliado é avulso (a conta não tem organização). Criado por um
     // organizador, já nasce com o vínculo aprovado com a organização dele.
@@ -2149,7 +2152,7 @@ adminRouter.post("/affiliates", async (req, res, next) => {
         .values({
           userId: user.id,
           code: String(code).toUpperCase().trim(),
-          commissionPct: commissionPct ? Number(commissionPct) : null,
+          commissionPct: comissao.pct,
           status: "active",
           approvedAt: new Date(),
         })
@@ -2191,10 +2194,18 @@ adminRouter.patch("/affiliates/:id", async (req, res, next) => {
     }
 
     const changes: Record<string, unknown> = {};
-    if (req.body?.status) changes.status = req.body.status;
-    if (req.body?.commissionPct !== undefined) {
-      changes.commissionPct = req.body.commissionPct === null ? null : Number(req.body.commissionPct);
+    if (req.body?.status) {
+      if (!["pending", "active", "blocked"].includes(String(req.body.status))) {
+        return res.status(400).json({ message: "Situação do cadastro inválida." });
+      }
+      changes.status = req.body.status;
     }
+    if (req.body?.commissionPct !== undefined) {
+      const comissao = lerComissaoDoCadastro(req.body.commissionPct);
+      if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
+      changes.commissionPct = comissao.pct;
+    }
+    if (Object.keys(changes).length === 0) return res.status(400).json({ message: "Nada para alterar." });
     if (changes.status === "active") changes.approvedAt = new Date();
 
     const [updated] = await db
@@ -2336,6 +2347,8 @@ adminRouter.post("/sellers", async (req, res, next) => {
     // O cambista vende e dá baixa em dinheiro: a mesma régua de senha do resto.
     const senhaRuim = senhaInvalida(String(password), "cambista");
     if (senhaRuim) return res.status(400).json({ message: senhaRuim });
+    const comissao = lerComissaoDoCadastro(commissionPct);
+    if ("problema" in comissao) return res.status(400).json({ message: comissao.problema });
 
     const organizationId = organizationForNewCampaign(
       req,
@@ -2361,7 +2374,7 @@ adminRouter.post("/sellers", async (req, res, next) => {
           userId: user.id,
           code: String(code).toUpperCase().trim(),
           kind: "cambista",
-          commissionPct: commissionPct ? Number(commissionPct) : null,
+          commissionPct: comissao.pct,
           status: "active",
           approvedAt: new Date(),
         })

@@ -8,8 +8,8 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 866 |
 | Rotas da API | 487, das quais 483 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 66 |
-| Testes de regra (`tests/`) | 136 arquivos |
+| Provas contra a API (`npm run …`) | 67 |
+| Testes de regra (`tests/`) | 137 arquivos |
 | Destinos decididos | 973 de 973 |
 
 ## 1. Telas
@@ -1922,6 +1922,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `matriz` | `scripts/matriz.ts` |
 | `mensagens` | `scripts/mensagens-test.ts` |
 | `nota` | `scripts/nota-test.ts` |
+| `pacote-lucky` | `scripts/pacote-lucky.ts` |
 | `pagarme` | `scripts/pagarme-test.ts` |
 | `patrocinio` | `scripts/patrocinio-test.ts` |
 | `perfil` | `scripts/perfil-test.ts` |

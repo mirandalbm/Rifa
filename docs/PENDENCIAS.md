@@ -92,13 +92,23 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   conhece todos os painéis), as ações "o que falta para publicar" e "o que
   falta para sacar" e a base de conhecimento gerada do sistema
   (`npm run base-ia`).
+- [x] **[código]** O **pacote do Lucky para colar** (cronograma 5): o passo a
+  passo numerado, as instruções do agente em bloco pronto, a tabela das 11
+  ações do tipo Client (descrição, parâmetros e esquema JSON de cada uma), a
+  ordem de ligar (D8) e o teste de fumaça com recusas, em
+  **`docs/PACOTE-LUCKY.md`** — gerado do código (`npm run pacote-lucky`,
+  `shared/pacoteLucky.ts`), e `tests/pacoteLucky.test.ts` falha se ele
+  divergir.
 - [ ] **[você]** Chatbase: em Actions, cadastrar cada ação da lista de
   Aparência → Assistente de IA ("Ações do assistente") como ação do tipo
-  **Client**, com o mesmo nome e os mesmos parâmetros. Ação não cadastrada lá
-  simplesmente não é pedida.
+  **Client**, com o mesmo nome e os mesmos parâmetros — **passo 3 de
+  `docs/PACOTE-LUCKY.md`** (descrição e esquema prontos para colar). Ação não
+  cadastrada lá simplesmente não é pedida.
 - [ ] **[você]** Chatbase: criar a conta e o agente **Lucky**, colar as
-  instruções do roteiro (`docs/ROTEIRO-ASSISTENTE-IA.md`) e subir os arquivos
-  de `npm run base-ia` (gerado com o banco de produção) em Sources → Files;
+  instruções (**passos 1 e 2 de `docs/PACOTE-LUCKY.md`**, o bloco pronto; o
+  rascunho antigo está em `docs/ROTEIRO-ASSISTENTE-IA.md`) e subir os arquivos
+  de `npm run base-ia` (gerado com o banco de produção, ou pelo workflow "Base
+  do Lucky" — passo 4) em Sources → Files;
   copiar o **id do agente** e criar uma **chave da API** (Settings →
   API keys). A chave vai só no Railway (`CHATBASE_API_KEY`); o id vai em
   Aparência → Assistente de IA, e só então liga. Para liberar organizador e

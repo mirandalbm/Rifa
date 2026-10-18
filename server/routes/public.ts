@@ -1338,6 +1338,11 @@ publicRouter.delete("/push/inscricoes", async (req, res, next) => {
  */
 publicRouter.get("/cep/:cep", async (req, res, next) => {
   try {
+    // Cada CEP novo é uma chamada ao serviço de fora (que nos bloquearia por abuso, e aí
+    // ninguém preencheria endereço): limite por IP, folgado para quem digita de verdade.
+    if ((await hit(`cep:${identify(req).ipHash ?? "sem-origem"}`, 1, 120)).excedeu) {
+      return res.status(429).json({ message: "Muitas consultas de CEP seguidas. Espere um pouco ou preencha o endereço à mão." });
+    }
     const r = await consultarCep(req.params.cep);
     if (r === "invalido") return res.status(400).json({ message: "CEP inválido: são 8 números." });
     if (r === "nao_encontrado") return res.status(404).json({ message: "CEP não encontrado." });

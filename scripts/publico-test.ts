@@ -406,6 +406,14 @@ async function main() {
     checa("CEP curto: 400", r.status === 400, `HTTP ${r.status}`);
     r = await publico.req("GET", "/api/public/cep/abcdefgh");
     checa("CEP com letras: 400", r.status === 400, `HTTP ${r.status}`);
+    // Cada CEP novo é uma chamada ao serviço de fora: quem varre CEPs é barrado por IP.
+    let barrado = 0;
+    for (let i = 0; i < 135; i++) {
+      r = await publico.req("GET", "/api/public/cep/123");
+      if (r.status === 429) barrado++;
+    }
+    checa("varredura de CEP: depois de 120 por minuto, 429 em português", barrado > 0 && /CEP/.test(r.json?.message ?? ""), `${barrado} barrados`);
+    await db.execute(sql`delete from rate_events where bucket like 'cep:%'`);
 
     void cambA;
   } finally {

@@ -99,6 +99,17 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
     `select apelido from buyers where apelido is not null and apelido <> '${APOSTADOR.apelido}' order by created_at limit 1`,
     "apostador com apelido",
   );
+  // O que o apostador das capturas comprou DENTRO da conta (via_conta): pedido pago,
+  // pedido esperando o Pix e o carrinho dele. Sem isso, Minhas compras, o bilhete, o
+  // Pix e o carrinho ficariam sem conferir com dado de verdade (veja `docs/VERSOES.md`).
+  const doApostador = (extra: string) =>
+    `select o.code from orders o join buyers b on b.id = o.buyer_id where b.apelido = '${APOSTADOR.apelido}' ${extra} order by o.created_at desc limit 1`;
+  const pedidoDele = await um(doApostador(`and o.status = 'paid'`), "pedido pago do apostador das capturas");
+  const pedidoAbertoDele = await um(doApostador(`and o.status = 'pending'`), "pedido com Pix aberto do apostador das capturas");
+  const carrinhoDele = await um(
+    `select c.codigo from carrinho_pedidos c join orders o on o.carrinho_id = c.id join buyers b on b.id = o.buyer_id where b.apelido = '${APOSTADOR.apelido}' order by c.created_at desc limit 1`,
+    "carrinho do apostador das capturas",
+  );
   const uf = await um(
     `select uf from organizations where slug = '${(rifa?.organizacao?.slug ?? "").replace(/'/g, "")}'`,
     "UF da promotora",
@@ -147,7 +158,26 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           corpo: { identificador: APOSTADOR.telefone, senha: APOSTADOR.senha },
           criar: { url: "/api/public/conta", corpo: APOSTADOR },
         },
-        rotas: ["/", "/perfil", "/perfil/configuracoes", "/perfil/bilhetes", "/minhas-cotas", "/minhas-cotas?aba=conta", "/notificacoes", "/mensagens", "/publicar", `/u/${APOSTADOR.apelido}`, ...so(r, `/r/${r}`)],
+        rotas: [
+          "/",
+          "/perfil",
+          "/perfil/configuracoes",
+          "/perfil/bilhetes",
+          "/minhas-cotas",
+          "/minhas-cotas?aba=conta",
+          "/minhas-cotas?aba=reembolsos",
+          "/minhas-cotas?aba=bonus",
+          "/minhas-cotas?aba=salvos",
+          "/notificacoes",
+          "/mensagens",
+          "/publicar",
+          "/carrinho",
+          ...so(pedidoDele, `/pedido/${pedidoDele}`, `/bilhete/${pedidoDele}`),
+          ...so(pedidoAbertoDele, `/pedido/${pedidoAbertoDele}`),
+          ...so(carrinhoDele, `/carrinho/pix/${carrinhoDele}`),
+          `/u/${APOSTADOR.apelido}`,
+          ...so(r, `/r/${r}`),
+        ],
       },
       organizador: {
         login: { url: "/api/auth/login", corpo: { email: "marina@rifassaojose.br", password: "organizador123" } },

@@ -319,6 +319,21 @@ import { EMPRESA_VAZIA } from "@shared/legal";
 
 export const adminRouter = Router();
 
+/**
+ * Todo id que vem no caminho deste painel é UUID. O id torto (`/campaigns/abc`)
+ * chegava ao Postgres, que recusa a conversão com erro — e a resposta era 500
+ * em mais de cinquenta rotas. Aqui ele é "não existe" (404), igual ao id de
+ * quem não é dono, antes de qualquer consulta. (Rota da plataforma chamada
+ * por organizador com id torto também diz 404: não há dado nenhum a esconder.)
+ */
+const PARAMETROS_DE_ID = ["id", "mediaId", "prizedId", "socioId", "sellerId", "campaignId", "affiliateId", "fotoId"] as const;
+for (const nome of PARAMETROS_DE_ID) {
+  adminRouter.param(nome, (_req, res, next, valor) => {
+    if (!ehUuid(valor)) return res.status(404).json({ message: "Não encontrado." });
+    next();
+  });
+}
+
 async function audit(
   req: Request,
   action: string,

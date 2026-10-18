@@ -36,7 +36,7 @@ como imagem — nenhuma dependência de execução e nenhuma origem nova na CSP.
   `viewBox` ficam como vêm, e as cores não mudam.
 - **Licença vs. uso**: a CC0 resolve a licença do **desenho** do conjunto. O
   uso da bandeira de estado numa plataforma comercial é pergunta ao advogado
-  (R24 em `docs/PERGUNTAS-AO-ADVOGADO.md`); até a resposta, a bandeira é só o
+  (R42 em `docs/PERGUNTAS-AO-ADVOGADO.md`); até a resposta, a bandeira é só o
   ícone do local, sempre com o nome escrito ao lado, e nunca vai em peça de
   divulgação nem em anúncio. Cada arquivo sai a imagem do estado — nenhuma foi
   desenhada por nós, e nenhuma bandeira foi inventada.

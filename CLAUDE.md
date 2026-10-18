@@ -525,7 +525,7 @@ arquitetura.
     bandeiras são arquivos do próprio site (`client/public/bandeiras/<uf>.svg`, mais `br.svg`,
     conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, sem
     dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`, a dúvida do uso
-    da bandeira de estado em plataforma comercial é a R24 de
+    da bandeira de estado em plataforma comercial é a R42 de
     `docs/PERGUNTAS-AO-ADVOGADO.md`) — a CSP não muda. Só ícone do local,
     com o nome do estado junto: **nunca em peça de divulgação nem em
     anúncio** até a resposta do advogado. `shared/locais.ts` (os 27 locais e

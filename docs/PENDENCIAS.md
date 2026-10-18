@@ -624,7 +624,8 @@ Na ordem de entrega do plano:
   3 a 9 do pacote também foram respondidos (05 e 06/10/2026) e estão no
   código, e os prazos de guarda do antifraude foram confirmados em
   07/10/2026. Do advogado falta só o contrato da promotora (versão final em
-  09/10/2026); o globo fica desligado até a demanda justificar o cartório.
+  09/10/2026); o globo segue desligado, mas a homologação foi decidida em
+  18/10/2026 (`docs/ROTEIRO-GLOBO-TABELIONATO.md`).
 - [ ] **[você]** Cada organização publicar o termo de adesão de afiliado
   (Afiliados → Termo) — quem já publicou vê o aviso para publicar a versão
   seguinte com o texto novo. O texto-base já foi validado pelo advogado
@@ -1377,13 +1378,19 @@ Na ordem de entrega do plano:
   termo publicado veem o aviso de texto desatualizado). `npm run guarda`
   prova. A organização sem CNPJ cadastrado aparece como "CNPJ ainda não
   cadastrado" — cadastre o CNPJ de cada promotora.
-- [ ] **Homologar o globo** (você, com o advogado): **fica desligado até a
-  demanda comercial justificar o custo do cartório** (advogado, 07/10/2026).
-  Quando for a hora: parceria com um Tabelionato de Notas, que lavra a ata
-  notarial de cada sessão de extração (é o que a SPA/MF exige para sorteio
-  fora da Loteria Federal); então ligar o globo em "Métodos de apuração",
-  cadastrar a sessão no calendário e anexar o arquivo da ata depois do
-  resultado.
+- [ ] **Homologar o globo** (você, com o advogado): **decidido em 18/10/2026
+  fazer já**, sem esperar a demanda comercial (a posição de 07/10/2026 era
+  deixar desligado até o custo do cartório se justificar). O roteiro está em
+  `docs/ROTEIRO-GLOBO-TABELIONATO.md`: o que contratar (Tabelionato de Notas,
+  que lavra a ata notarial de cada sessão, mais auditor ou 2 testemunhas), as
+  perguntas ao cartório, o dia da sessão minuto a minuto, cada campo da ata
+  como o código exige hoje e o checklist para ligar o globo em "Métodos de
+  apuração". **O globo segue desligado** até esse checklist estar inteiro e o
+  anexo "globo" do contrato estar publicado. Depende do advogado: as perguntas
+  **R36 a R41** (`docs/PERGUNTAS-AO-ADVOGADO.md`, quarta rodada), em especial
+  conciliar o Q39 (laudo e auditoria, R$ 15 mil a R$ 50 mil, sem fonte) com a
+  ata notarial por sessão. Depende de você: escolher o cartório, o auditor ou
+  as testemunhas, o equipamento e quem paga.
 
 - [ ] **Sorteios oficiais** (o calendário da plataforma, a tela do sorteio no
   celular). **Fase 1 feita:** o master cadastra, muda, cancela e lança o

@@ -1665,7 +1665,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | Método | Caminho | Provas |
 |---|---|---|
 | POST | `/google` | `google-test.ts` |
-| POST | `/pay/:code` | `afiliados-test.ts`, `bonus-test.ts`, `carrinho-test.ts` +12 |
+| POST | `/pay/:code` | `afiliados-test.ts`, `bonus-test.ts`, `carrinho-test.ts` +13 |
 | POST | `/ia-pagamento/:codigo` | `ia-acoes-test.ts`, `ia-test.ts` |
 | POST | `/recarga/:codigo` | `patrocinio-test.ts` |
 
@@ -1717,8 +1717,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/estados` | `vitrine-test.ts` |
 | GET | `/o/:slug/stories` | `poster-test.ts`, `vitrine-test.ts` |
 | POST | `/stories/:id/enquete` | `vitrine-test.ts` |
-| GET | `/stories/:id/poster` | `poster-test.ts` |
-| GET | `/stories/:id/imagem` | `poster-test.ts`, `vitrine-test.ts` |
+| GET | `/stories/:id/poster` | `conta-test.ts`, `poster-test.ts` |
+| GET | `/stories/:id/imagem` | `conta-test.ts`, `poster-test.ts`, `vitrine-test.ts` |
 | GET | `/recibos/:codigo` | `fiscal-test.ts` |
 | GET | `/o/:slug/termo-afiliado` | `publico-test.ts` |
 | POST | `/o/:slug/colaborador` | `afiliados-test.ts` |
@@ -1737,8 +1737,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | DELETE | `/comentarios/:id` | `comentarios-test.ts`, `isolation-test.ts` |
 | PUT | `/comentarios/:id/curtida` | `comentarios-test.ts` |
 | POST | `/denuncias` | `seguranca-test.ts` |
-| GET | `/conta/perfil` | `comentarios-test.ts`, `google-test.ts`, `nota-test.ts` +1 |
-| PUT | `/conta/perfil` | `comentarios-test.ts`, `google-test.ts`, `nota-test.ts` +1 |
+| GET | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +2 |
+| PUT | `/conta/perfil` | `comentarios-test.ts`, `conta-test.ts`, `google-test.ts` +2 |
 | PUT | `/conta/nota` | `nota-test.ts` |
 | GET | `/app` | `buscar-test.ts`, `divulgacao-test.ts`, `grupos-test.ts` +4 |
 | GET | `/selos` | `verificacao-test.ts` |
@@ -1756,8 +1756,8 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | DELETE | `/marcacoes/:id` | `marcados-test.ts` |
 | GET | `/u/:apelido/marcados` | `marcados-test.ts` |
 | GET | `/u/:apelido/foto` | `publico-test.ts` |
-| GET | `/notificacoes/resumo` | `push-test.ts` |
-| GET | `/notificacoes` | `push-test.ts` |
+| GET | `/notificacoes/resumo` | `bonus-test.ts`, `push-test.ts` |
+| GET | `/notificacoes` | `bonus-test.ts`, `push-test.ts` |
 | POST | `/notificacoes/lidas` | `push-test.ts` |
 | GET | `/stories` | `vitrine-test.ts` |
 | GET | `/template` | `aparencia-test.ts`, `base-ia.ts` |
@@ -1767,7 +1767,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/push/chave` | `push-test.ts` |
 | POST | `/push/inscricoes` | `push-test.ts` |
 | DELETE | `/push/inscricoes` | `push-test.ts` |
-| GET | `/cep/:cep` | `publico-test.ts` |
+| GET | `/cep/:cep` | `conta-test.ts`, `publico-test.ts` |
 | GET | `/campaigns/:slug/certificado` | `publico-test.ts` |
 | GET | `/campaigns/:slug/banner-divulgacao` | `banner-divulgacao-test.ts` |
 | GET | `/campaigns/:slug` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-divulgacao-test.ts` +7 |
@@ -1779,10 +1779,10 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/campaigns/:slug/numbers/:number` | `publico-test.ts` |
 | POST | `/track-click` | `publico-test.ts` |
 | GET | `/checkout` | `base-ia.ts`, `pagarme-test.ts` |
-| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +20 |
-| POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts` |
-| GET | `/orders/:code` | `carrinho-test.ts`, `marketing-test.ts`, `presente-test.ts` |
-| GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts` |
+| POST | `/orders` | `acessos-test.ts`, `afiliados-test.ts`, `apuracao-test.ts` +21 |
+| POST | `/carrinho/checkout` | `carrinho-test.ts`, `pagarme-test.ts`, `zz-probe.ts` |
+| GET | `/orders/:code` | `carrinho-test.ts`, `conta-test.ts`, `marketing-test.ts` +1 |
+| GET | `/carrinho/pedidos/:codigo` | `carrinho-test.ts`, `conta-test.ts` |
 | POST | `/my-quotas/request-code` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | POST | `/my-quotas/verify` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | GET | `/my-quotas` | `chamados-test.ts`, `conta-test.ts` |
@@ -1791,33 +1791,33 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta/google/ligar` | `google-test.ts` |
 | GET | `/conta/google/retorno` | `google-test.ts` |
 | POST | `/conta/cpf` | `google-test.ts` |
-| POST | `/conta/telefone/codigo` | `conta-test.ts`, `google-test.ts` |
-| POST | `/conta/telefone/confirmar` | `conta-test.ts`, `google-test.ts` |
+| POST | `/conta/telefone/codigo` | `bonus-test.ts`, `conta-test.ts`, `google-test.ts` |
+| POST | `/conta/telefone/confirmar` | `bonus-test.ts`, `conta-test.ts`, `google-test.ts` |
 | DELETE | `/conta/google` | `google-test.ts` |
-| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +18 |
-| POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `telas.ts` |
+| POST | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +19 |
+| POST | `/conta/entrar` | `conta-test.ts`, `google-test.ts`, `telas.ts` +1 |
 | POST | `/conta/sair` | `bilhetes-test.ts`, `conta-test.ts` |
-| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `buscar-test.ts` +18 |
+| GET | `/conta` | `afiliados-test.ts`, `bilhetes-test.ts`, `bonus-test.ts` +19 |
 | PUT | `/conta/senha` | `conta-test.ts` |
 | PUT | `/conta/cep` | `conta-test.ts` |
 | PUT | `/conta/perfil-publico` | `perfil-test.ts` |
 | POST | `/conta/excluir` | `bilhetes-test.ts`, `conta-test.ts`, `google-test.ts` +3 |
 | GET | `/chamados` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
 | POST | `/chamados` | `bonus-test.ts`, `chamados-test.ts`, `conta-test.ts` +1 |
-| GET | `/chamados/anexos/:id` | `chamados-test.ts` |
-| GET | `/chamados/:id` | `chamados-test.ts`, `disputa-test.ts` |
-| POST | `/chamados/:id/mensagens` | `chamados-test.ts`, `disputa-test.ts` |
-| POST | `/chamados/:id/disputa` | `disputa-test.ts` |
+| GET | `/chamados/anexos/:id` | `chamados-test.ts`, `conta-test.ts` |
+| GET | `/chamados/:id` | `chamados-test.ts`, `conta-test.ts`, `disputa-test.ts` |
+| POST | `/chamados/:id/mensagens` | `chamados-test.ts`, `conta-test.ts`, `disputa-test.ts` |
+| POST | `/chamados/:id/disputa` | `conta-test.ts`, `disputa-test.ts` |
 | GET | `/presente` | `presente-test.ts` |
 | GET | `/presente/meu` | `presente-test.ts` |
 | GET | `/bonus` | `bonus-test.ts` |
-| POST | `/bonus/resgatar` | `bonus-test.ts` |
+| POST | `/bonus/resgatar` | `bonus-test.ts`, `conta-test.ts` |
 | POST | `/bonus/visita` | `bonus-test.ts` |
 | GET | `/marketing` | `marketing-test.ts` |
 | GET | `/patrocinadas` | `patrocinio-test.ts`, `aparelhoNaLeitura.test.ts` |
 | POST | `/patrocinadas/exibicoes` | `patrocinio-test.ts` |
 | POST | `/patrocinadas/:id/clique` | `patrocinio-test.ts`, `aparelhoNaLeitura.test.ts` |
-| GET | `/tickets/:code` | `publico-test.ts` |
+| GET | `/tickets/:code` | `conta-test.ts`, `publico-test.ts` |
 | GET | `/tickets/:code/escpos` | `publico-test.ts` |
 | POST | `/tickets/:code/printed` | `publico-test.ts` |
 | GET | `/campaigns/:slug/premios` | `publico-test.ts` |

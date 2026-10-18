@@ -244,6 +244,13 @@ async function main() {
     checa("dois cliques: um resultado e um 409", [a1.status, a2.status].sort().join(",") === "200,409", `${a1.status}/${a2.status}`);
     const [s1b] = await db.select().from(sorteiosOficiais).where(eq(sorteiosOficiais.id, s1.id));
     checa("o resultado oficial fica guardado", JSON.stringify(s1b.resultado) === JSON.stringify(certos));
+    // A auditoria vai na transação do resultado: uma linha só, de quem lançou, e nenhuma do 409.
+    const trilha = await db.execute(sql`select actor_id, actor_role from audit_log where action = 'sorteio_oficial.resultado' and entity_id = ${s1.id}`);
+    checa(
+      "o resultado deixa uma linha de auditoria, com quem lançou",
+      trilha.rows.length === 1 && (trilha.rows[0] as { actor_id: string }).actor_id === adminDb.id,
+      `${trilha.rows.length} linha(s)`,
+    );
 
     // --- fase 2: o resultado sorteia as rifas publicadas integradas ---
     // A rifa publicada sem semente não pode sortear: guarda o motivo.

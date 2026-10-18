@@ -4418,8 +4418,8 @@ adminRouter.post("/sorteios-oficiais/:id/resultado", async (req, res, next) => {
     // Decide o ganhador de várias rifas: senha e código na hora, antes de gravar.
     const recusa = await conferirSegundoFatorAgora(req.user!.id, req.body, "lançar o resultado do sorteio");
     if (recusa) return res.status(recusa.status).json({ message: recusa.message, code: recusa.code });
-    const s = await lancarResultado(req.params.id, req.body?.numeros, req.body?.ata);
-    await audit(req, "sorteio_oficial.resultado", "sorteio_oficial", s.id, { resultado: s.resultado });
+    // A auditoria vai na transação do resultado: o ato que decide o ganhador não grava sem deixar rastro.
+    const s = await lancarResultado(req.params.id, req.body?.numeros, req.body?.ata, { id: req.user?.id, role: req.user?.role, ip: req.ip });
     // O resultado já está gravado: falha aqui não vira 500 (o segundo clique
     // daria 409 sem ninguém saber que gravou) — o relógio sorteia as rifas.
     const rifas = await sortearRifasDoSorteioOficial(s.id).catch((e) => {

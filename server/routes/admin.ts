@@ -3698,6 +3698,9 @@ adminRouter.patch("/usuarios/:id", async (req, res, next) => {
       return res.status(400).json({ message: "Você não pode desligar o próprio acesso." });
     }
     await db.update(users).set({ active: req.body.active }).where(eq(users.id, alvo.id));
+    // Desligar encerra as sessões de vez: ligar de novo não traz de volta a que
+    // alguém guardou (a sessão só cai de `deserializeUser` enquanto está desligado).
+    if (!req.body.active) await encerrarSessoesDoUsuario(alvo.id);
     await audit(req, req.body.active ? "usuario.ativar" : "usuario.desativar", "user", alvo.id, {
       email: alvo.email,
     });

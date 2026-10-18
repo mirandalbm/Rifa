@@ -70,6 +70,7 @@ authRouter.post("/login", async (req, res, next) => {
     return next(err);
   }
 
+  const inicioDoLogin = Date.now();
   passport.authenticate(
     "local",
     (
@@ -101,6 +102,11 @@ authRouter.post("/login", async (req, res, next) => {
         // o tipo dele só não admite.
         (req.session.cookie as { maxAge: number | null }).maxAge =
           req.body?.lembrar === true ? LEMBRAR_MS : null;
+        // Quando esta sessão começou: a troca de senha derruba as que vieram antes.
+        // É o instante em que o login COMEÇOU (antes de conferir a senha, que
+        // leva centenas de ms): quem validou a senha antiga e terminou o login
+        // depois da troca não ganha uma hora posterior à marca.
+        req.session.painelEntrouEm = inicioDoLogin;
         res.json({
           role: user.role,
           user: { name: user.name, email: user.email },
@@ -143,7 +149,7 @@ authRouter.post("/senha", async (req, res, next) => {
       .set({ passwordHash: await hashPassword(nova) })
       .where(eq(users.id, user.id));
     // Quem entrou com a senha antiga em outro aparelho sai; esta sessão fica.
-    await encerrarSessoesDoUsuario(user.id, req.sessionID);
+    await encerrarSessoesDoUsuario(user.id, req);
     await db.insert(auditLog).values({
       actorId: user.id,
       actorRole: user.role,

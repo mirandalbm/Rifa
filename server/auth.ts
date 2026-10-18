@@ -45,12 +45,30 @@ export async function refazerHashSeAntigo(tabela: "users" | "buyers", id: string
  * houver). Senha nova é o momento de expulsar quem entrou com a antiga — do
  * contrário, a sessão roubada sobrevive à troca que existia para encerrá-la.
  * O passport guarda o id em `sess.passport.user`.
+ *
+ * Duas coisas, nessa ordem: (1) a marca na conta — sessão que começou antes
+ * dela não vale mais, mesmo se uma requisição em andamento a regravar depois
+ * do `DELETE` (o `connect-pg-simple` faz `INSERT … ON CONFLICT DO UPDATE`;
+ * provado com 24 requisições em laço); a sessão que fica é renovada para o
+ * mesmo instante, senão cairia junto. (2) As linhas somem de `sessions`.
  */
-export async function encerrarSessoesDoUsuario(userId: string, manterSid?: string) {
+export async function encerrarSessoesDoUsuario(
+  userId: string,
+  manter?: { sessionID: string; session: { painelEntrouEm?: number; save: (cb: (err?: unknown) => void) => void } },
+) {
+  const agora = Date.now();
+  if (manter) {
+    // A sessão que fica já leva a hora nova na linha do banco ANTES de a marca
+    // valer: uma requisição paralela que a carregue no meio não a veria mais
+    // velha que a marca e não a derrubaria (no objeto, não numa cópia).
+    manter.session.painelEntrouEm = agora;
+    await new Promise<void>((resolve, reject) => manter.session.save((err) => (err ? reject(err) : resolve())));
+  }
+  await db.update(users).set({ sessoesValidasDesde: new Date(agora) }).where(eq(users.id, userId));
   await db.execute(sql`
     DELETE FROM sessions
     WHERE sess -> 'passport' ->> 'user' = ${userId}
-      ${manterSid ? sql`AND sid <> ${manterSid}` : sql``}`);
+      ${manter ? sql`AND sid <> ${manter.sessionID}` : sql``}`);
 }
 
 /* ------------------------------------------------------------------ *
@@ -77,6 +95,11 @@ declare module "express-session" {
     };
     /** Tentativa de entrar (ou ligar) com o Google em andamento: state, nonce e verificador do PKCE. */
     google?: { state: string; nonce: string; verifier: string; modo: "entrar" | "ligar"; volta: string; buyerId?: string; expiraEm: number };
+    /**
+     * Quando esta sessão do painel começou (ms). Anterior a `users.sessoes_validas_desde`,
+     * ela caiu (troca de senha, acesso desligado); ver `encerrarSessoesDoUsuario`.
+     */
+    painelEntrouEm?: number;
     /** Código de acesso pendente: guardado na sessão, nunca no banco. */
     otp?: { phone: string; codeHash: string; expiresAt: number; attempts: number };
     /** Código que prova o telefone do organizador (separado do do comprador). */
@@ -102,6 +125,8 @@ export interface SessionUser {
    * cada consulta do painel.
    */
   organizationId?: string | null;
+  /** `users.sessoes_validas_desde` (ms): a sessão que começou antes não vale. Só para o middleware de `setupAuth`. */
+  sessoesValidasDesde?: number | null;
 }
 
 declare global {
@@ -187,6 +212,16 @@ export function setupAuth(app: Express) {
         next();
       })
       .catch(next);
+  });
+
+  // A sessão do painel que começou antes da marca da conta (troca ou
+  // redefinição de senha, acesso desligado) não vale, mesmo que uma requisição
+  // em andamento a tenha regravado depois do `DELETE` em `sessions`. Sem a
+  // marca em `session.painelEntrouEm` (sessão anterior a esta regra), vale 0.
+  app.use((req, _res, next) => {
+    const marca = req.user?.sessoesValidasDesde;
+    if (!marca || (req.session?.painelEntrouEm ?? 0) >= marca) return next();
+    req.logout((err) => (err ? next(err) : next()));
   });
 
   passport.use(
@@ -287,6 +322,7 @@ export function setupAuth(app: Express) {
         name: user.name,
         email: user.email,
         organizationId: user.organizationId ?? null,
+        sessoesValidasDesde: user.sessoesValidasDesde ? user.sessoesValidasDesde.getTime() : null,
       };
       // Mesma recusa da entrada: a organização pode ter sido desligada com a
       // sessão dele já aberta.

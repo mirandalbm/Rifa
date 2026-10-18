@@ -27,7 +27,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 |---|---|---|
 | Sessão: cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção; sessão nova a cada entrada | `server/auth.ts`, `server/services/contaComprador.ts` | — |
 | Senha: scrypt com custo próprio (N = 2¹⁶, r = 8, p = 2, guardado no hash `s2$…`; a senha antiga entra e é refeita no login), régua única (`shared/senha.ts`), força bruta contada por conta e por IP (`guardLogin`) | `server/services/hashSenha.ts`, `server/auth.ts`, `server/routes/auth.ts` | `tests/senha.test.ts`, `tests/hashSenha.test.ts`, `npm run senha` |
-| Troca e redefinição de senha derrubam as outras sessões (painel e apostador); a do apostador também cai pela marca `sessoes_validas_desde` se uma requisição em andamento a regravar. Trocar a senha ou excluir a conta pede a senha atual ou o código do WhatsApp dos últimos 30 minutos — entrar pela senha não basta | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes`, `setupAuth`, `codigoRecente` | `npm run conta` |
+| Troca e redefinição de senha derrubam as outras sessões (painel e apostador); a sessão também cai pela marca `sessoes_validas_desde` (`buyers` e `users`) se uma requisição em andamento a regravar. Trocar a senha ou excluir a conta pede a senha atual ou o código do WhatsApp dos últimos 30 minutos — entrar pela senha não basta | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes`, `setupAuth`, `codigoRecente` | `npm run conta`, `npm run afiliados` |
 | Segundo fator do painel (TOTP); obrigatório para arquivar organização, **lançar o resultado do sorteio oficial e registrar nova extração do globo** (`conferirSegundoFatorAgora()`, senha e código na hora, 30 tentativas em 10 min). O segredo fica **selado no cofre** (`cofre:v1:…`, também o pendente na sessão); o de antes, em claro, entra e é selado ao subir o servidor; o selado adulterado é "código incorreto", nunca 500 | `server/services/totp.ts`, `server/services/segundoFator.ts`, `server/routes/admin.ts` | `tests/totp.test.ts`, `tests/segundoFator.test.ts`, `npm run senha` |
 | Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
 | Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
@@ -87,6 +87,22 @@ npm run telas                      # telas: nome dos controles, estouro, erros
 O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
+
+### 18/10/2026 — acesso do afiliado
+
+Escopo: tudo o que a sessão de afiliado alcança (`/api/affiliate/*`, cadastro e
+login, vínculo e termo, kit/artes/editor, divulgações, saldo, saque, cadastro
+fiscal, recibo, chave Pix, mensagens e assistente). Relatório completo, com o
+que ficou aberto, em `docs/AUDITORIA-ACESSO-AFILIADO.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| **Alta** | **A sessão roubada de um usuário do painel sobrevivia à troca de senha** (e à redefinição por outra pessoa): uma requisição em andamento da sessão expulsa a regravava depois do `DELETE` em `sessions`. Provado 6 em 6 com 24 requisições em laço. A marca `users.sessoes_validas_desde` + `session.painelEntrouEm` fecha o que o acesso do apostador fechou só para `buyers`; desligar o acesso também derruba as sessões (ligar de novo não as traz de volta) | `auth.ts`, `routes/auth.ts`, `routes/admin.ts`, `schema.ts` (`npm run afiliados`) |
+| Média | Documento fiscal aceitava tipo inventado (`in` pega `constructor`, `toString`…): gravava arquivo de 6 MB sob o nome do protótipo; o mesmo no tipo da chave Pix da verificação | `fiscal.ts`, `shared/verificacao.ts` (`npm run afiliados`, `tests/verificacao.test.ts`) |
+| Média | A chave Pix dos saques aceitava objeto ou lista (virava `[object Object]`) | `routes/affiliate.ts` (`npm run afiliados`) |
+| Baixa | Cadastro fiscal, documentos, foto e verificação sem limite: conta de afiliado nasce aberta e o 409 do CPF repetido deixava varrer CPFs; agora 40 gravações por hora por afiliado | `routes/affiliate.ts` (`npm run afiliados`) |
+| Baixa | Artes do kit de um **rascunho** da organização respondiam 200 (confirmava o endereço); agora 404 | `routes/affiliate.ts` (`npm run afiliados`) |
+| Baixa | `/links` varria todas as rifas da plataforma (3 consultas e um QR por rifa) e `/organizacoes` trazia todas as versões de todos os termos a cada abertura; agora só as organizações do afiliado e só o termo em vigor | `routes/affiliate.ts`, `afiliados.ts` |
 
 ### 18/10/2026 — acesso público (visitante sem login)
 
@@ -153,7 +169,9 @@ o `ffmpeg` (sem shell, protocolos limitados, prazo, saída com teto) e nenhum
   `setupAuth` derruba a sessão mais velha que a marca. Vale para troca de senha,
   primeira prova do telefone e exclusão da conta (`npm run conta`). O painel
   (`users`) tem o mesmo desenho de sessão e **não** foi coberto: ver
-  `docs/AUDITORIA-ACESSO-APOSTADOR.md`.
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`. **O painel foi coberto na auditoria do
+  acesso do afiliado (18/10/2026)**: `users.sessoes_validas_desde` e
+  `session.painelEntrouEm`, provados com a mesma corrida em laço.
 
 ### 28/09/2026
 

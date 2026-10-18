@@ -90,7 +90,7 @@ export interface ChavePix {
 export function validarPix(bruto: unknown): ChavePix {
   const b = (bruto ?? {}) as Record<string, unknown>;
   const tipo = String(b.tipo ?? "") as TipoDePix;
-  if (!(tipo in TIPOS_DE_PIX)) throw new Error("Escolha o tipo da chave Pix.");
+  if (!Object.hasOwn(TIPOS_DE_PIX, tipo)) throw new Error("Escolha o tipo da chave Pix.");
   const v = String(b.chave ?? "").trim();
   if (tipo === "cpf") {
     const d = v.replace(/\D/g, "");

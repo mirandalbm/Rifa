@@ -129,7 +129,11 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   marca nula e segue com a taxa diária).
   E a coluna `buyers.sessoes_validas_desde` (a marca que derruba a sessão
   expulsa que foi regravada; sem ela, toda requisição de apostador logado dá
-  500 — o middleware de `setupAuth` a lê).
+  500 — o middleware de `setupAuth` a lê). E a coluna
+  `users.sessoes_validas_desde` (a mesma marca para as sessões do painel:
+  sem ela, o login do painel e toda requisição de usuário logado dão 500 —
+  `deserializeUser` a lê). A sessão do painel aberta antes do deploy não
+  tem `painelEntrouEm` e só cai se a conta ganhar a marca (troca de senha).
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Criar o serviço do trabalhador (o gerador de vídeo) no Railway, com
   `npm run start:worker` e só o `DATABASE_URL` (passo a passo em

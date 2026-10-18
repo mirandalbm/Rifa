@@ -101,10 +101,21 @@ modelo B e na exigência do Google).
   pixels da organização; cookie da sessão (hoje sem `Domain`, logo por host)
   e o que acontece com quem entra no subdomínio; a lista de reservados; e o
   que acontece quando a organização troca o slug (redirecionar o antigo).
-- **Perguntas ao responsável**: qual o domínio base; se o apostador entra uma
-  vez e vale em todos os subdomínios (cookie no domínio base) ou entra em cada
-  um; se o endereço do afiliado nasce no lançamento ou só o da organização; se
-  a organização escolhe o rótulo ou é sempre o slug.
+- **Decidido (18/10/2026)**: o domínio base é **loteriasdobem.com.br**, que já
+  está no Railway como domínio personalizado do serviço Rifa (a raiz e o
+  `www`); `SUBDOMINIO_BASE=loteriasdobem.com.br`. **Login por endereço**: o
+  apostador entra em cada subdomínio (o cookie `rifa.sid` segue sem `Domain`,
+  como hoje; nenhum cookie no domínio base). **Quem ganha endereço no
+  lançamento**: recomendo **só a organização** — endereço de afiliado
+  (`af-<código>`) multiplica o risco de golpe com o nome da marca e de
+  reputação do domínio nos anúncios, e a divulgação do afiliado já sai pelo
+  endereço da organização com o `?ref=` dele; o do afiliado entra depois, se
+  houver demanda (aguarda confirmação do responsável).
+- **Para ligar**: cadastrar `*.loteriasdobem.com.br` no Railway (Configurações
+  → Rede → domínio personalizado, no serviço Rifa; o curinga convive com o
+  `www` porque é o mesmo serviço) e criar no DNS os dois CNAME e o TXT que o
+  Railway mostrar; depois pôr `SUBDOMINIO_BASE`. Só então o código ligado
+  ao endereço faz efeito.
 - **Perguntas ao advogado**: o endereço com a marca da promotora muda quem
   responde perante o consumidor (CDC, art. 7º, parágrafo único)? Precisa de
   texto no rodapé do subdomínio dizendo que a venda é pela plataforma?

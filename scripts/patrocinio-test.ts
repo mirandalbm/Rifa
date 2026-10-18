@@ -216,6 +216,15 @@ async function main() {
       const trilha = await db.execute(sql`select diff from audit_log where action = 'patrocinio.recarga.estornada' and entity_id = ${paga2.id}`);
       const diff = (trilha.rows[0] as { diff: { debitadoCents: number; faltouCents: number } } | undefined)?.diff;
       checa("…e o resto que não voltou fica na auditoria", diff?.debitadoCents === 1000 && diff?.faltouCents === 2000, JSON.stringify(diff));
+      // O estorno chegou antes do "pago" (duas entregas que se cruzam): a recarga pendente fica estornada
+      // sem débito, e o "pago" que vier depois não credita um Pix que já voltou ao pagador.
+      const antes0 = await saldo(A.id);
+      const rr3 = await orgA.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 3000 });
+      const [pendente] = await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.codigo, rr3.json?.codigo));
+      checa("estorno que chega antes do pago: reconhece a recarga pendente", pendente.status === "pendente" && (await estornarRecarga(pendente.chargeId!)) === true);
+      checa("…fica estornada, sem débito nem crédito", (await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.id, pendente.id)))[0].status === "estornada" && (await saldo(A.id)) === antes0);
+      await fetch(`${URL}/api/dev/recarga/${rr3.json?.codigo}`, { method: "POST" });
+      checa("…e o pago que chega depois não credita", (await saldo(A.id)) === antes0, String(await saldo(A.id)));
       await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: A.id, valorCents: base0, descricao: "Volta o saldo do teste" });
       await db.execute(sql`delete from audit_log where action = 'patrocinio.recarga.estornada'`);
       checa("saldo de volta ao que o teste espera", (await saldo(A.id)) === base0, String(await saldo(A.id)));

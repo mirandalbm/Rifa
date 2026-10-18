@@ -66,7 +66,7 @@ export function useRastreio(): ((e: Evento) => void) & { pronto: boolean } {
   const pronto = escolha === "aceito" && alvos.length > 0;
   const f = (e: Evento) => {
     if (!pronto) return;
-    carregarPixels(alvos);
+    if (carregarPixels(alvos) === "recarregando") return;
     rastrear(e, alvos);
   };
   return Object.assign(f, { pronto });

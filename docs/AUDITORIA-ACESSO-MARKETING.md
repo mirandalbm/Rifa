@@ -107,6 +107,12 @@ antes de mesclar, em especial: `estornarRecarga()` (dinheiro, ordem das travas,
 o resto que não volta), o 403 da plataforma em `comprarAnuncio()` (privilégio) e
 o recarregar do pixel (consentimento).
 
+## Parecer do revisor (feito) e o que mudou depois
+
+O `revisor-de-invariantes` não achou dano grave de dinheiro. Achou e **foi corrigido depois do parecer**: (1) o estorno que chega **antes** do "pago" (duas entregas que se cruzam) virava no-op e o "pago" creditava um Pix já devolvido — agora a recarga `pendente` vira `estornada` sem débito e o "pago" depois não credita (prova nova em `patrocinio`); (2) `confirmarRecarga` pegava a recarga e depois a organização, e `estornarRecarga` o contrário (deadlock raro entre "pago" e "estornado" da mesma recarga) — agora os dois pegam a organização primeiro; (3) `useRastreio` ignorava o retorno `"recarregando"` de `carregarPixels` (o evento ia para a página descartada) — agora sai; (4) `Number()` solto em `pedirReembolso` e `decidirReembolso` (`""`/`[]` viravam 0 — devolvia tudo sem reter) — agora `numeroDoCorpo`.
+
+Registrado, sem mudança: o que não volta de uma recarga estornada depois de gasta só vai ao log e à auditoria com ator nulo (sem item na Caixa de entrada nem retenção automática: o reembolso do saldo pago por Pix seguido de contestação da recarga paga duas vezes — decisão de produto/contador); contestação só **pedida** (Asaas `CHARGEBACK_REQUESTED`, Mercado Pago `charged_back`) debita de vez e não há volta se for revertida; o pixel recarrega a página à toa ao navegar do perfil da organização A para a rifa dela enquanto a rifa carrega (`donaDaRifa` nulo no intervalo) — só incômodo, depois do aceite; `Number()` solto restante em `admin.ts` (investimento mínimo, taxa de reembolso `""` = 0%).
+
 ## Aberto
 
 | Item | Por quê |

@@ -330,7 +330,7 @@ export async function pedirReembolso(req: Request, entrada: { valorCents: unknow
   const org = orgOf(req);
   const cfg = await getPlataforma();
   if (!org || !cfg.patrocinioReembolso) throw new PatrocinioError("Não encontrado.", 404);
-  const valor = Number(entrada.valorCents);
+  const valor = numeroDoCorpo(entrada.valorCents);
   if (!Number.isInteger(valor) || valor < 100) throw new PatrocinioError("Informe o valor em reais (mínimo de 1,00).");
   const chavePix = String(entrada.chavePix ?? "").trim().slice(0, 140);
   if (chavePix.length < 5) throw new PatrocinioError("Informe a chave Pix para a devolução.");
@@ -396,7 +396,7 @@ export async function decidirReembolso(req: Request, id: string, entrada: { apro
   const explicacao = String(entrada.explicacao ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
   if (explicacao.length < 10) throw new PatrocinioError("Explique a decisão à organização (pelo menos 10 letras).");
   const aprovar = entrada.aprovar === true;
-  const retido = aprovar ? Number(entrada.retidoCents ?? 0) : 0;
+  const retido = aprovar ? (entrada.retidoCents == null ? 0 : numeroDoCorpo(entrada.retidoCents)) : 0;
   if (!Number.isInteger(retido) || retido < 0) throw new PatrocinioError("Informe o valor retido em centavos (zero se não houver).");
   if (retido > p.valorCents) throw new PatrocinioError(`O valor retido passa do pedido (${reais(p.valorCents)} reais).`);
   return db.transaction(async (tx) => {
@@ -582,6 +582,9 @@ export async function confirmarRecarga(chargeId: string): Promise<boolean> {
   const [r] = await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.chargeId, chargeId));
   if (!r) return false;
   await db.transaction(async (tx) => {
+    // A linha da organização primeiro, como em `estornarRecarga` e em quem retém: o "pago" e o
+    // "estornado" da mesma recarga chegando juntos não se esperam em ciclo.
+    await tx.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, r.organizationId)).for("update");
     const [paga] = await tx
       .update(patrocinioRecargas)
       .set({ status: "paga", pagaEm: new Date() })
@@ -619,6 +622,25 @@ export async function estornarRecarga(chargeId: string): Promise<boolean> {
       .from(organizations)
       .where(eq(organizations.id, r.organizationId))
       .for("update");
+    // Recarga ainda `pendente`: o estorno chegou antes do "pago" (são duas entregas, e podem se cruzar).
+    // Marca como estornada sem debitar nada — não houve crédito — e o "pago" que vier depois não credita
+    // (`confirmarRecarga` só pega `pendente`).
+    const [antes] = await tx
+      .update(patrocinioRecargas)
+      .set({ status: "estornada" })
+      .where(and(eq(patrocinioRecargas.id, r.id), eq(patrocinioRecargas.status, "pendente")))
+      .returning({ id: patrocinioRecargas.id });
+    if (antes) {
+      await tx.insert(auditLog).values({
+        actorId: null,
+        actorRole: null as never,
+        action: "patrocinio.recarga.estornada",
+        entity: "patrocinio_recarga",
+        entityId: r.id,
+        diff: { codigo: r.codigo, valorCents: r.valorCents, debitadoCents: 0, faltouCents: 0, antesDoPago: true } as never,
+      });
+      return;
+    }
     const [estornada] = await tx
       .update(patrocinioRecargas)
       .set({ status: "estornada" })

@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 15/10/2026 (seção 0: ajustes de topo, locais e rifas nacionais).
+Última atualização: 18/10/2026 (PR #266 mesclada; respostas da Seção 1 registradas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -14,8 +14,8 @@ resposta de produto antes de codar.
 O checklist completo, com o que falta em cada item e quem decide, está em
 `docs/CHECKLIST-AJUSTES.md`. Resumo:
 
-- [ ] **[você]** Autorizar o merge do PR #266 (ícone do app) e publicar o
-  template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
+- [x] **[você]** Merge do PR #266 (ícone do app): mesclada em 18/10/2026.
+- [ ] **[você]** Publicar o template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
 - [x] **[decisão]** Largura da publicação da rifa: decidido em 18/10/2026, fica a atual (1408 px no computador, `larga ampla`). Nada a mudar.
 - [x] **[decisão]** Cor dos ícones de compra: decidido em 18/10/2026, o "+" é vermelho nos dois temas (`--mais` = `--red`, registro 202 de `docs/VERSOES.md`); a sacola segue verde.
 - [x] **[código]** Ícone do topo à esquerda centralizado na vertical (18/10/2026: `AppShell.tsx`, o link da marca ficou `flex items-center`; registro 201 de `docs/VERSOES.md`).
@@ -28,6 +28,54 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
   afiliado, cambista, plataforma, marketing), um PR por acesso.
+
+### Respostas de 18/10/2026 (seções 1 e 2 das perguntas)
+
+Estado confirmado com o responsável, mais o que foi conferido no Railway (só
+os nomes das variáveis, nunca os valores):
+
+- **Feito**: PR #266 mesclada e no ar (deploy `13923e2`); dados da empresa
+  (encarregado e e-mail institucional) publicados; serviço **Trabalhador**
+  criado no Railway (mesmo repositório, `npm run start:worker`, só
+  `DATABASE_URL`; subiu e avisou "no ar … tipos: reels_gerado").
+- **Dele, com data**: trocar e apagar `ADMIN_PASSWORD` do Railway (19/10);
+  conferir o token permanente do WhatsApp (#13, não sabe: precisa do passo a
+  passo); perfil da empresa, termos de desenvolvedor e teste de modelo (#11,
+  #14) e o modelo `chamado_novo` (#21) esperam a verificação da empresa na Meta
+  (#10, em análise); ativar o **R2** no painel da Cloudflare (a conta recusou
+  a listagem: "enable R2 through the dashboard") e então eu crio o bucket;
+  ligar "Aceitar pedidos de reembolso" junto com o Pix no ar (#23).
+- **Meu**: conferir o texto final do contrato devolvido pelo advogado contra
+  `docs/RESPOSTA-ADVOGADO-COBRANCA.md` (#64, #65, #68); preparar o pacote do
+  Lucky/Chatbase (#15, #16) antes do lançamento; provar que o IP chega
+  diferente por visitante (#39; `trust proxy` = 1 em `server/auth.ts`, vale
+  enquanto o Railway for o único salto — com domínio atrás da Cloudflare
+  passa a 2).
+- **Decidido**: Google login e guarda da comissão ficam para depois do
+  lançamento; presente (#29) e bônus (#51) ligam no lançamento; Meta/Google
+  Ads em análise na Meta (#54).
+
+Seções 3 e 4 (mesma data):
+
+- **Decidido**: rifa nacional vale a partir de **R$ 100.000** de arrecadação
+  total (cotas × preço); tráfego pago terá **os dois modelos** (A, com saldo e
+  taxa, e B, com a promotora anunciante); **globo: quer homologar já**
+  (roteiro do tabelionato por escrever); APK das maquininhas depois do
+  lançamento; repasse à promotora **manual, por acerto**, até haver split;
+  Asaas **saiu do plano** (itens #27, #41, #81 não se aplicam); comparador
+  AWS decide pela demanda (#55, #66); reembolso do saldo do patrocínio
+  desligado (#53); CNAE 6311-9/00 consta no CNPJ (#56).
+- **Funcionalidade nova pedida (#47)**: o organizador cria o banner, paga e
+  ele entra na fila respeitando o tempo de exibição **por cliques ou por
+  dia**, no painel Marketing. O banner pago por dia já existe (arte aprovada,
+  vagas, devolução); falta cobrar também por clique.
+- **Dele, hoje**: teste no celular de verdade (#44, #28); ativar o R2 na
+  Cloudflare; colar o texto final do contrato no chat (#68).
+- **Meu**: sugerir preço do dia e vagas do banner pago (#46) e a tabela das
+  patrocinadas (#52); implementar rifa nacional, "Locais" com bandeiras e o
+  texto do rodapé; roteiro do tabelionato do globo; limpar branches (todas as
+  `claude/*` menos a da sessão, `fix/*` e `feature-media-library-page`: não há
+  PR aberto; ligar "excluir branch ao mesclar" no GitHub).
 
 ## 1. WhatsApp
 

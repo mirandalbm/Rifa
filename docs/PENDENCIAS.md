@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
+Última atualização: 18/10/2026 (`db:push` de produção feito e conferido; auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -15,6 +15,7 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 `docs/CHECKLIST-AJUSTES.md`. Resumo:
 
 - [x] **[você]** Merge do PR #266 (ícone do app): mesclada em 18/10/2026.
+- [x] **[você]** `npm run db:push` na produção (18/10/2026): rodado dentro do serviço Rifa pelo `railway ssh --service Rifa` (o Postgres não tem proxy público), sem pedir confirmação de perda, colunas e tabelas novas conferidas e site abrindo normalmente. Detalhes e o que ficou por conferir (os `UPDATE` de uma vez) em `docs/ORDEM-DE-LANCAMENTO.md`, Etapa 3.
 - [ ] **[você]** Publicar o template "Loterias do Bem" em Aparência → Identidade (nome do app instalado).
 - [x] **[decisão]** Largura da publicação da rifa: decidido em 18/10/2026, fica a atual (1408 px no computador, `larga ampla`). Nada a mudar.
 - [x] **[decisão]** Cor dos ícones de compra: decidido em 18/10/2026, o "+" é vermelho nos dois temas (`--mais` = `--red`, registro 202 de `docs/VERSOES.md`); a sacola segue verde.

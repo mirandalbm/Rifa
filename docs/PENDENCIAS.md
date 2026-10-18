@@ -120,6 +120,26 @@ modelo B e na exigência do Google).
   responde perante o consumidor (CDC, art. 7º, parágrafo único)? Precisa de
   texto no rodapé do subdomínio dizendo que a venda é pela plataforma?
 
+### Para ver amanhã (19/10/2026): o que eu não consegui fazer
+
+Regra combinada em 18/10/2026: o que eu não puder fazer entra aqui, sem
+travar o resto, e a gente vê no dia seguinte.
+
+| # | O que | Por que não fiz | O que destrava |
+|---|---|---|---|
+| A1 | Criar o bucket R2 (Cloudflare) | A conta recusou ("enable R2 through the dashboard"); ativar exige o painel e cartão | Você ativa o R2; eu crio o bucket e te passo as variáveis `R2_*` |
+| A2 | Cadastrar `*.loteriasdobem.com.br` no Railway e o DNS | O conector do Railway não tem "adicionar domínio personalizado"; o DNS é no registrador | Você cadastra o curinga (Rede → domínio) e cria os 2 CNAME e o TXT; depois `SUBDOMINIO_BASE` |
+| A3 | Apagar as branches antigas do GitHub (86, todas sem PR aberta) | Sem permissão para apagar branch | Você apaga (ou liga "excluir branch ao mesclar" e limpa uma vez) |
+| A4 | Conferir o texto final do contrato do advogado (#68) | Falta o texto | Você cola no chat |
+| A5 | Saber se o token do WhatsApp é permanente (#13) | Não consigo ler a validade do token pelas ferramentas | Você confere na Meta (usuário do sistema, validade "Nunca"); posso montar o passo a passo |
+| A6 | Provar que o IP chega diferente por visitante (#39) | Tenho uma saída de rede só; não dá para comparar origens distintas | Você acessa de dois aparelhos/redes e eu leio o log; ou vemos no primeiro dia com tráfego |
+| A7 | Teste no celular de verdade (#44, #28) | Preciso do seu aparelho | Você testa e conta o que viu |
+| A8 | Perfil da empresa, termos de desenvolvedor, teste de modelo e `chamado_novo` na Meta (#11, #14, #21), anúncios (#54) | Dependem da verificação da empresa (#10, em análise) | Aprovação da Meta |
+| A9 | Trocar e apagar `ADMIN_PASSWORD` do Railway (#34) | Segredo seu; combinado para amanhã | Você faz; eu confiro que sumiu pelo nome |
+| A10 | Chaves do Chatbase e do Google (`CHATBASE_*`, `GOOGLE_*`) | Contas suas | Lucky: antes do lançamento; Google: depois |
+| A11 | Responder se o endereço com a marca da promotora muda a responsabilidade (R-subdomínio) e as dúvidas R24–R29 | São do advogado | Advogado |
+| A12 | Decisões de preço do banner e das patrocinadas | Cinco perguntas em `docs/SUGESTAO-PRECOS-PUBLICIDADE.md` | Você responde |
+
 ## 1. WhatsApp
 
 - [ ] **[você]** Verificar a empresa **Sorte Nacional** na Meta (Central de

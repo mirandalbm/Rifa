@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (subdomínio PR 1: `www`, `noindex` e `Origin` por host em modo relatório; `__Host-rifa.sid` aguarda o seu OK).
+Última atualização: 18/10/2026 (subdomínio PR 2: o guarda do endereço da organização no servidor; PR 1 mesclado, `__Host-rifa.sid` aguarda o seu OK).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -603,8 +603,18 @@ middleware que marca a requisição; nenhuma rota usa o destino.
 - [ ] **[decisão → código]** PR 1(a): `__Host-rifa.sid` em produção. **Todo mundo sai da
   conta uma vez** (pergunta 11 do plano): diga o dia e o horário; o código fica pronto
   e só entra com o seu OK.
-- [ ] **[código]** PR 2: guarda do endereço no servidor, `organizations.endereco_ativo`
-  (`db:push` antes), `GET /api/public/endereco`, `npm run subdominio`, entradas do `isolation`.
+- [x] **[código]** PR 2 (18/10/2026): o guarda do endereço no servidor (`guardaDoEndereco`,
+  só pelo `Host`, cache de 15 s, 404 de verdade, lista fechada de rotas em
+  `shared/enderecoRotas.ts` com teste de cobertura das 156 rotas e das páginas do
+  `App.tsx`), `organizations.endereco_ativo` (**`db:push` antes do código**),
+  `PUT /organizacoes/:id/subdominio` (só a plataforma, motivo, regra do rótulo,
+  confirmação de marca, auditoria), o cartão "Endereço próprio" em Organizações,
+  `GET /api/public/endereco`, `npm run subdominio` e a entrada do `isolation`.
+  **Sem `SUBDOMINIO_BASE` é inerte; não ligue em produção antes do PR 3** (a tela
+  ainda serviria a vitrine inteira no endereço).
+- [ ] **[código]** Ficou para depois do PR 2: o `/c/<código>` e o `/l/<perfil>/<n>` de
+  **outra** organização redirecionarem ao principal (hoje seguem), no PR 4 com os
+  links emitidos.
 - [ ] **[código]** PR 3: roteador por endereço no SPA (+ rodada de `npm run telas` com `*.localhost`).
 - [ ] **[código]** PR 4: URLs absolutas pelo endereço (artes, kit do afiliado, curtos, QR,
   WhatsApp, push, tráfego pago, marketing por servidor).

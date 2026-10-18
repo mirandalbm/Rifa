@@ -1005,6 +1005,7 @@ async function rotasDaPlataforma(eu: Lado, outro: Lado) {
     ["POST resolver Pix tardio", "/api/admin/pix-tardios/00000000-0000-0000-0000-000000000000/resolver", { method: "POST", body: '{"observacao":"resolvido por fora"}' }],
     ["GET saldo retido", "/api/admin/retencoes", {}],
     ["POST reter o saldo", `/api/admin/organizacoes/${eu.orgId}/retencao`, { method: "POST", body: '{"motivo":"retendo a minha própria"}' }],
+    ["PUT ligar o endereço próprio (subdomínio)", `/api/admin/organizacoes/${eu.orgId}/subdominio`, { method: "PUT", body: '{"ativo":true}' }],
     ["POST liberar retenção", "/api/admin/retencoes/00000000-0000-0000-0000-000000000000/liberar", { method: "POST", body: '{"motivo":"liberando sozinho"}' }],
     ["POST abater retenção", "/api/admin/retencoes/00000000-0000-0000-0000-000000000000/abater", { method: "POST", body: '{"patrocinioCents":1,"motivo":"abatendo sozinho"}' }],
     ["GET denúncias", "/api/admin/denuncias", {}],

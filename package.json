@@ -52,6 +52,7 @@
     "afiliados": "tsx scripts/afiliados-test.ts",
     "divulgacao": "tsx scripts/divulgacao-test.ts",
     "agenda-rifa": "tsx scripts/agenda-rifa-test.ts",
+    "subdominio": "tsx scripts/subdominio-test.ts",
     "artes": "tsx scripts/artes-test.ts",
     "contrato": "tsx scripts/contrato-promotora-test.ts",
     "anexos": "tsx scripts/contrato-anexos-test.ts",

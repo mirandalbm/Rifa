@@ -43,6 +43,8 @@ jobs:
       SESSION_SECRET: ci-somente-para-teste
       PORT: "5000"
       PUBLIC_BASE_URL: http://localhost:5000
+      # O endereço da organização (`npm run subdominio`): o `Host` da prova é `<rotulo>.loteriasdobem.test`.
+      SUBDOMINIO_BASE: loteriasdobem.test
       # Só fora de produção: a prova do login com o Google entrega os claims no lugar do Google.
       GOOGLE_PROVA: "1"
       # Só para a prova do assistente de IA (`npm run ia`): a chave de teste e o Chatbase de mentira
@@ -151,6 +153,7 @@ jobs:
       - run: npm run afiliados
       - run: npm run divulgacao
       - run: npm run agenda-rifa
+      - run: npm run subdominio
       - run: npm run artes
       - run: npm run fila
       - run: npm run contrato

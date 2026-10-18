@@ -550,6 +550,26 @@ Na ordem de entrega do plano:
       dias, base legal) — o passo 1 não grava nada, então o texto não muda
       agora; o `rifa.device` já diz que o hash do aparelho conta "visita e
       clique".
+  - **Do parecer do revisor de invariantes (passo 1, sem achado grave)** — para
+    o passo 2 e seguintes:
+    - [ ] `encerrarBannersPagos()` (ramo "perdeu a rifa") devolve a sobra por
+      `dias`; no pedido `modo='clique'` tem de usar `sobraDoBannerPorClique`
+      (ou valor pago − `gastoDoBannerPorClique`), e todo encerramento grava
+      `encerrado_por`.
+    - [ ] O texto "Arte de banner pago… N dia(s)" (`caixa.ts`) e a descrição
+      do livro em `comprarBanner` precisam de versão para o modo clique
+      (`resumoDoPedido()` já existe).
+    - [ ] `getPlataforma()` volta à configuração de fábrica INTEIRA se o
+      bloco `bannerPago` guardado deixar de passar na régua: criar um
+      `bannerPagoGuardado()` tolerante (como `configIAGuardada`) **antes** de
+      apertar qualquer regra do bloco `clique`.
+    - [ ] Ver o que o `drizzle-kit push` imprime numa segunda rodada: o
+      `ck_banner_pedido_modo` é o primeiro `check()` do repositório e o
+      Postgres normaliza a expressão — pode listar como diferente a cada
+      push (ruído: drop e recreate sobre linhas que já passam).
+    - [ ] O `PUT` lê e grava sem trava (duas edições simultâneas de chaves
+      diferentes: a última vence). Mesmo padrão de `setPlataforma`; só o
+      master chega aqui.
   - [ ] **[decisão]** Ainda abertas no plano: encerrar o banner por clique
     antes de ir ao ar com a sobra em crédito (item 4), o teto próprio por IP
     (9) e as perguntas ao advogado e ao contador (final da seção 9). Já

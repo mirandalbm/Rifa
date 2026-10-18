@@ -175,6 +175,15 @@ const CHAVES_DA_CONFIG = ["ligado", "precoDiaCents", "diasMin", "diasMax", "faix
 const CHAVES_DO_CLIQUE = ["ligado", "precoCents", "minimoCliques", "maximoCliques", "prazoMaxDias", "faixas"] as const;
 
 /**
+ * Valor que veio no corpo e vale: `undefined` é omissão e `null` também (nunca
+ * volta ao padrão de fábrica, que é o que `null ?? padrão` faria). A lista de
+ * faixas é a exceção: `null` ali é "limpar".
+ */
+function mandou(chave: string, valor: unknown, chaveDaLista: string): boolean {
+  return valor !== undefined && (valor !== null || chave === chaveDaLista);
+}
+
+/**
  * A configuração que o `PUT` guarda: **parte da atual** e troca só as chaves
  * conhecidas que vieram no corpo (e, dentro de `clique`, só as que vieram ali).
  * Antes, o que faltava no corpo virava o padrão de fábrica — mandar
@@ -188,14 +197,14 @@ export function mesclarConfigBannerPago(atual: ConfigBannerPago, corpo: unknown)
   }
   const c = corpo as Record<string, unknown>;
   const mesclado: Record<string, unknown> = { ...atual, clique: { ...atual.clique } };
-  for (const k of CHAVES_DA_CONFIG) if (c[k] !== undefined) mesclado[k] = c[k];
+  for (const k of CHAVES_DA_CONFIG) if (mandou(k, c[k], "faixasDia")) mesclado[k] = c[k];
   if (c.clique !== undefined) {
     if (c.clique === null || typeof c.clique !== "object" || Array.isArray(c.clique)) {
       throw erro("A configuração do banner por clique vem num objeto.");
     }
     const cl = c.clique as Record<string, unknown>;
     const clique: Record<string, unknown> = { ...atual.clique };
-    for (const k of CHAVES_DO_CLIQUE) if (cl[k] !== undefined) clique[k] = cl[k];
+    for (const k of CHAVES_DO_CLIQUE) if (mandou(k, cl[k], "faixas")) clique[k] = cl[k];
     mesclado.clique = clique;
   }
   return validarConfigBannerPago(mesclado);

@@ -260,6 +260,12 @@ describe("o PUT parte da configuração atual", () => {
     expect(mesclarConfigBannerPago(atual, {})).toEqual(atual);
     expect(mesclarConfigBannerPago(atual, { clique: {} })).toEqual(atual);
   });
+  it("null não volta ao padrão de fábrica nem desliga: é como não mandar", () => {
+    expect(mesclarConfigBannerPago(atual, { precoDiaCents: null, vagas: null, ligado: null })).toEqual(atual);
+    expect(mesclarConfigBannerPago(atual, { clique: { precoCents: null, ligado: null } })).toEqual(atual);
+    // só a lista de faixas entende null como "limpar"
+    expect(mesclarConfigBannerPago(atual, { clique: { faixas: null } }).clique.faixas).toEqual([]);
+  });
   it("a lista de faixas troca inteira, e a lista vazia tira todas", () => {
     expect(mesclarConfigBannerPago(atual, { clique: { faixas: [{ aPartirDe: 1000, descontoPct: 7 }] } }).clique.faixas).toEqual([{ aPartirDe: 1000, descontoPct: 7 }]);
     expect(mesclarConfigBannerPago(atual, { clique: { faixas: [] } }).clique.faixas).toEqual([]);

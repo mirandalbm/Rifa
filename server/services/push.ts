@@ -237,12 +237,29 @@ async function seguidoresComSino(orgId: string) {
   return r.map((x) => x.id);
 }
 
-/** Quem tem pedido pago na rifa: o sorteio interessa a quem está nele. */
+/**
+ * Quem tem pedido pago na rifa: o sorteio interessa a quem está nele. **Só
+ * conta o pedido que a pessoa enxerga** (a mesma regra de `pedidoVisivel()`):
+ * quem se cadastrou com o telefone de outro comprador, sem provar o número,
+ * não recebe no aparelho o aviso da rifa em que o dono do telefone joga. Linha
+ * que não é conta (sem senha) é de quem entrou pelo código do WhatsApp.
+ */
 async function participantes(campaignId: string) {
   const r = await db
     .selectDistinct({ id: orders.buyerId })
     .from(orders)
-    .where(and(eq(orders.campaignId, campaignId), eq(orders.status, "paid")));
+    .innerJoin(buyers, eq(buyers.id, orders.buyerId))
+    .where(
+      and(
+        eq(orders.campaignId, campaignId),
+        eq(orders.status, "paid"),
+        isNull(buyers.excluidoEm),
+        sql`(${buyers.passwordHash} IS NULL
+          OR ${buyers.telefoneConfirmadoEm} IS NOT NULL
+          OR ${orders.viaConta}
+          OR (${buyers.comprasVinculadasEm} IS NOT NULL AND ${orders.createdAt} <= ${buyers.comprasVinculadasEm}))`,
+      ),
+    );
   return r.map((x) => x.id).filter((x): x is string => Boolean(x));
 }
 

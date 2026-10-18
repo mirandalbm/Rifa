@@ -85,7 +85,8 @@ export function campaignScope(req: Request, coluna: SQL): SQL {
  * dá para varrer a plataforma contando campanhas alheias.
  */
 export async function assertCampaignInScope(req: Request, campaignId: string) {
-  // O id pode vir do corpo (comprar anúncio): fora do formato é "não existe", não erro do banco.
+  // Id vazio ou torto (corpo da requisição, serviço) não chega ao Postgres, que
+  // recusaria a conversão com erro: para quem pede, a campanha não existe.
   if (!ehUuid(campaignId)) throw new OrgScopeError("Campanha não encontrada.");
   const [campanha] = await db
     .select()

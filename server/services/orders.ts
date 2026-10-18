@@ -476,6 +476,12 @@ async function prepararPedido(
   // cupom do afiliado só aqui.
   const abaixoDaTaxa = problemaNoTotalDoPedido(taxa, price.totalCents, quantity);
   if (abaixoDaTaxa) throw new OrderError(abaixoDaTaxa, 409);
+  // Pacote ou cupom que levem o total a zero (ou abaixo) reservariam cota de
+  // graça e abririam Pix de valor inválido. Os pacotes novos já têm teto
+  // (`shared/pacotes.ts`); isto protege o que ficou gravado antes dele.
+  if (price.totalCents < 1) {
+    throw new OrderError("O desconto deixou este pedido com valor inválido. Escolha outra quantidade ou fale com a organização.", 409);
+  }
   // Venda que veio de anúncio patrocinado (etapa 15): o mesmo aparelho
   // clicou num anúncio desta rifa há até 7 dias. Só estatística.
   const anuncioId = ctx.sellerId ? null : await anuncioDaVenda(identity.deviceHash, campaign.id);

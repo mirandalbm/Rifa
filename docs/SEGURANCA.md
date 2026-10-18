@@ -27,7 +27,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 |---|---|---|
 | Sessão: cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção; sessão nova a cada entrada | `server/auth.ts`, `server/services/contaComprador.ts` | — |
 | Senha: scrypt com custo próprio (N = 2¹⁶, r = 8, p = 2, guardado no hash `s2$…`; a senha antiga entra e é refeita no login), régua única (`shared/senha.ts`), força bruta contada por conta e por IP (`guardLogin`) | `server/services/hashSenha.ts`, `server/auth.ts`, `server/routes/auth.ts` | `tests/senha.test.ts`, `tests/hashSenha.test.ts`, `npm run senha` |
-| Troca e redefinição de senha derrubam as outras sessões (painel e apostador) | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes` | — |
+| Troca e redefinição de senha derrubam as outras sessões (painel e apostador); a do apostador também cai pela marca `sessoes_validas_desde` se uma requisição em andamento a regravar. Trocar a senha ou excluir a conta pede a senha atual ou o código do WhatsApp dos últimos 30 minutos — entrar pela senha não basta | `encerrarSessoesDoUsuario`, `encerrarOutrasSessoes`, `setupAuth`, `codigoRecente` | `npm run conta` |
 | Segundo fator do painel (TOTP); obrigatório para arquivar organização, **lançar o resultado do sorteio oficial e registrar nova extração do globo** (`conferirSegundoFatorAgora()`, senha e código na hora, 30 tentativas em 10 min). O segredo fica **selado no cofre** (`cofre:v1:…`, também o pendente na sessão); o de antes, em claro, entra e é selado ao subir o servidor; o selado adulterado é "código incorreto", nunca 500 | `server/services/totp.ts`, `server/services/segundoFator.ts`, `server/routes/admin.ts` | `tests/totp.test.ts`, `tests/segundoFator.test.ts`, `npm run senha` |
 | Recorte por organização | `orgOf`, `assertCampaignInScope`, `assertAffiliateInScope`, `assertUserInScope` | `npm run isolation` |
 | Arquivo: tipo conferido pelo conteúdo, reprocessado (sharp, teto de 40 MP), nunca servido como veio; chave de mídia gerada pelo servidor e conferida na volta; envio ao disco com assinatura que leva o **teto de bytes** (conferida antes de ler o corpo) e `/uploads` só restaura chave no formato que geramos | `server/services/media.ts`, `storage.ts`, `probe.ts` | `tests/midia.test.ts`, `npm run isolation` |
@@ -43,6 +43,7 @@ descrita aqui; o detalhe de como explorar não entra no repositório.
 | Cabeçalhos: `nosniff`, `X-Frame-Options`, `frame-ancestors`, `Referrer-Policy`; HSTS em produção | `server/index.ts` | — |
 | Política de conteúdo (CSP) **em modo relatório**, só em produção: a lista do que o sistema carrega (pixels, fontes, Stream, players), o script do tema pelo hash, `object-src 'none'`; os relatórios vão ao log agrupados (diretiva e origem, nunca a URL) | `shared/csp.ts`, `server/services/csp.ts`, `server/index.ts` | `tests/csp.test.ts` |
 | Clique patrocinado: cobra só com o comprovante da exibição (HMAC por anúncio e aparelho, de 1 s a 30 min) e no máximo 3 por IP por anúncio em 24 h | `server/services/ticketDoClique.ts`, `registrarClique` em `server/services/patrocinio.ts` | `tests/ticketDoClique.test.ts`, `npm run patrocinio` |
+| A porta recusa o que ninguém digita: byte nulo no endereço, na consulta ou no JSON é 400 para todas as rotas; o erro 22021 que escapar também; `unhandledRejection` vai ao log. Balde do antifraude de texto longo vira começo + impressão (`chaveDoBalde`); rota `async` leva `try/catch`. Leitura pública em `private, no-cache` por padrão, pedido/carrinho/bilhete em `no-store` | `server/index.ts`, `shared/semNulo.ts`, `server/services/balde.ts`, `server/routes/index.ts` | `tests/semNulo.test.ts`, `npm run publico` |
 | Rascunho não responde em rota pública (mapa, número, prêmios, ranking, últimas compras): 404, igual a inexistente | `server/routes/public.ts` | `npm run senha` |
 | Segredos obrigatórios em produção (`SESSION_SECRET`, `COFRE_CHAVE`, R2); o seed se recusa em produção | `server/auth.ts`, `cofre.ts`, `storage.ts`, `scripts/seed.ts` | — |
 | Log: método, caminho sem a query, status e tempo; recusa de login com o e-mail mascarado | `server/index.ts`, `server/routes/auth.ts` | — |
@@ -87,6 +88,20 @@ O CI roda as 25 provas contra a API a cada PR (`.github/workflows/ci.yml`).
 
 ## Revisões
 
+### 18/10/2026 — acesso público (visitante sem login)
+
+Escopo: tudo o que o visitante alcança (telas e `/api/public/*`, `/c/`, `/l/`,
+login, webhooks). Relatório completo, com o que ficou aberto, em
+`docs/AUDITORIA-ACESSO-PUBLICO.md`.
+
+| Gravidade | O quê | Onde (e prova) |
+|---|---|---|
+| Alta | `POST /api/auth/login` sem `try`: o e-mail com byte nulo ou enorme (estoura a linha do índice do antifraude) derrubava o processo — um pedido anônimo tirava o site do ar | `routes/auth.ts`, `index.ts`, `balde.ts`, `semNulo.ts` (`npm run publico`, `tests/semNulo.test.ts`) |
+| Média | Id fora do formato e byte nulo em rota pública respondiam 500 (pedido, carrinho, story, banner pago, perfil, recibo, pixel…) | `routes/public.ts`, `index.ts` (`npm run publico`) |
+| Média | Promotora banida ainda aparecia na vitrine, nos estados, no termo, no pixel e no link do perfil (por onde o Pix por fora costuma ir) | `campaigns.ts`, `vitrine.ts`, `links.ts`, `afiliados.ts`, `marketing.ts` (`npm run publico`) |
+| Média | Leitura pública sem `Cache-Control` (varia com a sessão); pedido e bilhete sem `no-store` | `routes/index.ts`, `public.ts` (`npm run publico`) |
+| Baixa | Ranking sem guarda (varredura por pedido); consulta de CEP sem limite (ViaCEP) | `public.ts` (`npm run publico`) |
+
 ### 18/10/2026 — acesso da plataforma
 
 Escopo: as 267 rotas de `/api/admin` e as telas do master. O relatório (o que
@@ -128,17 +143,17 @@ o `ffmpeg` (sem shell, protocolos limitados, prazo, saída com teto) e nenhum
 
 - `ffmpeg` simultâneos: limitado a 2 (fila) desde o PR dos extras do pôster.
 - O identificador do aparelho continua vindo do cliente; o que segura é o IP.
-- Sessão derrubada pode voltar (suspeita, não provada; revisão de 12/10/2026,
-  PR #252): `encerrarOutrasSessoes` apaga as linhas de `sessions`, mas o
-  `connect-pg-simple` grava com `INSERT … ON CONFLICT (sid) DO UPDATE` — uma
-  requisição da sessão expulsa que já estava em andamento e mexe na própria
-  sessão pode recriá-la depois do `DELETE`. Vale para troca de senha,
-  primeira prova do telefone e exclusão da conta. Correção possível: uma marca
-  na conta (`sessoes_validas_desde`) conferida a cada requisição. A primeira
-  prova do telefone pela conta já encerra as outras **antes** de gravar a
-  confirmação (`confirmarTelefone`), para uma falha do `DELETE` não deixar a
-  conta confirmada com a sessão do intruso de pé; o `/my-quotas/verify` segue
-  na ordem antiga.
+- ~~Sessão derrubada pode voltar~~ **provada e corrigida na auditoria do acesso
+  apostador (18/10/2026)**: `encerrarOutrasSessoes` apagava as linhas de
+  `sessions`, mas o `connect-pg-simple` grava com `INSERT … ON CONFLICT (sid)
+  DO UPDATE` — uma requisição da sessão expulsa que já estava em andamento e
+  mexia na própria sessão a recriava depois do `DELETE` (reproduzido com 24
+  requisições em laço contra `/conta/google/entrar`). Agora a conta tem
+  `sessoes_validas_desde` e a sessão do apostador, `entrouEm`; o middleware de
+  `setupAuth` derruba a sessão mais velha que a marca. Vale para troca de senha,
+  primeira prova do telefone e exclusão da conta (`npm run conta`). O painel
+  (`users`) tem o mesmo desenho de sessão e **não** foi coberto: ver
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`.
 
 ### 28/09/2026
 

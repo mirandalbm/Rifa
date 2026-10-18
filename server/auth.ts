@@ -6,7 +6,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { randomInt } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
-import { users, affiliates, organizations } from "@shared/schema";
+import { users, affiliates, organizations, buyers } from "@shared/schema";
 import { type Role, roleSatisfies } from "@shared/access";
 import { codigoConfere } from "./services/segundoFator";
 import { hashCodigo, hashPassword, senhaPedeNovoHash, verifyPassword } from "./services/hashSenha";
@@ -66,6 +66,14 @@ declare module "express-session" {
       name: string;
       /** Telefone provado pelo código do WhatsApp (nesta sessão ou antes). */
       confirmado?: boolean;
+      /**
+       * Quando esta sessão provou o telefone pelo código do WhatsApp (ms). Só o
+       * código deixa trocar a senha sem a atual e excluir sem a senha — entrar
+       * com a senha não (ver `codigoRecente`).
+       */
+      porCodigoEm?: number;
+      /** Quando esta sessão começou (ms). Anterior a `buyers.sessoes_validas_desde`, ela caiu. */
+      entrouEm?: number;
     };
     /** Tentativa de entrar (ou ligar) com o Google em andamento: state, nonce e verificador do PKCE. */
     google?: { state: string; nonce: string; verifier: string; modo: "entrar" | "ligar"; volta: string; buyerId?: string; expiraEm: number };
@@ -164,6 +172,22 @@ export function setupAuth(app: Express) {
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // A sessão do apostador que começou antes de a conta expulsá-las (troca de
+  // senha, telefone provado, exclusão) não vale, mesmo que uma requisição em
+  // andamento a tenha regravado depois do `DELETE` em `sessions`.
+  app.use("/api", (req, res, next) => {
+    const b = req.session?.buyer;
+    if (!b?.id) return next();
+    db.select({ desde: buyers.sessoesValidasDesde, excluidoEm: buyers.excluidoEm })
+      .from(buyers)
+      .where(eq(buyers.id, b.id))
+      .then(([c]) => {
+        if (!c || c.excluidoEm || (c.desde && (b.entrouEm ?? 0) < c.desde.getTime())) req.session.buyer = undefined;
+        next();
+      })
+      .catch(next);
+  });
 
   passport.use(
     new LocalStrategy(

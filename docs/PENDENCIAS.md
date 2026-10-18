@@ -19,15 +19,21 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 - [x] **[decisão]** Largura da publicação da rifa: decidido em 18/10/2026, fica a atual (1408 px no computador, `larga ampla`). Nada a mudar.
 - [x] **[decisão]** Cor dos ícones de compra: decidido em 18/10/2026, o "+" é vermelho nos dois temas (`--mais` = `--red`, registro 202 de `docs/VERSOES.md`); a sacola segue verde.
 - [x] **[código]** Ícone do topo à esquerda centralizado na vertical (18/10/2026: `AppShell.tsx`, o link da marca ficou `flex items-center`; registro 201 de `docs/VERSOES.md`).
-- [ ] **[decisão]** "Rifas perto de" vira "Locais": painel com todos os
-  estados. Decidido em 18/10/2026: bandeiras do conjunto CC0 `pierrelapalu/icones-bandeiras-br-uf` (estilo `circle`, copiadas e otimizadas, sem dependência), com a origem em `docs/LICENCAS-DE-TERCEIROS.md`; a dúvida sobre usar bandeira de estado numa plataforma comercial vai para `docs/PERGUNTAS-AO-ADVOGADO.md`. Falta: eu implementar.
-- [ ] **[decisão]** Texto oficial abaixo do nome e da logo no "roadmap" de baixo. Decidido em 18/10/2026: no rodapé da plataforma, em duas linhas (razão social e CNPJ dos Dados da empresa publicados; e o aviso de jogo responsável). Falta: eu implementar.
+- [x] **[código]** "Rifas perto de" virou "Locais" (18/10/2026): painel com "Nacional" no alto (limpa a escolha manual) e os 27 estados com a bandeira de cada um (`LocaisDaVitrine.tsx`, bandeiras CC0 do `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, em `client/public/bandeiras/`, sem dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** o advogado responder a **R24** de `docs/PERGUNTAS-AO-ADVOGADO.md` (uso de bandeira de estado numa plataforma comercial); até lá a bandeira é só o ícone do local, com o nome junto, e fora de peça de divulgação e de anúncio.
+- [x] **[código]** Texto oficial abaixo do nome e da logo do rodapé da plataforma (18/10/2026): razão social e CNPJ dos Dados da empresa **publicados** (a linha some se faltar dado) e o aviso de jogo responsável, sem bandeiras (`RodapeDaPlataforma.tsx`, `linhaDaEmpresa()` em `shared/rodape.ts`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** a plataforma cadastrar e **publicar** os Dados da empresa em Aparência → Rodapé e empresa — sem isso, só o aviso aparece.
 - [ ] **[decisão]** Rifa nacional: valor mínimo, aprovação só pelo admin e
   ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço; falta o valor em reais). Falta: plano e implementação.
 - [ ] **[decisão]** Banners por estado (carrossel de 5 em cada estado e no
   nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
   afiliado, cambista, plataforma, marketing), um PR por acesso.
+  - [x] Organizador (18/10/2026): `docs/AUDITORIA-ACESSO-ORGANIZADOR.md`, 13
+    defeitos corrigidos. **Ficaram para decidir**: a rifa da Federal fora de um
+    sorteio oficial, em que o organizador digita os 5 prêmios; os pacotes que
+    mudam depois de publicada; nome e CNPJ da promotora editáveis com rifa no ar
+    (e o CNPJ sem dígito conferido); a senha inicial do afiliado que a
+    organização cria; e o parecer do `revisor-de-invariantes` sobre os commits
+    de dinheiro e isolamento.
 
 ## 1. WhatsApp
 
@@ -334,6 +340,22 @@ O checklist completo, com o que falta em cada item e quem decide, está em
   180 capturas, log do servidor e `npm audit`; uma falha alta e quatro médias
   corrigidas, com prova. Registro e o que ficou para depois em
   `docs/SEGURANCA.md`.
+- [x] Auditoria do acesso público (18/10/2026): uma falha alta (login anônimo
+  derrubava o servidor), várias médias e baixas corrigidas, com prova. Relatório
+  em `docs/AUDITORIA-ACESSO-PUBLICO.md`.
+- [ ] **[decisão]** O que a auditoria do acesso público deixou aberto
+  (`docs/AUDITORIA-ACESSO-PUBLICO.md`, "Ficou aberto"): a vitrine devolve todas
+  as rifas de uma vez (sem paginação); `/cartelas` sem limite por IP; a página
+  da rifa de promotora banida ainda mostra o nome e o "Seguir"; e-mail e telefone
+  crus por 2 h em `rate_events`; `robots.txt` e `noindex`.
+- [x] Auditoria do acesso apostador (18/10/2026): três falhas altas (trocar
+  a senha e excluir a conta com a sessão roubada, bônus e avisos herdados por
+  quem cadastra o telefone de outra pessoa, sessão expulsa que voltava) e o
+  resto, com prova. **`db:push` antes do código** (`buyers.sessoes_validas_desde`).
+  O que ficou aberto — inclusive a mesma corrida de sessão no painel — está em
+  `docs/AUDITORIA-ACESSO-APOSTADOR.md`.
+- [ ] **[código]** A mesma marca de sessão (`sessoes_validas_desde`) para as
+  contas do painel (`users`): hoje só o apostador tem (achado 4 da auditoria).
 
 ## 3b. Decisões de produto (1º/10/2026)
 

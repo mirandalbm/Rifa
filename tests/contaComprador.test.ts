@@ -4,6 +4,8 @@ import {
   problemaNoCadastro,
   pedidoVisivel,
   podePedirReembolso,
+  codigoRecente,
+  CODIGO_RECENTE_MS,
 } from "@shared/contaComprador";
 
 const ok = {
@@ -82,5 +84,20 @@ describe("o que a conta enxerga e o que pode reembolsar", () => {
     expect(podePedirReembolso({ viaConta: false, createdAt: antes, method: "pix_online" }, peloCpf)).toBe(true);
     expect(podePedirReembolso({ viaConta: false, createdAt: antes, method: "dinheiro" }, peloCpf)).toBe(false);
     expect(podePedirReembolso({ viaConta: false, createdAt: antes, method: "dinheiro" }, peloTelefone)).toBe(true);
+  });
+});
+
+describe("código do WhatsApp como prova de 'sou eu'", () => {
+  const agora = 1_700_000_000_000;
+  it("vale logo depois e até o fim da janela", () => {
+    expect(codigoRecente(agora - 1000, agora)).toBe(true);
+    expect(codigoRecente(agora - CODIGO_RECENTE_MS, agora)).toBe(true);
+  });
+  it("não vale vencido, ausente, no futuro ou com lixo", () => {
+    expect(codigoRecente(agora - CODIGO_RECENTE_MS - 1, agora)).toBe(false);
+    expect(codigoRecente(undefined, agora)).toBe(false);
+    expect(codigoRecente(agora + 60_000, agora)).toBe(false);
+    expect(codigoRecente(NaN, agora)).toBe(false);
+    expect(codigoRecente("1700000000000" as unknown as number, agora)).toBe(false);
   });
 });

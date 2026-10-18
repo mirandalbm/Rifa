@@ -1257,8 +1257,8 @@ export function AdminPedidos() {
       {sessao?.role === "admin" && !codigo && !cliente ? <PixTardios /> : null}
       {sessao?.role === "admin" && !codigo && !cliente ? <ContestacoesAConferir /> : null}
       <p className="mb-3 text-xs text-muted">
-        Reembolso não se faz por aqui: o comprador pede em "Minhas cotas", com o print do
-        bilhete, e a organização decide em Atendimento.
+        Reembolso não se faz por aqui: o comprador pede em "Minhas cotas" (o print do
+        bilhete é opcional), e a organização decide em Atendimento.
       </p>
       {codigo || cliente ? (
         <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">

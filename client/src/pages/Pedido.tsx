@@ -4,6 +4,7 @@ import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PublicShell } from "@/components/AppShell";
 import { Button, Card, Money, TONS_DO_BOTAO } from "@/components/bits";
+import { ApiError } from "@/lib/queryClient";
 import { formatQuota } from "@shared/format";
 import { PixParaPagar, PrazoDaReserva, SituacaoDoPedido } from "@/components/PixParaPagar";
 import { printTicket } from "@/lib/pos";
@@ -40,7 +41,7 @@ interface OrderView {
 export default function Pedido() {
   const { code } = useParams<{ code: string }>();
 
-  const { data: order } = useQuery<OrderView>({
+  const { data: order, isError, error } = useQuery<OrderView>({
     queryKey: [`/api/public/orders/${code}`],
     // Enquanto pendente, pergunta a cada 4 s até o webhook chegar.
     refetchInterval: (query) => (query.state.data?.status === "pending" ? 4000 : false),
@@ -71,7 +72,19 @@ export default function Pedido() {
   if (!order) {
     return (
       <PublicShell>
-        <p className="py-20 text-center text-sm text-muted">Carregando pedido…</p>
+        {isError ? (
+          // Código que não existe (ou muita consulta seguida): dizer, em vez de "Carregando" para sempre.
+          <div className="py-20 text-center">
+            <p className="text-sm text-muted">
+              {error instanceof ApiError && error.status === 429 ? error.message : "Pedido não encontrado. Confira o código."}
+            </p>
+            <Link href="/minhas-cotas" className="mt-3 inline-flex h-10 items-center text-sm font-semibold text-green-deep underline">
+              Ver minhas compras
+            </Link>
+          </div>
+        ) : (
+          <p className="py-20 text-center text-sm text-muted">Carregando pedido…</p>
+        )}
       </PublicShell>
     );
   }

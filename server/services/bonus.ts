@@ -206,6 +206,8 @@ export async function registrarVisita(codigo: unknown, aparelhoHash: string | nu
   return entrou;
 }
 
+const PROGRESSO_ZERADO: Record<TipoDeMeta, number> = { rifas_compradas: 0, indicacoes: 0, visitas: 0, organizacoes_seguidas: 0 };
+
 /** Quanto a pessoa já fez de cada tipo de meta. */
 async function progressoDe(buyerId: string, ex: Executor = db) {
   const r = await ex.execute(sql`
@@ -351,13 +353,16 @@ export async function desfazerMetasNoEstorno(tx: Tx, pessoas: (string | null | u
 }
 
 /** A tela "Bônus" do comprador. */
-export async function estadoDoBonus(buyerId: string) {
+export async function estadoDoBonus(buyerId: string, telefoneProvado = true) {
   const cfg = await getPlataforma();
   if (!cfg.bonusLigado) return { ligado: false as const };
   const codigo = await garantirCodigoDeIndicacao(buyerId);
   const [b] = await db.select({ saldo: buyers.bonusSaldo }).from(buyers).where(eq(buyers.id, buyerId));
-  const progresso = await progressoDe(buyerId);
-  const extrato = await db
+  // Telefone ainda não provado: o saldo, o progresso e o extrato são da linha do
+  // telefone (compras e indicações feitas sem entrar) e podem ser de outra
+  // pessoa — nada disso sai antes do código do WhatsApp. O link de indicação é dela.
+  const progresso = telefoneProvado ? await progressoDe(buyerId) : PROGRESSO_ZERADO;
+  const extrato = !telefoneProvado ? [] : await db
     .select({
       quantidade: bonusLancamentos.quantidade,
       motivo: bonusLancamentos.motivo,
@@ -377,7 +382,8 @@ export async function estadoDoBonus(buyerId: string) {
     .limit(50);
   return {
     ligado: true as const,
-    saldo: b?.saldo ?? 0,
+    telefoneConfirmado: telefoneProvado,
+    saldo: telefoneProvado ? (b?.saldo ?? 0) : 0,
     codigo,
     link: publicUrl(`/?ind=${codigo}`),
     porIndicacao: cfg.bonusPorIndicacao,

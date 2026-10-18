@@ -1214,7 +1214,7 @@ publicRouter.get("/notificacoes/resumo", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     // Sem sessão não é erro aqui: o coração só não mostra número.
-    res.json({ naoLidas: id ? await naoLidas(id) : 0 });
+    res.json({ naoLidas: id ? await naoLidas(id, await titularidadeDaSessao(req)) : 0 });
   } catch (err) {
     next(err);
   }
@@ -1223,7 +1223,8 @@ publicRouter.get("/notificacoes/resumo", async (req, res, next) => {
 publicRouter.get("/notificacoes", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "private, no-store");
-    res.json(await notificacoesDe(donoDosAvisos(req)));
+    const dono = donoDosAvisos(req);
+    res.json(await notificacoesDe(dono, await titularidadeDaSessao(req)));
   } catch (err) {
     next(err);
   }
@@ -1231,7 +1232,8 @@ publicRouter.get("/notificacoes", async (req, res, next) => {
 
 publicRouter.post("/notificacoes/lidas", async (req, res, next) => {
   try {
-    await marcarTodasLidas(donoDosAvisos(req));
+    const dono = donoDosAvisos(req);
+    await marcarTodasLidas(dono, await titularidadeDaSessao(req));
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -2371,7 +2373,7 @@ publicRouter.get("/presente/meu", async (req, res, next) => {
 publicRouter.get("/bonus", async (req, res, next) => {
   try {
     const c = exigirComprador(req);
-    res.json(await estadoDoBonus(c.id));
+    res.json(await estadoDoBonus(c.id, (await titularidadeDaSessao(req)).telefoneConfirmado));
   } catch (err) {
     next(err);
   }
@@ -2381,6 +2383,11 @@ publicRouter.get("/bonus", async (req, res, next) => {
 publicRouter.post("/bonus/resgatar", async (req, res, next) => {
   try {
     const c = exigirComprador(req);
+    // O saldo é da linha do telefone: conta de telefone ainda não provado pode ser
+    // de quem se cadastrou com o número de outra pessoa. Ver e usar o bônus pede o código.
+    if (!(await titularidadeDaSessao(req)).telefoneConfirmado) {
+      return res.status(403).json({ message: "Confirme o telefone da conta pelo código do WhatsApp para usar o bônus." });
+    }
     const limite = await hit(`bonus-resgate:${c.id}`, 60, 10);
     if (limite.excedeu) return res.status(429).json({ message: "Muitos resgates em pouco tempo. Aguarde um pouco." });
     // O id vem do corpo: fora do formato a rifa não existe (404), nunca 500 do Postgres.

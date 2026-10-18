@@ -17,6 +17,7 @@ import { SociosError, adicionarSocio, declararSocios, listarSocios, removerSocio
 import { agendarPublicacao } from "../services/publicacaoAgendada";
 import { validarPacotes } from "@shared/pacotes";
 import { lerComissaoDoCadastro } from "@shared/afiliados";
+import { problemaNosLimitesDoPedido } from "@shared/solicitacoes";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
 import { devolverPixTardio, listarPixTardios, resolverPixTardio } from "../services/pixTardio";
 import { abaterRetencao, liberarRetencao, listarRetencoes, reterManual } from "../services/retencao";
@@ -375,7 +376,6 @@ async function acessosEmExcesso(req: Request): Promise<boolean> {
 }
 const MUITOS_ACESSOS = "Muitos acessos criados em pouco tempo. Espere um pouco e tente de novo.";
 
-/* ---------------- painel ---------------- */
 /**
  * `featured` e `sortWeight` mandam na ordem da vitrine (destaque e peso do
  * feed): são da plataforma. O schema da rifa os aceita porque a plataforma
@@ -388,6 +388,7 @@ function semOrdemDaVitrine<T extends object>(req: Request, dados: T): T {
   return resto as T;
 }
 
+/* ---------------- painel ---------------- */
 
 adminRouter.get("/overview", async (req, res, next) => {
   try {
@@ -607,6 +608,12 @@ adminRouter.post("/campaigns", async (req, res, next) => {
     const metodoApuracao = (await getPlataforma()).metodosDeApuracao[0] ?? null;
     const premio = problemaNoPremio(input.prizeTitle, Boolean(metodoApuracao));
     if (premio) return res.status(422).json({ message: premio });
+    const limites = problemaNosLimitesDoPedido({
+      minPerOrder: input.minPerOrder ?? 1,
+      maxPerOrder: input.maxPerOrder ?? 1000,
+      reservationTtlMin: input.reservationTtlMin ?? 15,
+    });
+    if (limites) return res.status(422).json({ message: limites });
     const [created] = await db
       .insert(campaigns)
       .values({ ...input, organizationId, status: "draft", metodoApuracao })
@@ -650,6 +657,12 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
       const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
       if (premio) return res.status(422).json({ message: premio });
     }
+    const limites = problemaNosLimitesDoPedido({
+      minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+      maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+      reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+    });
+    if (limites) return res.status(422).json({ message: limites });
 
     const [updated] = await db
       .update(campaigns)
@@ -698,6 +711,12 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
         const premio = problemaNoPremio(changes.prizeTitle, Boolean(campaign.metodoApuracao));
         if (premio) return res.status(422).json({ message: premio });
       }
+      const limites = problemaNosLimitesDoPedido({
+        minPerOrder: changes.minPerOrder ?? campaign.minPerOrder,
+        maxPerOrder: changes.maxPerOrder ?? campaign.maxPerOrder,
+        reservationTtlMin: changes.reservationTtlMin ?? campaign.reservationTtlMin,
+      });
+      if (limites) return res.status(422).json({ message: limites });
       const [updated] = await db.update(campaigns).set(changes).where(eq(campaigns.id, campaign.id)).returning();
       await audit(req, "campaign.update", "campaign", campaign.id, changes);
       return res.json({ aplicada: true, campaign: updated });

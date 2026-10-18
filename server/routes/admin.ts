@@ -4093,7 +4093,10 @@ adminRouter.get("/template/previa", async (req, res, next) => {
 adminRouter.put("/template/rascunho", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.json(await salvarRascunho(req.body));
+    const salvo = await salvarRascunho(req.body);
+    // O rascunho só vai ao ar ao publicar (também auditado); aqui fica quem mexeu e quando.
+    await audit(req, "template.rascunho", "template", "rascunho", {});
+    res.json(salvo);
   } catch (err) {
     next(err);
   }
@@ -4103,7 +4106,13 @@ adminRouter.put("/template/rascunho", async (req, res, next) => {
 adminRouter.put("/template/empresa", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.json(await salvarEmpresaDoTemplate(req.body));
+    const feito = await salvarEmpresaDoTemplate(req.body);
+    // Só os campos que vieram e os que deram erro: os Dados da empresa alimentam o contrato e os Termos.
+    await audit(req, "template.empresa", "template", "rascunho", {
+      campos: req.body && typeof req.body === "object" ? Object.keys(req.body).slice(0, 12) : [],
+      comErro: Object.keys(feito.erros),
+    });
+    res.json(feito);
   } catch (err) {
     next(err);
   }
@@ -4112,7 +4121,10 @@ adminRouter.put("/template/empresa", async (req, res, next) => {
 adminRouter.put("/template/logo", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.json(await salvarLogo(req.body?.dataUrl));
+    const salvo = await salvarLogo(req.body?.dataUrl);
+    // A logo é um arquivo único: troca no mesmo lugar e a pública já mostra a nova.
+    await audit(req, "template.logo", "template", "rascunho", {});
+    res.json(salvo);
   } catch (err) {
     next(err);
   }
@@ -4121,7 +4133,9 @@ adminRouter.put("/template/logo", async (req, res, next) => {
 adminRouter.put("/template/apoio", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    res.status(201).json(await salvarApoio(req.body?.dataUrl));
+    const feito = await salvarApoio(req.body?.dataUrl);
+    await audit(req, "template.apoio", "template", "rascunho", { id: feito.id });
+    res.status(201).json(feito);
   } catch (err) {
     next(err);
   }

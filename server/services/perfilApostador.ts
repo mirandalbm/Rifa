@@ -115,15 +115,17 @@ export async function salvarPerfilPublico(buyerId: string, entrada: { apelido?: 
       } else if (foto === null) {
         await tx.delete(compradorFotos).where(eq(compradorFotos.buyerId, buyerId));
       }
-      await tx
-        .update(buyers)
-        .set({
-          ...(apelido !== undefined ? { apelido } : {}),
-          ...(bio !== undefined ? { bio } : {}),
-          ...(link !== undefined ? { link } : {}),
-          ...(foto !== undefined ? { fotoEm: foto ? agora : null } : {}),
-        })
-        .where(eq(buyers.id, buyerId));
+      // Corpo sem nenhum campo conhecido não muda nada (o `UPDATE` sem `SET`
+      // era 500): só devolve o perfil de agora.
+      const mudancas = {
+        ...(apelido !== undefined ? { apelido } : {}),
+        ...(bio !== undefined ? { bio } : {}),
+        ...(link !== undefined ? { link } : {}),
+        ...(foto !== undefined ? { fotoEm: foto ? agora : null } : {}),
+      };
+      if (Object.keys(mudancas).length > 0) {
+        await tx.update(buyers).set(mudancas).where(eq(buyers.id, buyerId));
+      }
       // Foto nova tira o selo aqui mesmo, até ser conferida de novo.
       if (foto !== undefined) statusDaVerificacao = await fotoMudouNaTransacao(tx, "apostador", buyerId);
     });

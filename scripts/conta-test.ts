@@ -43,6 +43,8 @@ const TEL_CPF = "11966660004";
 const TEL_CONFIRMA = "11966660005";
 const TEL_TROCA = "11966660007";
 const TEL_OUTRO = "11966660006";
+/** Auditoria do acesso apostador: a conta que entra pela senha e a que entra pelo código. */
+const TEL_AUDITORIA = "11966660008";
 /** CPF válido sorteado: os fixos já aparecem em outras provas do mesmo banco. */
 function cpfSorteado() {
   const base = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));
@@ -71,11 +73,12 @@ let rifaId = "";
 async function limpar() {
   await db.execute(sql`delete from rate_events where bucket like 'cadastro:%' or bucket like 'login:comprador:%'`);
   // Os pedidos de código desta prova não podem esgotar o limite da próxima rodada.
-  for (const tel of [TEL_CONFIRMA, TEL_TROCA, TEL_OUTRO]) {
+  await db.execute(sql`delete from rate_events where bucket like 'lookup:miss:%'`);
+  for (const tel of [TEL_CONFIRMA, TEL_TROCA, TEL_OUTRO, TEL_AUDITORIA]) {
     await db.execute(sql`delete from rate_events where bucket in (${`otp:${tel}`}, ${`otp:verify:${tel}`})`);
   }
   const rows = await db.execute(
-    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, ${TEL_CPF}, ${TEL_CONFIRMA}, ${TEL_TROCA}, ${TEL_OUTRO}, '11966660003', '11900001234')`,
+    sql`select id from buyers where phone in (${TEL_DONO}, ${TEL_NOVO}, ${TEL_CPF}, ${TEL_CONFIRMA}, ${TEL_TROCA}, ${TEL_OUTRO}, ${TEL_AUDITORIA}, '11966660003', '11900001234')`,
   );
   for (const r of rows.rows as { id: string }[]) criados.add(r.id);
   for (const id of criados) {
@@ -421,6 +424,66 @@ async function main() {
     checa("e a conta ficou confirmada, com o mesmo número", Boolean(duplo?.telefoneConfirmadoEm) && duplo?.phone === TEL_TROCA);
     r = await tp.req("GET", "/api/public/conta");
     checa("a sessão de quem clicou duas vezes ficou confirmada", r.status === 200 && r.json?.sessaoConfirmada === true, `HTTP ${r.status}`);
+
+    // ---- auditoria do acesso apostador ----
+    // 1) Id ou código fora do formato é "não existe" (404), nunca 500 do Postgres.
+    console.log("\n  · auditoria do acesso apostador");
+    // As contas anteriores já gastaram o limite de cadastro por endereço (10 por hora).
+    await db.execute(sql`delete from rate_events where bucket like 'cadastro:%'`);
+    const aud = new Cliente();
+    const SENHA_AUD = "senha-auditoria-1";
+    r = await aud.req("POST", "/api/public/conta", {
+      apelido: "tst" + Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 12) + "x",
+      cep: CEP,
+      nome: "Conta Da Auditoria",
+      telefone: TEL_AUDITORIA,
+      cpf: cpfSorteado(),
+      senha: SENHA_AUD,
+    });
+    checa("conta da auditoria criada", r.status === 201, r.json?.message ?? "");
+    await db.execute(sql`update buyers set telefone_confirmado_em = now() where phone = ${TEL_AUDITORIA}`);
+
+    const ruins = ["abc", "99999999999999", "1.5", "%00"];
+    const semErro500: string[] = [];
+    const naoEncontrados: string[] = [];
+    for (const v of ruins) {
+      const x = encodeURIComponent(v);
+      for (const caminho of [`/api/public/orders/${x}`, `/api/public/carrinho/pedidos/${x}`, `/api/public/tickets/${x}`]) {
+        const g = await aud.req("GET", caminho);
+        if (g.status >= 500) semErro500.push(`${caminho} → ${g.status}`);
+        if (g.status !== 404 && g.status !== 429) naoEncontrados.push(`${caminho} → ${g.status}`);
+      }
+      for (const caminho of [
+        `/api/public/stories/${x}/imagem`,
+        `/api/public/stories/${x}/poster`,
+        `/api/public/chamados/${x}`,
+        `/api/public/chamados/anexos/${x}`,
+      ]) {
+        const g = await aud.req("GET", caminho);
+        if (g.status >= 500) semErro500.push(`${caminho} → ${g.status}`);
+        if (g.status !== 404) naoEncontrados.push(`${caminho} → ${g.status}`);
+      }
+      for (const caminho of [`/api/public/chamados/${x}/mensagens`, `/api/public/chamados/${x}/disputa`]) {
+        const g = await aud.req("POST", caminho, { texto: "oi", motivo: "x".repeat(30) });
+        if (g.status >= 500) semErro500.push(`POST ${caminho} → ${g.status}`);
+        if (g.status !== 404) naoEncontrados.push(`POST ${caminho} → ${g.status}`);
+      }
+    }
+    checa("id/código fora do formato: nenhuma rota responde 500", semErro500.length === 0, semErro500.join("; "));
+    checa("e todas dizem 404 (ou 429 na consulta de pedido varrida)", naoEncontrados.length === 0, naoEncontrados.join("; "));
+    for (const orderCode of ["abc", 1.5, 3_000_000_000, -4, 1e20, null]) {
+      const g = await aud.req("POST", "/api/public/chamados", { orderCode, motivo: "quero meu dinheiro de volta", cpf: "52998224725" });
+      checa(`chamado com código de pedido ${JSON.stringify(orderCode)}: 404, não 500`, g.status === 404, `HTTP ${g.status}`);
+    }
+    for (const corpo of [{}, { campaignId: "abc", quantidade: 1 }, { campaignId: "", quantidade: "x" }]) {
+      const g = await aud.req("POST", "/api/public/bonus/resgatar", corpo);
+      checa(`resgate de bônus com rifa ${JSON.stringify(corpo.campaignId ?? null)}: 404, não 500`, g.status === 404, `HTTP ${g.status}`);
+    }
+    r = await aud.req("PUT", "/api/public/conta/perfil", {});
+    checa("perfil público com corpo vazio: 200 e nada muda (era 500)", r.status === 200, `HTTP ${r.status}`);
+    r = await aud.req("PUT", "/api/public/conta/perfil", { campoQueNaoExiste: 1 });
+    checa("perfil público com campo desconhecido: 200 e nada muda", r.status === 200, `HTTP ${r.status}`);
+
   } finally {
     await limpar();
   }

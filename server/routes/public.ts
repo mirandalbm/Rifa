@@ -1910,7 +1910,7 @@ async function lookupGuard(req: Request, res: Response): Promise<boolean> {
 publicRouter.get("/orders/:code", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await orderByCode(Number(req.params.code));
+    const found = await orderByCode(codigoDoPedido(req.params.code));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Pedido não encontrado." });
@@ -1962,7 +1962,7 @@ publicRouter.get("/orders/:code", async (req, res, next) => {
 publicRouter.get("/carrinho/pedidos/:codigo", async (req, res, next) => {
   try {
     if (!(await lookupGuard(req, res))) return;
-    const found = await cartByCode(Number(req.params.codigo));
+    const found = await cartByCode(codigoDoPedido(req.params.codigo));
     if (!found) {
       await recordLookupMiss(identify(req));
       return res.status(404).json({ message: "Carrinho não encontrado." });
@@ -2377,7 +2377,10 @@ publicRouter.post("/bonus/resgatar", async (req, res, next) => {
     const c = exigirComprador(req);
     const limite = await hit(`bonus-resgate:${c.id}`, 60, 10);
     if (limite.excedeu) return res.status(429).json({ message: "Muitos resgates em pouco tempo. Aguarde um pouco." });
-    const r = await resgatarCotasDeBonus(c.id, String(req.body?.campaignId ?? ""), Number(req.body?.quantidade));
+    // O id vem do corpo: fora do formato a rifa não existe (404), nunca 500 do Postgres.
+    const campaignId = String(req.body?.campaignId ?? "");
+    if (!ehUuid(campaignId)) return res.status(404).json({ message: "Rifa não encontrada." });
+    const r = await resgatarCotasDeBonus(c.id, campaignId, Number(req.body?.quantidade));
     res.status(201).json(r);
   } catch (err) {
     if (err instanceof NoQuotasAvailableError) return res.status(409).json({ message: err.message });

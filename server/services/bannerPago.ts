@@ -116,6 +116,7 @@ export async function comprarBanner(
           bytes,
           dias: preco.dias,
           precoDiaCents: cfg.precoDiaCents,
+          descontoPct: preco.descontoPct,
           valorPagoCents: preco.totalCents,
         })
         .returning(campos);

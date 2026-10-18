@@ -323,6 +323,15 @@ export const buyers = pgTable(
      */
     telefoneConfirmadoEm: timestamp("telefone_confirmado_em"),
     /**
+     * Sessões desta conta que começaram ANTES deste instante não valem mais
+     * (trocou a senha, provou o telefone, excluiu). Apagar as linhas de
+     * `sessions` não basta: uma requisição da sessão expulsa que já estava em
+     * andamento a regrava depois do `DELETE` (o `connect-pg-simple` faz
+     * `INSERT … ON CONFLICT DO UPDATE`). Quem confere é o middleware de
+     * `setupAuth`, a cada requisição, contra `session.buyer.entrouEm`.
+     */
+    sessoesValidasDesde: timestamp("sessoes_validas_desde"),
+    /**
      * Compras feitas antes da conta, pelo telefone, que passaram a ser da
      * conta porque o CPF delas bateu com o do cadastro. Vale para o que
      * existia até este instante — compra futura sem entrar não herda.

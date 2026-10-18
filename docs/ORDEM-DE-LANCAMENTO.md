@@ -127,6 +127,9 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   `taxa_aceite_versao` e `taxa_aceite_sha256` da taxa cobrada na aprovação
   (sem elas, o pedido e a lista dão 500; a campanha de antes fica com a
   marca nula e segue com a taxa diária).
+  E a coluna `buyers.sessoes_validas_desde` (a marca que derruba a sessão
+  expulsa que foi regravada; sem ela, toda requisição de apostador logado dá
+  500 — o middleware de `setupAuth` a lê).
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Criar o serviço do trabalhador (o gerador de vídeo) no Railway, com
   `npm run start:worker` e só o `DATABASE_URL` (passo a passo em

@@ -188,6 +188,7 @@ import {
   compradorDaSessao,
   dadosDaConta,
   entrarComoComprador,
+  sessaoProvouPorCodigo,
   entrarNaConta,
   encerrarOutrasSessoes,
   titularidadeDaSessao,
@@ -1213,7 +1214,7 @@ publicRouter.get("/notificacoes/resumo", async (req, res, next) => {
   try {
     const id = req.session.buyer?.id;
     // Sem sessão não é erro aqui: o coração só não mostra número.
-    res.json({ naoLidas: id ? await naoLidas(id) : 0 });
+    res.json({ naoLidas: id ? await naoLidas(id, await titularidadeDaSessao(req)) : 0 });
   } catch (err) {
     next(err);
   }
@@ -1222,7 +1223,8 @@ publicRouter.get("/notificacoes/resumo", async (req, res, next) => {
 publicRouter.get("/notificacoes", async (req, res, next) => {
   try {
     res.setHeader("Cache-Control", "private, no-store");
-    res.json(await notificacoesDe(donoDosAvisos(req)));
+    const dono = donoDosAvisos(req);
+    res.json(await notificacoesDe(dono, await titularidadeDaSessao(req)));
   } catch (err) {
     next(err);
   }
@@ -1230,7 +1232,8 @@ publicRouter.get("/notificacoes", async (req, res, next) => {
 
 publicRouter.post("/notificacoes/lidas", async (req, res, next) => {
   try {
-    await marcarTodasLidas(donoDosAvisos(req));
+    const dono = donoDosAvisos(req);
+    await marcarTodasLidas(dono, await titularidadeDaSessao(req));
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -2053,12 +2056,14 @@ publicRouter.post("/my-quotas/verify", async (req, res, next) => {
       req,
       buyer ? { id: buyer.id, phone: buyer.phone, name: buyer.name } : { id: "", phone, name: "" },
       true,
+      false,
+      true, // provado pelo código agora: só isto dispensa a senha atual (ver `codigoRecente`)
     );
     // Primeira prova do telefone numa conta que ninguém tinha provado: quem
     // entrou antes pela senha pode não ser o dono — sai.
     if (buyer && !buyer.telefoneConfirmadoEm) {
       await db.update(buyers).set({ telefoneConfirmadoEm: new Date() }).where(eq(buyers.id, buyer.id));
-      if (buyer.passwordHash) await encerrarOutrasSessoes(buyer.id, req.sessionID);
+      if (buyer.passwordHash) await encerrarOutrasSessoes(buyer.id, req);
     }
 
     res.json({
@@ -2220,7 +2225,10 @@ publicRouter.post("/conta/sair", (req, res) => {
 publicRouter.get("/conta", async (req, res, next) => {
   try {
     const sessao = compradorDaSessao(req);
-    res.json({ ...(await dadosDaConta(sessao.id)), sessaoConfirmada: sessao.confirmado === true });
+    const dados = await dadosDaConta(sessao.id);
+    // Conta com senha: "confirmada" é ter provado o código há pouco (a tela só
+    // pede a senha atual quando não). Sem senha para conferir, o telefone da sessão.
+    res.json({ ...dados, sessaoConfirmada: dados.temSenha ? sessaoProvouPorCodigo(req) : sessao.confirmado === true });
   } catch (err) {
     erroDeConta(err, res, next);
   }
@@ -2373,7 +2381,7 @@ publicRouter.get("/presente/meu", async (req, res, next) => {
 publicRouter.get("/bonus", async (req, res, next) => {
   try {
     const c = exigirComprador(req);
-    res.json(await estadoDoBonus(c.id));
+    res.json(await estadoDoBonus(c.id, (await titularidadeDaSessao(req)).telefoneConfirmado));
   } catch (err) {
     next(err);
   }
@@ -2383,9 +2391,17 @@ publicRouter.get("/bonus", async (req, res, next) => {
 publicRouter.post("/bonus/resgatar", async (req, res, next) => {
   try {
     const c = exigirComprador(req);
+    // O saldo é da linha do telefone: conta de telefone ainda não provado pode ser
+    // de quem se cadastrou com o número de outra pessoa. Ver e usar o bônus pede o código.
+    if (!(await titularidadeDaSessao(req)).telefoneConfirmado) {
+      return res.status(403).json({ message: "Confirme o telefone da conta pelo código do WhatsApp para usar o bônus." });
+    }
     const limite = await hit(`bonus-resgate:${c.id}`, 60, 10);
     if (limite.excedeu) return res.status(429).json({ message: "Muitos resgates em pouco tempo. Aguarde um pouco." });
-    const r = await resgatarCotasDeBonus(c.id, String(req.body?.campaignId ?? ""), Number(req.body?.quantidade));
+    // O id vem do corpo: fora do formato a rifa não existe (404), nunca 500 do Postgres.
+    const campaignId = String(req.body?.campaignId ?? "");
+    if (!ehUuid(campaignId)) return res.status(404).json({ message: "Rifa não encontrada." });
+    const r = await resgatarCotasDeBonus(c.id, campaignId, Number(req.body?.quantidade));
     res.status(201).json(r);
   } catch (err) {
     if (err instanceof NoQuotasAvailableError) return res.status(409).json({ message: err.message });

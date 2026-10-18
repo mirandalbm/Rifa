@@ -5,6 +5,7 @@ import {
   EMPRESA_VAZIA,
   GUARDADO_NO_NAVEGADOR,
   SESSAO_DIAS,
+  SESSAO_LEMBRAR_DIAS,
   conferirCampoDaEmpresa,
   conferirDadosDaEmpresa,
   faltaNaEmpresa,
@@ -165,6 +166,8 @@ describe("o que o site guarda no navegador (Privacidade, item 8)", () => {
   it("o cookie de sessão diz a mesma duração que o servidor usa", () => {
     expect(texto).toContain(`rifa.sid — `);
     expect(texto).toContain(`Vale ${SESSAO_DIAS} dias desde o último uso`);
+    // Com "Lembrar de mim" marcado (o padrão da tela de entrar) o servidor usa 30 dias.
+    expect(texto).toContain(`${SESSAO_LEMBRAR_DIAS} dias se você deixar marcado "Lembrar de mim"`);
   });
 
   it("os cookies de anúncio só depois do aceite, com a duração de cada fornecedor", () => {

@@ -99,6 +99,17 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
     `select apelido from buyers where apelido is not null and apelido <> '${APOSTADOR.apelido}' order by created_at limit 1`,
     "apostador com apelido",
   );
+  // O que o apostador das capturas comprou DENTRO da conta (via_conta): pedido pago,
+  // pedido esperando o Pix e o carrinho dele. Sem isso, Minhas compras, o bilhete, o
+  // Pix e o carrinho ficariam sem conferir com dado de verdade (veja `docs/VERSOES.md`).
+  const doApostador = (extra: string) =>
+    `select o.code from orders o join buyers b on b.id = o.buyer_id where b.apelido = '${APOSTADOR.apelido}' ${extra} order by o.created_at desc limit 1`;
+  const pedidoDele = await um(doApostador(`and o.status = 'paid'`), "pedido pago do apostador das capturas");
+  const pedidoAbertoDele = await um(doApostador(`and o.status = 'pending'`), "pedido com Pix aberto do apostador das capturas");
+  const carrinhoDele = await um(
+    `select c.codigo from carrinho_pedidos c join orders o on o.carrinho_id = c.id join buyers b on b.id = o.buyer_id where b.apelido = '${APOSTADOR.apelido}' order by c.created_at desc limit 1`,
+    "carrinho do apostador das capturas",
+  );
   const uf = await um(
     `select uf from organizations where slug = '${(rifa?.organizacao?.slug ?? "").replace(/'/g, "")}'`,
     "UF da promotora",
@@ -147,7 +158,26 @@ async function papeis(): Promise<{ papeis: Record<string, Papel>; carrinho: stri
           corpo: { identificador: APOSTADOR.telefone, senha: APOSTADOR.senha },
           criar: { url: "/api/public/conta", corpo: APOSTADOR },
         },
-        rotas: ["/", "/perfil", "/perfil/configuracoes", "/perfil/bilhetes", "/minhas-cotas", "/minhas-cotas?aba=conta", "/notificacoes", "/mensagens", "/publicar", `/u/${APOSTADOR.apelido}`, ...so(r, `/r/${r}`)],
+        rotas: [
+          "/",
+          "/perfil",
+          "/perfil/configuracoes",
+          "/perfil/bilhetes",
+          "/minhas-cotas",
+          "/minhas-cotas?aba=conta",
+          "/minhas-cotas?aba=reembolsos",
+          "/minhas-cotas?aba=bonus",
+          "/minhas-cotas?aba=salvos",
+          "/notificacoes",
+          "/mensagens",
+          "/publicar",
+          "/carrinho",
+          ...so(pedidoDele, `/pedido/${pedidoDele}`, `/bilhete/${pedidoDele}`),
+          ...so(pedidoAbertoDele, `/pedido/${pedidoAbertoDele}`),
+          ...so(carrinhoDele, `/carrinho/pix/${carrinhoDele}`),
+          `/u/${APOSTADOR.apelido}`,
+          ...so(r, `/r/${r}`),
+        ],
       },
       organizador: {
         login: { url: "/api/auth/login", corpo: { email: "marina@rifassaojose.br", password: "organizador123" } },
@@ -360,6 +390,23 @@ function julgar(m: Medida, erros: string[], consoleErros: string[]) {
   return { reprova, avisos };
 }
 
+/**
+ * Entra uma vez só por papel, num contexto à parte, e devolve a sessão
+ * (`storageState`) para as três larguras. Entrar em cada largura gastava 3 das
+ * 8 tentativas de entrada de 15 minutos (`guardLogin` conta também a que
+ * acerta): a terceira rodada seguida era barrada, o papel era pulado e a
+ * ferramenta saía com 0 reprovações.
+ */
+async function entrarUmaVez(navegador: import("playwright-core").Browser, login: Login) {
+  const ctx = await navegador.newContext();
+  try {
+    if (!(await entrar(ctx, login))) return null;
+    return await ctx.storageState();
+  } finally {
+    await ctx.close();
+  }
+}
+
 async function entrar(ctx: import("playwright-core").BrowserContext, login: Login) {
   const tentar = () => ctx.request.post(URL + login.url, { data: login.corpo });
   let r = await tentar();
@@ -407,12 +454,23 @@ async function main() {
   const { papeis: todos, carrinho, faltou } = await papeis();
   const navegador = await chromium.launch({ executablePath: CHROMIUM });
   const linhas: Linha[] = [];
+  const semLogin: string[] = [];
 
   for (const [papel, cfg] of Object.entries(todos)) {
     if (SO_PAPEIS && !SO_PAPEIS.includes(papel)) continue;
     console.log(`\n${papel}`);
+    const estado = cfg.login ? await entrarUmaVez(navegador, cfg.login) : undefined;
+    if (cfg.login && !estado) {
+      // Papel que não entra não foi auditado: isso reprova a rodada, não passa calado.
+      console.log(`  ✗ não entrou como ${papel} — as telas dele NÃO foram conferidas`);
+      semLogin.push(papel);
+      continue;
+    }
     for (const largura of LARGURAS) {
-      const ctx = await navegador.newContext({ viewport: { width: largura, height: altura(largura) } });
+      const ctx = await navegador.newContext({
+        viewport: { width: largura, height: altura(largura) },
+        ...(estado ? { storageState: estado } : {}),
+      });
       // O tsx embrulha função com `__name` (keepNames do esbuild); na página ela não existe.
       await ctx.addInitScript("window.__name = (f) => f;");
       // Tema da rodada, sem o convite de instalar por cima, e duas rifas à
@@ -425,11 +483,6 @@ async function main() {
         },
         { tema: TEMA, slugs: carrinho },
       );
-      if (cfg.login && !(await entrar(ctx, cfg.login))) {
-        console.log(`  ✗ não entrou como ${papel} — pulando`);
-        await ctx.close();
-        break;
-      }
       const pagina = await ctx.newPage();
       let erros: string[] = [];
       let consoleErros: string[] = [];
@@ -485,9 +538,10 @@ async function main() {
   console.log(
     `\n${linhas.length} capturas em ${path.relative(process.cwd(), SAIDA) || "."}/ — ${reprovadas.length} reprovada(s), ${comAviso.length} com aviso.`,
   );
+  if (semLogin.length) console.log(`Não entrou como: ${semLogin.join(", ")} (reprova a rodada).`);
   if (faltou.length) console.log(`Sem exemplo no banco (rota fora): ${faltou.join(", ")}.`);
   console.log(`Veja lado a lado: ${path.join(SAIDA, "index.html")}`);
-  process.exit(reprovadas.length ? 1 : 0);
+  process.exit(reprovadas.length || semLogin.length ? 1 : 0);
 }
 
 main().catch(async (e) => {

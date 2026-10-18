@@ -385,6 +385,34 @@ código só depois do plano combinado com ele.
   `claude/rename-jogo-do-bicho-glo23j` (esta já copiada para o repositório do
   jogo do bicho).
 
+## 4b. Subdomínio do organizador (plano em `docs/PLANO-SUBDOMINIO.md`)
+
+Decidido em 18/10/2026: `<rotulo>.loteriasdobem.com.br` só para a organização
+(o de afiliado, `af-<código>`, fica para depois), login por endereço, nenhum
+cookie no domínio base. Existe só a regra pura (`shared/subdominio.ts`) e o
+middleware que marca a requisição; nenhuma rota usa o destino.
+
+- [ ] **[decisão]** As 12 perguntas do capítulo 12 do plano (rótulo = slug com
+  interruptor por organização, marca no endereço, páginas globais, domínio
+  principal canônico, organização suspensa, Google no endereço, anúncio sem
+  endereço, indexação, PWA, lista de reservados e marcas, cookie `__Host-`,
+  PSL e Cloudflare).
+- [ ] **[advogado]** R30 a R35 (`docs/PERGUNTAS-AO-ADVOGADO.md`, quinta rodada).
+- [ ] **[você]** Cadastrar o curinga `*.loteriasdobem.com.br` no Railway; escolher o
+  domínio principal canônico (raiz ou `www`); aprovar a lista de reservados.
+- [ ] **[código]** PR 1: endurecimento que independe do domínio (`__Host-rifa.sid`,
+  `Origin` por host em modo relatório, correções de `identificarHost`, `www` para o
+  principal).
+- [ ] **[código]** PR 2: guarda do endereço no servidor, `organizations.endereco_ativo`
+  (`db:push` antes), `GET /api/public/endereco`, `npm run subdominio`, entradas do `isolation`.
+- [ ] **[código]** PR 3: roteador por endereço no SPA (+ rodada de `npm run telas` com `*.localhost`).
+- [ ] **[código]** PR 4: URLs absolutas pelo endereço (artes, kit do afiliado, curtos, QR,
+  WhatsApp, push, tráfego pago, marketing por servidor).
+- [ ] **[código]** PR 5: pixels, cookies e Privacidade por endereço. PR 6: canonical, Open
+  Graph, `robots.txt` e `sitemap.xml` por host. PR 7: ligar (`SUBDOMINIO_BASE`).
+- [ ] **[código, depois]** Cloudflare (`ipViaCloudflare`), Lista de Sufixos Públicos,
+  login do Google por *hand-off*, manifesto e PWA por endereço, endereço de afiliado.
+
 ## 5. Fase 5 (plano em `docs/PLANO-FASE5.md`)
 
 Na ordem de entrega do plano:

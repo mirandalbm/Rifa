@@ -106,7 +106,8 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 
   Com alguma linha, resolva o caso antes (a plataforma confere o que está a
   conferir, ou o outro chamado é decidido) e rode a consulta de novo.
-- [ ] **`npm run db:push`** (cria a extensão `pg_trgm` antes; o usuário do
+- [x] **`npm run db:push`** (feito em produção em 18/10/2026, ver a nota no fim
+  deste item; cria a extensão `pg_trgm` antes; o usuário do
   banco precisa poder criar extensão) e, **logo depois, uma vez**:
   `UPDATE stories SET publica_em = created_at WHERE publica_em > created_at`.
   O rascunho criado antes da apuração pela Federal fica sem método: a
@@ -146,6 +147,25 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   nada sem o `db:push` (nada grava nelas até o passo 2). Uma coisa a saber: o
   `drizzle-kit` não troca a expressão de um `check` que já existe — o
   `ck_banner_pedido_modo` nasce certo no primeiro `db:push`.
+  **Feito em 18/10/2026** (código no `main` em `2172614`): o `db:push` rodou na
+  produção sem pedir confirmação de perda de dados e foi conferido no banco —
+  as colunas `buyers.sessoes_validas_desde` e `users.sessoes_validas_desde`, as
+  tabelas `banner_cliques` e `banner_diario` existem e nenhum cambista ficou
+  sem organização (0 linhas em `users` com `role = 'cambista'` e
+  `organization_id` nulo); o site e o painel abriram normalmente depois.
+  **Como foi feito**: o Postgres da Railway não tinha proxy público (a
+  integração da Railway não criou o proxy e o painel não oferecia o botão) e
+  a conexão interna (`postgres.railway.internal`) só vale dentro da rede dela;
+  então o comando rodou **dentro do serviço Rifa**, que já traz o
+  `drizzle-kit`, o `tsx` e a `DATABASE_URL`: `railway ssh --service Rifa` e,
+  no terminal do container, `npm run db:push` (sem `--force`; se pedir
+  confirmação de perda, responda não e leia o aviso). Assim o banco não foi
+  aberto na internet e a URL não saiu da Railway. **Os dois `UPDATE` de uma
+  vez** citados acima (`stories.publica_em` e a impressão SHA-256 dos
+  contratos e aceites de antes) **foram conferidos e não são necessários**
+  (18/10/2026): o banco tem 0 stories, 0 contratos e 0 aceites, então não
+  há linha a corrigir. Se o banco ganhar esses dados antes de um novo
+  `db:push` de coluna, volte a conferir.
 - [ ] Deploy. Conferir a verificação de saúde e os relógios no log.
 - [ ] Criar o serviço do trabalhador (o gerador de vídeo) no Railway, com
   `npm run start:worker` e só o `DATABASE_URL` (passo a passo em

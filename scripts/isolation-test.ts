@@ -1096,6 +1096,30 @@ async function tipoErradoNoCorpo(eu: Lado) {
   checa("contato que não é texto: 400", contato.status === 400, `HTTP ${contato.status}`);
   const administradora = await pedir(eu.cookie, "/api/admin/organizer", { method: "PUT", body: '{"nome":123}' });
   checa("a administradora com nome que não é texto: 400", administradora.status === 400, `HTTP ${administradora.status}`);
+  // Auditoria do acesso marketing: pixel e chave de API são dado, nunca script; o tipo errado é 400.
+  for (const [nome, corpo] of [
+    ["pixel que é objeto", { pixels: { meta: { a: 1 } } }],
+    ["pixel com cara de script", { pixels: { meta: "123456789012345 <script>alert(1)</script>" } }],
+    ["pixels que não são objeto", { pixels: "x" }],
+    ["chave de API que é lista de objeto", { credenciais: { metaToken: [{ a: 1 }] } }],
+    ["chaves que não são objeto", { credenciais: "x" }],
+  ] as [string, unknown][]) {
+    const res = await pedir(eu.cookie, "/api/admin/marketing", { method: "PUT", body: JSON.stringify(corpo) });
+    checa(`marketing com ${nome}: 400`, res.status === 400, `HTTP ${res.status}`);
+  }
+  // Chave herdada do Object (`constructor`) onde a lista é fechada: recusa ou ignora, nunca 500 nem grava.
+  const tipoHerdado = await pedir(eu.cookie, `/api/admin/campaigns/${eu.campaignId}/banner-divulgacao/documentos/constructor`, {
+    method: "PUT",
+    body: JSON.stringify({ arquivo: "data:image/png;base64,iVBORw0KGgo=" }),
+  });
+  checa("documento da entidade com tipo 'constructor': 400", tipoHerdado.status === 400, `HTTP ${tipoHerdado.status}`);
+  const statusHerdado = await pedir(eu.cookie, "/api/admin/divulgacoes?status=constructor");
+  checa("fila de divulgações com status 'constructor': 200 sem filtro, não 500", statusHerdado.status === 200, `HTTP ${statusHerdado.status}`);
+  const trafegoTorto = await pedir(eu.cookie, "/api/admin/trafego/campanhas", {
+    method: "POST",
+    body: JSON.stringify({ campaignId: [eu.campaignId, eu.campaignId], redes: "google" }),
+  });
+  checa("campanha de tráfego com a rifa em lista e a rede em texto: nunca 500", trafegoTorto.status < 500, `HTTP ${trafegoTorto.status}`);
 }
 
 /**

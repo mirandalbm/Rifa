@@ -28,7 +28,7 @@ import { hashValue } from "../server/services/antifraude";
 import { db, pool } from "../server/db";
 import { hashPassword } from "../server/auth";
 import { appSettings, campaignStats, campaigns, orders, organizations, patrocinioAnuncios, patrocinioRecargas, users } from "../shared/schema";
-import { CLIQUES_POR_IP, encerrarAnunciosForaDoAr } from "../server/services/patrocinio";
+import { CLIQUES_POR_IP, encerrarAnunciosForaDoAr, estornarRecarga } from "../server/services/patrocinio";
 
 const URL = baseUrl();
 let falhas = 0;
@@ -86,7 +86,7 @@ async function limpar() {
   await db.delete(users).where(inArray(users.email, EMAILS));
   if (ids.length) await db.delete(organizations).where(inArray(organizations.id, ids));
   await db.execute(sql`delete from buyers where phone like '1194443%'`);
-  await db.execute(sql`delete from rate_events where bucket like 'patrocinio-%' or bucket like 'login:%' or bucket like 'order:%'`);
+  await db.execute(sql`delete from rate_events where bucket like 'patrocinio-%' or bucket like 'login:%' or bucket like 'order:%' or bucket like 'recarga:%' or bucket like 'reembolso-mensagem:%'`);
 }
 
 async function saldo(id: string) {
@@ -192,6 +192,34 @@ async function main() {
     checa("pago: credita uma vez só", (await saldo(A.id)) === 2000, String(await saldo(A.id)));
     const [rec] = await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.codigo, codigo));
     checa("a recarga fica paga", rec.status === "paga");
+
+    // Auditoria do acesso marketing: o Pix da recarga devolvido no provedor tira o crédito que deu — uma vez só,
+    // e só o que ainda há no saldo (o resto fica na auditoria, não vira saldo negativo).
+    {
+      const base0 = await saldo(A.id);
+      const rr = await orgA.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 3000 });
+      await fetch(`${URL}/api/dev/recarga/${rr.json?.codigo}`, { method: "POST" });
+      const [paga] = await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.codigo, rr.json?.codigo));
+      checa("recarga paga credita antes do estorno", (await saldo(A.id)) === base0 + 3000 && paga.status === "paga", String(await saldo(A.id)));
+      checa("a cobrança da recarga é reconhecida pelo estorno", (await estornarRecarga(paga.chargeId!)) === true);
+      checa("…o crédito sai do saldo e a recarga fica estornada", (await saldo(A.id)) === base0 && (await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.id, paga.id)))[0].status === "estornada");
+      checa("…o aviso repetido do provedor não tira de novo", (await estornarRecarga(paga.chargeId!)) === true && (await saldo(A.id)) === base0);
+      const noLivro = await db.execute(sql`select count(*)::int as n from patrocinio_lancamentos where chave = ${`recarga-estorno:${paga.id}`}`);
+      checa("…uma linha só no livro", Number((noLivro.rows[0] as { n: number }).n) === 1);
+      checa("cobrança que não é de recarga segue para o estorno de pedido", (await estornarRecarga("cobranca-que-nao-existe")) === false);
+      // Gastou antes do estorno: sai só o que ainda há.
+      const rr2 = await orgA.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 3000 });
+      await fetch(`${URL}/api/dev/recarga/${rr2.json?.codigo}`, { method: "POST" });
+      await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: A.id, valorCents: -(base0 + 2000), descricao: "Simula o gasto antes do estorno" });
+      const [paga2] = await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.codigo, rr2.json?.codigo));
+      checa("com 10,00 no saldo e 30,00 estornados, sai só o que há (saldo zero, nunca negativo)", (await estornarRecarga(paga2.chargeId!)) === true && (await saldo(A.id)) === 0, String(await saldo(A.id)));
+      const trilha = await db.execute(sql`select diff from audit_log where action = 'patrocinio.recarga.estornada' and entity_id = ${paga2.id}`);
+      const diff = (trilha.rows[0] as { diff: { debitadoCents: number; faltouCents: number } } | undefined)?.diff;
+      checa("…e o resto que não voltou fica na auditoria", diff?.debitadoCents === 1000 && diff?.faltouCents === 2000, JSON.stringify(diff));
+      await admin.req("POST", "/api/admin/patrocinio/ajustes", { organizationId: A.id, valorCents: base0, descricao: "Volta o saldo do teste" });
+      await db.execute(sql`delete from audit_log where action = 'patrocinio.recarga.estornada'`);
+      checa("saldo de volta ao que o teste espera", (await saldo(A.id)) === base0, String(await saldo(A.id)));
+    }
     r = await admin.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 2000 });
     checa("a plataforma não recarrega (usa ajuste)", r.status === 400, `HTTP ${r.status}`);
 
@@ -220,6 +248,44 @@ async function main() {
     r = await comprar(orgA, { campaignId: rA.id, alcance: "nacional", cliques: 10 });
     const quantosDepois = (await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.organizationId, A.id))).length;
     checa("sem saldo: 409 e nada entra na fila", r.status === 409 && quantosDepois === quantosAntes && (await saldo(A.id)) === 110, `HTTP ${r.status}`);
+
+    // Auditoria do acesso marketing: quem compra, o tipo do corpo, a rifa que não vende e o ritmo da recarga.
+    {
+      const saldoAntes = await saldo(A.id);
+      const anunciosAntes = (await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.organizationId, A.id))).length;
+      const nadaMudou = async () =>
+        (await saldo(A.id)) === saldoAntes &&
+        (await db.select().from(patrocinioAnuncios).where(eq(patrocinioAnuncios.organizationId, A.id))).length === anunciosAntes;
+      r = await admin.req("POST", "/api/admin/patrocinio/anuncios", { campaignId: rA.id, alcance: "nacional", cliques: 3 });
+      checa("a plataforma não gasta o saldo da organização (403), nada debitado", r.status === 403 && (await nadaMudou()), `HTTP ${r.status}`);
+      for (const alcance of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+        r = await comprar(orgA, { campaignId: rA.id, alcance, uf: "SP", cidade: "Campinas", cliques: 3 });
+        checa(`alcance "${alcance}" (chave herdada do Object): 400, nada debitado`, r.status === 400 && (await nadaMudou()), `HTTP ${r.status}`);
+      }
+      for (const cliques of [[3], true, "", "3x", { n: 3 }]) {
+        r = await comprar(orgA, { campaignId: rA.id, alcance: "nacional", cliques });
+        checa(`cliques ${JSON.stringify(cliques)} não é número: 400, nada debitado`, r.status === 400 && (await nadaMudou()), `HTTP ${r.status}`);
+      }
+      const [demo] = await db
+        .insert(campaigns)
+        .values({ organizationId: A.id, slug: "patrocinio-a-demo", title: "Demo", prizeTitle: "Moto", totalQuotas: 1000, priceCents: 500, status: "published", publishedAt: new Date(), drawAt: new Date(Date.now() + 10 * 86_400_000), authorizationCode: "SPA-DEMO", demonstracao: true })
+        .returning();
+      r = await comprar(orgA, { campaignId: demo.id, alcance: "nacional", cliques: 3 });
+      checa("rifa de demonstração não se patrocina (409)", r.status === 409 && (await nadaMudou()), `HTTP ${r.status}`);
+      await db.update(campaigns).set({ demonstracao: false, travadaEm: new Date() }).where(eq(campaigns.id, demo.id));
+      r = await comprar(orgA, { campaignId: demo.id, alcance: "nacional", cliques: 3 });
+      checa("rifa travada pela plataforma não se patrocina (409)", r.status === 409 && (await nadaMudou()), `HTTP ${r.status}`);
+      await db.delete(campaignStats).where(eq(campaignStats.campaignId, demo.id));
+      await db.delete(campaigns).where(eq(campaigns.id, demo.id));
+      // A recarga chama o provedor do Pix com a conta da plataforma: dez por hora por organização, o resto é 429.
+      const antesRecargas = (await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.organizationId, A.id))).length;
+      const respostas: number[] = [];
+      for (let i = 0; i < 14; i++) respostas.push((await orgA.req("POST", "/api/admin/patrocinio/recargas", { valorCents: 2000 })).status);
+      const criadas = (await db.select().from(patrocinioRecargas).where(eq(patrocinioRecargas.organizationId, A.id))).length - antesRecargas;
+      checa("recarga em rajada: para em 10 por hora e responde 429", respostas.includes(429) && criadas <= 10 && respostas.filter((x) => x === 201).length === criadas, `${respostas.join()} criadas=${criadas}`);
+      await db.execute(sql`delete from patrocinio_recargas where organization_id = ${A.id}::uuid and status = 'pendente'`);
+      await db.execute(sql`delete from rate_events where bucket like 'recarga:%'`);
+    }
 
     r = await comprar(orgB, { campaignId: rB.id, alcance: "nacional", cliques: 3 });
     const nB = r.json?.id as string;
@@ -279,6 +345,11 @@ async function main() {
     checa("a organização escreve", r.status === 201 && r.json?.autor === "organizacao", `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/mensagens`, { texto: "Estamos conferindo a divulgação externa." });
     checa("o suporte responde", r.status === 201 && r.json?.autor === "plataforma", `HTTP ${r.status}`);
+    // A conversa do pedido aberto tem teto: 30 mensagens a cada 10 minutos por pessoa.
+    const rajada: number[] = [];
+    for (let i = 0; i < 33; i++) rajada.push((await orgB.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/mensagens`, { texto: `Mensagem ${i} da rajada` })).status);
+    checa("mensagens em rajada: param no teto e respondem 429", rajada.includes(429) && rajada.filter((x) => x === 201).length <= 30, rajada.join());
+    await db.execute(sql`delete from rate_events where bucket like 'reembolso-mensagem:%'`);
     r = await orgB.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/decisao`, { aprovar: true, retidoCents: 0, explicacao: "Eu mesmo aprovo isto." });
     checa("organizador não decide (403)", r.status === 403, `HTTP ${r.status}`);
     r = await admin.req("POST", `/api/admin/patrocinio/reembolsos/${pedidoR.id}/decisao`, { aprovar: true, retidoCents: 400, explicacao: "Retido maior que o pedido." });

@@ -967,7 +967,7 @@ export async function salvarModo(orgId: string, entrada: unknown) {
  */
 export async function listarDaOrganizacao(req: Request, status?: unknown, campaignId?: string | null) {
   const org = orgOf(req);
-  const filtro = typeof status === "string" && status in STATUS_DA_DIVULGACAO ? status : null;
+  const filtro = typeof status === "string" && Object.hasOwn(STATUS_DA_DIVULGACAO, status) ? status : null;
   const linhas = await db
     .select({
       id: divulgacoes.id,

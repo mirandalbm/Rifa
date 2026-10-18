@@ -317,6 +317,7 @@ import {
   publicarAnexo,
 } from "../services/contratoAnexos";
 import { EMPRESA_VAZIA } from "@shared/legal";
+import { numeroDoCorpo } from "@shared/inteiro";
 
 export const adminRouter = Router();
 
@@ -5538,7 +5539,7 @@ adminRouter.post("/patrocinio/reembolsos/:id/pago", async (req, res, next) => {
 
 adminRouter.post("/patrocinio/recargas", async (req, res, next) => {
   try {
-    const r = await pedirRecarga(req, Number(req.body?.valorCents));
+    const r = await pedirRecarga(req, numeroDoCorpo(req.body?.valorCents));
     await audit(req, "patrocinio.recarga", "patrocinio_recarga", r.id, { valorCents: r.valorCents, codigo: r.codigo });
     res.status(201).json({ id: r.id, codigo: r.codigo, valorCents: r.valorCents, pix: { qr: r.pixQr, copyPaste: r.pixCopyPaste }, expiresAt: r.expiresAt });
   } catch (err) {
@@ -5585,7 +5586,7 @@ adminRouter.post("/patrocinio/ajustes", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
     const organizationId = String(req.body?.organizationId ?? "");
-    const valorCents = Number(req.body?.valorCents);
+    const valorCents = numeroDoCorpo(req.body?.valorCents);
     const r = await ajustarSaldo(req, organizationId, valorCents, String(req.body?.descricao ?? ""));
     await audit(req, "patrocinio.ajuste", "organization", organizationId, { valorCents, saldoCents: r.saldoCents });
     res.json(r);

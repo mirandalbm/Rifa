@@ -15,17 +15,22 @@ import {
 
 type Resposta = { plataforma: Pixels | null; organizacao: Pixels | null };
 
-/** Os pixels que valem nesta página (plataforma + promotora da página). Vazio: nada a carregar. */
-function useAlvos(): Pixels[] {
+/** Os pixels que valem nesta página (plataforma + promotora da página) e se a resposta já chegou. */
+function useAlvosComEstado(): { alvos: Pixels[]; carregado: boolean } {
   const org = useOrganizacaoDaPagina();
   const { data } = useQuery<Resposta>({
     queryKey: [org ? `/api/public/marketing?organizacao=${encodeURIComponent(org)}` : "/api/public/marketing"],
     staleTime: 5 * 60_000,
   });
   return useMemo(() => {
-    if (!data) return [];
-    return [data.plataforma, data.organizacao].filter(Boolean) as Pixels[];
+    if (!data) return { alvos: [], carregado: false };
+    return { alvos: [data.plataforma, data.organizacao].filter(Boolean) as Pixels[], carregado: true };
   }, [data]);
+}
+
+/** Os pixels que valem nesta página. Vazio: nada a carregar. */
+function useAlvos(): Pixels[] {
+  return useAlvosComEstado().alvos;
 }
 
 /**
@@ -34,7 +39,7 @@ function useAlvos(): Pixels[] {
  * "aceito": carrega os pixels e conta a página vista a cada troca de rota.
  */
 export function Marketing() {
-  const alvos = useAlvos();
+  const { alvos, carregado } = useAlvosComEstado();
   const escolha = useEscolha();
   const [local] = useLocation();
 
@@ -43,10 +48,12 @@ export function Marketing() {
   }, [escolha]);
 
   useEffect(() => {
-    if (escolha !== "aceito" || !alvos.length) return;
-    carregarPixels(alvos);
+    // Sem a resposta ainda, nada a decidir (a página nova pode ter pixel). Com ela, e vazia, o pixel que
+    // sobrou da página anterior também sai — `carregarPixels` recarrega.
+    if (escolha !== "aceito" || !carregado) return;
+    if (carregarPixels(alvos) === "recarregando" || !alvos.length) return;
     rastrear({ tipo: "pagina" }, alvos);
-  }, [escolha, alvos, local]);
+  }, [escolha, alvos, carregado, local]);
 
   if (!alvos.length || escolha) return null;
   return <AvisoDeCookies />;

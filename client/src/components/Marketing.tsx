@@ -2,7 +2,9 @@ import { acimaDoConsole } from "@/components/Console";
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { TEXTO_DO_AVISO_DE_COOKIES, type Pixels } from "@shared/marketing";
+import { TEXTO_DO_AVISO_DE_COOKIES, pixelsNoEndereco, textoDoAvisoNoEndereco, type Pixels } from "@shared/marketing";
+import { enderecoDoApp, noEnderecoDaOrganizacao } from "@/lib/endereco";
+import { useTemplate } from "@/lib/template";
 import {
   apagarCookiesDeMedicao,
   carregarPixels,
@@ -24,7 +26,9 @@ function useAlvosComEstado(): { alvos: Pixels[]; carregado: boolean } {
   });
   return useMemo(() => {
     if (!data) return { alvos: [], carregado: false };
-    return { alvos: [data.plataforma, data.organizacao].filter(Boolean) as Pixels[], carregado: true };
+    // No endereço de uma organização, sem o isolamento dos cookies, Meta e TikTok não carregam (shared/marketing.ts).
+    const todos = [data.plataforma, data.organizacao].filter(Boolean) as Pixels[];
+    return { alvos: pixelsNoEndereco(todos, noEnderecoDaOrganizacao()), carregado: true };
   }, [data]);
 }
 
@@ -77,6 +81,9 @@ export function useRastreio(): ((e: Evento) => void) & { pronto: boolean } {
  * fácil quanto aceitar. Fica acima do rodapé fixo.
  */
 function AvisoDeCookies() {
+  const template = useTemplate();
+  const endereco = enderecoDoApp();
+  const textos = endereco.tipo === "organizacao" ? textoDoAvisoNoEndereco(template.identidade.nome, endereco.nome) : TEXTO_DO_AVISO_DE_COOKIES;
   return (
     <div
       role="dialog"
@@ -85,7 +92,7 @@ function AvisoDeCookies() {
       style={{ ["--acima-do-console" as string]: acimaDoConsole }}
     >
       <div className="mx-auto max-w-3xl rounded-xl border border-line bg-white p-4 text-sm shadow-lg">
-        {TEXTO_DO_AVISO_DE_COOKIES.map((t, i) => (
+        {textos.map((t, i) => (
           <p key={i} className={i ? "mt-2 text-xs text-muted" : undefined}>
             {t}
           </p>

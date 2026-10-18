@@ -214,6 +214,42 @@ export const TEXTO_DO_AVISO_DE_COOKIES = [
 ];
 
 /**
+ * O isolamento dos cookies entre os endereços das organizações já vale? Só vale quando
+ * `loteriasdobem.com.br` estiver na Lista de Sufixos Públicos e os navegadores a tiverem aplicado
+ * (docs/PLANO-SUBDOMINIO.md, cap. 15.3). **Enquanto for falso, o pixel da Meta e o do TikTok não
+ * carregam no endereço de uma organização**: o `_fbp`/`_fbc`/`_ttp` iria para o domínio comum e o mesmo
+ * identificador apareceria em promotoras diferentes — compartilhamento entre controladores que um
+ * consentimento dado numa promotora não cobre (parecer do advogado, 18/10/2026, R32). Ao virar `true`,
+ * suba `VERSAO_DO_AVISO` (o texto do endereço passa a citar Meta e TikTok).
+ */
+export const ISOLAMENTO_DE_COOKIES_VALENDO = false;
+
+/**
+ * Os pixels que valem no endereço de uma organização: sem o isolamento, só o Google (o cookie dele já
+ * é preso ao host, `opcoesDoGoogle`). Fora do endereço, nada muda. Pixel que fica sem identificador
+ * nenhum sai da lista (o aviso de cookies não aparece por causa dele).
+ */
+export function pixelsNoEndereco(alvos: Pixels[], noEndereco: boolean, isolamento: boolean = ISOLAMENTO_DE_COOKIES_VALENDO): Pixels[] {
+  if (!noEndereco || isolamento) return alvos;
+  return alvos
+    .map((p) => ({ ...p, meta: undefined, tiktok: undefined }) as Pixels)
+    .filter((p) => idsDosPixels([p]).length > 0);
+}
+
+/**
+ * O aviso de cookies **do endereço de uma organização** (redação do advogado, 18/10/2026): a promotora
+ * é a controladora dos cookies de medição daquele endereço e a plataforma, a operadora. Cita só as redes
+ * que de fato carregam ali.
+ */
+export function textoDoAvisoNoEndereco(plataforma: string, promotora: string, isolamento: boolean = ISOLAMENTO_DE_COOKIES_VALENDO): string[] {
+  const redes = isolamento ? "Meta, Google e TikTok" : "Google";
+  return [
+    `Cookies neste endereço. Este endereço é operado pela ${plataforma} para a ${promotora}, que é a controladora dos cookies de medição de anúncios aqui instalados. A plataforma atua como operadora, instalando e executando os cookies conforme as instruções da promotora.`,
+    `Os cookies de anúncio (${redes}) só são ativados se você aceitar; recusar não muda nada na compra, e os já instalados são removidos. A lista completa, com finalidades e prazos, está no item 8 da Política de Privacidade.`,
+  ];
+}
+
+/**
  * Os cookies de medição dos pixels — os nomes da Privacidade (item 8,
  * `GUARDADO_NO_NAVEGADOR`): _fbp e _fbc, _ga e _ga_<id>, _gcl_au, _ttp e
  * _tt_enable_cookie. Recusar apaga todos os que estiverem no navegador.

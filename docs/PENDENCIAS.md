@@ -626,8 +626,17 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   18/10/2026; `PLANO-SUBDOMINIO.md`, 15.2): o domínio próprio vira opcional (só para
   anunciar) e o único bloqueio de ligar a base é o cookie `_fbp`/`_ttp` (R32).
   **Mensagens no endereço feito** (só a conversa com a organização dele, decidido em 18/10/2026).
-- [ ] **[advogado → texto]** Levar ao contrato da promotora as cláusulas R33 e R34 e ao
-  termo do afiliado a proibição da R35; conferir o texto final com o advogado.
+- [x] **[código]** Meta e TikTok **não carregam no endereço da organização** enquanto o
+  isolamento dos cookies não vale (`ISOLAMENTO_DE_COOKIES_VALENDO`, parecer do advogado de
+  18/10/2026); o aviso do endereço traz a redação dele. Tira o bloqueio de R32 para ligar a
+  base. `PLANO-SUBDOMINIO.md`, cap. 15.3.
+- [ ] **[você]** Pedir a inclusão de `loteriasdobem.com.br` na Lista de Sufixos Públicos
+  (dono do domínio; 2 anos de registro restantes; TXT `_psl`). Quando valer: virar a
+  constante, subir `VERSAO_DO_AVISO` e atualizar o item 8 da Privacidade (controladora =
+  promotora no endereço; sobe `VIGENCIA_DOS_TERMOS`).
+- [ ] **[advogado → texto]** Redigidas pelo advogado (`PERGUNTAS-AO-ADVOGADO.md`, oitava
+  rodada): R33 e R34 no contrato da promotora e R35 no termo do afiliado. Falta **publicar**
+  (nova versão do contrato e do termo) e o advogado conferir o texto final.
 - [ ] **[código]** Anúncio pago (`linkDoAnuncio`, tráfego): com o parecer, o destino
   pago não pode ser o subdomínio; hoje, com a base desligada, segue o principal — manter
   assim até existir o domínio próprio da promotora.

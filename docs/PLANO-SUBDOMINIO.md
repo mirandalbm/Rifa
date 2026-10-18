@@ -961,3 +961,29 @@ falar direto com o usuário** — não para ser destino de anúncio. Por isso:
   desligou a caixa. A caixa inteira da pessoa segue no domínio principal;
   `npm run subdominio` prova o isolamento.
 
+
+### 15.3 Cookies de pixel por host: o que se decidiu (18/10/2026)
+
+Respostas do especialista técnico e do advogado (`docs/PERGUNTAS-AO-ADVOGADO.md`, oitava
+rodada):
+
+- **Lista de Sufixos Públicos é a correção estrutural, mas não é imediata.** Exige o
+  domínio com pelo menos 2 anos de registro restantes, o registro TXT `_psl` no DNS com o
+  link do pedido e pedido de quem é dono do domínio, por e-mail de função. O Firefox aplica em
+  semanas; Chrome, Edge e Safari levam meses (prazos sem fonte oficial — confirmar).
+- **No apex o cookie com `Domain` amplo deixa de valer; o nosso `rifa.sid` não define
+  `Domain`** (host-only, `server/auth.ts`), então a sessão não muda. Entre promotoras passa
+  a ser cross-site (`SameSite`), que é o isolamento desejado; carrinho e conta continuam no
+  domínio de cada endereço.
+- **Meta e TikTok não têm opção oficial de gravar `_fbp`/`_fbc`/`_ttp` só no host.** O
+  `subdomainIndex` do `_fbp` é um número dentro do valor do cookie, calculado pelo pixel, e
+  não uma configuração: não apostar nisso.
+- **Decisão de código (feita):** `ISOLAMENTO_DE_COOKIES_VALENDO = false` em
+  `shared/marketing.ts`. Enquanto for falso, **o pixel da Meta e o do TikTok não carregam no
+  endereço de uma organização** (`pixelsNoEndereco()`); o Google segue, preso ao host. As
+  compras continuam indo pelo servidor. O aviso de cookies do endereço usa a redação do
+  advogado (`textoDoAvisoNoEndereco()`), citando só a rede que carrega.
+- **Isto tira o bloqueio de R32 para ligar `SUBDOMINIO_BASE`**, pelo lado do código. Falta
+  o pedido da Lista de Sufixos Públicos (com o dono do domínio) para religar os pixels, e
+  então: virar a constante, subir `VERSAO_DO_AVISO` e atualizar o item 8 da Privacidade.
+- **Anúncio pago** segue exigindo domínio próprio da promotora (R30) — fase opcional.

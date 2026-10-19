@@ -8,7 +8,7 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 867 |
 | Rotas da API | 492, das quais 489 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 69 |
+| Provas contra a API (`npm run …`) | 70 |
 | Testes de regra (`tests/`) | 148 arquivos |
 | Destinos decididos | 974 de 974 |
 
@@ -1948,6 +1948,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `sorteio-comentarios` | `scripts/sorteio-comentarios-test.ts` |
 | `sorteios` | `scripts/sorteios-oficiais-test.ts` |
 | `subdominio` | `scripts/subdominio-test.ts` |
+| `subdominio-auditoria` | `scripts/subdominio-auditoria.ts` |
 | `subdominio-spa` | `scripts/subdominio-spa-test.ts` |
 | `telas` | `scripts/telas.ts` |
 | `trafego` | `scripts/trafego-test.ts` |

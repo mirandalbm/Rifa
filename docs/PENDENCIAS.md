@@ -601,6 +601,12 @@ Decidido em 18/10/2026: `<rotulo>.loteriasdobem.com.br` só para a organização
 cookie no domínio base. Existe só a regra pura (`shared/subdominio.ts`) e o
 middleware que marca a requisição; nenhuma rota usa o destino.
 
+- [x] **[código]** PR 7 (19/10/2026): `SUBDOMINIO_BASE` conferida (`problemaNaBase()`:
+  base torta fica desligada com aviso no log), auditoria dos slugs
+  (`npm run subdominio-auditoria`, `--estrito`), `.env.example` e o roteiro de
+  ligar (Etapa 8b de `docs/ORDEM-DE-LANCAMENTO.md`).
+- [ ] **[você]** Ligar em produção pela Etapa 8b: curinga no Railway, variável,
+  auditoria, uma organização de teste, depois as demais.
 - [ ] **[decisão]** As 12 perguntas do capítulo 12 do plano (rótulo = slug com
   interruptor por organização, marca no endereço, páginas globais, domínio
   principal canônico, organização suspensa, Google no endereço, anúncio sem

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   destinoDoWww,
   hostEhConhecido,
@@ -12,6 +12,8 @@ import {
   problemaNoRotulo,
   rotuloDoAfiliado,
   hostDoRotulo,
+  problemaNaBase,
+  situacaoDoRotulo,
 } from "../shared/subdominio";
 
 const BASE = "rifas.exemplo.com.br";
@@ -339,5 +341,42 @@ describe("ligar o endereço da organização", () => {
   it("rótulo que lembra a marca só liga com a confirmação", () => {
     expect(problemaParaLigarEndereco("caixa-premios", ok, false)?.status).toBe(409);
     expect(problemaParaLigarEndereco("caixa-premios", ok, true)).toBeNull();
+  });
+});
+
+describe("a base do endereço (SUBDOMINIO_BASE) e a auditoria dos slugs", () => {
+  it("aceita o domínio cru e recusa o que nunca bateria com o Host", () => {
+    expect(problemaNaBase("loteriasdobem.com.br")).toBeNull();
+    expect(problemaNaBase("loteriasdobem.test")).toBeNull();
+    for (const torta of [
+      "", "loteriasdobem", "https://loteriasdobem.com.br", "*.loteriasdobem.com.br",
+      "loteriasdobem.com.br:443", "loteriasdobem.com.br/", ".loteriasdobem.com.br",
+      "loteriasdobem.com.br.", "loterias..com.br", "Loterias.com.br", "lote rias.com.br", "-a.com.br",
+    ]) {
+      expect(problemaNaBase(torta), torta).not.toBeNull();
+    }
+  });
+
+  it("base torta no ambiente deixa o endereço desligado", async () => {
+    const { subdominioBaseDoAmbiente } = await import("../server/services/subdominio");
+    const erro = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(subdominioBaseDoAmbiente({ SUBDOMINIO_BASE: "https://x.com.br" } as NodeJS.ProcessEnv)).toBeNull();
+    erro.mockRestore();
+  });
+
+  it("classifica o slug como a ligação do endereço classificaria", () => {
+    const ok = { arquivada: false, banida: false };
+    expect(situacaoDoRotulo("rifa-solidaria", ok).situacao).toBe("pronto");
+    expect(situacaoDoRotulo("caixa-premios", ok).situacao).toBe("confirmar_marca");
+    expect(situacaoDoRotulo("admin", ok).situacao).toBe("impossivel");
+    expect(situacaoDoRotulo("af-joao", ok).situacao).toBe("impossivel");
+    expect(situacaoDoRotulo("ab", ok).situacao).toBe("impossivel");
+    expect(situacaoDoRotulo("rifa-solidaria", { arquivada: true, banida: false }).situacao).toBe("sem_endereco");
+    expect(situacaoDoRotulo("admin", { arquivada: false, banida: true }).situacao).toBe("sem_endereco");
+    // Concorda com a régua de ligar: o que a auditoria libera, a ligação libera.
+    for (const slug of ["rifa-solidaria", "admin", "caixa-premios", "ab"]) {
+      const r = situacaoDoRotulo(slug, ok).situacao;
+      expect(problemaParaLigarEndereco(slug, ok, false) === null).toBe(r === "pronto");
+    }
   });
 });

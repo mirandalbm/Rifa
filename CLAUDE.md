@@ -745,7 +745,9 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
     da direita vermelha** (`docs/marca/`, escolha do produto em 14/10/2026),
     sem moldura nem placa: `icon-192` e `icon-512` com o trevo a 87% sobre
     fundo transparente; `icon-maskable-512` com o trevo a 66% sobre fundo
-    transparente, dentro da zona segura de 80% (o raio do trevo fica em
+    **branco** (transparente, o Android pintava um quadrado preto na tela de
+    abertura do app instalado; o `theme_color` do manifesto também é branco
+    — `COR_DA_BARRA_DO_APP` —, senão a barra do sistema ficava verde), dentro da zona segura de 80% (o raio do trevo fica em
     171 px de 205); `apple-touch-icon` com o trevo a 87% sobre branco (o iOS
     não aceita transparência). O título do iPhone
     (`apple-mobile-web-app-title`) e o nome do app instalado no manifesto de
@@ -1921,7 +1923,7 @@ permite cobrar dela depois, e o aceite é a prova.
   com a antiga.
 - **O nome e o ícone seguem o template publicado, nunca o rascunho.**
   `GET /manifest.webmanifest` é montado por `montarManifest()`: nome limpo
-  (até 40 letras, curto até 12), cor de marca `#rrggbb` e, com logo no
+  (até 40 letras, curto até 12), a barra do sistema em branco (`theme_color`) e, com logo no
   template publicado, os três ícones (`/api/public/marca/icone/192|512|maskable`,
   a logo centralizada em quadrado branco; o "maskable" deixa a logo na zona
   segura). Os ícones ficam em `/api/`, fora do cache do service worker, com

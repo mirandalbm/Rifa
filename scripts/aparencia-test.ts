@@ -168,8 +168,8 @@ async function main() {
     // O app instalado segue o template publicado: nome e cor, sem logo ainda.
     const m1 = await anon.req("GET", "/manifest.webmanifest");
     checa(
-      "o manifesto do app tem o nome e a cor do template publicado",
-      m1.status === 200 && m1.json?.name === "Rifa Roxa" && m1.json?.theme_color === "#6d28d9",
+      "o manifesto do app tem o nome do template publicado e a barra branca",
+      m1.status === 200 && m1.json?.name === "Rifa Roxa" && m1.json?.theme_color === "#ffffff",
       `${m1.json?.name} ${m1.json?.theme_color}`,
     );
     checa("e sem logo usa os ícones de fábrica", m1.json?.icons?.[0]?.src === "/icons/icon-192.png", m1.json?.icons?.[0]?.src);

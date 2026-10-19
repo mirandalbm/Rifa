@@ -14,10 +14,16 @@ export const NOME_PADRAO = "Loterias do Bem";
 /** O nome curto (embaixo do ícone na tela inicial) cabe em ~12 letras. */
 export const NOME_CURTO_MAX = 12;
 export const COR_PADRAO = "#00873e";
+/**
+ * A cor da barra do sistema e do fundo da tela de abertura do app instalado:
+ * branca, como o topo do app. A cor de marca verde pintava uma faixa em cima
+ * da tela de carregamento e da janela do Chrome (`theme_color`).
+ */
+export const COR_DA_BARRA_DO_APP = "#ffffff";
 
 export interface EntradaDoManifesto {
   nome: string;
-  /** A cor de marca do tema claro. */
+  /** A cor de marca do tema claro (não pinta mais a barra do sistema: ver `COR_DA_BARRA_DO_APP`). */
   cor: string;
   /** A versão da logo (a data do arquivo) — sem logo, nulo e valem os ícones de fábrica. */
   logoVersao: string | null;
@@ -53,7 +59,7 @@ export function corDoApp(cor: string): string {
   return /^#[0-9a-f]{6}$/i.test(String(cor ?? "")) ? cor.toLowerCase() : COR_PADRAO;
 }
 
-export function montarManifest({ nome, cor, logoVersao }: EntradaDoManifesto) {
+export function montarManifest({ nome, logoVersao }: EntradaDoManifesto) {
   const v = logoVersao && /^[0-9a-z]{1,20}$/i.test(logoVersao) ? `?v=${logoVersao}` : null;
   const icones = v
     ? [
@@ -78,7 +84,7 @@ export function montarManifest({ nome, cor, logoVersao }: EntradaDoManifesto) {
     display: "standalone",
     orientation: "portrait",
     background_color: "#ffffff",
-    theme_color: corDoApp(cor),
+    theme_color: COR_DA_BARRA_DO_APP,
     icons: icones,
     shortcuts: [
       { name: "Minhas cotas", url: "/minhas-cotas", icons: [{ src: atalho.src, sizes: atalho.sizes }] },

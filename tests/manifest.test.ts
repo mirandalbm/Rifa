@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { COR_PADRAO, NOME_PADRAO, corDoApp, montarManifest, nomeCurtoDoApp, nomeDoApp } from "../shared/manifest";
 
 describe("manifesto do app instalado", () => {
-  it("o nome e a cor vêm do template; sem logo, valem os ícones de fábrica", () => {
+  it("o nome vem do template e a barra do sistema é branca; sem logo, valem os ícones de fábrica", () => {
     const m = montarManifest({ nome: "Rifas do Zé", cor: "#0A6CFF", logoVersao: null });
     expect(m.name).toBe("Rifas do Zé");
-    expect(m.theme_color).toBe("#0a6cff");
+    expect(m.theme_color).toBe("#ffffff");
     expect(m.icons.map((i) => i.src)).toEqual(["/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png"]);
   });
 

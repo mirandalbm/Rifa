@@ -28,9 +28,13 @@ describe("páginas no endereço da organização", () => {
   });
 
   it("o que é da plataforma vai ao principal", () => {
-    for (const c of ["/reels", "/buscar", "/mensagens", "/mensagens/abc", "/u/ana", "/publicar", "/seja-afiliado", "/estado/SP"]) {
+    for (const c of ["/reels", "/buscar", "/mensagens/abc", "/u/ana", "/publicar", "/seja-afiliado", "/estado/SP"]) {
       expect(d("GET", c), c).toEqual({ acao: "principal" });
     }
+  });
+
+  it("/mensagens fica no endereço (só a conversa com a organização); a caixa por id vai ao principal", () => {
+    expect(d("GET", "/mensagens")).toEqual({ acao: "seguir" });
   });
 
   it("painel e conta de painel respondem 404 no endereço", () => {
@@ -53,8 +57,8 @@ describe("páginas no endereço da organização", () => {
   });
 
   it("endereço curto e link do perfil seguem (o curto de outra organização é do PR 4)", () => {
-    expect(d("GET", "/c/abc123")).toEqual({ acao: "seguir" });
-    expect(d("GET", "/l/rifa-solidaria/0")).toEqual({ acao: "seguir" });
+    expect(d("GET", "/c/abc123")).toEqual({ acao: "conferir-curto", tipo: "c", chave: "abc123" });
+    expect(d("GET", "/l/rifa-solidaria/0")).toEqual({ acao: "conferir-curto", tipo: "l", chave: "rifa-solidaria" });
   });
 });
 

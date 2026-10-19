@@ -478,6 +478,44 @@ que leva o endereço desligado?
 mas o endereço carrega o nome do afiliado. Isso muda a responsabilidade do
 afiliado pela publicidade (R16) ou a análise do Google?
 
+**Parecer do advogado sobre R30 a R35 (18/10/2026).** Prioridade imediata: R30 e R32.
+
+- **R30 [1] — o subdomínio não basta.** A política de jogos de azar do Google
+  (março de 2026) não aceita site em subdomínio de terceiro ("o domínio tem de ser
+  propriedade direta da empresa e controlado por esta"), e a verificação de domínio
+  da Meta exige o domínio raiz. **Para anunciar, a promotora precisa de domínio
+  próprio** (CNAME para a plataforma). O que faz a página ser "da promotora": nome
+  empresarial e CNPJ em destaque, número da autorização SPA/MF, marca visual e
+  rodapé com os dados dela; a plataforma aparece como operadora técnica, em rodapé
+  secundário.
+- **R31 [1] — dupla identificação.** Promotora (nome, CNPJ, endereço, autorização)
+  no cabeçalho ou área principal, **sem rolar**; plataforma (razão social, CNPJ,
+  e-mail) no rodapé, em corpo menor mas legível. Fundamento: Decreto 7.962/2013,
+  art. 2º, I e II; CDC, art. 6º, III.
+- **R32 [1] — cookie no domínio pai é compartilhamento entre promotoras.** Exige
+  base legal própria (LGPD, arts. 5º, I e 7º; Guia de Cookies da ANPD). Aviso por
+  endereço não basta se o cookie é do pai. **Não ligar `SUBDOMINIO_BASE` em produção
+  enquanto o cookie de pixel estiver no domínio pai**; restringir ao subdomínio é a
+  medida mais segura.
+- **R33 [3] — desligar o endereço.** Cláusula válida (CC, art. 421): desligar ou
+  trocar a qualquer tempo e sem aviso por (a) phishing ou fraude, (b) ordem
+  judicial, (c) confusão com marca de terceiro, (d) violação dos Termos; a promotora
+  é informada quando cessar a urgência. A plataforma que liberou endereço enganoso
+  responde solidariamente (CDC, art. 7º, parágrafo único, e art. 37) — a cláusula não
+  afasta isso. **A triagem prévia do rótulo é essencial**: recusar nome que sugira
+  vínculo com instituição financeira ou loteria oficial.
+- **R34 [3] — propriedade.** Endereço é da plataforma; a promotora tem licença não
+  exclusiva e revogável. Na rescisão ou no banimento ele é desligado e **o rótulo
+  não volta a ninguém**. A plataforma não responde pelo material impresso ou
+  publicado com o endereço desligado, se comunicou a rescisão pelos canais oficiais;
+  a promotora deve cessar a divulgação e **indeniza a plataforma** pelo uso indevido
+  depois da rescisão.
+- **R35 [3] — afiliado.** O endereço `af-<código>` não muda a responsabilidade do
+  afiliado pela peça (R16), mas é subdomínio de terceiro e o Google o recusa. O
+  **termo do afiliado deve proibir** `af-<código>` como destino de anúncio pago no
+  Google ou na Meta: serve para divulgação orgânica e rastreamento. Para anúncio
+  pago, domínio próprio da promotora com o `?ref=` do afiliado.
+
 ## Sétima rodada — bandeiras dos estados (18/10/2026)
 
 O painel "Locais" da vitrine (`client/src/components/LocaisDaVitrine.tsx`)
@@ -550,3 +588,61 @@ do preço da rifa ou custo da plataforma)? Que cláusula do anexo "globo"
 (cláusula 7) e da tabela de cobrança (X.3, aviso de 30 dias) cobre isso?
 (b) Redija o **anexo "globo"** (texto de aceite da promotora) com o método, a
 ata, a nova extração, a falta do tabelião e o adiamento causado pelo cartório.
+
+## Oitava rodada — cookies por host e texto do contrato (18/10/2026)
+
+Respostas do advogado à parte jurídica do endereço (R32 a R35 e R30). A parte técnica
+(Lista de Sufixos Públicos, pixels) foi respondida por um especialista à parte e está em
+`docs/PLANO-SUBDOMINIO.md`, cap. 15.3.
+
+- **Controladoria com cookie por host.** Isolado por host, **cada promotora é controladora
+  do pixel do próprio endereço e a plataforma é operadora** (Guia Orientativo da ANPD sobre
+  agentes de tratamento). A controladoria conjunta exigiria decisões convergentes sobre a
+  mesma finalidade, e o isolamento desfaz isso. A plataforma segue controladora só dos
+  cookies essenciais e dos próprios. **O aviso de cookies do endereço muda**; o do domínio
+  principal (Meta, Google e TikTok como controladores conjuntos) continua como está.
+- **Menção nos textos.** Não precisa citar cada promotora; precisa dizer que o cookie é do
+  endereço visitado e quem é a controladora (LGPD, art. 9º, II). A Privacidade remete ao
+  aviso do endereço. Redação do aviso (já em `textoDoAvisoNoEndereco()`, `shared/marketing.ts`):
+  "Cookies neste endereço. Este endereço é operado pela [plataforma] para a [promotora],
+  que é a controladora dos cookies de medição de anúncios aqui instalados. A plataforma atua
+  como operadora, instalando e executando os cookies conforme as instruções da promotora. Os
+  cookies de anúncio só são ativados se você aceitar. A lista completa, com finalidades e
+  prazos, está no item 8 da Política de Privacidade."
+- **Pixel desligado enquanto o isolamento não vale: sim, é a medida segura.** O cookie no
+  domínio pai levaria o mesmo identificador a promotoras diferentes, e o consentimento dado
+  a uma não cobre o compartilhamento com outra (LGPD, art. 8º, § 5º). **Feito:**
+  `ISOLAMENTO_DE_COOKIES_VALENDO = false` — Meta e TikTok não carregam no endereço.
+- **R33 — texto para o contrato.** "Cláusula [X] — Endereço. A Plataforma poderá desligar ou
+  trocar o endereço da Promotora, a qualquer tempo e sem aviso prévio, nas hipóteses de: (a)
+  phishing, fraude ou risco à segurança; (b) ordem judicial ou determinação de autoridade;
+  (c) confusão com marca de terceiro ou uso de termo que sugira vínculo com instituição
+  financeira, loteria oficial ou órgão público; (d) violação destes Termos ou da legislação
+  aplicável; **(e) revogação do consentimento pelo titular ou determinação da ANPD para
+  cessar o tratamento**. A Promotora será informada tão logo cessada a urgência. A
+  Plataforma não responde por prejuízos decorrentes do desligamento nas hipóteses acima,
+  ressalvada a responsabilidade por endereço enganoso que ela própria tenha liberado." (A
+  alínea (e) é a única que a divisão controlador/operador acrescenta.)
+- **R34 — texto para o contrato** (não muda com a divisão). "Cláusula [Y] — Titularidade do
+  Endereço. O endereço é de titularidade da Plataforma. A Promotora recebe licença de uso não
+  exclusiva, revogável e intransferível, enquanto vigente o contrato. Na rescisão, no
+  banimento ou no desligamento, o endereço é desativado e o rótulo não é atribuído a nenhum
+  outro. A Promotora responde pelo material já impresso ou publicado que leve o endereço
+  desativado, obrigando-se a cessar a divulgação e a indenizar a Plataforma por eventual uso
+  indevido após a rescisão."
+- **R35 — texto para o termo do afiliado.** "Cláusula [Z] — Proibição de Anúncio Pago com
+  Link de Afiliado. O afiliado não poderá usar o link de afiliado, o cupom ou o endereço
+  af-<código> como destino de anúncio pago em Google Ads, Meta Ads, TikTok Ads ou qualquer
+  outra plataforma de publicidade paga. O link de afiliado destina-se exclusivamente à
+  divulgação orgânica e ao rastreamento. O descumprimento sujeita o afiliado à suspensão da
+  conta e à perda da comissão das vendas vinculadas à infração."
+- **R30 — anúncio com domínio próprio.** Google Ads: o domínio tem de ser da anunciante e
+  estar sob o controle dela; subdomínio gratuito é inelegível; ela apresenta a licença SPA/MF.
+  Meta: a autorização é da conta de anúncios, pedida no Business Suite com nome empresarial,
+  site e licença. **A anunciante e titular da conta é a promotora**; a plataforma, como
+  prestadora de gestão, responde pelas instruções que der e pela execução técnica
+  (operadora).
+
+**Para quem publica o contrato:** as cláusulas R33 e R34 entram no contrato da promotora
+(Atendimento da plataforma → Contrato, nova versão) e a R35 no termo-base do afiliado
+(`montarTermo()`); o texto vai ao advogado conferir antes de publicar.

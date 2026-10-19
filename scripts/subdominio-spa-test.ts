@@ -86,7 +86,14 @@ async function main() {
     const corpo = await p.locator("body").innerText();
     checa("a raiz é o perfil da organização (não a vitrine)", corpo.includes("Sub SPA Prova") && !corpo.includes("Rifas no ar"));
     const consoleHrefs = await p.$$eval('nav[aria-label="Navegação principal"] a', (as) => as.map((a) => a.getAttribute("href")));
-    checa("o console só tem o que é da organização", !consoleHrefs.some((h) => /reels|mensagens|buscar/.test(String(h))) && consoleHrefs.includes("/carrinho") && consoleHrefs.includes("/perfil"), JSON.stringify(consoleHrefs));
+    checa("o console só tem o que é da organização", !consoleHrefs.some((h) => /reels|buscar/.test(String(h))) && consoleHrefs.includes("/carrinho") && consoleHrefs.includes("/perfil"), JSON.stringify(consoleHrefs));
+
+    // R31: a promotora aparece no alto, sem rolar, e a abertura da plataforma não vem do HTML.
+    const faixa = p.locator('section[aria-label="Quem realiza a rifa"]');
+    const caixa = await faixa.boundingBox();
+    checa("a promotora (nome) está no alto, dentro da primeira tela", (await faixa.count()) === 1 && !!caixa && caixa.y + caixa.height < 844 && (await faixa.innerText()).includes("Sub SPA Prova"));
+    checa("a plataforma aparece como operadora só quando há Dados da empresa publicados (nunca inventada)", (await p.locator("text=Plataforma operada por").count()) <= 1);
+    checa("o HTML do endereço não traz a abertura da plataforma", (await p.evaluate(() => document.documentElement.classList.contains("abertura"))) === false);
 
     const link = p.locator(`a[href='/r/${RIFA}']`).first();
     checa("o perfil liga a rifa pelo caminho curto", (await link.count()) > 0);

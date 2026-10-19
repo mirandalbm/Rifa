@@ -210,11 +210,25 @@ export function linkDaRifaNoEndereco(opcoes: {
   rotuloDaOrganizacao: string;
   rifaSlug: string;
   codigoDoAfiliado?: string | null;
+  /** `https://` em produção; fora dela, o do `PUBLIC_BASE_URL` (a prova roda em http, às vezes com porta). */
+  origem?: { esquema: "http" | "https"; porta?: string };
 }): string | null {
-  const host = hostDoRotulo(opcoes.rotuloDaOrganizacao, opcoes.base);
-  if (!host) return null;
+  const endereco = urlDoEndereco(opcoes.rotuloDaOrganizacao, opcoes.base, opcoes.origem);
+  if (!endereco) return null;
   const ref = opcoes.codigoDoAfiliado ? `?ref=${encodeURIComponent(opcoes.codigoDoAfiliado)}` : "";
-  return `https://${host}/r/${encodeURIComponent(opcoes.rifaSlug)}${ref}`;
+  return `${endereco}/r/${encodeURIComponent(opcoes.rifaSlug)}${ref}`;
+}
+
+/** `https://<rotulo>.<base>` (sem barra no fim), ou `null` sem base. */
+export function urlDoEndereco(
+  rotulo: string,
+  base: string | null,
+  origem: { esquema: "http" | "https"; porta?: string } = { esquema: "https" },
+): string | null {
+  const host = hostDoRotulo(rotulo, base);
+  if (!host) return null;
+  const porta = origem.porta && /^\d{1,5}$/.test(origem.porta) ? `:${origem.porta}` : "";
+  return `${origem.esquema}://${host}${porta}`;
 }
 
 /**
@@ -238,4 +252,45 @@ export function problemaParaLigarEndereco(
     };
   }
   return null;
+}
+
+const ROTULO_DA_BASE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+/**
+ * Por que o valor de `SUBDOMINIO_BASE` não serve, ou `null`. É o domínio cru
+ * (`loteriasdobem.com.br`): sem esquema, porta, caminho, curinga (`*.`) nem ponto
+ * no começo ou no fim, em minúsculas e com pelo menos dois níveis. Valor torto
+ * ligaria o guarda do endereço num domínio que nunca bate com o `Host` — ou, pior,
+ * num que bate com o que não devia.
+ */
+export function problemaNaBase(base: string): string | null {
+  if (!base) return "A base está vazia.";
+  if (base.length > 253) return "A base passa de 253 caracteres.";
+  if (/[:/\\@\s*?#%]/.test(base)) return "Use só o domínio, sem esquema (https://), porta, caminho, curinga (*.) ou espaço.";
+  if (base !== base.toLowerCase()) return "Use só letras minúsculas.";
+  const partes = base.split(".");
+  if (partes.length < 2) return "A base precisa de pelo menos dois níveis (ex.: loteriasdobem.com.br).";
+  if (partes.some((p) => !ROTULO_DA_BASE.test(p))) return "A base tem um nível vazio ou inválido (ponto no começo, no fim ou repetido).";
+  return null;
+}
+
+export type SituacaoDoRotulo = "pronto" | "confirmar_marca" | "impossivel" | "sem_endereco";
+
+/**
+ * A auditoria dos slugs antes de ligar a base: o que cada organização existente
+ * pode ter. `pronto` liga sem pergunta; `confirmar_marca` pede a confirmação
+ * consciente da plataforma; `impossivel` tem slug que não vira endereço (reservado,
+ * curto, `af-`, dois hífens…) e fica no principal; `sem_endereco` é arquivada ou
+ * banida. A mesma régua de `problemaParaLigarEndereco`, sem ligar nada.
+ */
+export function situacaoDoRotulo(
+  slug: string,
+  situacao: { arquivada: boolean; banida: boolean },
+): { situacao: SituacaoDoRotulo; motivo: string | null } {
+  if (situacao.banida) return { situacao: "sem_endereco", motivo: "organização banida" };
+  if (situacao.arquivada) return { situacao: "sem_endereco", motivo: "organização arquivada" };
+  const problema = problemaNoRotulo(slug);
+  if (problema) return { situacao: "impossivel", motivo: problema };
+  if (rotuloPareceMarca(slug)) return { situacao: "confirmar_marca", motivo: "o rótulo lembra a marca, o Estado ou um banco" };
+  return { situacao: "pronto", motivo: null };
 }

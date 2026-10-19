@@ -113,7 +113,7 @@ import {
   perfisComStory,
 } from "../services/perfil";
 import QRCode from "qrcode";
-import { publicUrl } from "../services/urls";
+import { enderecoDaOrganizacao, publicUrl } from "../services/urls";
 import { BilheteError, bilhetesDaConta } from "../services/bilhetes";
 import { BILHETES_PAGINA } from "@shared/bilhetes";
 import { limiteDaPagina, lerCursor } from "@shared/paginacao";
@@ -163,6 +163,7 @@ import {
   resumoDasMensagens,
   responderPedido,
 } from "../services/mensagens";
+import { conversaComAOrganizacao, mandarParaAOrganizacao, naoLidasComAOrganizacao } from "../services/mensagensNoEndereco";
 import {
   criarGrupo,
   denunciarGrupo,
@@ -256,6 +257,33 @@ type LinhaDaVitrine = Awaited<ReturnType<typeof listPublicCampaigns>>[number] & 
  * `minhaIdentidade()` (sem conta, 401). A conversa que não é da sessão é
  * 404 — nunca 403, que entregaria que o id existe.
  */
+/**
+ * Mensagens no endereço da organização: só a conversa do apostador com a
+ * organização do `slug` (`server/services/mensagensNoEndereco.ts`). O guarda do
+ * endereço já confere que o `slug` é o do endereço (`/o/<slug>/…`).
+ */
+publicRouter.get("/o/:slug/mensagens", async (req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await conversaComAOrganizacao(req, req.params.slug, req.query.antes));
+  } catch (err) {
+    next(err);
+  }
+});
+
+publicRouter.get("/o/:slug/mensagens/resumo", async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(await naoLidasComAOrganizacao(req, req.params.slug));
+});
+
+publicRouter.post("/o/:slug/mensagens", async (req, res, next) => {
+  try {
+    res.status(201).json(await mandarParaAOrganizacao(req, req.params.slug, req.body ?? {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
 publicRouter.get("/mensagens/resumo", async (req, res) => {
   // O número do botão do console: sem sessão ou desligado, é zero — nunca erro.
   try {
@@ -841,7 +869,10 @@ publicRouter.get("/o/:slug/capa", async (req, res, next) => {
 publicRouter.get("/o/:slug/qr.svg", async (req, res, next) => {
   try {
     const perfil = await perfilPublico(req.params.slug);
-    const svg = await QRCode.toString(publicUrl(`/o/${perfil.slug}`), {
+    // No endereço da organização, quando ligado (o `perfilPublico` já recusou a arquivada/banida).
+    const [dona] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, perfil.slug)).limit(1);
+    const endereco = await enderecoDaOrganizacao(dona?.id);
+    const svg = await QRCode.toString(endereco ?? publicUrl(`/o/${perfil.slug}`), {
       type: "svg",
       margin: 1,
       width: 320,

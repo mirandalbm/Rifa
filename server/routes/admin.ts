@@ -95,7 +95,7 @@ import {
 import { storage, LocalDiskStorage } from "../services/storage";
 import { encerrarSessoesDoUsuario, hashPassword, verifyPassword } from "../auth";
 import { notify } from "../notifications";
-import { baseDoSite, publicUrl } from "../services/urls";
+import { baseDoSite, enderecoDaOrganizacao, publicUrl } from "../services/urls";
 import { normalizePhone } from "@shared/format";
 import { ehUuid } from "@shared/uuid";
 import {
@@ -1188,7 +1188,7 @@ adminRouter.get("/campaigns/:id/artes", async (req, res, next) => {
     const campaign = await assertCampaignInScope(req, req.params.id);
     const r = await rifaDaArte(campaign.id);
     if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
-    const base = baseDoSite(req);
+    const base = (await enderecoDaOrganizacao(campaign.organizationId)) ?? baseDoSite(req);
     const curto = artesDaRifa(r).length ? `${base}${(await linkCurtoDaRifa(r.id)).caminho}` : `${base}/r/${r.slug}`;
     res.setHeader("Cache-Control", "no-store");
     res.json(listaDeArtes(r, `${base}/r/${r.slug}`, curto));
@@ -1202,7 +1202,7 @@ adminRouter.get("/campaigns/:id/artes/:tipo/pacote", async (req, res, next) => {
     const campaign = await assertCampaignInScope(req, req.params.id);
     const r = await rifaDaArte(campaign.id);
     if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
-    const base = baseDoSite(req);
+    const base = (await enderecoDaOrganizacao(campaign.organizationId)) ?? baseDoSite(req);
     const curto = artesDaRifa(r).length ? `${base}${(await linkCurtoDaRifa(r.id)).caminho}` : `${base}/r/${r.slug}`;
     await enviarPacote(res, r, req.params.tipo, `${base}/r/${r.slug}`, curto, `painel:${req.user!.id}`);
   } catch (err) {
@@ -1215,7 +1215,8 @@ adminRouter.get("/campaigns/:id/artes/:tipo", async (req, res, next) => {
     const campaign = await assertCampaignInScope(req, req.params.id);
     const r = await rifaDaArte(campaign.id);
     if (!r) return res.status(404).json({ message: "Campanha não encontrada." });
-    await enviarArte(res, r, req.params.tipo, req.query.formato, `${baseDoSite(req)}/r/${r.slug}`, `painel:${req.user!.id}`);
+    const base = (await enderecoDaOrganizacao(campaign.organizationId)) ?? baseDoSite(req);
+    await enviarArte(res, r, req.params.tipo, req.query.formato, `${base}/r/${r.slug}`, `painel:${req.user!.id}`);
   } catch (err) {
     next(err);
   }
@@ -1226,7 +1227,7 @@ adminRouter.get("/campaigns/:id/artes/:tipo", async (req, res, next) => {
 adminRouter.get("/campaigns/:id/editor", async (req, res, next) => {
   try {
     const campaign = await assertCampaignInScope(req, req.params.id);
-    const base = baseDoSite(req);
+    const base = (await enderecoDaOrganizacao(campaign.organizationId)) ?? baseDoSite(req);
     const link = campaign.status === "published" ? `${base}${(await linkCurtoDaRifa(campaign.id)).caminho}` : `${base}/r/${campaign.slug}`;
     const dados = await dadosDoEditor(campaign.id, link);
     if (!dados) return res.status(404).json({ message: "Campanha não encontrada." });
@@ -2882,7 +2883,7 @@ adminRouter.post("/organizacoes/:id/link-curto", async (req, res, next) => {
     if (!orgDoCaminho(req, res)) return;
     const [o] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, req.params.id));
     if (!o) return res.status(404).json({ message: "Organização não encontrada." });
-    res.json(await linkCurtoDoPerfil(o.id));
+    res.json({ ...(await linkCurtoDoPerfil(o.id)), endereco: await enderecoDaOrganizacao(o.id) });
   } catch (err) {
     next(err);
   }
@@ -2901,8 +2902,8 @@ adminRouter.get("/organizacoes/:id/links/cliques", async (req, res, next) => {
 /** Endereço curto da rifa — recorte da campanha antes (o do vizinho é 404). */
 adminRouter.post("/campaigns/:id/link-curto", async (req, res, next) => {
   try {
-    await assertCampaignInScope(req, req.params.id);
-    res.json(await linkCurtoDaRifa(req.params.id));
+    const campaign = await assertCampaignInScope(req, req.params.id);
+    res.json({ ...(await linkCurtoDaRifa(req.params.id)), endereco: await enderecoDaOrganizacao(campaign.organizationId) });
   } catch (err) {
     next(err);
   }

@@ -35,6 +35,7 @@ import {
 } from "@shared/marketing";
 import { cifrarJson, decifrarJson, sha256 } from "./cofre";
 import { orgOf } from "./orgs";
+import { enderecoDaOrganizacao } from "./urls";
 import { getPlataforma, setPlataforma } from "./settings";
 
 export class MarketingError extends Error {
@@ -222,7 +223,7 @@ export async function enviarEventosPendentes(enviar: Enviar = enviarComPrazo, li
 
 async function montarCompra(orderId: string): Promise<Compra> {
   const [o] = await db
-    .select({ o: orders, titulo: campaigns.title, slug: campaigns.slug, telefone: buyers.phone })
+    .select({ o: orders, titulo: campaigns.title, slug: campaigns.slug, org: campaigns.organizationId, telefone: buyers.phone })
     .from(orders)
     .innerJoin(campaigns, eq(campaigns.id, orders.campaignId))
     .innerJoin(buyers, eq(buyers.id, orders.buyerId))
@@ -230,7 +231,8 @@ async function montarCompra(orderId: string): Promise<Compra> {
   if (!o) throw new Error("pedido sumiu");
   const tel = o.o.marketingConsentimento ? telefoneParaHash(o.telefone ?? "") : null;
   const utm = (o.o.utm ?? {}) as Utm;
-  const base = (process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+  // A página onde o pixel disparou: o endereço da organização, se ligado; senão o de hoje.
+  const base = (await enderecoDaOrganizacao(o.org)) ?? (process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
   return {
     codigo: o.o.code,
     valorCents: o.o.amountCents,

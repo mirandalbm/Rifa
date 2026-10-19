@@ -1,13 +1,24 @@
 import type { NextFunction, Request, Response } from "express";
-import { identificarHost, type DestinoDoHost } from "../../shared/subdominio";
+import { identificarHost, problemaNaBase, type DestinoDoHost } from "../../shared/subdominio";
 
 /**
  * Lê o domínio base dos subdomínios (`SUBDOMINIO_BASE`, ex.: `loja.exemplo.com.br`).
  * Sem a variável, o endereço próprio fica desligado e nada muda no sistema.
  */
+let avisouDaBase = false;
 export function subdominioBaseDoAmbiente(env: NodeJS.ProcessEnv = process.env): string | null {
   const base = env.SUBDOMINIO_BASE?.trim().toLowerCase();
-  return base ? base : null;
+  if (!base) return null;
+  // Base torta fica desligada, com aviso: ligar o guarda num domínio errado é pior que não ligar.
+  const problema = problemaNaBase(base);
+  if (problema) {
+    if (!avisouDaBase) {
+      avisouDaBase = true;
+      console.error(`[subdominio] SUBDOMINIO_BASE ignorada (${problema}) — o endereço da organização fica desligado.`);
+    }
+    return null;
+  }
+  return base;
 }
 
 /**

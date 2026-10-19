@@ -7,9 +7,9 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 867 |
-| Rotas da API | 489, das quais 486 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 69 |
-| Testes de regra (`tests/`) | 146 arquivos |
+| Rotas da API | 492, das quais 489 citadas por alguma prova |
+| Provas contra a API (`npm run …`) | 70 |
+| Testes de regra (`tests/`) | 148 arquivos |
 | Destinos decididos | 974 de 974 |
 
 ## 1. Telas
@@ -1442,9 +1442,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/organizacoes/:id/exemplo` | `isolation-test.ts`, `vitrine-test.ts` |
-| POST | `/organizacoes/:id/link-curto` | `isolation-test.ts`, `perfil-test.ts` |
+| POST | `/organizacoes/:id/link-curto` | `isolation-test.ts`, `perfil-test.ts`, `subdominio-test.ts` |
 | GET | `/organizacoes/:id/links/cliques` | `isolation-test.ts`, `perfil-test.ts` |
-| POST | `/campaigns/:id/link-curto` | `isolation-test.ts` |
+| POST | `/campaigns/:id/link-curto` | `isolation-test.ts`, `subdominio-test.ts` |
 | DELETE | `/demonstracao` | `isolation-test.ts`, `vitrine-test.ts` |
 | POST | `/organizacoes` | `isolation-test.ts`, `subdominio-test.ts` |
 | PATCH | `/organizacoes/:id` | `isolation-test.ts` |
@@ -1684,15 +1684,18 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/conta` | `ia-test.ts`, `isolation-test.ts`, `enderecoRotas.test.ts` |
 | POST | `/pagamentos` | `ia-acoes-test.ts`, `ia-test.ts`, `isolation-test.ts` |
 
-### `server/routes/public.ts` — /api/public (157 rotas, 155 com prova)
+### `server/routes/public.ts` — /api/public (160 rotas, 158 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/campaigns` | `comentarios-test.ts`, `publicacao-test.ts`, `publico-test.ts` +6 |
+| GET | `/o/:slug/mensagens` | `subdominio-test.ts` |
+| GET | `/o/:slug/mensagens/resumo` | `subdominio-test.ts` |
+| POST | `/o/:slug/mensagens` | `subdominio-test.ts` |
 | GET | `/mensagens/resumo` | `grupos-test.ts`, `mensagens-test.ts`, `subdominio-test.ts` |
 | GET | `/mensagens/destino` | `mensagens-test.ts` |
-| GET | `/mensagens/conversas` | `mensagens-test.ts`, `enderecoRotas.test.ts` |
-| POST | `/mensagens/conversas` | `mensagens-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/mensagens/conversas` | `mensagens-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
+| POST | `/mensagens/conversas` | `mensagens-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/mensagens/conversas/:id` | `mensagens-test.ts` |
 | POST | `/mensagens/conversas/:id/mensagens` | `mensagens-test.ts` |
 | GET | `/mensagens/conversas/:id/fotos/:fotoId` | — |
@@ -1725,9 +1728,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/o/:slug/termo-afiliado` | `publico-test.ts` |
 | POST | `/o/:slug/colaborador` | `afiliados-test.ts` |
 | GET | `/o/:slug` | `perfil-test.ts`, `poster-test.ts`, `publico-test.ts` +7 |
-| GET | `/o/:slug/foto` | `publico-test.ts`, `semNulo.test.ts` |
+| GET | `/o/:slug/foto` | `publico-test.ts`, `semNulo.test.ts`, `seo.test.ts` |
 | GET | `/o/:slug/capa` | `publico-test.ts` |
-| GET | `/o/:slug/qr.svg` | `perfil-test.ts`, `enderecoRotas.test.ts` |
+| GET | `/o/:slug/qr.svg` | `perfil-test.ts`, `subdominio-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
 | POST | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
 | DELETE | `/o/:slug/seguir` | `bonus-test.ts`, `perfil-test.ts`, `push-test.ts` +1 |
@@ -1878,7 +1881,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
 - `server/routes/admin.ts` (1 de 268): PUT `/media/raw`
-- `server/routes/public.ts` (2 de 157): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
+- `server/routes/public.ts` (2 de 160): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 
 ## 6. Provas contra a API
 
@@ -1945,6 +1948,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `sorteio-comentarios` | `scripts/sorteio-comentarios-test.ts` |
 | `sorteios` | `scripts/sorteios-oficiais-test.ts` |
 | `subdominio` | `scripts/subdominio-test.ts` |
+| `subdominio-auditoria` | `scripts/subdominio-auditoria.ts` |
 | `subdominio-spa` | `scripts/subdominio-spa-test.ts` |
 | `telas` | `scripts/telas.ts` |
 | `trafego` | `scripts/trafego-test.ts` |

@@ -7,7 +7,7 @@
  */
 import type { NextFunction, Request, Response } from "express";
 import { and, eq, isNull } from "drizzle-orm";
-import { auditLog, campaigns, organizations } from "@shared/schema";
+import { auditLog, campaigns, linksCurtos, organizations } from "@shared/schema";
 import { db } from "../db";
 import { hit, identify } from "./antifraude";
 import { subdominioBaseDoAmbiente } from "./subdominio";
@@ -44,6 +44,8 @@ export function invalidarEndereco() {
   rotulos.clear();
   rifasPorSlug.clear();
   rifasPorId.clear();
+  curtosPorCodigo.clear();
+  rotulosPorOrg.clear();
 }
 
 /** A organização do rótulo, só se ela pode ter endereço agora; senão, `inexistente`. */
@@ -68,6 +70,31 @@ export async function enderecoDoRotulo(slug: string, agora = Date.now()): Promis
   return v;
 }
 
+const rotulosPorOrg = new Map<string, Entrada<string | null>>();
+
+/** O rótulo da organização se o endereço dela está ligado e ela está no ar; senão `null`. */
+export async function enderecoPublicoDaOrganizacao(organizationId: string, agora = Date.now()): Promise<string | null> {
+  if (!UUID.test(organizationId)) return null;
+  const g = rotulosPorOrg.get(organizationId);
+  if (g && g.ate > agora) return g.v;
+  const lidaNaGeracao = geracao;
+  const [o] = await db
+    .select({ slug: organizations.slug })
+    .from(organizations)
+    .where(
+      and(
+        eq(organizations.id, organizationId),
+        eq(organizations.enderecoAtivo, true),
+        isNull(organizations.archivedAt),
+        isNull(organizations.banidaEm),
+      ),
+    )
+    .limit(1);
+  const v = o?.slug ?? null;
+  if (lidaNaGeracao === geracao) guardar(rotulosPorOrg, organizationId, v, agora);
+  return v;
+}
+
 /** A organização dona da rifa pelo `slug`, ou `null` se a rifa não existe. */
 export async function donoDaRifaPorSlug(slug: string, agora = Date.now()): Promise<string | null> {
   const g = rifasPorSlug.get(slug);
@@ -86,6 +113,21 @@ export async function donoDaRifaPorId(id: string, agora = Date.now()): Promise<s
   const [r] = await db.select({ org: campaigns.organizationId }).from(campaigns).where(eq(campaigns.id, id)).limit(1);
   const v = r?.org ?? null;
   guardar(rifasPorId, id, v, agora);
+  return v;
+}
+
+const curtosPorCodigo = new Map<string, Entrada<string | null>>();
+
+/** A organização dona do endereço curto `/c/<código>`, ou `null`. */
+export async function donoDoCurto(codigo: string, agora = Date.now()): Promise<string | null> {
+  const cod = codigo.toUpperCase();
+  if (!/^[2-9A-Z]{6}$/.test(cod)) return null;
+  const g = curtosPorCodigo.get(cod);
+  if (g && g.ate > agora) return g.v;
+  const lidaNaGeracao = geracao;
+  const [l] = await db.select({ org: linksCurtos.organizationId }).from(linksCurtos).where(eq(linksCurtos.codigo, cod)).limit(1);
+  const v = l?.org ?? null;
+  if (lidaNaGeracao === geracao) guardar(curtosPorCodigo, cod, v, agora);
   return v;
 }
 
@@ -204,6 +246,12 @@ export async function guardaDoEndereco(req: Request, res: Response, next: NextFu
         const slug = caminho.split("/")[4]; // /api/public/o/<slug>
         if (slug !== endereco.slug) return negar(req, res, next);
         return next();
+      }
+      case "conferir-curto": {
+        // O curto de outra organização (ou desconhecido) é do principal: ali se resolve e se conta.
+        const dono = d.tipo === "l" ? d.chave.toLowerCase() === endereco.slug : (await donoDoCurto(d.chave)) === endereco.id;
+        if (dono) return next();
+        return res.redirect(302, `${casaPrincipal(base)}${req.originalUrl}`);
       }
       default:
         return (await conferir(d, req, endereco.id)) ? next() : negar(req, res, next);

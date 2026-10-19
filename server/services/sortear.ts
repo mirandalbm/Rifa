@@ -16,7 +16,7 @@ import { db } from "../db";
 import { auditLog, buyers, campaigns, draws, orders, sorteioReextracoes, sorteiosOficiais, type Campaign } from "@shared/schema";
 import { drawNumber } from "./draw";
 import { notify } from "../notifications";
-import { publicUrl } from "./urls";
+import { enderecoDaOrganizacao, publicUrl } from "./urls";
 import { formatQuota, numeroInterno } from "@shared/format";
 import { lerFederal, lerGlobo, numeracaoZero } from "@shared/apuracao";
 import { SORTEIO_INVALIDO, contempladoNaFita, contempladoPorAproximacao } from "@shared/sorteio";
@@ -301,14 +301,17 @@ export async function executarSorteio(
       .innerJoin(buyers, eq(buyers.id, orders.buyerId))
       .where(eq(orders.id, feito.vencedor.orderId));
     if (row?.phone) {
-      // O sorteio já está gravado: falha do aviso não vira erro (vai ao log).
+      // O sorteio já está gravado: falha do aviso (inclusive ao ler o endereço) não vira erro (vai ao log).
+      const linkDoAviso = await enderecoDaOrganizacao(campaign.organizationId)
+        .then((e) => (e ? `${e}/r/${campaign.slug}` : publicUrl(`/r/${campaign.slug}`)))
+        .catch(() => publicUrl(`/r/${campaign.slug}`));
       await notify({
         to: row.phone,
         template: "sorteio_realizado",
         params: {
           rifa: campaign.title,
           numero: formatQuota(updated.winnerNumber ?? resultNumber, campaign.totalQuotas, numeracaoZero(campaign.metodoApuracao)),
-          link: publicUrl(`/r/${campaign.slug}`),
+          link: linkDoAviso,
         },
         dedupeKey: `draw:${draw.id}:ganhador`,
       }).catch((e) => console.error("[sorteio] aviso ao ganhador:", e));

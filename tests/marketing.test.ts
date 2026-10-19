@@ -154,3 +154,49 @@ describe("recusar apaga os cookies de medição (revisão do advogado, 08/10/202
     expect(VERSAO_DO_AVISO).toBe(2);
   });
 });
+
+describe("Meta e TikTok no endereço da organização (parecer R32, 18/10/2026)", async () => {
+  const { pixelsNoEndereco, textoDoAvisoNoEndereco, ISOLAMENTO_DE_COOKIES_VALENDO } = await import("../shared/marketing");
+  const plataforma = { meta: "123456789012345", ga4: "G-ABC1234567", googleAds: null, tiktok: "ABCDEFGHIJ1234567890" } as never;
+  const soMeta = { meta: "123456789012345", ga4: null, googleAds: null, tiktok: null } as never;
+
+  it("o isolamento nasce desligado", () => expect(ISOLAMENTO_DE_COOKIES_VALENDO).toBe(false));
+
+  it("no endereço, sem isolamento, só o Google carrega", () => {
+    const r = pixelsNoEndereco([plataforma, soMeta], true);
+    expect(r).toHaveLength(1);
+    expect(r[0]!.meta).toBeUndefined();
+    expect(r[0]!.tiktok).toBeUndefined();
+    expect(r[0]!.ga4).toBe("G-ABC1234567");
+  });
+
+  it("fora do endereço, ou com o isolamento valendo, nada muda", () => {
+    expect(pixelsNoEndereco([plataforma, soMeta], false)).toEqual([plataforma, soMeta]);
+    expect(pixelsNoEndereco([plataforma, soMeta], true, true)).toEqual([plataforma, soMeta]);
+  });
+
+  it("o aviso do endereço diz quem é controladora e operadora, e cita só a rede que carrega", () => {
+    const t = textoDoAvisoNoEndereco("Loterias do Bem", "Promotora X").join(" ");
+    expect(t).toMatch(/Promotora X, que é a controladora/);
+    expect(t).toMatch(/atua como operadora/);
+    expect(t).toMatch(/item 8 da Política de Privacidade/);
+    expect(t).not.toMatch(/Meta|TikTok/);
+    expect(textoDoAvisoNoEndereco("A", "B", true).join(" ")).toMatch(/Meta, Google e TikTok/);
+  });
+});
+
+describe("cookie do Google preso ao host da página (subdomínio, cap. 8)", async () => {
+  const { opcoesDoGoogle } = await import("../shared/marketing");
+  it("usa o host da página, sem página vista automática", () => {
+    expect(opcoesDoGoogle("Rifa-Solidaria.LoteriasDoBem.com.br")).toEqual({
+      send_page_view: false,
+      cookie_domain: "rifa-solidaria.loteriasdobem.com.br",
+    });
+    expect(opcoesDoGoogle("localhost")).toEqual({ send_page_view: false, cookie_domain: "localhost" });
+  });
+  it("host torto, vazio ou IP não entra: o Google escolhe", () => {
+    for (const h of [null, undefined, "", "127.0.0.1", "a b", "x/y", "-a.com", "a..b"]) {
+      expect(opcoesDoGoogle(h as string | null)).toEqual({ send_page_view: false });
+    }
+  });
+});

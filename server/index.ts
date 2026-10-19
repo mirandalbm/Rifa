@@ -13,6 +13,8 @@ import { registerRoutes } from "./routes";
 import { webhookRouter } from "./routes/webhooks";
 import { setupAuth } from "./auth";
 import { guardaDoEndereco, webhookSoNoPrincipal } from "./services/enderecoDaOrganizacao";
+import { classeDoHost, enderecoDoSitemap, sitemapDaRequisicao } from "./services/seo";
+import { robotsTxt } from "@shared/seo";
 import { exigirOrigemDoHost, protegerOHost } from "./services/enderecoDoHost";
 import { startJobs } from "./jobs";
 import { LocalDiskStorage, chaveRestauravel, storage } from "./services/storage";
@@ -238,6 +240,32 @@ app.use(guardaDoEndereco);
 // `Origin` de quem muda estado: o mesmo `Host`. Modo relatório até o log ficar
 // limpo (`ORIGEM_POR_HOST=recusar` passa a recusar).
 app.use("/api", exigirOrigemDoHost);
+
+// `robots.txt` e `sitemap.xml` por host (PR 6 do plano do endereço): o host que
+// não é da casa não se indexa; a lista de páginas só sai com `SEO_INDEXAR=1`.
+app.get("/robots.txt", async (req, res) => {
+  try {
+    const sitemap = await enderecoDoSitemap(req, res);
+    res.setHeader("Vary", "Host");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.type("text/plain").send(robotsTxt(classeDoHost(req, res), sitemap));
+  } catch (err) {
+    console.error("[seo] robots.txt:", (err as Error).message);
+    res.type("text/plain").send(robotsTxt("outro", null));
+  }
+});
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const xml = await sitemapDaRequisicao(req, res);
+    res.setHeader("Vary", "Host");
+    if (!xml) return res.status(404).type("text/plain").send("Sem sitemap.");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.type("application/xml").send(xml);
+  } catch (err) {
+    console.error("[seo] sitemap.xml:", (err as Error).message);
+    res.status(404).type("text/plain").send("Sem sitemap.");
+  }
+});
 
 (async () => {
   setupAuth(app);

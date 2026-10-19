@@ -275,6 +275,40 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
 - [ ] Cloudflare R2: só quando houver mais de uma réplica ou muito tráfego
   de imagem.
 
+## Etapa 8b — ligar o endereço da organização (PR 7 do `docs/PLANO-SUBDOMINIO.md`)
+
+Só depois da Etapa 5 e **sem pressa**: o endereço é reversível (tirar a variável
+ou o interruptor da organização), mas o cookie da Meta e do TikTok só se isola
+com a Lista de Sufixos Públicos (R32) — por isso, ligado, o endereço nasce **sem**
+esses dois pixels (`ISOLAMENTO_DE_COOKIES_VALENDO = false`) e o Google segue.
+
+1. **[você]** No Railway, o domínio curinga `*.loteriasdobem.com.br` no serviço
+   web (e a verificação do DNS); confira que o certificado saiu para o curinga
+   e para o domínio principal. Se a Cloudflare ficar na frente, o curinga
+   precisa estar *proxied* no plano em uso (PR 8).
+2. **[você]** Variáveis do serviço web: `PUBLIC_BASE_URL` (o principal, `https:`,
+   aparado) já existe; acrescente `SUBDOMINIO_BASE=loteriasdobem.com.br` —
+   **só o domínio**, sem `https://` nem `*.`. Base torta é ignorada com aviso
+   `[subdominio]` no log (o endereço fica desligado). Deixe `SEO_INDEXAR` e
+   `ORIGEM_POR_HOST=recusar` **fora** por enquanto.
+3. **[comigo/você]** Antes de redeployar: `npm run subdominio-auditoria`
+   (no Railway: `railway run npm run subdominio-auditoria -- --estrito`) lista
+   o que cada slug pode ter. `impossivel` (reservado, curto, `af-…`) fica no
+   principal — renomear o slug não existe; `confirmar_marca` só liga com a
+   confirmação consciente da plataforma. Sai com 1 (`--estrito`) se organização
+   **ativa** não puder ter endereço, para você decidir antes.
+4. Redeploy. Confira: `https://loteriasdobem.com.br` segue igual;
+   `https://qualquercoisa.loteriasdobem.com.br` responde 404 (rótulo
+   inexistente) e `curl -sI` traz `X-Robots-Tag: noindex`.
+5. Ligue **uma** organização de teste (Organizações → endereço, com motivo) e
+   confira, no celular: abrir a rifa, entrar, comprar com Pix de teste, o
+   carrinho, "Minhas compras" e Mensagens (só a conversa com ela). O endereço
+   não mostra Meta nem TikTok; o aviso de cookies cita a promotora.
+6. Veja o log: `[origem]` (modo relatório) deve ficar limpo antes de
+   `ORIGEM_POR_HOST=recusar`. Só então ligue as demais organizações, uma a uma.
+7. **Desfazer**: desligar o interruptor da organização (volta a 404 no endereço
+   e os links voltam ao principal) ou tirar `SUBDOMINIO_BASE`.
+
 ## Etapa 9 — abrir ao público
 
 - [ ] **Reset geral**: remover o perfil de demonstração e todo dado de

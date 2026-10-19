@@ -252,7 +252,7 @@ async function auditoriaDoAcesso(A: { id: string; slug: string }, B: { id: strin
   const saqueX = rs.find((x) => x.status === 201)?.json?.id as string;
   r = await Y.c.req("POST", "/api/affiliate/payouts", { organizacaoId: A.id, notaFiscal: NOTA_DE_TESTE });
   checa("sacar a organização em que não tem saldo: 400, sem saque", r.status === 400, `HTTP ${r.status} ${r.json?.message ?? ""}`);
-  for (const organizacaoId of ["x", "plataforma", B.id.replace(/./, "0")]) {
+  for (const organizacaoId of ["x", "plataforma", "00000000-0000-0000-0000-000000000000"]) {
     r = await Y.c.req("POST", "/api/affiliate/payouts", { organizacaoId, notaFiscal: NOTA_DE_TESTE });
     checa(`organizacaoId ${JSON.stringify(organizacaoId)} sem saldo ali: 400`, r.status === 400, `HTTP ${r.status}`);
   }

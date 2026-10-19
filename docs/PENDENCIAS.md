@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (subdomínio PR 3: o SPA no endereço da organização; PRs 1 e 2 mesclados, deploy do 2 concluído; `__Host-rifa.sid` aguarda o seu OK).
+Última atualização: 18/10/2026 (subdomínio PR 4: os links da rifa saem pelo endereço da organização; PRs 1 a 3 mesclados; `__Host-rifa.sid` aguarda o seu OK; melhorar o editor de imagem e vídeo registrado como pendência futura; `db:push` de produção feito e conferido; auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -601,12 +601,51 @@ Decidido em 18/10/2026: `<rotulo>.loteriasdobem.com.br` só para a organização
 cookie no domínio base. Existe só a regra pura (`shared/subdominio.ts`) e o
 middleware que marca a requisição; nenhuma rota usa o destino.
 
+- [x] **[código]** PR 7 (19/10/2026): `SUBDOMINIO_BASE` conferida (`problemaNaBase()`:
+  base torta fica desligada com aviso no log), auditoria dos slugs
+  (`npm run subdominio-auditoria`, `--estrito`), `.env.example` e o roteiro de
+  ligar (Etapa 8b de `docs/ORDEM-DE-LANCAMENTO.md`).
+- [ ] **[você]** Ligar em produção pela Etapa 8b: curinga no Railway, variável,
+  auditoria, uma organização de teste, depois as demais.
 - [ ] **[decisão]** As 12 perguntas do capítulo 12 do plano (rótulo = slug com
   interruptor por organização, marca no endereço, páginas globais, domínio
   principal canônico, organização suspensa, Google no endereço, anúncio sem
   endereço, indexação, PWA, lista de reservados e marcas, cookie `__Host-`,
   PSL e Cloudflare).
-- [ ] **[advogado]** R30 a R35 (`docs/PERGUNTAS-AO-ADVOGADO.md`, quinta rodada).
+- [x] **[advogado]** R30 a R35 respondidas (18/10/2026, parecer em
+  `docs/PERGUNTAS-AO-ADVOGADO.md`). **O que muda no plano:** (1) o subdomínio **não
+  serve de destino de anúncio** no Google nem na Meta — é preciso **domínio próprio da
+  promotora** (CNAME), fase nova no `docs/PLANO-SUBDOMINIO.md` (cap. 15); o subdomínio
+  fica para perfil e divulgação orgânica; (2) **não ligar `SUBDOMINIO_BASE` em produção**
+  até o cookie `_fbp`/`_ttp` sair do domínio pai (PSL ou domínio próprio); (3) a página
+  do endereço precisa da dupla identificação (promotora no alto, plataforma no
+  rodapé) — entra no PR 6; (4) rótulo: triagem de nomes que sugiram banco, Caixa ou
+  "oficial" (hoje só a lista `RESERVADOS`); (5) texto de contrato: cláusulas de
+  desligamento (R33) e licença do endereço (R34, com indenização); (6) termo do
+  afiliado: proibir `af-<código>` como destino de anúncio pago (R35).
+- [x] **[código]** PR 6 (18/10/2026): `<head>` por requisição (canonical, Open Graph, título),
+  `robots.txt` e `sitemap.xml` por host, `noindex` nas áreas de conta, abertura da
+  plataforma fora do endereço e a dupla identificação (R31). Falta **[você]**: decidir
+  se liga `SEO_INDEXAR=1` (o sitemap) — de fábrica não anuncia nada. Detalhes em
+  `docs/PLANO-SUBDOMINIO.md`, cap. 15.1.
+- [ ] **[decisão]** O endereço é identidade e canal direto da promotora (esclarecido em
+  18/10/2026; `PLANO-SUBDOMINIO.md`, 15.2): o domínio próprio vira opcional (só para
+  anunciar) e o único bloqueio de ligar a base é o cookie `_fbp`/`_ttp` (R32).
+  **Mensagens no endereço feito** (só a conversa com a organização dele, decidido em 18/10/2026).
+- [x] **[código]** Meta e TikTok **não carregam no endereço da organização** enquanto o
+  isolamento dos cookies não vale (`ISOLAMENTO_DE_COOKIES_VALENDO`, parecer do advogado de
+  18/10/2026); o aviso do endereço traz a redação dele. Tira o bloqueio de R32 para ligar a
+  base. `PLANO-SUBDOMINIO.md`, cap. 15.3.
+- [ ] **[você]** Pedir a inclusão de `loteriasdobem.com.br` na Lista de Sufixos Públicos
+  (dono do domínio; 2 anos de registro restantes; TXT `_psl`). Quando valer: virar a
+  constante, subir `VERSAO_DO_AVISO` e atualizar o item 8 da Privacidade (controladora =
+  promotora no endereço; sobe `VIGENCIA_DOS_TERMOS`).
+- [ ] **[advogado → texto]** Redigidas pelo advogado (`PERGUNTAS-AO-ADVOGADO.md`, oitava
+  rodada): R33 e R34 no contrato da promotora e R35 no termo do afiliado. Falta **publicar**
+  (nova versão do contrato e do termo) e o advogado conferir o texto final.
+- [ ] **[código]** Anúncio pago (`linkDoAnuncio`, tráfego): com o parecer, o destino
+  pago não pode ser o subdomínio; hoje, com a base desligada, segue o principal — manter
+  assim até existir o domínio próprio da promotora.
 - [ ] **[você]** Cadastrar o curinga `*.loteriasdobem.com.br` no Railway; escolher o
   domínio principal canônico (raiz ou `www`); aprovar a lista de reservados.
 - [x] **[código]** PR 1, parte feita (18/10/2026): `identificarHost()` corrigido (dois
@@ -628,13 +667,33 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   `GET /api/public/endereco`, `npm run subdominio` e a entrada do `isolation`.
   **Sem `SUBDOMINIO_BASE` é inerte; não ligue em produção antes do PR 3** (a tela
   ainda serviria a vitrine inteira no endereço).
-- [ ] **[código]** Ficou para depois do PR 2: o `/c/<código>` e o `/l/<perfil>/<n>` de
-  **outra** organização redirecionarem ao principal (hoje seguem), no PR 4 com os
-  links emitidos.
-- [ ] **[código]** PR 3: roteador por endereço no SPA (+ rodada de `npm run telas` com `*.localhost`).
-- [ ] **[código]** PR 4: URLs absolutas pelo endereço (artes, kit do afiliado, curtos, QR,
-  WhatsApp, push, tráfego pago, marketing por servidor).
-- [ ] **[código]** PR 5: pixels, cookies e Privacidade por endereço. PR 6: canonical, Open
+- [x] **[código]** `/c/<código>` e `/l/<perfil>/<n>` de **outra** organização (ou código
+  desconhecido) no endereço vão ao principal (302): feito no PR 4 (`conferir-curto`).
+- [x] **[código]** PR 3: roteador por endereço no SPA.
+- [x] **[código]** PR 4: os links **da rifa** saem pelo endereço da organização **quando ele
+  está ligado** (senão, o caminho de hoje): artes, QR e curto do painel e do kit do
+  afiliado (`?ref=` tirado da sessão), QR do perfil, `event_source_url` da compra,
+  aviso do ganhador e o **link do anúncio de tráfego** (`linkDoAnuncio`, as UTMs não
+  mudam). `tests/urlsAbsolutas.test.ts` trava a lista de quem monta URL absoluta.
+- [ ] **[código]** Ficou do PR 4, sem bloquear: (1) **compartilhar** na publicação, no
+  perfil e no presente usa o `origin` do aparelho — no principal compartilha o
+  principal; (2) o link de **pedido/carrinho** nos avisos do WhatsApp segue no principal
+  (a tela do pedido no endereço ainda não foi provada para pedido de outra organização);
+  (3) a criação no Meta com a base ligada e a organização **sem** endereço ativo cai no
+  link do principal (o plano pedia 409, pergunta 7 em aberto — decida);
+  (4) `npm run trafego-criacao` não foi rodado com a base ligada (precisa do Meta de
+  mentira); o `linkDoAnuncio` com endereço está no `tests/trafego.test.ts`.
+- [x] **[código]** PR 5 (parte feita em 18/10/2026): o cookie do GA4 e do Google Ads
+  fica preso ao **host da página** (`opcoesDoGoogle()` em `shared/marketing.ts`,
+  `cookie_domain`), a organização do endereço já era dos pixels pela `Perfil`/`Rifa`/`Pedido`
+  (que são as telas do endereço) e a Privacidade diz que cada endereço guarda as
+  escolhas à parte. **Falta, e não bloqueia:** (1) Meta e TikTok seguem gravando
+  `_fbp`/`_ttp` no domínio comum — não achei parâmetro documentado de domínio;
+  a saída de fundo é a Lista de Sufixos Públicos (PR 8) e a pergunta R32 ao advogado;
+  (2) o relatório de CSP não diz o host; (3) `VIGENCIA_DOS_TERMOS` ficou em 18/10/2026
+  (a frase nova entrou no mesmo dia) — se a Privacidade já foi publicada com a data
+  de hoje, suba a vigência.
+- [ ] **[código]** PR 5 (restante) e PR 6 PR 6: canonical, Open
   Graph, `robots.txt` e `sitemap.xml` por host. PR 7: ligar (`SUBDOMINIO_BASE`).
 - [ ] **[código, depois]** Cloudflare (`ipViaCloudflare`), Lista de Sufixos Públicos,
   login do Google por *hand-off*, manifesto e PWA por endereço, endereço de afiliado.
@@ -1034,6 +1093,35 @@ Na ordem de entrega do plano:
 
 ## 6. Código, para depois
 
+- [ ] **[depois da versão inicial]** Melhorar muito o editor de imagem e de
+  vídeo do painel (pedido do dono em 18/10/2026: "no futuro, melhorar muito").
+  Por ora fica como está (artes prontas, editor de imagem, capa e corte do
+  vídeo, reels gerado). O que a conversa de 18/10 apurou, para quando voltar:
+  - **Não dá para embutir Shotcut, Kdenlive, GIMP ou Darktable**: são
+    programas de computador (não rodam dentro de uma página) e são GPL —
+    misturar o código deles ao nosso cria obrigação de licença. O caminho é
+    **construir no nosso editor** o que eles têm de mais usado, usando o motor
+    por baixo: o `ffmpeg` do trabalhador (fila no Postgres, o mesmo do reels
+    gerado) para cortar vários trechos, juntar, pôr texto e legenda, e o
+    `sharp`/canvas para a foto. O processo do site continua sem recomprimir
+    vídeo.
+  - **Regras que valem para qualquer ferramenta nova**: todo texto que vira
+    imagem ou vídeo passa antes pela régua (sem link, telefone nem Pix por
+    fora, como o `/editor/conferir`); o recorte por organização; limite por
+    pessoa; nada de preço, número ou prêmio vindo do navegador.
+  - **O que precisa de provedor pago por unidade** (já previsto em
+    `docs/PLANO-FERRAMENTAS.md`): remover fundo, legendas por transcrição e
+    vídeo gerado por IA. Seria cobrado pelo saldo da organização, como o
+    assistente, com o pedido montado só com os dados públicos da rifa.
+  - **OpenMontage** (vídeo por IA, código aberto) foi só avaliado: é feito para
+    rodar no computador de quem desenvolve, com assistente de código e chaves
+    de provedores pagos, e a licença é **AGPL-3.0**, que pode obrigar a
+    publicar o código de um serviço que o use pela rede. **[você] Antes de
+    qualquer uso no servidor, perguntar ao advogado** (juntar às perguntas de
+    `docs/PERGUNTAS-AO-ADVOGADO.md`). Não entra no repositório por ora.
+  - **Sobra, sem custo**: uma página de ajuda com links para baixar essas
+    ferramentas gratuitas, para quem edita fora (só links `https:` de sites
+    oficiais, conferidos antes, avisando que são externos). Não foi feita.
 - [ ] **[depois da versão inicial]** Ferramentas de imagem e vídeo para
   divulgar a rifa (artes prontas com os dados da rifa, recriar a partir de
   uma referência com IA de visão, editor de imagem, vídeo leve, IA

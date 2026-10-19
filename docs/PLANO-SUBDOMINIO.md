@@ -752,10 +752,10 @@ sem a variável está marcado.
 | 1 | **Endurecimento que independe do domínio** — *feito (b, c, d, e) em 18/10/2026; (a) aguarda o OK da pergunta 11* | (a) `__Host-rifa.sid` em produção; (b) `exigirOrigemDoHost` em modo relatório; (c) `shared/subdominio.ts` corrigido (`--`, ponto final, porta, marcas) + testes; (d) `www` → principal; (e) `X-Robots-Tag` para host desconhecido | **age** (a, b, d, e). (a) desloga todos uma vez; (b) só registra; (d) é o único efeito visível | **médio** pelo (a): avisar antes e fazer em horário calmo. (b) em relatório não derruba nada |
 | 2 | **Guarda do endereço no servidor** — *feito em 18/10/2026 (a rota do interruptor é `PUT /organizacoes/:id/subdominio`, porque `/endereco` já é o CEP; os curtos de outra organização ficaram para o PR 4)* | `guardaDoEndereco`, `hostDaRequisicao`, cache, `GET /api/public/endereco`, classificador de rotas (+ teste de cobertura), 404 com status, canonicalização `/o/<rótulo>`, redirecionamentos ao principal, bloqueio de painel/webhook no endereço; coluna `organizations.endereco_ativo` e a rota `PUT /organizacoes/:id/endereco` (com a auditoria); `npm run subdominio` (servidor) e entradas do `isolation` | **inerte** (sem base, nenhum host é endereço; a coluna fica sem uso) | **médio**: é um middleware global; o teste de cobertura e a prova seguram. `db:push` **antes** do código |
 | 3 | **SPA: roteador por endereço** — *feito em 18/10/2026 (junto da leva 21; ver 14.1)* | `RoteadorPorEndereco`, `useEndereco`, `useLocationDoEndereco`, console filtrado, botão do Google, intro e faixa de instalar escondidos no endereço, carrinho e "Minhas compras" do endereço; `npm run telas` com a rodada `*.localhost`; registro em `VERSOES.md` | **inerte** (`/api/public/endereco` responde `principal`) | **médio**: mexe na navegação, mas só troca o `Router` quando é endereço |
-| 4 | **URLs absolutas** | `urls.ts` (os três auxiliares), artes, kit do afiliado, curtos, QR do perfil, WhatsApp, push, compartilhar, marketing por servidor, **tráfego (`linkDoAnuncio`)** + varredura de URL no teste | **inerte** (cai no caminho de hoje) | **médio-alto** pela atribuição: o tráfego e o `?ref=` mudam de host. Provar com `npm run trafego-criacao`, `npm run afiliados`, `npm run artes`, `npm run marketing`, `npm run perfil` |
-| 5 | **Pixels, cookies e Privacidade** | organização do endereço na raiz, `cookie_domain` (GA4/Ads), texto da Privacidade e `GUARDADO_NO_NAVEGADOR`, relatório de CSP com o host | **inerte** | baixo |
-| 6 | **SEO** | marcador no `index.html` (canonical, Open Graph, robots), `robots.txt` e `sitemap.xml` por host, `noindex` nas áreas de conta | o marcador age (canonical do principal para ele mesmo, `og:*` novos); sem endereço, nada de sitemap de organização | baixo-médio (muda o HTML servido; o hash da CSP não muda, conferir) |
-| 7 | **Ligar** | `SUBDOMINIO_BASE=loteriasdobem.com.br`, curinga no Railway, auditoria dos slugs, ligar **uma** organização de teste, depois as demais; CI com a variável; `.env.example`; `docs/ORDEM-DE-LANCAMENTO.md`; skill `provar` | liga | **alto até a prova em produção**: reversível desligando a variável ou o interruptor por organização |
+| 4 | **URLs absolutas** — *feito em 18/10/2026 (menos o compartilhar do navegador, os avisos de pedido e o 409 do Meta sem endereço; ver `PENDENCIAS.md`)* | `urls.ts` (os três auxiliares), artes, kit do afiliado, curtos, QR do perfil, WhatsApp, push, compartilhar, marketing por servidor, **tráfego (`linkDoAnuncio`)** + varredura de URL no teste | **inerte** (cai no caminho de hoje) | **médio-alto** pela atribuição: o tráfego e o `?ref=` mudam de host. Provar com `npm run trafego-criacao`, `npm run afiliados`, `npm run artes`, `npm run marketing`, `npm run perfil` |
+| 5 | **Pixels, cookies e Privacidade** — *feito em parte em 18/10/2026 (cookie do Google no host, texto da Privacidade; Meta/TikTok e CSP ficam — ver `PENDENCIAS.md`)* | organização do endereço na raiz, `cookie_domain` (GA4/Ads), texto da Privacidade e `GUARDADO_NO_NAVEGADOR`, relatório de CSP com o host | **inerte** | baixo |
+| 6 | **SEO e a identificação do fornecedor** — *feito em 18/10/2026 (ver 15.1)* | marcador no `index.html` (canonical, Open Graph, robots), `robots.txt` e `sitemap.xml` por host, `noindex` nas áreas de conta | o marcador age (canonical do principal para ele mesmo, `og:*` novos); sem endereço, nada de sitemap de organização | baixo-médio (muda o HTML servido; o hash da CSP não muda, conferir) |
+| 7 | **Ligar** — *código e roteiro feitos em 19/10/2026 (`problemaNaBase`, `situacaoDoRotulo`, `npm run subdominio-auditoria`, `.env.example`, Etapa 8b da `ORDEM-DE-LANCAMENTO.md`); a ligação em produção é sua, passo a passo lá* | `SUBDOMINIO_BASE=loteriasdobem.com.br`, curinga no Railway, auditoria dos slugs, ligar **uma** organização de teste, depois as demais; CI com a variável; `.env.example`; `docs/ORDEM-DE-LANCAMENTO.md`; skill `provar` | liga | **alto até a prova em produção**: reversível desligando a variável ou o interruptor por organização |
 | 8 | **Depois do lançamento** | Cloudflare (`ipViaCloudflare`), PSL, *hand-off* do login do Google, manifesto/PWA por endereço, endereço de afiliado (`af-`), domínio próprio da promotora, prazo de rótulo antigo (se houver renomeação) | — | cada um tem plano próprio |
 
 Ordem: 1 e 2 podem andar em paralelo (1 não depende do endereço); 3 depende de
@@ -868,3 +868,122 @@ Vão em `docs/PERGUNTAS-AO-ADVOGADO.md`, "Quinta rodada". Resumo:
     a lista inteira e o teste de cobertura a trava).
 11. **Seções mencionadas e inexistentes:** "Subdomínio do organizador" em
     `PENDENCIAS.md` não está em `origin/main` (conferido).
+
+---
+
+## 15. Parecer do advogado (R30 a R35, 18/10/2026) e o que muda
+
+O parecer completo está em `docs/PERGUNTAS-AO-ADVOGADO.md`. Efeito neste plano:
+
+- **O subdomínio não é destino de anúncio.** Google (jogos de azar, março de 2026)
+  exige domínio "propriedade direta" da empresa; a Meta verifica o domínio raiz.
+  Logo, o endereço `<rotulo>.loteriasdobem.com.br` serve ao perfil e à divulgação
+  orgânica; **o anúncio pago pede domínio próprio da promotora (CNAME)**. Isto
+  vira uma fase nova (o item "domínio próprio da promotora" do PR 8 sobe de
+  prioridade): cadastro do domínio, verificação do CNAME, certificado, o mesmo
+  guarda por host, `canonical` para ele mesmo e `?ref=` do afiliado preservado.
+  Enquanto não existe, `linkDoAnuncio` não usa o subdomínio para anúncio pago.
+- **Cookie de pixel (R32) é bloqueio de lançamento**: `SUBDOMINIO_BASE` não vai a
+  produção com `_fbp`/`_ttp` no domínio pai. Saídas: Lista de Sufixos Públicos para
+  `loteriasdobem.com.br` (cada subdomínio vira "site" próprio para o navegador) ou o
+  domínio próprio da promotora, que resolve junto com a R30.
+- **PR 6 (SEO e página)** ganha a **dupla identificação** (R31): promotora no
+  cabeçalho/área principal sem rolar (nome, CNPJ, endereço, autorização SPA/MF) e
+  plataforma no rodapé (razão social, CNPJ, e-mail dos Dados da empresa publicados).
+- **Rótulo**: além de `RESERVADOS`, triagem de nomes que sugiram instituição
+  financeira ou loteria oficial (R33); rótulo desligado nunca é reatribuído (R34).
+- **Textos**: cláusula de desligamento e licença do endereço no contrato da
+  promotora; proibição de `af-<código>` como destino pago no termo do afiliado (R35).
+
+### 15.1 O PR 6, como foi feito (18/10/2026)
+
+- **O `<head>` por requisição.** `client/index.html` ganhou o marcador `<!--rifa-meta-->`;
+  `serveStatic` lê o arquivo uma vez e `metaDaRequisicao()` (`server/services/seo.ts`)
+  troca o marcador por `canonical`, `og:*`, `twitter:card`, o `<title>` e a
+  `description` da página (organização ou rifa) e, quando cabe, `robots` e
+  `rifa:endereco`. O `express.static` passou a `index: false`: a raiz também passa
+  pelo marcador. Os scripts em linha não mudam, então o hash da CSP é o mesmo.
+  `Vary: Host` e `no-cache`: o HTML muda com o host e o caminho.
+- **Canônico = o endereço da organização, quando ligado** (perfil e rifa); o
+  principal aponta para ele sem redirecionar. Sem endereço ligado, o canônico é o
+  principal. Rascunho, rifa que não existe e organização arquivada ou banida: página
+  genérica com `noindex` — nunca dado da rifa.
+- **`og:image` é a foto da organização** (o banner da rifa não entrou; fica para
+  quando houver variante de tamanho de prévia). Sem preço no título (muda).
+- **`robots.txt` e `sitemap.xml` por host.** Host que não é da casa: `Disallow: /`.
+  Principal e endereço: fecha as áreas de conta e de dinheiro (`CAMINHOS_QUE_NAO_INDEXAM`);
+  `/api` e `/uploads` ficam abertos porque é por eles que saem as imagens. O
+  sitemap e a linha `Sitemap:` só existem com **`SEO_INDEXAR=1`** (de fábrica:
+  404). O do endereço lista o perfil e as rifas da vitrine; o do principal, a
+  vitrine, ajuda, termos e privacidade e o perfil e as rifas das organizações
+  **sem** endereço ligado (as que têm estão no sitemap do endereço delas).
+- **`X-Robots-Tag: noindex, nofollow`** nas páginas de conta e de dinheiro, em todo
+  host (além do `<meta>`).
+- **A abertura da plataforma não aparece no endereço.** O servidor escreve
+  `<meta name="rifa:endereco">` e o script em linha do `index.html` não monta o
+  `#abertura` quando ele existe.
+- **R31 (parecer): dupla identificação.** `FaixaDaPromotora` (logo abaixo do topo,
+  nome, CNPJ, cidade e autorização SPA/MF do que a organização cadastrou) e
+  `OperadoraNoEndereco` (rodapé: razão social, CNPJ e e-mail dos Dados da empresa
+  publicados, e **nada** se faltar dado). Regras em `identificacaoDaPromotora()` e
+  `identificacaoDaPlataforma()` (`shared/rodape.ts`).
+- **Prova:** `npm run subdominio` (HTML, canonical, noindex, robots, sitemap
+  desligado), `npm run subdominio-spa` (a faixa na primeira tela, sem abertura) e
+  `tests/seo.test.ts`.
+- **Custo:** a página de perfil e a de rifa fazem uma consulta a mais por abertura (a meta); se pesar, guardar 15 s por caminho, como o guarda do endereço.
+- **Fica:** a triagem de rótulo que sugere banco ou "oficial" (R33) segue a de
+  hoje (`RESERVADOS` + `rotuloPareceMarca()`, que pede confirmação); o
+  `og:image` da rifa; o sitemap por partes se passar de 5 mil rifas (teto atual).
+
+### 15.2 Para que serve o endereço (esclarecimento do responsável, 18/10/2026)
+
+O endereço existe para a **promotora ter identidade própria dentro do sistema e
+falar direto com o usuário** — não para ser destino de anúncio. Por isso:
+
+- O parecer R30 (Google e Meta exigem domínio próprio) **só pesa se a promotora
+  anunciar naquelas redes** apontando para o endereço. O "domínio próprio da
+  promotora" deixa de ser pré-requisito do lançamento e vira fase opcional,
+  para quem for anunciar.
+- Segue valendo, e **é o que trava ligar `SUBDOMINIO_BASE` em produção**, o parecer
+  R32: o cookie de pixel (`_fbp`/`_ttp`) não pode ficar no domínio pai, porque
+  isso junta o identificador do usuário entre promotoras. A saída é a Lista de
+  Sufixos Públicos (PR 8).
+- Seguem valendo a dupla identificação (R31), a licença e o desligamento do
+  endereço (R33, R34) e `af-<código>` fora de anúncio pago (R35).
+- "Comunicação direta com o usuário": o console do endereço tem **Mensagens, só
+  a conversa com a organização do endereço** (decisão de 18/10/2026). Feito:
+  `GET/POST /api/public/o/:slug/mensagens` e `…/resumo`
+  (`server/services/mensagensNoEndereco.ts`, as regras de sempre das Mensagens
+  — pedido para quem não segue, texto sem link nem telefone, só texto), classe
+  `conferir-organizacao` em `shared/enderecoRotas.ts` (só vale para o slug do
+  próprio endereço; outro é 404), tela `ConversaComAOrganizacao` (a rota
+  `/mensagens` do endereço), botão do console escondido se a plataforma
+  desligou a caixa. A caixa inteira da pessoa segue no domínio principal;
+  `npm run subdominio` prova o isolamento.
+
+
+### 15.3 Cookies de pixel por host: o que se decidiu (18/10/2026)
+
+Respostas do especialista técnico e do advogado (`docs/PERGUNTAS-AO-ADVOGADO.md`, oitava
+rodada):
+
+- **Lista de Sufixos Públicos é a correção estrutural, mas não é imediata.** Exige o
+  domínio com pelo menos 2 anos de registro restantes, o registro TXT `_psl` no DNS com o
+  link do pedido e pedido de quem é dono do domínio, por e-mail de função. O Firefox aplica em
+  semanas; Chrome, Edge e Safari levam meses (prazos sem fonte oficial — confirmar).
+- **No apex o cookie com `Domain` amplo deixa de valer; o nosso `rifa.sid` não define
+  `Domain`** (host-only, `server/auth.ts`), então a sessão não muda. Entre promotoras passa
+  a ser cross-site (`SameSite`), que é o isolamento desejado; carrinho e conta continuam no
+  domínio de cada endereço.
+- **Meta e TikTok não têm opção oficial de gravar `_fbp`/`_fbc`/`_ttp` só no host.** O
+  `subdomainIndex` do `_fbp` é um número dentro do valor do cookie, calculado pelo pixel, e
+  não uma configuração: não apostar nisso.
+- **Decisão de código (feita):** `ISOLAMENTO_DE_COOKIES_VALENDO = false` em
+  `shared/marketing.ts`. Enquanto for falso, **o pixel da Meta e o do TikTok não carregam no
+  endereço de uma organização** (`pixelsNoEndereco()`); o Google segue, preso ao host. As
+  compras continuam indo pelo servidor. O aviso de cookies do endereço usa a redação do
+  advogado (`textoDoAvisoNoEndereco()`), citando só a rede que carrega.
+- **Isto tira o bloqueio de R32 para ligar `SUBDOMINIO_BASE`**, pelo lado do código. Falta
+  o pedido da Lista de Sufixos Públicos (com o dono do domínio) para religar os pixels, e
+  então: virar a constante, subir `VERSAO_DO_AVISO` e atualizar o item 8 da Privacidade.
+- **Anúncio pago** segue exigindo domínio próprio da promotora (R30) — fase opcional.

@@ -76,7 +76,7 @@ import { desenharArte, rifaDaArte } from "./artes";
 import { emSegundoPlano } from "./push";
 import { getPlataforma } from "./settings";
 import { TrafegoError, auditar, idValido, rifaSegueNoAr, travar } from "./trafego";
-import { baseDoAnuncio } from "./urls";
+import { baseDoAnuncio, enderecoDaOrganizacao } from "./urls";
 
 const META_PADRAO = "https://graph.facebook.com/v25.0";
 const PRAZO_MS = 30_000;
@@ -408,6 +408,7 @@ async function dadosDaCampanha(id: string) {
       titulo: campaigns.title,
       rifaSlug: campaigns.slug,
       orgSlug: organizations.slug,
+      orgId: organizations.id,
       orgAtiva: organizations.active,
     })
     .from(trafegoCampanhas)
@@ -644,7 +645,11 @@ export async function criarNoMeta(
     if (!ok) throw new LinhaPerdida();
   };
   try {
-    const link = linkDoAnuncio(base, { id: c.id, orgSlug: c.orgSlug, rifaSlug: c.rifaSlug }, "meta");
+    const link = linkDoAnuncio(
+      base,
+      { id: c.id, orgSlug: c.orgSlug, rifaSlug: c.rifaSlug, endereco: await enderecoDaOrganizacao(c.orgId) },
+      "meta",
+    );
     const imagem = await desenharArte({ rifa, tipo: "rifa", formato: "retrato", url: link });
     const prontos = await criador.criar(
       {

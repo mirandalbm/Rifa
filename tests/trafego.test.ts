@@ -286,6 +286,14 @@ describe("atribuição", () => {
     expect(l.searchParams.get("utm_medium")).toBe("cpc");
     expect(l.searchParams.get("utm_campaign")).toBe("trafego-3f2a9c1b");
   });
+  it("com o endereço da organização ligado, o anúncio leva à página dela, com a mesma UTM", () => {
+    const l = new URL(linkDoAnuncio("https://rifa.app/", { id, orgSlug: "org", rifaSlug: "moto", endereco: "https://org.rifa.app/" }, "meta"));
+    expect(l.origin).toBe("https://org.rifa.app");
+    expect(l.pathname).toBe("/r/moto");
+    expect(l.searchParams.get("utm_campaign")).toBe("trafego-3f2a9c1b");
+    // sem endereço (nulo), o caminho de hoje
+    expect(new URL(linkDoAnuncio("https://rifa.app/", { id, orgSlug: "org", rifaSlug: "moto", endereco: null }, "meta")).pathname).toBe("/o/org/r/moto");
+  });
   it("recusa sem motivo", () => {
     expect(problemaNaRecusa("curto")).not.toBeNull();
     expect(problemaNaRecusa("A arte promete prêmio em dinheiro.")).toBeNull();

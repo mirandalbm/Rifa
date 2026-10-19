@@ -23,7 +23,7 @@ import { getPlataforma } from "../services/settings";
 import { templatePublicado } from "../services/template";
 import { FiscalError, conferirSaque, documento, estadoFiscal, gravarNotaDoSaque, lerNotaFiscal, notaDoSaque, salvarDadosFiscais, salvarDocumento } from "../services/fiscal";
 import { pdfDoRecibo, reciboPorCodigo } from "../services/recibos";
-import { baseDoSite, urlDeConferencia } from "../services/urls";
+import { baseDoSite, enderecoDaOrganizacao, urlDeConferencia } from "../services/urls";
 import { aderir, comissaoNaRifa, organizacoesDoAfiliado, sair } from "../services/afiliados";
 import { decididasParaOAfiliado, editarComoAfiliado, fotoDaPecaDoAfiliado, videoDaPecaDoAfiliado, marcarVistoDoAfiliado, minhasDoAfiliado, publicarComoAfiliado, retirarPropria, rifasParaDivulgar } from "../services/divulgacao";
 import { enviarComFaixa, enviarFaixaDoBanco } from "../services/faixa";
@@ -233,7 +233,7 @@ affiliateRouter.get("/links", async (req, res, next) => {
 
     const result = await Promise.all(
       live.map(async (c) => {
-        const url = `${base}/r/${c.slug}?ref=${aff.code}`;
+        const url = `${(await enderecoDaOrganizacao(c.organizationId)) ?? base}/r/${c.slug}?ref=${aff.code}`;
         const coupon = myCoupons.find(
           (k) => (!k.campaignId || k.campaignId === c.id) && (!k.organizationId || k.organizationId === c.organizationId),
         );
@@ -300,7 +300,8 @@ async function rifaDoKit(req: Request, slug: string) {
   if (!c || !(await comissaoNaRifa(db, id, c)).recebe) return null;
   const [aff] = await db.select({ code: affiliates.code }).from(affiliates).where(eq(affiliates.id, id));
   const r = await rifaDaArte(c.id);
-  return r && aff ? { r, url: `${baseDoSite(req)}/r/${r.slug}?ref=${encodeURIComponent(aff.code)}`, id } : null;
+  const base = (await enderecoDaOrganizacao(c.organizationId)) ?? baseDoSite(req);
+  return r && aff ? { r, url: `${base}/r/${r.slug}?ref=${encodeURIComponent(aff.code)}`, id } : null;
 }
 
 affiliateRouter.get("/artes/:slug", async (req, res, next) => {

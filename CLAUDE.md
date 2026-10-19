@@ -744,7 +744,7 @@ Como no Instagram, com as nossas cores (verde no lugar do vermelho e do rosa).
   - Os ícones do app (`client/public/icons/`) são só o **trevo, com a folha
     da direita vermelha** (`docs/marca/`, escolha do produto em 14/10/2026),
     sem moldura nem placa: `icon-192` e `icon-512` com o trevo a 87% sobre
-    fundo transparente; `icon-maskable-512` com o trevo a 66% sobre fundo
+    fundo **branco** (transparentes, o Android os pintava de preto na tela de abertura); `icon-maskable-512` com o trevo a 66% sobre fundo
     **branco** (transparente, o Android pintava um quadrado preto na tela de
     abertura do app instalado; o `theme_color` do manifesto também é branco
     — `COR_DA_BARRA_DO_APP` —, senão a barra do sistema ficava verde), dentro da zona segura de 80% (o raio do trevo fica em

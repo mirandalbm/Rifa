@@ -180,24 +180,24 @@ export default function PerfilPage() {
   return (
     <PublicShell larga>
       <DestaqueOrg cor={p.destaque}>
-      {/* Capa: 3:1, de ponta a ponta; a foto sobe um pouco sobre ela. Sem
-          capa enviada, o padrão: o nome sobre um degradê da cor de destaque. */}
-      <div className="-mx-4 -mt-4 aspect-[3/1] overflow-hidden bg-mist-2 sm:mx-0 sm:mt-0 sm:rounded-xl lg:aspect-[4/1]">
+      {/* No computador: à esquerda o perfil (foto, nome, contadores e ações) e,
+          embaixo dele, a bio; à direita a capa, da altura dos dois até a borda;
+          depois os destaques e, embaixo, as rifas em grade de 3. No celular e
+          no tablet, a mesma ordem de sempre: capa, perfil, bio, destaques,
+          rifas (a capa é um elemento só, posto na grade por `lg:`). */}
+      <div>
+      <div className="lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-start lg:gap-x-10 lg:gap-y-4">
+      {/* Capa: 3:1 de ponta a ponta no celular e no tablet; no computador, a
+          coluna da direita, na altura do perfil e da bio. Sem capa enviada, o
+          padrão: o nome sobre um degradê da cor de destaque. */}
+      <div className="relative -mx-4 -mt-4 mb-4 aspect-[3/1] overflow-hidden bg-mist-2 sm:mx-0 sm:mt-0 sm:rounded-xl lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mb-0 lg:aspect-auto lg:min-h-[240px] lg:self-stretch">
         {p.capa ? (
-          <img src={p.capa} alt="" className="h-full w-full object-cover" />
+          <img src={p.capa} alt="" className="h-full w-full object-cover lg:absolute lg:inset-0" />
         ) : (
           <CapaPadrao nome={p.nome} />
         )}
       </div>
-      {/* No computador, como no Instagram: o perfil é um cabeçalho de ponta a
-          ponta abaixo da capa (foto, nome, contadores e ações à esquerda; a
-          bio, os links e os destaques à direita) e as rifas vêm embaixo, em
-          grade de 3. A coluna lateral de antes deixava um vão branco do
-          tamanho da página ao lado do feed. No celular e no tablet, a mesma
-          ordem de sempre. */}
-      <div className="mt-4">
-      <div className="lg:grid lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:items-start lg:gap-x-10">
-      <div>
+      <div className="lg:col-start-1 lg:row-start-1">
       {/* O cartão do perfil, logo abaixo da capa (sem subir sobre ela): foto à
           esquerda; à direita, o nome e, embaixo dele, os contadores. */}
       <div className="flex items-center gap-4">
@@ -321,7 +321,7 @@ export default function PerfilPage() {
       {denunciando ? <Denunciar organizacao={p.slug} onFechar={() => setDenunciando(false)} /> : null}
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 lg:col-start-1 lg:row-start-2">
       {/* A cidade, o texto do organizador e a rifa atual, escrita sozinha
           (`bioAutomatica()`), cada linha com o seu ícone. */}
       <div className="mt-3 space-y-3 text-[13px] lg:mt-0">
@@ -347,11 +347,14 @@ export default function PerfilPage() {
         <LinksDoPerfil links={p.links} slug={p.slug} />
         {p.seguidoPor ? <p className="text-xs text-muted">{p.seguidoPor}</p> : null}
       </div>
+      </div>
+
+      </div>
 
       {/* Destaques: rifas já sorteadas. A capa com 76 px e o círculo com o
           anel com 96, a medida da fileira de stories. */}
       {p.destaques.length ? (
-        <section aria-label="Rifas realizadas" className="relative -mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:overflow-visible lg:px-0">
+        <section aria-label="Rifas realizadas" className="relative -mx-4 mt-4 overflow-x-auto px-4 lg:mx-0 lg:mt-6 lg:overflow-visible lg:px-0">
           <ul className="flex gap-3 lg:flex-wrap">
             {p.destaques.map((d) => (
               <li key={d.slug} className="shrink-0 text-center" style={{ width: CIRCULO_COM_ANEL }}>
@@ -386,9 +389,7 @@ export default function PerfilPage() {
           </ul>
         </section>
       ) : null}
-      </div>
 
-      </div>
 
       {/* Uma rifa por linha no celular; no tablet, duas colunas em fluxo
           (`columns`), não grade: cada publicação tem a altura do seu formato

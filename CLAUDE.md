@@ -645,13 +645,15 @@ arquitetura.
     `plataforma_arquivos`; o nome é o texto alternativo; o link é caminho do
     site ou `https:` (`validarApoios()`, a régua do banner). Entra no ar ao
     publicar o template.
-- **Perfil da organização**, como no Instagram: capa 4:1; abaixo, o
-  cabeçalho do perfil de ponta a ponta (foto, nome, contadores e ações à
-  esquerda; cidade, bio, links e destaques à direita) e, embaixo dele, as
-  rifas em **grade de 3** com a imagem sempre em 4:5 (`caixaNoComputador`
-  do `Carrossel`), para as linhas começarem na mesma altura. A coluna
-  lateral de 320 px saiu: deixava um vão branco do tamanho da página ao
-  lado do feed. No tablet, as rifas seguem em 2 colunas em fluxo.
+- **Perfil da organização no computador** (`Perfil.tsx`, só de `lg` em
+  diante): à esquerda o perfil (foto, nome, contadores e ações) e, logo
+  abaixo, a bio (cidade, texto, a rifa atual e os links); à direita a **capa**,
+  da altura dos dois, até a borda do conteúdo; depois os **destaques** e, por
+  último, as rifas em **grade de 3** com a imagem sempre em 4:5
+  (`caixaNoComputador` do `Carrossel`). A capa é um elemento só, posto na grade
+  por classes `lg:` — nada de segunda cópia. No celular e no tablet a ordem
+  segue a de sempre: capa 3:1 de ponta a ponta, perfil, bio, destaques e rifas
+  (duas colunas em fluxo no tablet).
 - **Painel do organizador em grade bento** (`Bento` em
   `client/src/pages/admin.tsx`, etiqueta presa na borda): receita com o
   gráfico em 2×2, cotas, comissão, próximo sorteio (azul, com a loteria pelo

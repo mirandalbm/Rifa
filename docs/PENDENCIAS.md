@@ -3,7 +3,7 @@
 Lista viva do que falta para a rifa vender em produção. Atualizada a cada
 etapa — quem fechar um item marca aqui no mesmo PR.
 
-Última atualização: 18/10/2026 (subdomínio PR 4: os links da rifa saem pelo endereço da organização; PRs 1 a 3 mesclados; `__Host-rifa.sid` aguarda o seu OK; melhorar o editor de imagem e vídeo registrado como pendência futura; `db:push` de produção feito e conferido; auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
+Última atualização: 19/10/2026 (curinga e `SUBDOMINIO_BASE` no ar; senha do Postgres trocada e o proxy público removido; ícones e barra do app instalado brancos). Antes: 18/10/2026 (subdomínio PR 4: os links da rifa saem pelo endereço da organização; PRs 1 a 3 mesclados; `__Host-rifa.sid` aguarda o seu OK; melhorar o editor de imagem e vídeo registrado como pendência futura; `db:push` de produção feito e conferido; auditorias por acesso mescladas; respostas das seções 1 a 4 registradas).
 
 Legenda: **[você]** depende do responsável pela conta (cadastro, documento,
 senha); **[código]** é trabalho no repositório; **[decisão]** depende de uma
@@ -605,8 +605,14 @@ middleware que marca a requisição; nenhuma rota usa o destino.
   base torta fica desligada com aviso no log), auditoria dos slugs
   (`npm run subdominio-auditoria`, `--estrito`), `.env.example` e o roteiro de
   ligar (Etapa 8b de `docs/ORDEM-DE-LANCAMENTO.md`).
-- [ ] **[você]** Ligar em produção pela Etapa 8b: curinga no Railway, variável,
-  auditoria, uma organização de teste, depois as demais.
+- [ ] **[você]** Ligar em produção pela Etapa 8b. **Feito em 19/10/2026**
+  (passos 1 a 4): curinga `*.loteriasdobem.com.br` no Railway com o
+  certificado válido e o DNS (2 CNAME e o TXT) no Hostinger; auditoria dos
+  slugs (2 organizações, as duas "prontas"); `SUBDOMINIO_BASE=loteriasdobem.com.br`
+  no serviço Rifa; deploy com sucesso; o principal abre igual e um rótulo
+  inexistente dá 404. **Falta** (passos 5 a 7): ligar o endereço de **uma**
+  organização de teste (Organizações → endereço, com motivo), testar no
+  celular, ler o log `[origem]` e só então as demais, uma a uma.
 - [ ] **[decisão]** As 12 perguntas do capítulo 12 do plano (rótulo = slug com
   interruptor por organização, marca no endereço, páginas globais, domínio
   principal canônico, organização suspensa, Google no endereço, anúncio sem
@@ -646,8 +652,10 @@ middleware que marca a requisição; nenhuma rota usa o destino.
 - [ ] **[código]** Anúncio pago (`linkDoAnuncio`, tráfego): com o parecer, o destino
   pago não pode ser o subdomínio; hoje, com a base desligada, segue o principal — manter
   assim até existir o domínio próprio da promotora.
-- [ ] **[você]** Cadastrar o curinga `*.loteriasdobem.com.br` no Railway; escolher o
-  domínio principal canônico (raiz ou `www`); aprovar a lista de reservados.
+- [x] **[você]** Curinga `*.loteriasdobem.com.br` cadastrado no Railway (19/10/2026;
+  o domínio `www` saiu para caber no plano Hobby, que aceita 2 domínios por
+  serviço, e `www` → principal segue pelo `destinoDoWww`). Falta: aprovar a lista
+  de reservados.
 - [x] **[código]** PR 1, parte feita (18/10/2026): `identificarHost()` corrigido (dois
   hífens e `xn--`, ponto final, porta só 80/443 em produção) e reservados com as marcas;
   `www` → principal (301/308) e `X-Robots-Tag: noindex` em host desconhecido

@@ -282,6 +282,15 @@ ou o interruptor da organização), mas o cookie da Meta e do TikTok só se isol
 com a Lista de Sufixos Públicos (R32) — por isso, ligado, o endereço nasce **sem**
 esses dois pixels (`ISOLAMENTO_DE_COOKIES_VALENDO = false`) e o Google segue.
 
+**Andamento (19/10/2026):** os passos 1 a 4 estão **feitos em produção** (curinga
+com certificado válido, DNS no Hostinger, auditoria dos slugs sem pendência,
+`SUBDOMINIO_BASE=loteriasdobem.com.br`, deploy com sucesso, principal igual e
+rótulo inexistente em 404). O domínio `www` saiu do Railway (plano Hobby: 2
+domínios por serviço); `www` → principal segue pelo código. **Faltam os passos 5
+a 7.** O Postgres **não tem mais proxy público** (removido em 19/10/2026, com a
+senha trocada): qualquer comando de banco roda dentro do serviço
+(`railway ssh --service Rifa`), nunca pela internet.
+
 1. **[você]** No Railway, o domínio curinga `*.loteriasdobem.com.br` no serviço
    web (e a verificação do DNS); confira que o certificado saiu para o curinga
    e para o domínio principal. Se a Cloudflare ficar na frente, o curinga

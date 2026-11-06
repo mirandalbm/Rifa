@@ -36,7 +36,10 @@ jobs:
 
   integracao:
     name: Isolamento, estorno e carga (Postgres real)
-    runs-on: ubuntu-latest
+    # Fixo de propósito: o `ubuntu-latest` deixou de ter o pacote `postgresql-16`
+    # nos repositórios padrão ("Unable to locate package"), e o job instala o 16
+    # (o mesmo da produção). Trocar de imagem é trocar a versão do banco da prova.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       DATABASE_URL: postgres://rifa:rifa@127.0.0.1:5432/rifa

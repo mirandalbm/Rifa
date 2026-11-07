@@ -123,6 +123,13 @@ cadastro (o roteiro do dia está na etapa 5, "Dia da troca da razão social").
   E as da fila de trabalho (`trabalhos`, `trabalho_arquivos`, `trabalhadores`).
   E as colunas `organizations.endereco_ativo` (nasce `false`) e `endereco_motivo`
   do endereço próprio da organização (subdomínio, PR 2) — **antes** do código.
+  E as da rifa nacional (PR 2 do `docs/PLANO-RIFA-NACIONAL.md`): em `campaigns`, as colunas
+  `nacional_status`, `nacional_aprovada_em`, `nacional_arrecadacao_cents` e
+  `nacional_minimo_cents` (as duas de dinheiro são `bigint`), o `check`
+  `ck_campaigns_nacional` e o valor `nacional` do tipo `solicitacao_tipo`. Toda rifa
+  de antes cumpre o `check` (tudo nulo), então o `db:push` não toca em linha e **não pede
+  confirmação de perda**; nada lê as colunas ainda (sem elas, só o `SELECT *` de
+  `campaigns` quebra, então suba **antes** do código).
   E as do tráfego pago (`trafego_campanhas`, `trafego_gastos`, com as
   colunas `cliques`, `origem` e `excedente_cents` da fase 2, e
   `trafego_criacoes` da fase 3 — sem ela, o painel do tráfego dá 500) e as

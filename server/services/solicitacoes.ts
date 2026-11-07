@@ -480,7 +480,7 @@ export async function decidirSolicitacao(
         if (conferido.ok) {
           await tx.update(campaigns).set(valoresNovos(conferido.alteracoes)).where(eq(campaigns.id, c.id));
         }
-      } else {
+      } else if (s.tipo === "adiamento") {
         if (!s.drawAtNovo || !c.drawAt || c.drawAt.getTime() !== s.drawAtAtual?.getTime()) {
           throw new SolicitacaoError("A data do sorteio mudou desde o pedido. Recuse e peça de novo.", 409);
         }
@@ -528,6 +528,12 @@ export async function decidirSolicitacao(
              AND ch.status IN ('aberto', 'aprovado')
              AND ch.tipo_reembolso = 'com_taxa'
         `);
+      } else {
+        // Tipo que este ramo não sabe aplicar (o `nacional` ainda não tem
+        // serviço: PR 3 do plano da rifa nacional). Antes, todo tipo que não
+        // era edição caía no adiamento; agora cada um é tratado pelo nome, e o
+        // que não for conhecido recusa em vez de mexer na data da rifa.
+        throw new SolicitacaoError(`Este tipo de pedido (${s.tipo}) ainda não pode ser aprovado.`, 409);
       }
     }
 

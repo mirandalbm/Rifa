@@ -10,13 +10,14 @@
  * Regras puras: a tela mostra o que pode, o servidor confere o mesmo.
  */
 
-export type TipoSolicitacao = "edicao" | "adiamento" | "remover_comentario";
+export type TipoSolicitacao = "edicao" | "adiamento" | "remover_comentario" | "nacional";
 export type StatusSolicitacao = "em_analise" | "aprovada" | "recusada" | "cancelada";
 
 export const NOME_TIPO_SOLICITACAO: Record<TipoSolicitacao, string> = {
   edicao: "Edição da rifa",
   adiamento: "Adiamento do sorteio",
   remover_comentario: "Remoção de comentário",
+  nacional: "Rifa nacional",
 };
 
 export const NOME_STATUS_SOLICITACAO: Record<StatusSolicitacao, string> = {

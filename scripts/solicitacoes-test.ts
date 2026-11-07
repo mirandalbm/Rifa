@@ -334,6 +334,47 @@ async function main() {
     checa("a página da rifa mostra o adiamento e a data de antes",
       r.json?.campaign?.adiamentos === 1 && new Date(r.json?.campaign?.drawAtOriginal).getTime() === antes.getTime(),
       `HTTP ${r.status}`);
+
+    /* ------------------- tipo `nacional` (PR 2 da rifa nacional) ------------------- */
+    console.log("\n  tipo nacional (ainda sem serviço):");
+    // Antes, todo tipo que não era edição caía no ramo do adiamento. Um pedido
+    // `nacional` (que nenhuma rota cria ainda) tem de recusar sem tocar na data.
+    const [antesNac] = await db.select().from(campaigns).where(eq(campaigns.id, noAr.id));
+    const [pedidoNac] = await db
+      .insert(campanhaSolicitacoes)
+      .values({
+        protocolo: "RS-TESTE-NACIONAL",
+        campaignId: noAr.id,
+        organizationId: antesNac.organizationId,
+        tipo: "nacional",
+        // Com as datas de um adiamento de verdade: no código de antes (todo tipo
+        // que não era edição caía no adiamento) este pedido moveria a data.
+        drawAtAtual: antesNac.drawAt,
+        drawAtNovo: new Date((antesNac.drawAt ?? new Date()).getTime() + 10 * DIA),
+        motivo: "teste do tipo nacional",
+      })
+      .returning();
+    r = await admin.req("POST", `/api/admin/solicitacoes/${pedidoNac.id}/decidir`, { aprovar: true, resposta: "Ok" });
+    const [depoisNac] = await db.select().from(campaigns).where(eq(campaigns.id, noAr.id));
+    const [aindaNac] = await db.select().from(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, pedidoNac.id));
+    checa("aprovar um pedido nacional ainda não é possível (409)", r.status === 409, `HTTP ${r.status}`);
+    checa(
+      "…e a rifa não foi tratada como adiamento, mesmo com as datas de um: data, data original e adiamentos ficam como estavam",
+      depoisNac.drawAt?.getTime() === antesNac.drawAt?.getTime() &&
+        depoisNac.adiamentos === antesNac.adiamentos &&
+        depoisNac.drawAtOriginal?.getTime() === antesNac.drawAtOriginal?.getTime(),
+    );
+    checa("…e o pedido segue em análise (nada decidido pela metade)", aindaNac.status === "em_analise");
+    const segundo = await db
+      .insert(campanhaSolicitacoes)
+      .values({
+        protocolo: "RS-TESTE-NACIONAL-2",
+        campaignId: noAr.id,
+        organizationId: antesNac.organizationId,
+        tipo: "nacional",
+      })
+      .then(() => "inseriu", (e: any) => String(e?.cause?.constraint ?? e?.constraint ?? e?.message));
+    checa("um pedido nacional em análise por rifa: o índice parcial cobre o tipo novo", segundo === "uq_solicitacao_rifa_em_analise", segundo);
   } finally {
     await limpar();
   }

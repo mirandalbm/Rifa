@@ -111,7 +111,7 @@ a arrecadação é uma conta, não um contador.
 | `nacional_status` | `text` nula, `CHECK` em `('em_analise','aprovada')` | O estado **de agora** na própria linha da rifa. Nula = comum. A vitrine e o `PATCH` leem daqui, sem junção |
 | `nacional_aprovada_em` | `timestamp` nula | Quando o master aprovou (a ordem, na opção A) |
 | `nacional_arrecadacao_cents` | `bigint` nula | A arrecadação **fotografada** no pedido e conferida na aprovação |
-| `nacional_minimo_cents` | `integer` nula | O mínimo em vigor **quando aprovou**. Mudar a config depois não derruba quem já foi aprovada (a mesma ideia da cobrança fotografada, invariante 13) **[proposta]** |
+| `nacional_minimo_cents` | `bigint` nula (**corrigido na PR 2**: o plano dizia `integer`, mas o teto de sanidade do mínimo, R$ 100 milhões = `10_000_000_000` centavos, passa de 2³¹) | O mínimo em vigor **quando aprovou**. Mudar a config depois não derruba quem já foi aprovada (a mesma ideia da cobrança fotografada, invariante 13) **[proposta]** |
 
 `bigint` porque cotas × preço passa de 2³¹: até 1.000.000 de cotas × o maior
 `price_cents` inteiro dá ~2,1 × 10¹⁵ centavos. Cabe com folga em `number`
@@ -424,7 +424,10 @@ o CI) e é revisada pelo `revisor-de-invariantes` antes de mesclar.
 | 5 | **Telas do painel** | `RifaNacionalCard` (aba "A rifa"), ramo em `SolicitacoesDeRifa.tsx`, tipo na Caixa, cartão da config, `docs/VERSOES.md`, `npm run telas` | Médio-baixo: arranjo em 3 larguras e aviso de total/preço travado |
 | 6 | **Texto jurídico** (quando as respostas chegarem) | Termos (e `VIGENCIA_DOS_TERMOS`), contrato/anexo, regulamento se pedirem, texto do selo | Depende de terceiros; **bloqueia ligar o interruptor, não o código** |
 
-**Situação:** a PR 1 está feita (regras puras e configuração, nada ligado;
+**Situação:** a **PR 2 está feita** (esquema: as quatro colunas de `campaigns`, o `check`
+`ck_campaigns_nacional`, o tipo `nacional` em `solicitacao_tipo` e o `else` de adiamento de
+`decidirSolicitacao()` reescrito por tipo; `npm run solicitacoes` prova que um pedido
+`nacional` não mexe mais na data da rifa). A PR 1 está feita (regras puras e configuração, nada ligado;
 `ordenarVitrine()` recebe `{ ligado, teto }` e não só `{ teto }`, e
 `mesclarConfigRifaNacional()` faz a gravação partir da configuração atual).
 As propostas deste plano adotadas no código estão listadas em

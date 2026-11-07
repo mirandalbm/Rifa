@@ -309,6 +309,41 @@ async function main() {
     checa("a rifa aprovada aparece no feed (a ordem é a PR 4)", feed.texto.includes(publicada.slug), `HTTP ${feed.status}`);
     checa("…e nem o feed nem a página trazem arrecadação, mínimo ou data da aprovação", !CAMPOS_DA_APROVACAO.test(feed.texto + pagina.texto), "feed + página");
 
+    /* ------------------------------ a vitrine ------------------------------ */
+    console.log("\n  a vitrine (nacionais no topo, nada some):");
+    const comoAprovada = (dias: number) => ({
+      status: "published" as const,
+      publishedAt: new Date(),
+      nacionalStatus: "aprovada",
+      nacionalAprovadaEm: new Date(Date.now() - dias * DIA),
+      nacionalMinimoCents: MINIMO,
+      nacionalArrecadacaoCents: MINIMO,
+    });
+    // Criadas fora de ordem: a vitrine ordena pela data da aprovação (a mais antiga primeiro), não pela criação.
+    const v3 = await rifa("vit-3", comoAprovada(1));
+    const v1 = await rifa("vit-1", comoAprovada(3));
+    const v2 = await rifa("vit-2", comoAprovada(2));
+    const comum = await rifa("vit-comum", { status: "published", publishedAt: new Date() });
+    const lista = async (qs = "") => (await new Cliente().req("GET", `/api/public/campaigns${qs}`)).json as Array<{ slug: string; nacional?: boolean }>;
+    await admin.req("PUT", "/api/admin/rifa-nacional/config", { ligado: true, teto: 2 });
+    let feedLigado = await lista("?uf=AC");
+    const meus = [v1, v2, v3, comum].map((x) => x.slug);
+    checa("com teto 2, as duas nacionais mais antigas abrem a vitrine, de qualquer estado", feedLigado[0]?.slug === v1.slug && feedLigado[1]?.slug === v2.slug, feedLigado.slice(0, 3).map((x) => x.slug).join(", "));
+    checa("a que passou do teto não some: aparece uma vez, depois delas", feedLigado.filter((x) => x.slug === v3.slug).length === 1 && feedLigado.findIndex((x) => x.slug === v3.slug) > 1);
+    checa("cada rifa aparece uma vez só", new Set(feedLigado.map((x) => x.slug)).size === feedLigado.length);
+    checa("o selo vem do servidor: as três aprovadas são `nacional`, a comum não", [v1, v2, v3].every((x) => feedLigado.find((f) => f.slug === x.slug)?.nacional === true) && feedLigado.find((f) => f.slug === comum.slug)?.nacional === false);
+    const paginaV1 = await new Cliente().req("GET", `/api/public/campaigns/${v1.slug}`);
+    checa("a página da rifa também diz `nacional: true`", paginaV1.json?.campaign?.nacional === true, `HTTP ${paginaV1.status}`);
+
+    await admin.req("PUT", "/api/admin/rifa-nacional/config", { ligado: false });
+    const feedDesligado = await lista("?uf=AC");
+    checa("desligado, nenhuma rifa leva o selo e a página não diz `nacional`", feedDesligado.every((x) => !x.nacional) && (await new Cliente().req("GET", `/api/public/campaigns/${v1.slug}`)).json?.campaign?.nacional === false);
+    checa("desligado, nada some: as mesmas rifas, só a ordem volta à de antes", feedDesligado.length === feedLigado.length && meus.every((s) => feedDesligado.some((x) => x.slug === s)));
+    checa("desligado, as nacionais não ficam fixas no topo (a ordem é a de sempre)", feedDesligado.slice(0, 2).map((x) => x.slug).join() !== [v1.slug, v2.slug].join() || feedDesligado.length < 3);
+    const porEstado = await lista("?estado=AC");
+    checa("`/estado/UF` segue filtrando como antes (a nacional de outro estado não entra)", !porEstado.some((x) => meus.includes(x.slug)));
+    await admin.req("PUT", "/api/admin/rifa-nacional/config", { ligado: true, teto: 3 });
+
     /* ------------------------------ auditoria ------------------------------ */
     console.log("\n  auditoria:");
     const aA = await auditoria(a.id);

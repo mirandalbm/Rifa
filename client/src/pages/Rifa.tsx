@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PublicShell, acimaDoRodape } from "@/components/AppShell";
-import { Money, Progress, Button, Card } from "@/components/bits";
+import { Money, Progress, Button, Card, Pill } from "@/components/bits";
 import { apiRequest } from "@/lib/queryClient";
 import { useSession } from "@/lib/session";
 import {
@@ -74,6 +74,8 @@ interface CampaignDetail {
     sorteioOficial?: { id: string; selo: string; loteriaNome: string } | null;
     temCertificado?: boolean;
     demonstracao?: boolean;
+    /** Rifa nacional aprovada pela plataforma (o selo, em texto). */
+    nacional?: boolean;
     travada?: boolean;
     /** `published`, `closed` (esperando o sorteio) ou `drawn` (sorteada). */
     status?: string;
@@ -530,6 +532,12 @@ export default function Rifa() {
         </div>
         <Progress value={sold} total={campaign.totalQuotas} tone="yellow" />
       </div>
+
+      {campaign.nacional ? (
+        <p className="mt-4 flex flex-wrap items-center gap-1.5 text-xs text-ink-2">
+          <Pill status="pending">Nacional</Pill> rifa aprovada pela plataforma para todo o Brasil
+        </p>
+      ) : null}
 
       {campaign.demonstracao ? (
         <div className="mt-4 rounded-lg border border-yellow bg-yellow-soft p-3">

@@ -21,7 +21,12 @@ export const NOME_TEMA_AJUDA: Record<Pergunta["tema"], string> = {
   organizador: "Para organizadores",
 };
 
-export function perguntasDaAjuda(p: { taxaReembolsoPct: number; aceitaReembolso: boolean }): Pergunta[] {
+export function perguntasDaAjuda(p: {
+  taxaReembolsoPct: number;
+  aceitaReembolso: boolean;
+  /** A rifa nacional está ligada: só então a pergunta existe (não se explica o que não está no ar). */
+  rifaNacional?: boolean;
+}): Pergunta[] {
   return [
     {
       id: "como-comprar",
@@ -57,6 +62,19 @@ export function perguntasDaAjuda(p: { taxaReembolsoPct: number; aceitaReembolso:
         "Toda rifa publicada aqui tem autorização da SPA/MF (Lei 5.768/1971). O número do certificado e o arquivo ficam na página da rifa, em \"ver certificado\", e no regulamento.",
       ],
     },
+    ...(p.rifaNacional
+      ? [
+          {
+            id: "rifa-nacional",
+            tema: "comprar" as const,
+            pergunta: "O que é uma rifa nacional?",
+            resposta: [
+              "É a rifa que a plataforma destaca no topo da vitrine, para todo mundo, em qualquer estado, com o selo \"Nacional\". A organização pede, só a plataforma aprova, e o pedido só vale para rifa de maior arrecadação (cotas × preço), a partir de um valor que a plataforma define.",
+              "O selo não é garantia de resultado e não substitui a autorização da SPA/MF: cada rifa segue com a própria autorização, as próprias regras e o próprio regulamento, na página dela.",
+            ],
+          },
+        ]
+      : []),
     {
       id: "como-sorteia",
       tema: "sorteio",

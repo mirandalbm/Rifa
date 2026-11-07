@@ -24,6 +24,8 @@ export interface RifaDoFeed {
   bannerLqip?: string | null;
   autorizacao: string | null;
   demonstracao?: boolean;
+  /** Rifa nacional aprovada pela plataforma: o selo "Nacional" em texto (vem do servidor). */
+  nacional?: boolean;
   /** Comentários visíveis na publicação. */
   comentarios?: number;
   status?: string;
@@ -107,6 +109,11 @@ export function CartaoDoFeed({ rifa: c, origem = "vitrine" }: { rifa: RifaDoFeed
       <Link href={href} onClick={() => marcarOrigem(origem)} className="mx-3 mt-3 block rounded-xl border border-line px-3.5 py-3 hover:bg-mist">
         <div className="space-y-2">
           <h2 className="font-display text-base font-bold leading-tight">{c.prizeTitle}</h2>
+          {c.nacional ? (
+            <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-2">
+              <Pill status="pending">Nacional</Pill> rifa aprovada pela plataforma para todo o Brasil
+            </p>
+          ) : null}
           {c.demonstracao ? (
             <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-2">
               <Pill status="pending">Demonstração</Pill> exemplo, não está à venda

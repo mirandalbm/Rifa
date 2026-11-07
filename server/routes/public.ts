@@ -86,6 +86,7 @@ import { extracoesDaRifa } from "../services/sortear";
 import { normalizePhone, hidePhone, formatQuota } from "@shared/format";
 import { listPublicCampaigns, campaignBySlug, certificadoDa } from "../services/campaigns";
 import { ufValida, ordenarPorProximidade, cidadeUf, distancia, enderecoEmUmaLinha } from "@shared/endereco";
+import { ordenarVitrine } from "@shared/rifaNacional";
 import { montarRegulamento } from "@shared/regulamento";
 import { enderecoDa } from "../services/orgs";
 import { ehUuid } from "@shared/uuid";
@@ -232,16 +233,22 @@ publicRouter.get("/campaigns", async (req, res, next) => {
         ? req.query.estado.toUpperCase()
         : null;
     const todas = await listPublicCampaigns();
-    const rows = ordenarPorProximidade(
-      todas
-        .filter((r) => !estado || r.organizacao?.uf === estado)
-        .map((r) => ({
+    const candidatas = todas
+      .filter((r) => !estado || r.organizacao?.uf === estado)
+      .map((r) => ({
         ...r,
         uf: r.organizacao?.uf ?? null,
         cidade: r.organizacao?.cidade ?? null,
-      })),
-      { uf, cidade },
-    );
+        // A rifa nacional aprovada abre a vitrine (`ordenarVitrine`); a de demonstração nunca.
+        id: r.campaign.id,
+        nacionalStatus: r.campaign.demonstracao ? null : r.campaign.nacionalStatus,
+        nacionalAprovadaEm: r.campaign.nacionalAprovadaEm,
+      }));
+    // `/estado/UF` é escolha explícita da pessoa e segue como era; a vitrine em si
+    // põe as nacionais no topo (até o teto) e ordena o resto por região. Nada some.
+    const rows = estado
+      ? ordenarPorProximidade(candidatas, { uf, cidade })
+      : ordenarVitrine(candidatas, { uf, cidade }, (await getPlataforma()).rifaNacional);
     res.json(await cartoesDoFeed(req, rows, uf, cidade));
   } catch (err) {
     next(err);
@@ -605,6 +612,8 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
     const bannerBy = new Map(ids.map((id) => [id, midias.get(id)?.find((m) => m.role === "banner")]));
     // Carrinho e comprar só aparecem na rifa que vende agora.
     const pixOnline = (await getPaymentMethods()).pix_online;
+    // O selo "Nacional" vem do servidor (só o booleano) e só com o interruptor ligado.
+    const nacionalLigada = (await getPlataforma()).rifaNacional.ligado;
 
     return (
       rows.map(({ campaign, stats, organizacao }) => ({
@@ -634,6 +643,7 @@ async function cartoesDoFeed(req: Request, rows: LinhaDaVitrine[], uf: string | 
         // Selo "Autorizada SPA/MF": rifa no ar sempre tem (não publica sem).
         autorizacao: campaign.authorizationCode,
         demonstracao: campaign.demonstracao,
+        nacional: nacionalLigada && campaign.nacionalStatus === "aprovada" && !campaign.demonstracao,
         comentarios: campaign.comentariosCount,
         status: campaign.status,
         vende: rifaAVenda({
@@ -1073,7 +1083,7 @@ publicRouter.get("/app", async (_req, res, next) => {
   try {
     const p = await getPlataforma();
     res.setHeader("Cache-Control", "public, max-age=60");
-    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado, mensagensLigado: p.mensagensLigado, buscarLigado: p.buscarLigado, buscarTipos: p.buscarTipos, fundoDaConversaPct: p.fundoDaConversaPct });
+    res.json({ avisoDoTrevo: p.avisoDoTrevo, publicarApostador: p.publicarApostador, reelsLigado: p.reelsLigado, mensagensLigado: p.mensagensLigado, buscarLigado: p.buscarLigado, buscarTipos: p.buscarTipos, fundoDaConversaPct: p.fundoDaConversaPct, rifaNacionalLigada: p.rifaNacional.ligado });
   } catch (err) {
     next(err);
   }
@@ -1511,6 +1521,11 @@ publicRouter.get("/campaigns/:slug", async (req, res, next) => {
         transmissaoUrl: found.campaign.transmissaoUrl,
         status: found.campaign.status,
         demonstracao: found.campaign.demonstracao,
+        // O selo "Nacional": só o booleano, e só com o interruptor ligado.
+        nacional:
+          found.campaign.nacionalStatus === "aprovada" &&
+          !found.campaign.demonstracao &&
+          (await getPlataforma()).rifaNacional.ligado,
         // O sorteio oficial da plataforma em que a rifa está: o selo da página.
         sorteioOficial: await seloDaRifa(found.campaign.sorteioOficialId),
       },

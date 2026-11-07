@@ -13,14 +13,16 @@ export default function Ajuda() {
   const { data: checkout } = useQuery<{ reembolso?: { aceita: boolean; taxaPct: number } }>({
     queryKey: ["/api/public/checkout"],
   });
+  const { data: app } = useQuery<{ rifaNacionalLigada?: boolean }>({ queryKey: ["/api/public/app"], staleTime: 60_000 });
   const [termo, setTermo] = useState("");
   const perguntas = useMemo(
     () =>
       perguntasDaAjuda({
         taxaReembolsoPct: checkout?.reembolso?.taxaPct ?? 10,
         aceitaReembolso: checkout?.reembolso?.aceita ?? false,
+        rifaNacional: app?.rifaNacionalLigada === true,
       }),
-    [checkout],
+    [checkout, app],
   );
   const achadas = buscarNaAjuda(perguntas, termo);
 

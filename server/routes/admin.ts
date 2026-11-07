@@ -199,6 +199,14 @@ import {
   valoresNovos,
 } from "../services/solicitacoes";
 import {
+  abrirMaoDaNacional,
+  atualizarRascunho,
+  estadoDaNacional,
+  pedirNacional,
+  revogarNacional,
+} from "../services/rifaNacional";
+import { mesclarConfigRifaNacional } from "@shared/rifaNacional";
+import {
   criarDemonstracao,
   preencherComExemplo,
   removerDemonstracao,
@@ -673,11 +681,9 @@ adminRouter.patch("/campaigns/:id", async (req, res, next) => {
       : null;
     if (limites) return res.status(422).json({ message: limites });
 
-    const [updated] = await db
-      .update(campaigns)
-      .set(changes)
-      .where(eq(campaigns.id, campaign.id))
-      .returning();
+    // Total e preço travam enquanto houver pedido de rifa nacional ou aprovação
+    // (a condição mora no próprio `UPDATE`: `atualizarRascunho`).
+    const updated = await atualizarRascunho(campaign.id, changes);
 
     await audit(req, "campaign.update", "campaign", campaign.id, changes);
     res.json(updated);
@@ -728,7 +734,7 @@ adminRouter.post("/campaigns/:id/editar", async (req, res, next) => {
           })
         : null;
       if (limites) return res.status(422).json({ message: limites });
-      const [updated] = await db.update(campaigns).set(changes).where(eq(campaigns.id, campaign.id)).returning();
+      const updated = await atualizarRascunho(campaign.id, changes);
       await audit(req, "campaign.update", "campaign", campaign.id, changes);
       return res.json({ aplicada: true, campaign: updated });
     }
@@ -1046,6 +1052,74 @@ adminRouter.post("/campaigns/:id/destravar", async (req, res, next) => {
     const feito = await destravarRifa(req.params.id);
     await audit(req, "campaign.destravar", "campaign", req.params.id, {});
     res.json(feito);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------- rifa nacional (docs/PLANO-RIFA-NACIONAL.md) ------------- */
+
+/** A configuração: lê quem está no painel (a organização vê o mínimo); grava só a plataforma (403). */
+adminRouter.get("/rifa-nacional/config", async (_req, res, next) => {
+  try {
+    res.json((await getPlataforma()).rifaNacional);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.put("/rifa-nacional/config", async (req, res, next) => {
+  try {
+    requirePlatformAdmin(req);
+    // Parte da configuração de agora, sob a trava: salvar só o mínimo não desliga nada.
+    const salva = await setPlataforma((atual) => ({
+      rifaNacional: mesclarConfigRifaNacional(atual.rifaNacional, req.body),
+    }));
+    await audit(req, "plataforma.rifa_nacional", "settings", "plataforma", salva.rifaNacional);
+    res.json(salva.rifaNacional);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** O estado de agora da rifa: a conta, o mínimo, o pedido. A do vizinho é 404. */
+adminRouter.get("/campaigns/:id/nacional", async (req, res, next) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json(await estadoDaNacional(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A organização pede o título de nacional; a plataforma decide pelo `/solicitacoes/:id/decidir`. */
+adminRouter.post("/campaigns/:id/nacional", async (req, res, next) => {
+  try {
+    const pedido = await pedirNacional(req, req.params.id);
+    res.status(202).json({
+      protocolo: pedido.protocolo,
+      solicitacaoId: pedido.id,
+      arrecadacaoCents: pedido.arrecadacaoCents,
+      minimoCents: pedido.minimoCents,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A organização abre mão (cancela o pedido ou tira a aprovação). */
+adminRouter.delete("/campaigns/:id/nacional", async (req, res, next) => {
+  try {
+    res.json(await abrirMaoDaNacional(req, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** A plataforma revoga a aprovação, com motivo (403 para organizador, no `npm run isolation`). */
+adminRouter.post("/campaigns/:id/nacional/revogar", async (req, res, next) => {
+  try {
+    res.json(await revogarNacional(req, req.params.id, req.body?.motivo));
   } catch (err) {
     next(err);
   }
@@ -1500,8 +1574,8 @@ adminRouter.get("/campaigns/:id/blockers", async (req, res, next) => {
 adminRouter.post("/campaigns/:id/tirar-do-ar", async (req, res, next) => {
   try {
     requirePlatformAdmin(req);
-    await tirarDoAr(req.params.id);
-    await audit(req, "campaign.tirar_do_ar", "campaign", req.params.id, {});
+    const feito = await tirarDoAr(req.params.id);
+    await audit(req, "campaign.tirar_do_ar", "campaign", req.params.id, feito.perdeuNacional ? { perdeuNacional: feito.perdeuNacional } : {});
     res.json({ ok: true });
   } catch (err) {
     if (err instanceof CampaignRuleError) {

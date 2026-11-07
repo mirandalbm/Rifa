@@ -52,6 +52,7 @@
     "afiliados": "tsx scripts/afiliados-test.ts",
     "divulgacao": "tsx scripts/divulgacao-test.ts",
     "agenda-rifa": "tsx scripts/agenda-rifa-test.ts",
+    "rifa-nacional": "tsx scripts/rifa-nacional-test.ts",
     "subdominio": "tsx scripts/subdominio-test.ts",
     "subdominio-auditoria": "tsx scripts/subdominio-auditoria.ts",
     "subdominio-spa": "tsx scripts/subdominio-spa-test.ts",

@@ -23,7 +23,7 @@ O checklist completo, com o que falta em cada item e quem decide, está em
 - [x] **[código]** "Rifas perto de" virou "Locais" (18/10/2026): painel com "Nacional" no alto (limpa a escolha manual) e os 27 estados com a bandeira de cada um (`LocaisDaVitrine.tsx`, bandeiras CC0 do `pierrelapalu/icones-bandeiras-br-uf`, estilo `circle`, em `client/public/bandeiras/`, sem dependência; origem em `docs/LICENCAS-DE-TERCEIROS.md`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** o advogado responder a **R42** de `docs/PERGUNTAS-AO-ADVOGADO.md` (uso de bandeira de estado numa plataforma comercial); até lá a bandeira é só o ícone do local, com o nome junto, e fora de peça de divulgação e de anúncio.
 - [x] **[código]** Texto oficial abaixo do nome e da logo do rodapé da plataforma (18/10/2026): razão social e CNPJ dos Dados da empresa **publicados** (a linha some se faltar dado) e o aviso de jogo responsável, sem bandeiras (`RodapeDaPlataforma.tsx`, `linhaDaEmpresa()` em `shared/rodape.ts`; registro 203 de `docs/VERSOES.md`). **Falta, fora do código:** a plataforma cadastrar e **publicar** os Dados da empresa em Aparência → Rodapé e empresa — sem isso, só o aviso aparece.
 - [ ] **[decisão]** Rifa nacional: valor mínimo, aprovação só pelo admin e
-  ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço), R$ 100.000, configurável. Plano em `docs/PLANO-RIFA-NACIONAL.md` (PR #268). **PR 1 feito (18/10/2026): as regras puras e a configuração** (`shared/rifaNacional.ts`, `rifaNacional` em `shared/plataforma.ts`, `tests/rifaNacional.test.ts`), nada ligado. Falta: PRs 2 a 6 do plano (esquema, serviço e rotas, vitrine, telas, texto jurídico) e as decisões abaixo (seção 0b).
+  ordem no topo (muda a regra "a localização ordena, nunca esconde"). Decidido em 18/10/2026: criar o conceito; o valor mínimo vale sobre a **arrecadação total** (cotas × preço), R$ 100.000, configurável. Plano em `docs/PLANO-RIFA-NACIONAL.md` (PR #268). **PR 1 feito (18/10/2026): as regras puras e a configuração** (`shared/rifaNacional.ts`, `rifaNacional` em `shared/plataforma.ts`, `tests/rifaNacional.test.ts`), nada ligado. **PR 2 feito (06/11/2026): o esquema** (colunas de `campaigns`, `check`, tipo `nacional`; `db:push` antes do código, sem pedir confirmação de perda; nada lê as colunas ainda). **PR 3 feito (07/11/2026): o serviço e as rotas** (`server/services/rifaNacional.ts`: pedir, aprovar, recusar, cancelar, abrir mão, revogar, total e preço travados com pedido; `npm run rifa-nacional`), ainda sem vitrine nem tela e com o interruptor desligado. Falta: PRs 4 a 6 do plano (vitrine, telas, texto jurídico) e as decisões abaixo (seção 0b).
 - [ ] **[decisão]** Banners por estado (carrossel de 5 em cada estado e no
   nacional) e cadastro no portal de marketing. Decidido em 18/10/2026: fazer depois da rifa nacional.
 - [ ] **[código]** Auditoria de cada acesso (público, apostador, organizador,
@@ -67,10 +67,22 @@ nenhuma delas vale para ninguém ainda. Marque aqui quando confirmar.
 - [ ] **[decisão]** O mínimo mudado na configuração não derruba a aprovada
   (retrato em `nacional_minimo_cents`, PR 2); `mesclarConfigRifaNacional()`
   já parte da configuração atual para a rota de gravar (PR 3 ou 5).
-- Ficam abertas as decisões 3 (travar ou invalidar total e preço), 7
-  (rifa da própria plataforma), 8 (tirar do ar e o selo depois do sorteio),
-  9 (selo nas artes), 10 (cobrança do topo), 12, 13 e as respostas R24 a R29
-  do advogado — nenhuma afeta o PR 1.
+- [x] **[decisão]** Total e preço **travam** enquanto houver pedido ou
+  aprovação (decisão 3, a recomendada do plano; confirmada em 07/11/2026:
+  "siga as recomendações do plano"): `atualizarRascunho()` põe a condição no
+  próprio `UPDATE`; mandar o mesmo valor passa. O excedente do topo cheio
+  **cai no resto da vitrine** (decisão 2), sem barrar a aprovação.
+- [ ] **[decisão]** Adotadas na PR 3, a confirmar: o pedido vale em
+  **rascunho e rifa no ar** (decisão 12); **a plataforma não pede pela
+  organização** (403 — ela aprova; decisão 7 segue aberta para a rifa da
+  própria plataforma); **tirar do ar derruba a aprovação** e cancela o pedido
+  em análise (decisão 8); recusar, cancelar e abrir mão devolvem a rifa ao
+  estado comum; revogar exige motivo (≥ 10 letras) e o escreve na conversa do
+  pedido aprovado; aprovar relê a rifa e o mínimo **de agora**.
+- [ ] **[código]** PR 5: avisar a organização quando perde a aprovação (revogar, tirar do ar) no sino do painel — hoje o motivo da revogação só aparece na conversa do pedido aprovado e o tirar do ar só na auditoria (achado da revisão da PR 3; plano, seção 4).
+- Ficam abertas as decisões 7 (rifa da própria plataforma), 8 (o selo depois
+  do sorteio), 9 (selo nas artes), 10 (cobrança do topo), 13 e as respostas
+  R24 a R29 do advogado.
 
 ### Respostas de 18/10/2026 (seções 1 e 2 das perguntas)
 

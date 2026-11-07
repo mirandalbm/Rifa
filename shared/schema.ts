@@ -672,6 +672,27 @@ export const campaigns = pgTable(
      */
     sorteioAutoMotivo: text("sorteio_auto_motivo"),
     sorteioAutoEm: timestamp("sorteio_auto_em"),
+    /**
+     * Rifa nacional (`docs/PLANO-RIFA-NACIONAL.md`, `shared/rifaNacional.ts`):
+     * o estado **de agora**, na própria linha. Nulo é rifa comum; `em_analise`
+     * é o pedido da organização; `aprovada` é a palavra da plataforma, que põe
+     * a rifa no topo da vitrine. A linha de `campanha_solicitacoes` guarda
+     * protocolo e conversa, e as duas mudam sempre na mesma transação.
+     * Nada lê estas colunas ainda (PR 2 do plano: só o esquema).
+     */
+    nacionalStatus: text("nacional_status"),
+    nacionalAprovadaEm: timestamp("nacional_aprovada_em"),
+    /**
+     * A arrecadação (cotas × preço) fotografada no pedido, em centavos.
+     * `bigint`: 1.000.000 de cotas × o maior preço passa de 2³¹.
+     */
+    nacionalArrecadacaoCents: bigint("nacional_arrecadacao_cents", { mode: "number" }),
+    /**
+     * O mínimo em vigor quando a plataforma aprovou: mudar a configuração depois
+     * não derruba quem já foi aprovada (a mesma ideia da cobrança fotografada).
+     * `bigint` porque o teto do mínimo (R$ 100 milhões) passa de 2³¹ centavos.
+     */
+    nacionalMinimoCents: bigint("nacional_minimo_cents", { mode: "number" }),
     featured: boolean("featured").notNull().default(false),
     sortWeight: integer("sort_weight").notNull().default(0),
     publishedAt: timestamp("published_at"),
@@ -687,6 +708,17 @@ export const campaigns = pgTable(
     // A busca por texto (Buscar): título e prêmio, sem acento.
     index(trgm("idx_campaigns_titulo")).using("gin", trigramaSemAcento(t.title)),
     index(trgm("idx_campaigns_premio")).using("gin", trigramaSemAcento(t.prizeTitle)),
+    // A rifa nacional só tem dois estados guardados (`NACIONAL_STATUS` em
+    // `shared/rifaNacional.ts`); nulo é rifa comum. O dado não fica pela metade:
+    // aprovada leva a data da aprovação, a arrecadação e o mínimo daquele dia.
+    check(
+      "ck_campaigns_nacional",
+      sql`(${t.nacionalStatus} is null and ${t.nacionalAprovadaEm} is null and ${t.nacionalMinimoCents} is null)
+        or (${t.nacionalStatus} = 'em_analise' and ${t.nacionalAprovadaEm} is null and ${t.nacionalMinimoCents} is null
+            and ${t.nacionalArrecadacaoCents} is not null)
+        or (${t.nacionalStatus} = 'aprovada' and ${t.nacionalAprovadaEm} is not null
+            and ${t.nacionalArrecadacaoCents} is not null and ${t.nacionalMinimoCents} is not null)`,
+    ),
   ],
 );
 
@@ -1354,7 +1386,7 @@ export const auditLog = pgTable(
  * Mudança em rifa publicada: edição e adiamento, analisados pela plataforma
  * ------------------------------------------------------------------ */
 
-export const solicitacaoTipo = pgEnum("solicitacao_tipo", ["edicao", "adiamento", "remover_comentario"]);
+export const solicitacaoTipo = pgEnum("solicitacao_tipo", ["edicao", "adiamento", "remover_comentario", "nacional"]);
 export const solicitacaoStatus = pgEnum("solicitacao_status", [
   "em_analise",
   "aprovada",

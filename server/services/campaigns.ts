@@ -44,6 +44,7 @@ import { problemaNoPremio } from "@shared/premio";
 import { problemaDoValeBrinde } from "@shared/premiadas";
 import { problemaDosSocios } from "./socios";
 import { problemaDeInadimplencia } from "./inadimplencia";
+import { RecomecarPorPedidoNovo, comPedidoNacionalVisto } from "./rifaNacional";
 
 export class CampaignRuleError extends Error {
   constructor(message: string) {
@@ -696,10 +697,26 @@ export async function certificadoDa(campaignId: string) {
  * e publicar de novo sorteia outra semente.
  */
 export async function tirarDoAr(campaignId: string) {
-  return db.transaction(async (tx) => {
+  return comPedidoNacionalVisto(() => db.transaction(async (tx) => {
+    // Rifa nacional: o pedido em análise (solicitação) é travado antes da rifa,
+    // a ordem de `decidirSolicitacao()`. Voltando a rascunho, total e preço
+    // voltam a poder mudar: a aprovação era daquele número e cai (plano da
+    // rifa nacional, seção 4) — e o pedido em análise é cancelado junto.
+    const travados = await tx.execute(sql`
+      SELECT id FROM campanha_solicitacoes
+       WHERE campaign_id = ${campaignId}::uuid AND tipo = 'nacional' AND status = 'em_analise'
+       FOR UPDATE
+    `);
+    const [antes] = (
+      await tx.execute(sql`SELECT nacional_status FROM campaigns WHERE id = ${campaignId}::uuid FOR UPDATE`)
+    ).rows as { nacional_status: string | null }[];
+    // Pedido que nasceu entre as duas leituras: recomeça, travando a solicitação primeiro.
+    if (antes?.nacional_status === "em_analise" && !travados.rows.length) throw new RecomecarPorPedidoNovo();
     const r = await tx.execute(sql`
       UPDATE campaigns
-         SET status = 'draft', published_at = NULL, draw_seed_hash = NULL
+         SET status = 'draft', published_at = NULL, draw_seed_hash = NULL,
+             nacional_status = NULL, nacional_aprovada_em = NULL,
+             nacional_minimo_cents = NULL, nacional_arrecadacao_cents = NULL
        WHERE id = ${campaignId}::uuid
          AND status = 'published'
          AND NOT EXISTS (SELECT 1 FROM orders
@@ -715,8 +732,16 @@ export async function tirarDoAr(campaignId: string) {
       throw new CampaignRuleError("Esta rifa já tem compra: não sai do ar sem estornar quem comprou.");
     }
     await tx.execute(sql`DELETE FROM draws WHERE campaign_id = ${campaignId}::uuid AND executed_at IS NULL`);
-    return { ok: true };
-  });
+    if (antes?.nacional_status === "em_analise") {
+      await tx.execute(sql`
+        UPDATE campanha_solicitacoes
+           SET status = 'cancelada', decisao = 'A rifa saiu do ar: o pedido de rifa nacional foi cancelado.',
+               decidido_em = now() AT TIME ZONE 'UTC'
+         WHERE campaign_id = ${campaignId}::uuid AND tipo = 'nacional' AND status = 'em_analise'
+      `);
+    }
+    return { ok: true, perdeuNacional: antes?.nacional_status ?? null };
+  }));
 }
 
 /**

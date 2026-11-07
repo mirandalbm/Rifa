@@ -7,8 +7,8 @@ Gerada do código por `npm run matriz` — **não edite à mão** (o teste `test
 | Telas (rotas do `App.tsx`) | 66 (+ 2 redirecionamentos) |
 | Seções de acesso (`shared/access.ts`) | 41 |
 | Cartões (componentes usados pelas telas) | 867 |
-| Rotas da API | 492, das quais 489 citadas por alguma prova |
-| Provas contra a API (`npm run …`) | 70 |
+| Rotas da API | 498, das quais 495 citadas por alguma prova |
+| Provas contra a API (`npm run …`) | 71 |
 | Testes de regra (`tests/`) | 148 arquivos |
 | Destinos decididos | 974 de 974 |
 
@@ -1339,15 +1339,15 @@ Cada componente que a tela importa de `components/` precisa de lugar novo (ou da
 
 A API não muda de lugar na reformulação. Aqui está para que a tela nova não deixe rota sem prova: "—" quer dizer que nenhum arquivo de `scripts/` ou `tests/` cita o caminho.
 
-### `server/routes/admin.ts` — /api/admin (268 rotas, 267 com prova)
+### `server/routes/admin.ts` — /api/admin (274 rotas, 273 com prova)
 
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/overview` | `afiliados-test.ts`, `cambista-test.ts`, `guarda-test.ts` +1 |
 | GET | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +5 |
 | POST | `/campaigns` | `acessos-test.ts`, `agenda-rifa-test.ts`, `apuracao-test.ts` +5 |
-| PATCH | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +9 |
-| POST | `/campaigns/:id/editar` | `acessos-test.ts`, `apuracao-test.ts`, `isolation-test.ts` +1 |
+| PATCH | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +10 |
+| POST | `/campaigns/:id/editar` | `acessos-test.ts`, `apuracao-test.ts`, `isolation-test.ts` +2 |
 | POST | `/campaigns/:id/adiar` | `isolation-test.ts`, `solicitacoes-test.ts`, `sorteios-oficiais-test.ts` |
 | GET | `/organizacoes/:id/telefone` | `isolation-test.ts`, `seguranca-test.ts` |
 | POST | `/organizacoes/:id/telefone` | `isolation-test.ts`, `seguranca-test.ts` |
@@ -1374,12 +1374,18 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/sorteios-oficiais/denuncias/:id` | `isolation-test.ts`, `sorteio-comentarios-test.ts` |
 | POST | `/sorteios-oficiais/denuncias/:id/decidir` | `isolation-test.ts`, `sorteio-comentarios-test.ts` |
 | POST | `/campaigns/:id/destravar` | `isolation-test.ts`, `seguranca-test.ts` |
+| GET | `/rifa-nacional/config` | `isolation-test.ts`, `rifa-nacional-test.ts` |
+| PUT | `/rifa-nacional/config` | `isolation-test.ts`, `rifa-nacional-test.ts` |
+| GET | `/campaigns/:id/nacional` | `isolation-test.ts`, `rifa-nacional-test.ts` |
+| POST | `/campaigns/:id/nacional` | `isolation-test.ts`, `rifa-nacional-test.ts` |
+| DELETE | `/campaigns/:id/nacional` | `isolation-test.ts`, `rifa-nacional-test.ts` |
+| POST | `/campaigns/:id/nacional/revogar` | `isolation-test.ts`, `rifa-nacional-test.ts` |
 | GET | `/solicitacoes` | `isolation-test.ts` |
 | GET | `/solicitacoes/pendentes` | `acessos-test.ts` |
-| GET | `/solicitacoes/:id` | `acessos-test.ts`, `comentarios-test.ts`, `isolation-test.ts` +2 |
+| GET | `/solicitacoes/:id` | `acessos-test.ts`, `comentarios-test.ts`, `isolation-test.ts` +3 |
 | POST | `/solicitacoes/:id/mensagens` | `isolation-test.ts`, `solicitacoes-test.ts` |
-| POST | `/solicitacoes/:id/cancelar` | `isolation-test.ts`, `solicitacoes-test.ts` |
-| POST | `/solicitacoes/:id/decidir` | `comentarios-test.ts`, `isolation-test.ts`, `solicitacoes-test.ts` +1 |
+| POST | `/solicitacoes/:id/cancelar` | `isolation-test.ts`, `rifa-nacional-test.ts`, `solicitacoes-test.ts` |
+| POST | `/solicitacoes/:id/decidir` | `comentarios-test.ts`, `isolation-test.ts`, `rifa-nacional-test.ts` +2 |
 | PUT | `/campaigns/:id/legal` | `apuracao-test.ts`, `bonus-test.ts`, `isolation-test.ts` +3 |
 | PUT | `/campaigns/:id/legenda` | `isolation-test.ts`, `publicacao-test.ts` |
 | GET | `/campaigns/:id/artes` | `artes-test.ts`, `isolation-test.ts` |
@@ -1402,9 +1408,9 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | PUT | `/campaigns/:id/transmissao` | `isolation-test.ts`, `transparencia-test.ts` |
 | GET | `/campaigns/:id/certificado` | `isolation-test.ts` |
 | GET | `/campaigns/:id/blockers` | `apuracao-test.ts`, `cobranca-test.ts`, `contrato-anexos-test.ts` +3 |
-| POST | `/campaigns/:id/tirar-do-ar` | `isolation-test.ts`, `vitrine-test.ts` |
+| POST | `/campaigns/:id/tirar-do-ar` | `isolation-test.ts`, `rifa-nacional-test.ts`, `vitrine-test.ts` |
 | POST | `/campaigns/:id/demonstracao` | `cobranca-test.ts`, `isolation-test.ts`, `vitrine-test.ts` |
-| DELETE | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +9 |
+| DELETE | `/campaigns/:id` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-pago-test.ts` +10 |
 | POST | `/campaigns/:id/publish` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `cobranca-test.ts` +3 |
 | PUT | `/campaigns/:id/agendar-publicacao` | `agenda-rifa-test.ts`, `isolation-test.ts` |
 | PUT | `/campaigns/:id/packages` | `cobranca-test.ts`, `isolation-test.ts` |
@@ -1658,7 +1664,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | Método | Caminho | Provas |
 |---|---|---|
 | GET | `/me` | `acessos-test.ts`, `google-test.ts`, `marketing-test.ts` +1 |
-| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +49 |
+| POST | `/login` | `acessos-test.ts`, `afiliados-test.ts`, `agenda-rifa-test.ts` +50 |
 | POST | `/senha` | `acessos-test.ts`, `afiliados-test.ts`, `cambista-test.ts` +1 |
 | POST | `/logout` | `acessos-test.ts`, `enderecoRotas.test.ts` |
 
@@ -1688,7 +1694,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 | Método | Caminho | Provas |
 |---|---|---|
-| GET | `/campaigns` | `comentarios-test.ts`, `publicacao-test.ts`, `publico-test.ts` +6 |
+| GET | `/campaigns` | `comentarios-test.ts`, `publicacao-test.ts`, `publico-test.ts` +7 |
 | GET | `/o/:slug/mensagens` | `subdominio-test.ts` |
 | GET | `/o/:slug/mensagens/resumo` | `subdominio-test.ts` |
 | POST | `/o/:slug/mensagens` | `subdominio-test.ts` |
@@ -1776,7 +1782,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 | GET | `/cep/:cep` | `conta-test.ts`, `publico-test.ts`, `enderecoRotas.test.ts` |
 | GET | `/campaigns/:slug/certificado` | `publico-test.ts` |
 | GET | `/campaigns/:slug/banner-divulgacao` | `banner-divulgacao-test.ts` |
-| GET | `/campaigns/:slug` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-divulgacao-test.ts` +10 |
+| GET | `/campaigns/:slug` | `agenda-rifa-test.ts`, `apuracao-test.ts`, `banner-divulgacao-test.ts` +11 |
 | GET | `/campaigns/:slug/regulamento` | `apuracao-test.ts`, `bonus-test.ts`, `subdominio-test.ts` +1 |
 | GET | `/campaigns/:slug/sorteio` | `apuracao-test.ts`, `transparencia-test.ts` |
 | GET | `/campaigns/:slug/foto-ganhador` | `publico-test.ts` |
@@ -1880,7 +1886,7 @@ A API não muda de lugar na reformulação. Aqui está para que a tela nova não
 
 Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como parâmetro): é a lista do que a reformulação mexe sem rede de proteção. Pode haver prova que chega à rota por outro caminho; o contrário (prova que cita e não confere) a busca não vê.
 
-- `server/routes/admin.ts` (1 de 268): PUT `/media/raw`
+- `server/routes/admin.ts` (1 de 274): PUT `/media/raw`
 - `server/routes/public.ts` (2 de 160): GET `/mensagens/conversas/:id/fotos/:fotoId`, GET `/divulgacoes/minhas/:id/fotos/:fotoId`
 
 ## 6. Provas contra a API
@@ -1941,6 +1947,7 @@ Busca literal do caminho em `scripts/` e `tests/` (a interpolação vale como pa
 | `relogios` | `scripts/relogios-test.ts` |
 | `resultados` | `scripts/resultados-test.ts` |
 | `retencao` | `scripts/retencao-test.ts` |
+| `rifa-nacional` | `scripts/rifa-nacional-test.ts` |
 | `seguir-pessoas` | `scripts/seguir-pessoas-test.ts` |
 | `seguranca` | `scripts/seguranca-test.ts` |
 | `senha` | `scripts/senha-test.ts` |

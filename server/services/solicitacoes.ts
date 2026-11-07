@@ -56,6 +56,7 @@ import { nomeRealPublico } from "@shared/perfilApostador";
 import { removerNaTransacao } from "./comentarios";
 import { orgOf } from "./orgs";
 import { avisarAdiamento, emSegundoPlano } from "./push";
+import { aprovarNacionalNaTransacao, cancelarNacionalNaTransacao, recusarNacionalNaTransacao } from "./rifaNacional";
 
 export class SolicitacaoError extends Error {
   constructor(message: string, readonly status = 422) {
@@ -394,15 +395,22 @@ export async function escreverNaSolicitacao(req: Request, id: string, texto: unk
   return { ok: true };
 }
 
-/** A organização desiste do pedido (só em análise). */
+/**
+ * A organização desiste do pedido (só em análise). Pedido de rifa nacional
+ * também devolve a rifa ao estado comum, na mesma transação (a solicitação
+ * primeiro, depois a rifa: a ordem das travas).
+ */
 export async function cancelarSolicitacao(req: Request, id: string) {
   const s = await noRecorte(req, id);
-  const r = await db
-    .update(campanhaSolicitacoes)
-    .set({ status: "cancelada", decididoPor: req.user!.id, decididoEm: new Date() })
-    .where(and(eq(campanhaSolicitacoes.id, s.id), eq(campanhaSolicitacoes.status, "em_analise")))
-    .returning({ id: campanhaSolicitacoes.id });
-  if (!r.length) throw new SolicitacaoError("Este pedido já foi encerrado.", 409);
+  await db.transaction(async (tx) => {
+    const r = await tx
+      .update(campanhaSolicitacoes)
+      .set({ status: "cancelada", decididoPor: req.user!.id, decididoEm: new Date() })
+      .where(and(eq(campanhaSolicitacoes.id, s.id), eq(campanhaSolicitacoes.status, "em_analise")))
+      .returning({ id: campanhaSolicitacoes.id });
+    if (!r.length) throw new SolicitacaoError("Este pedido já foi encerrado.", 409);
+    if (s.tipo === "nacional") await cancelarNacionalNaTransacao(tx, req, s);
+  });
   return { ok: true };
 }
 
@@ -440,6 +448,11 @@ export async function decidirSolicitacao(
         .from(comentarios)
         .where(and(eq(comentarios.id, s.comentarioId!), isNull(comentarios.removidoEm)));
       if (ainda) await removerNaTransacao(tx, s.comentarioId!, req.user!.id);
+    } else if (aprovar && s.tipo === "nacional") {
+      // Rascunho ou rifa no ar: a rifa nacional não depende de a rifa estar
+      // publicada (o plano, seção 2), por isso não passa pela conferência do
+      // ramo abaixo. A rifa é travada dentro (solicitação → rifa).
+      await aprovarNacionalNaTransacao(tx, req, s);
     } else if (aprovar) {
       // Adiamento para um sorteio oficial: o sorteio é travado antes da rifa
       // (a ordem de sempre) e conferido de novo — cancelado, com resultado,
@@ -480,7 +493,7 @@ export async function decidirSolicitacao(
         if (conferido.ok) {
           await tx.update(campaigns).set(valoresNovos(conferido.alteracoes)).where(eq(campaigns.id, c.id));
         }
-      } else {
+      } else if (s.tipo === "adiamento") {
         if (!s.drawAtNovo || !c.drawAt || c.drawAt.getTime() !== s.drawAtAtual?.getTime()) {
           throw new SolicitacaoError("A data do sorteio mudou desde o pedido. Recuse e peça de novo.", 409);
         }
@@ -528,8 +541,17 @@ export async function decidirSolicitacao(
              AND ch.status IN ('aberto', 'aprovado')
              AND ch.tipo_reembolso = 'com_taxa'
         `);
+      } else {
+        // Tipo que este ramo não sabe aplicar. Antes, todo tipo que não era
+        // edição caía no adiamento; agora cada um é tratado pelo nome (o
+        // `nacional` tem o ramo próprio acima), e o que não for conhecido
+        // recusa em vez de mexer na data da rifa.
+        throw new SolicitacaoError(`Este tipo de pedido (${s.tipo}) ainda não pode ser aprovado.`, 409);
       }
     }
+
+    // Recusar o pedido de rifa nacional devolve a rifa ao estado comum.
+    if (!aprovar && s.tipo === "nacional") await recusarNacionalNaTransacao(tx, req, s, resposta);
 
     await tx
       .update(campanhaSolicitacoes)

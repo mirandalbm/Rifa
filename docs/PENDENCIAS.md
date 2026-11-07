@@ -79,6 +79,7 @@ nenhuma delas vale para ninguém ainda. Marque aqui quando confirmar.
   em análise (decisão 8); recusar, cancelar e abrir mão devolvem a rifa ao
   estado comum; revogar exige motivo (≥ 10 letras) e o escreve na conversa do
   pedido aprovado; aprovar relê a rifa e o mínimo **de agora**.
+- [ ] **[código]** PR 5: avisar a organização quando perde a aprovação (revogar, tirar do ar) no sino do painel — hoje o motivo da revogação só aparece na conversa do pedido aprovado e o tirar do ar só na auditoria (achado da revisão da PR 3; plano, seção 4).
 - Ficam abertas as decisões 7 (rifa da própria plataforma), 8 (o selo depois
   do sorteio), 9 (selo nas artes), 10 (cobrança do topo), 13 e as respostas
   R24 a R29 do advogado.

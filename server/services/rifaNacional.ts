@@ -48,6 +48,35 @@ export class RifaNacionalError extends Error {
 
 const NAO_DISPONIVEL = "Rifa nacional não está disponível.";
 
+/**
+ * Lançada quando, com a rifa já travada, aparece um pedido em análise que a
+ * leitura da solicitação (feita antes, para respeitar a ordem das travas
+ * solicitação → rifa) não viu: o pedido nasceu no meio. Quem chama recomeça a
+ * transação, que agora trava a solicitação primeiro. Nunca chega a quem pediu.
+ */
+export class RecomecarPorPedidoNovo extends Error {
+  constructor() {
+    super("pedido nacional nasceu no meio da transação");
+    this.name = "RecomecarPorPedidoNovo";
+  }
+}
+
+/** Roda a transação de novo (até 3 vezes) quando um pedido nacional nasceu no meio dela. */
+export async function comPedidoNacionalVisto<T>(corpo: () => Promise<T>): Promise<T> {
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      return await corpo();
+    } catch (err) {
+      if (!(err instanceof RecomecarPorPedidoNovo) || tentativa >= 2) {
+        if (err instanceof RecomecarPorPedidoNovo) {
+          throw new RifaNacionalError("A rifa mudou no meio do pedido. Tente de novo.", 409);
+        }
+        throw err;
+      }
+    }
+  }
+}
+
 async function auditar(tx: Tx, req: Request | null, action: string, campaignId: string, diff: Record<string, unknown>) {
   await tx.insert(auditLog).values({
     actorId: req?.user?.id ?? null,
@@ -79,7 +108,7 @@ function motivoDaRecusa(c: Campaign, minimoCents: number): string {
   if (c.status !== "draft" && c.status !== "published") return "Só rifa em rascunho ou no ar pode ser nacional.";
   const minimo = problemaNoMinimo(c.totalQuotas, c.priceCents, minimoCents);
   if (minimo) return minimo;
-  return "A rifa já foi sorteada.";
+  return "A rifa já foi sorteada ou mudou no meio do pedido.";
 }
 
 /* ------------------------------------------------------------------ *
@@ -249,32 +278,37 @@ export async function abrirMaoDaNacional(req: Request, campaignId: string) {
   if (!orgOf(req)) {
     throw new RifaNacionalError("Quem abre mão é a organização dona; a plataforma revoga com motivo.", 403);
   }
-  return db.transaction(async (tx) => {
-    const emAnalise = await tx.execute(sql`
-      SELECT id, protocolo FROM campanha_solicitacoes
-       WHERE campaign_id = ${campanha.id}::uuid AND tipo = 'nacional' AND status = 'em_analise'
-       FOR UPDATE
-    `);
-    const [antes] = (
-      await tx.execute(sql`SELECT nacional_status FROM campaigns WHERE id = ${campanha.id}::uuid FOR UPDATE`)
-    ).rows as { nacional_status: string | null }[];
-    if (!antes?.nacional_status) {
-      throw new RifaNacionalError("Esta rifa não tem pedido de rifa nacional nem aprovação.", 409);
-    }
-    const pedido = emAnalise.rows[0] as { id: string; protocolo: string } | undefined;
-    if (pedido) {
-      await tx
-        .update(campanhaSolicitacoes)
-        .set({ status: "cancelada", decididoPor: req.user!.id, decididoEm: new Date() })
-        .where(and(eq(campanhaSolicitacoes.id, pedido.id), eq(campanhaSolicitacoes.status, "em_analise")));
-    }
-    await limparEstado(tx, campanha.id, false);
-    await auditar(tx, req, "nacional.abrir_mao", campanha.id, {
-      eraStatus: antes.nacional_status,
-      protocolo: pedido?.protocolo ?? null,
-    });
-    return { ok: true, eraStatus: antes.nacional_status };
-  });
+  return comPedidoNacionalVisto(() =>
+    db.transaction(async (tx) => {
+      const emAnalise = await tx.execute(sql`
+        SELECT id, protocolo FROM campanha_solicitacoes
+         WHERE campaign_id = ${campanha.id}::uuid AND tipo = 'nacional' AND status = 'em_analise'
+         FOR UPDATE
+      `);
+      const [antes] = (
+        await tx.execute(sql`SELECT nacional_status FROM campaigns WHERE id = ${campanha.id}::uuid FOR UPDATE`)
+      ).rows as { nacional_status: string | null }[];
+      if (!antes?.nacional_status) {
+        throw new RifaNacionalError("Esta rifa não tem pedido de rifa nacional nem aprovação.", 409);
+      }
+      const pedido = emAnalise.rows[0] as { id: string; protocolo: string } | undefined;
+      // A rifa está em análise, mas a solicitação não foi vista (nasceu entre as
+      // duas leituras): recomeça, travando a solicitação primeiro.
+      if (antes.nacional_status === "em_analise" && !pedido) throw new RecomecarPorPedidoNovo();
+      if (pedido) {
+        await tx
+          .update(campanhaSolicitacoes)
+          .set({ status: "cancelada", decididoPor: req.user!.id, decididoEm: new Date() })
+          .where(and(eq(campanhaSolicitacoes.id, pedido.id), eq(campanhaSolicitacoes.status, "em_analise")));
+      }
+      await limparEstado(tx, campanha.id, false);
+      await auditar(tx, req, "nacional.abrir_mao", campanha.id, {
+        eraStatus: antes.nacional_status,
+        protocolo: pedido?.protocolo ?? null,
+      });
+      return { ok: true, eraStatus: antes.nacional_status };
+    }),
+  );
 }
 
 /**

@@ -424,7 +424,7 @@ o CI) e é revisada pelo `revisor-de-invariantes` antes de mesclar.
 | 5 | **Telas do painel** | `RifaNacionalCard` (aba "A rifa"), ramo em `SolicitacoesDeRifa.tsx`, tipo na Caixa, cartão da config, `docs/VERSOES.md`, `npm run telas` | Médio-baixo: arranjo em 3 larguras e aviso de total/preço travado |
 | 6 | **Texto jurídico** (quando as respostas chegarem) | Termos (e `VIGENCIA_DOS_TERMOS`), contrato/anexo, regulamento se pedirem, texto do selo | Depende de terceiros; **bloqueia ligar o interruptor, não o código** |
 
-**Situação:** a **PR 2 está feita** (esquema: as quatro colunas de `campaigns`, o `check`
+**Situação:** a **PR 3 está feita** (07/11/2026: `server/services/rifaNacional.ts`, as rotas `/campaigns/:id/nacional` (POST pede, DELETE abre mão, GET lê o estado), `/campaigns/:id/nacional/revogar` e `/rifa-nacional/config`, o ramo `nacional` de `decidirSolicitacao()`, `cancelarSolicitacao()` e `tirarDoAr()` ligados, e `atualizarRascunho()` travando total e preço; `npm run rifa-nacional` prova, `npm run isolation` confere o recorte). A **PR 2 está feita** (esquema: as quatro colunas de `campaigns`, o `check`
 `ck_campaigns_nacional`, o tipo `nacional` em `solicitacao_tipo` e o `else` de adiamento de
 `decidirSolicitacao()` reescrito por tipo; `npm run solicitacoes` prova que um pedido
 `nacional` não mexe mais na data da rifa). A PR 1 está feita (regras puras e configuração, nada ligado;

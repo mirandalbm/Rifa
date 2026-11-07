@@ -336,9 +336,9 @@ async function main() {
       `HTTP ${r.status}`);
 
     /* ------------------- tipo `nacional` (PR 2 da rifa nacional) ------------------- */
-    console.log("\n  tipo nacional (ainda sem serviço):");
+    console.log("\n  tipo nacional (aprovar sem a rifa em análise):");
     // Antes, todo tipo que não era edição caía no ramo do adiamento. Um pedido
-    // `nacional` (que nenhuma rota cria ainda) tem de recusar sem tocar na data.
+    // `nacional` (cuja rifa não está com o pedido em análise) tem de recusar sem tocar na data.
     const [antesNac] = await db.select().from(campaigns).where(eq(campaigns.id, noAr.id));
     const [pedidoNac] = await db
       .insert(campanhaSolicitacoes)
@@ -357,7 +357,7 @@ async function main() {
     r = await admin.req("POST", `/api/admin/solicitacoes/${pedidoNac.id}/decidir`, { aprovar: true, resposta: "Ok" });
     const [depoisNac] = await db.select().from(campaigns).where(eq(campaigns.id, noAr.id));
     const [aindaNac] = await db.select().from(campanhaSolicitacoes).where(eq(campanhaSolicitacoes.id, pedidoNac.id));
-    checa("aprovar um pedido nacional ainda não é possível (409)", r.status === 409, `HTTP ${r.status}`);
+    checa("aprovar um pedido nacional cuja rifa não está em análise é 409", r.status === 409, `HTTP ${r.status}`);
     checa(
       "…e a rifa não foi tratada como adiamento, mesmo com as datas de um: data, data original e adiamentos ficam como estavam",
       depoisNac.drawAt?.getTime() === antesNac.drawAt?.getTime() &&

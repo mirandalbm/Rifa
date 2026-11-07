@@ -105,7 +105,7 @@ type Leitor = Pick<typeof db, "select">;
 
 let ultimoAvisoDaConfig: string | null = null;
 
-async function lerPlataforma(exec: Leitor): Promise<ConfigPlataforma> {
+export async function lerPlataforma(exec: Leitor): Promise<ConfigPlataforma> {
   const [row] = await exec
     .select()
     .from(appSettings)
